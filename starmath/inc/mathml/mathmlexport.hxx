@@ -83,6 +83,7 @@ class SmXMLExport final : public SvXMLExport
 {
     const SmNode* pTree;
     OUString aText;
+    OUString aImText;
     bool bSuccess;
 
     void ExportNodes(const SmNode* pNode, int nLevel);

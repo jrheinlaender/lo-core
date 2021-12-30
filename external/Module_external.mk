@@ -107,6 +107,8 @@ $(eval $(call gb_Module_add_moduledirs,external,\
 	$(call gb_Helper_optional,XSLTML,xsltml) \
 	$(call gb_Helper_optional,ZLIB,zlib) \
 	$(call gb_Helper_optional,ZMF,libzmf) \
+	$(call gb_Helper_optional,CLN,cln) \
+	$(call gb_Helper_optional,GINAC,ginac) \
 ))
 
 # vim: set noet sw=4 ts=4:

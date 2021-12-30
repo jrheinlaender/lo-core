@@ -156,6 +156,7 @@ namespace {
 enum SmModelPropertyHandles
 {
     HANDLE_FORMULA,
+    HANDLE_IFORMULA,
     HANDLE_FONT_NAME_MATH,
     HANDLE_FONT_NAME_VARIABLES,
     HANDLE_FONT_NAME_FUNCTIONS,
@@ -265,6 +266,7 @@ static const rtl::Reference<PropertySetInfo> & lcl_createModelPropertyInfo ()
         { u"FontVariablesIsBold"_ustr              , HANDLE_FONT_VARIABLES_WEIGHT              ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  FNT_VARIABLE          },
         { u"FontVariablesIsItalic"_ustr            , HANDLE_FONT_VARIABLES_POSTURE             ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  FNT_VARIABLE          },
         { u"Formula"_ustr                          , HANDLE_FORMULA                            ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
+        { u"iFormula"_ustr                         , HANDLE_IFORMULA                           ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
         { u"IsScaleAllBrackets"_ustr               , HANDLE_IS_SCALE_ALL_BRACKETS              ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsTextMode"_ustr                       , HANDLE_IS_TEXT_MODE                       ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsRightToLeft"_ustr                    , HANDLE_IS_RIGHT_TO_LEFT                   ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
@@ -422,6 +424,13 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
                 OUString aText;
                 *pValues >>= aText;
                 pDocSh->SetText(aText);
+            }
+            break;
+            case HANDLE_IFORMULA:
+            {
+                OUString aText;
+                *pValues >>= aText;
+                pDocSh->SetImText(aText);
             }
             break;
             case HANDLE_FONT_NAME_MATH                     :
@@ -728,6 +737,9 @@ void SmModel::_getPropertyValues( const PropertyMapEntry **ppEntries, Any *pValu
         {
             case HANDLE_FORMULA:
                 *pValue <<= pDocSh->GetText();
+            break;
+            case HANDLE_IFORMULA:
+                *pValue <<= pDocSh->GetImText();
             break;
             case HANDLE_FONT_NAME_MATH                     :
             case HANDLE_FONT_NAME_VARIABLES                :

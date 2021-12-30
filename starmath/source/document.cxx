@@ -187,6 +187,17 @@ void SmDocShell::SetText(const OUString& rBuffer)
         OnDocumentPrinterChanged(nullptr);
 }
 
+void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
+{
+    if (rBuffer == maImText)
+        return;
+
+    maImText = rBuffer;
+
+    if (doCompile)
+        Compile();
+}
+
 void SmDocShell::SetFormat(SmFormat const & rFormat)
 {
     maFormat = rFormat;
@@ -312,6 +323,28 @@ EditEngine& SmDocShell::GetEditEngine()
         mpEditEngine->ClearModifyFlag();
     }
     return *mpEditEngine;
+}
+
+EditEngine& SmDocShell::GetImEditEngine()
+{
+    if (!mpImEditEngine)
+    {
+        //!
+        //! see also SmEditWindow::DataChanged !
+        //!
+        mpEditEngineItemPool = EditEngine::CreatePool();
+        SmEditEngine::setSmItemPool(mpEditEngineItemPool.get(), maLinguOptions);
+        mpImEditEngine.reset( new SmEditEngine( mpEditEngineItemPool.get() ) );
+        mpImEditEngine->EraseVirtualDevice();
+
+        // set initial text if the document already has some...
+        // (may be the case when reloading a doc)
+        OUString aTxt( GetImText() );
+        if (!aTxt.isEmpty())
+            mpImEditEngine->SetText( aTxt );
+        mpImEditEngine->ClearModifyFlag();
+    }
+    return *mpImEditEngine;
 }
 
 
@@ -602,6 +635,7 @@ SmDocShell::~SmDocShell()
 
     mpCursor.reset();
     mpEditEngine.reset();
+    mpImEditEngine.reset();
     mpEditEngineItemPool.clear();
     mpPrinter.disposeAndClear();
 
@@ -745,6 +779,25 @@ void SmDocShell::ReplaceBadChars()
 
     if (bReplace)
         maText = aBuf.makeStringAndClear();
+
+    bReplace = false;
+
+    if (!mpImEditEngine)
+        return;
+
+    aBuf = mpImEditEngine->GetText();
+
+    for (sal_Int32 i = 0;  i < aBuf.getLength();  ++i)
+    {
+        if (aBuf[i] < ' ' && aBuf[i] != '\r' && aBuf[i] != '\n' && aBuf[i] != '\t')
+        {
+            aBuf[i] = ' ';
+            bReplace = true;
+        }
+    }
+
+     if (bReplace)
+        maImText = aBuf.makeStringAndClear();
 }
 
 
@@ -755,6 +808,16 @@ void SmDocShell::UpdateText()
         OUString aEngTxt( mpEditEngine->GetText() );
         if (GetText() != aEngTxt)
             SetText( aEngTxt );
+    }
+}
+
+void SmDocShell::UpdateImText()
+{
+    if (mpImEditEngine && mpImEditEngine->IsModified())
+    {
+        OUString aEngTxt( mpImEditEngine->GetText() );
+        if (GetImText() != aEngTxt)
+            SetImText( aEngTxt );
     }
 }
 
@@ -989,6 +1052,14 @@ void SmDocShell::Execute(SfxRequest& rReq)
         }
         break;
 
+        case SID_ITEXT:
+        {
+            const SfxStringItem& rItem = static_cast<const SfxStringItem&>(rReq.GetArgs()->Get(SID_ITEXT));
+            if (GetImText() != rItem.GetValue())
+                SetImText(rItem.GetValue());
+        }
+        break;
+
         case SID_UNDO:
         case SID_REDO:
         {
@@ -1076,6 +1147,10 @@ void SmDocShell::GetState(SfxItemSet &rSet)
 
         case SID_TEXT:
             rSet.Put(SfxStringItem(SID_TEXT, GetText()));
+            break;
+
+        case SID_ITEXT:
+            rSet.Put(SfxStringItem(SID_ITEXT, GetImText()));
             break;
 
         case SID_GRAPHIC_SM:

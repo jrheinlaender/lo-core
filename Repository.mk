@@ -881,6 +881,10 @@ $(eval $(call gb_Helper_register_packages_for_install,calc,\
 	sc_res_xml \
 ))
 
+$(eval $(call gb_Helper_register_packages_for_install,starmath,\
+	sm_res_imath \
+))
+
 $(eval $(call gb_Helper_register_packages_for_install,libreofficekit,\
 	$(if $(filter LINUX %BSD SOLARIS, $(OS)),libreofficekit_selectionhandles) \
 	$(if $(and $(ENABLE_GTKTILEDVIEWER), $(filter WNT,$(OS))), libreofficekit_selectionhandles) \

@@ -177,10 +177,10 @@ public:
 
 class SmEditController final : public SfxControllerItem
 {
-    SmEditWindow &rEdit;
+    AbstractEditWindow &rEdit;
 
 public:
-    SmEditController(SmEditWindow &, sal_uInt16, SfxBindings  & );
+    SmEditController(AbstractEditWindow &, sal_uInt16, SfxBindings  & );
 
     virtual void StateChangedAtToolBoxControl(sal_uInt16 nSID, SfxItemState eState, const SfxPoolItem* pState) override;
 };
@@ -188,7 +188,9 @@ public:
 class SmCmdBoxWindow final : public SfxDockingWindow
 {
     std::unique_ptr<SmEditWindow, o3tl::default_delete<SmEditWindow>> m_xEdit;
+    std::unique_ptr<ImEditWindow, o3tl::default_delete<ImEditWindow>> m_xImEdit;
     SmEditController    aController;
+    SmEditController    aImController;
     bool                bExiting;
 
     Timer               aInitialFocusTimer;
@@ -220,10 +222,8 @@ public:
 
     void AdjustPosition();
 
-    SmEditWindow& GetEditWindow()
-    {
-        return *m_xEdit;
-    }
+    AbstractEditWindow& GetEditWindow();
+
     SmViewShell* GetView();
 };
 
@@ -235,7 +235,7 @@ class SmCmdBoxWrapper final : public SfxChildWindow
 
 public:
 
-    SmEditWindow& GetEditWindow()
+    AbstractEditWindow& GetEditWindow()
     {
         return static_cast<SmCmdBoxWindow *>(GetWindow())->GetEditWindow();
     }
@@ -283,7 +283,7 @@ public:
         return static_cast<SmDocShell *>( GetViewFrame().GetObjectShell() );
     }
 
-    SAL_RET_MAYBENULL SmEditWindow * GetEditWindow();
+    SAL_RET_MAYBENULL AbstractEditWindow * GetEditWindow();
 
     SmGraphicWidget& GetGraphicWidget()
     {

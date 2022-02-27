@@ -158,6 +158,8 @@ enum SmModelPropertyHandles
 {
     HANDLE_FORMULA,
     HANDLE_IFORMULA,
+    HANDLE_PREVIOUSIFORMULA,
+    HANDLE_PARENTDOCUMENT,
     HANDLE_FONT_NAME_MATH,
     HANDLE_FONT_NAME_VARIABLES,
     HANDLE_FONT_NAME_FUNCTIONS,
@@ -268,6 +270,8 @@ static const rtl::Reference<PropertySetInfo> & lcl_createModelPropertyInfo ()
         { u"FontVariablesIsItalic"_ustr            , HANDLE_FONT_VARIABLES_POSTURE             ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  FNT_VARIABLE          },
         { u"Formula"_ustr                          , HANDLE_FORMULA                            ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
         { u"iFormula"_ustr                         , HANDLE_IFORMULA                           ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
+        { u"PreviousIFormula"_ustr                 , HANDLE_PREVIOUSIFORMULA                   ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
+        { u"ParentDocument"_ustr                   , HANDLE_PARENTDOCUMENT                     ,  ::cppu::UnoType<Any>::get(),                                           PROPERTY_NONE,  0                     },
         { u"IsScaleAllBrackets"_ustr               , HANDLE_IS_SCALE_ALL_BRACKETS              ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsTextMode"_ustr                       , HANDLE_IS_TEXT_MODE                       ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsRightToLeft"_ustr                    , HANDLE_IS_RIGHT_TO_LEFT                   ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
@@ -430,6 +434,20 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
                 OUString aText;
                 *pValues >>= aText;
                 pDocSh->SetImText(aText);
+            }
+            break;
+            case HANDLE_PREVIOUSIFORMULA:
+            {
+                OUString aName;
+                *pValues >>= aName;
+                pDocSh->SetPreviousFormula(aName);
+            }
+            break;
+            case HANDLE_PARENTDOCUMENT:
+            {
+                Reference< XModel > xModel;
+                *pValues >>= xModel;
+                pDocSh->SetParentModel(xModel);
             }
             break;
             case HANDLE_FONT_NAME_MATH                     :
@@ -741,6 +759,12 @@ void SmModel::_getPropertyValues( const PropertyMapEntry **ppEntries, Any *pValu
             break;
             case HANDLE_IFORMULA:
                 *pValue <<= pDocSh->GetImText();
+            break;
+            case HANDLE_PREVIOUSIFORMULA:
+                *pValue <<= pDocSh->GetPreviousFormula();
+            break;
+            case HANDLE_PARENTDOCUMENT:
+                *pValue <<= pDocSh->GetParentModel();
             break;
             case HANDLE_FONT_NAME_MATH                     :
             case HANDLE_FONT_NAME_VARIABLES                :

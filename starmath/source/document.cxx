@@ -274,7 +274,13 @@ void SmDocShell::Parse()
 }
 
 void SmDocShell::ImInitializeCompiler() {
+    if (mPreviousFormula.getLength() > 0) {
+        // Formula in context of parent document
+        // TODO
+        return;
+    }
 
+    // Stand-alone formula document or first formula in document
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return;
     Reference<XComponentContext> xContext(GetContext());

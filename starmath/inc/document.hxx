@@ -275,8 +275,21 @@ public:
     /// Set an option on the formula (all lines of it) if its value is different from the global option
     void SetOption(const option_name oname, const option& value);
 
+    /// Set/Get parent document
+    void SetParentModel(const Reference< XModel >& xParent) { mxParentModel = xParent; }
+    Reference< XModel > GetParentModel() const { return mxParentModel; }
+
+    /// Set/Get for previous iFormula
+    void SetPreviousFormula(const OUString& aName) { mPreviousFormula = aName; }
+    OUString GetPreviousFormula() const  { return mPreviousFormula; }
 
 private:
+    /// Parent document (Writer or Presentation)
+    // TODO: Find this directly instead of passing it in and out over the API
+    Reference< XModel > mxParentModel;
+    /// Name of the previous iFormula (OLE mode), empty if the formula is stand-alone or the first formula in a document
+    OUString mPreviousFormula = "";
+
     /**
      * Initial options for this formula.
      * Stand-alone (Math) mode: Initialized on first call to Compile() from document options and registry

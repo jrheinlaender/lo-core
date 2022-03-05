@@ -79,7 +79,7 @@ public:
   textItem(const std::string& t) : _text(OUS8(t)) {};
   textItem(const textItem&) = default;
   virtual ~textItem() {};
-  virtual std::unique_ptr<textItem> clone() const;
+  virtual std::shared_ptr<textItem> clone() const;
   virtual bool isNewline() const { return false; }
   virtual bool isOperator() const { return false; }
   virtual OUString alignedText(const iFormulaNodeExpression& l) const;
@@ -111,7 +111,7 @@ public:
 class textItemExpression : public textItem {
 public:
   textItemExpression(const GiNaC::expression& e) : _expr(e) {};
-  virtual std::unique_ptr<textItem> clone() const override;
+  virtual std::shared_ptr<textItem> clone() const override;
   OUString alignedText(const iFormulaNodeExpression& l) const override;
   GiNaC::expression getExpression() const { return _expr; }
 private:
@@ -424,7 +424,7 @@ class iFormulaNodeText : public iFormulaNodeExpression {
 public:
   iFormulaNodeText(
     Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
-    std::vector<OUString>&& formulaParts, std::vector<std::unique_ptr<textItem>>&& textlist);
+    std::vector<OUString>&& formulaParts, std::vector<std::shared_ptr<textItem>>&& textlist);
   iFormulaNodeText(const iFormulaNodeText& other);
   virtual iFormulaLine_ptr clone() const override;
 

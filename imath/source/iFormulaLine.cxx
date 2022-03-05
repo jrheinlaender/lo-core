@@ -35,8 +35,8 @@
 using namespace GiNaC;
 
 // textItem implementation
-std::unique_ptr<textItem> textItem::clone() const {
-  return std::make_unique<textItem>(*this);
+std::shared_ptr<textItem> textItem::clone() const {
+  return std::make_shared<textItem>(*this);
 }
 
 OUString textItem::alignedText(const iFormulaNodeExpression& l) const {
@@ -57,8 +57,8 @@ OUString textItemOperator::unalignedText(const iFormulaNodeExpression& l) const 
   return _text.toAsciiUpperCase();
 }
 
-std::unique_ptr<textItem> textItemExpression::clone() const {
-  return std::make_unique<textItemExpression>(*this);
+std::shared_ptr<textItem> textItemExpression::clone() const {
+  return std::make_shared<textItemExpression>(*this);
 }
 
 OUString textItemExpression::alignedText(const iFormulaNodeExpression& l) const {
@@ -475,11 +475,11 @@ std::string iFormulaNodeExpression::getGraphLabel() const {
 // NodeText
 iFormulaNodeText::iFormulaNodeText(Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts,
-    std::vector<std::unique_ptr<textItem>>&& textlist) : iFormulaNodeExpression(um, g_options, std::move(l_options), std::move(formulaParts), OU(""), expression(), false),
+    std::vector<std::shared_ptr<textItem>>&& textlist) : iFormulaNodeExpression(um, g_options, std::move(l_options), std::move(formulaParts), OU(""), expression(), false),
     _textlist(std::move(textlist))
 {
   for (const auto& p : _textlist) {
-    textItemExpression* item = dynamic_cast<textItemExpression*>(p.get());
+    std::shared_ptr<textItemExpression> item = std::dynamic_pointer_cast<textItemExpression>(p);
     if (item != nullptr) {
       std::set<ex, ex_is_less> in1 = collectSymbols(item->getExpression());
       in.insert(in1.begin(), in1.end());

@@ -351,6 +351,9 @@ public:
     /// Recalculate formulas that depend on the given formula, if its text has changed. Return true if text has changed
     bool RecalculateDependentIFormulas(const OUString& formulaName, const OUString& oldText);
 
+    /// Remove the formula and trigger a recalculation of all dependent formulas
+    void RemoveIFormula(const OUString& formulaName);
+
 protected:
     class LockAllViewsGuard_Impl final : public LockAllViewsGuard
     {

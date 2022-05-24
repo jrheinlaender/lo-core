@@ -1322,6 +1322,7 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
 
     if (formulaText.getLength() == 0)
     {
+        // Note: This warning is triggered also when a formula object has been deleted
         SAL_WARN("sw.imath", "RecalculateDependentIFormulas() could not read the iFormula properties");
         return false;
     }
@@ -1386,6 +1387,27 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     }
 
     return true;
+}
+
+void SwDocShell::RemoveIFormula(const OUString& formulaName) {
+    auto formulaIterator = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
+    if (formulaIterator == m_IFormulaNames.end()) return; // See SwUndoFlyBase::DelFly() why this can happen
+
+    SAL_INFO("sw.imath", "Removing iFormula " << formulaName);
+    OUString previousName = FindPreviousIFormulaName(formulaName);
+    std::list< OUString >::iterator next_it = m_IFormulaNames.end();
+
+    while (formulaIterator != m_IFormulaNames.end()) {
+        // Erase all occurrences of the name (there might be more than one because of UPDATE keyword usage)
+        next_it = m_IFormulaNames.erase(formulaIterator);
+        formulaIterator = std::find(next_it, m_IFormulaNames.end(), formulaName);
+    }
+
+    if (next_it != m_IFormulaNames.end()) {
+        Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), *next_it);
+        setFormulaProperty(xFormulaComp, "PreviousIFormula", makeAny(previousName));
+        RecalculateDependentIFormulas(*next_it, "");
+    }
 }
 
 // a Transfer is cancelled (is called from SFX)

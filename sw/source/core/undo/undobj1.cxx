@@ -41,6 +41,7 @@
 #include <ndole.hxx>
 #include <frameformats.hxx>
 #include <svx/svdobj.hxx>
+#include <docsh.hxx>
 
 SwUndoFlyBase::SwUndoFlyBase( SwFrameFormat* pFormat, SwUndoId nUndoId )
     : SwUndo(nUndoId, pFormat->GetDoc())
@@ -211,6 +212,11 @@ void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
 
 void SwUndoFlyBase::DelFly( SwDoc* pDoc )
 {
+    // Note: We could check whether this fly frame is a Math OLE but it seems simpler to just attempt a delete
+    // TODO: Can there be two different fly frames with identical names?
+    SAL_INFO("sw.imath", "Found (undo) fly frame " << m_pFrameFormat->GetName());
+    pDoc->GetDocShell()->RemoveIFormula(m_pFrameFormat->GetName());
+
     m_bDelFormat = true;                 // delete Format in DTOR
     m_pFrameFormat->DelFrames();                 // destroy Frames
 

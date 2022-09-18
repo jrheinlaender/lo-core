@@ -1243,27 +1243,15 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
         for (const auto& fn : m_IFormulaNames)
         {
             SAL_INFO("sw.imath", "Processing formula '" << fn << "'");
-            bool success = false;
-
             Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fn);
-            if ( xFormulaComp.is() )
-            {
-                Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
-                if ( xFormulaModel.is() )
-                {
-                    uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
-                    if ( xFormulaProps.is() )
-                    {
-                        // Note: Setting this property to a new value will trigger compilation of the formula
-                        // Note: But formulas depending on this formula will not be recompiled!
-                        xFormulaProps->setPropertyValue("PreviousIFormula", uno::makeAny(previousFormulaName));
-                        success = true;
-                    }
-                }
-            }
 
-            if (!success) SAL_WARN("sw.imath", "Could not set previous iFormula for " << fn);
-            previousFormulaName = fn;
+            // Note: Setting this property to a new value will trigger compilation of the formula
+            // Note: But formulas depending on this formula will not be recompiled!
+            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
+
+            // Note: Empty iFormulas are ignored in the chain of previous equations, for efficiency reasons
+            if (getFormulaProperty(xFormulaComp, "iFormula").getLength() > 0)
+                previousFormulaName = fn;
         }
     }
 }
@@ -1314,7 +1302,7 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     if (formulaText.getLength() == 0)
     {
         // Note: This warning is triggered also when a formula object has been deleted
-        SAL_WARN("sw.imath", "RecalculateDependentIFormulas() could not read the iFormula properties");
+        SAL_WARN("sw.imath", "RecalculateDependentIFormulas() could not read the iFormula properties or iFormula text is empty");
         return false;
     }
 
@@ -1343,7 +1331,7 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     while (it != m_IFormulaNames.end())
     {
         xFormulaComp = getObjectByName(GetModel(), *it);
-        setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));
+            setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));
 
         /*
          * TODO: This does not work yet, because there is a linear chain of mpInitialCompiler/mpCurrentCompiler in starmath objects

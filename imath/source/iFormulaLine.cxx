@@ -255,6 +255,9 @@ std::set<ex, ex_is_less> collectSymbols(const expression& e) {
   for (const_preorder_iterator i = e.preorder_begin(); i != e.preorder_end(); ++i) {
       if (is_a<symbol>(*i))
         result.emplace(*i);
+      else if (is_a<func>(*i))
+        // TODO Since funcs are not created in a factory, the expressions do not compare equal
+        result.emplace(func(ex_to<func>(*i).get_name())); // Use pure func to avoid differences in the arguments
   }
   return result;
 }
@@ -312,7 +315,7 @@ iFormulaNodeStmNamespace::iFormulaNodeStmNamespace(std::shared_ptr<optionmap> g_
 // NodeStmFunction
 iFormulaNodeStmFunction::iFormulaNodeStmFunction(std::shared_ptr<optionmap> g_options, std::vector<OUString>&& formulaParts) :
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
-  // TODO: function -> out
+  out.insert(func(STR(_formulaParts[3])));
 }
 
 // NodeStmUnitdef

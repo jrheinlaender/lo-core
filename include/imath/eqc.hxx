@@ -152,7 +152,7 @@ public:
 };
 
 /// Used to store all equations, variables and constants encountered during processing.
-class eqc {
+class IMATH_DLLPUBLIC eqc {
 public:
   /// Unit management
   Unitmanager unitmgr;

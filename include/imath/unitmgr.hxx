@@ -28,7 +28,7 @@
 #include "unit.hxx"
 
 /// Manage units for EQC
-class Unitmanager {
+class IMATH_DLLPUBLIC Unitmanager {
 public:
   /// Initialize the Unitmanager
   Unitmanager();

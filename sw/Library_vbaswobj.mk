@@ -45,6 +45,7 @@ $(eval $(call gb_Library_use_libraries,vbaswobj,\
     cppuhelper \
     editeng \
     i18nlangtag \
+    imath \
     sal \
     sb \
     sfx \
@@ -64,6 +65,8 @@ $(eval $(call gb_Library_use_libraries,vbaswobj,\
 $(eval $(call gb_Library_use_externals,vbaswobj,\
 	boost_headers \
 	libxml2 \
+        cln \
+        ginac \
 ))
 
 $(eval $(call gb_Library_add_exception_objects,vbaswobj,\

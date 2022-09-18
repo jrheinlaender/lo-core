@@ -347,6 +347,8 @@ public:
 
     /// Recalculate formulas that depend on the given formula, if its text has changed. Return true if text has changed
     bool RecalculateDependentIFormulas(const OUString& formulaName, const OUString& oldText);
+    /// Recalculate all dependent iFormulas after deletion of an iFormula. The search for dependencies starts at the given formula
+    bool RecalculateDependentIFormulasAfterDeletion(const OUString& formulaName, const OUString& dependencies);
 
     /// Remove the formula and trigger a recalculation of all dependent formulas
     void RemoveIFormula(const OUString& formulaName);

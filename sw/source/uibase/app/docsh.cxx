@@ -1389,6 +1389,76 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     return true;
 }
 
+bool SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& formulaName, const OUString& dependencies)
+{
+    Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
+
+    // Extract required formula properties
+    OUString formulaText = getFormulaProperty(xFormulaComp, "iFormula");
+
+    // TODO: This code duplicates code in RecalculateDependentIFormulas()
+    auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
+    if (it == m_IFormulaNames.end())
+    {
+        // New iFormula, probably inserted by Copy+Paste operation, this case is not caught by SwOleShell::SwOleShell because the XComponent does not appear to exist (yet)
+        SAL_INFO("sw.imath", "Formula is not contained in list, updating list");
+        UpdatePreviousIFormulaLinks(); // TODO: orderXText would be sufficient here, links are updated (again) further down in this method
+        it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
+        if (it == m_IFormulaNames.end())
+        {
+            SAL_INFO("sw.imath", "Error, new formula object was not inserted into list of iFormula names");
+            return false;
+        }
+    }
+
+    OUString previousFormulaName = *it;
+    ++it; // Skip this formula, it has already been compiled
+    bool foundDependency = false;
+    std::set<OUString> dependencySet;
+    sal_Int32 idx = 0;
+    do
+    {
+        OUString token = dependencies.getToken(0, ',', idx);
+        if (token.getLength() > 0)
+            dependencySet.insert(token);
+    }
+    while (idx >= 0);
+
+    while (it != m_IFormulaNames.end())
+    {
+        xFormulaComp = getObjectByName(GetModel(), *it);
+        if (getFormulaProperty(xFormulaComp, "iFormula").getLength() > 0)
+        {
+            if (!foundDependency)
+            {
+                OUString formulaDependencies = getFormulaProperty(xFormulaComp, "iFormulaDependencyIn");
+                for (const auto& s: dependencySet)
+                {
+                    if (formulaDependencies.indexOf(s) > 0)
+                    {
+                        foundDependency = true;
+                        break;
+                    }
+                }
+            }
+
+            if (foundDependency)
+            {
+                // Compile all following iFormulas once a dependency was found, because we have a linear chain of mpInitialCompiler/mpCurrentCompiler in starmath objects that may not be broken
+                SAL_INFO("sw.imath", "Triggering compile on " << *it);
+                // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
+                setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
+                setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));
+                previousFormulaName = *it;
+            }
+        }
+
+        ++it;
+    }
+
+    return true;
+}
+
 void SwDocShell::RemoveIFormula(const OUString& formulaName) {
     auto formulaIterator = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
     if (formulaIterator == m_IFormulaNames.end()) return; // See SwUndoFlyBase::DelFly() why this can happen
@@ -1407,7 +1477,7 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
     if (next_it != m_IFormulaNames.end()) {
         xFormulaComp = getObjectByName(GetModel(), *next_it);
         setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousName));
-        RecalculateDependentIFormulas(*next_it, getFormulaProperty(xFormulaComp, "iFormula")); // next_it has already been compiled because the previous iFormula was changed
+        RecalculateDependentIFormulasAfterDeletion(*next_it, getFormulaProperty(xFormulaComp, "iFormulaDependencyOut")); // Note: next_it has already been compiled because the previous iFormula was changed
     }
 }
 

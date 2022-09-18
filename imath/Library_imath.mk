@@ -38,7 +38,6 @@ $(eval $(call gb_Library_use_libraries,imath,\
         comphelper \
         cppu \
         cppuhelper \
-        imath \
         sal \
 ))
 

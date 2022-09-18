@@ -1194,15 +1194,16 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
     {
         unsigned count = 0;
         // TODO: Implement progress bar with
-        // ::StartProgress( STR_STATSTR_SWGPRTOLENOTIFY, 0, formulaNames.size(), this);
+        // ::StartProgress( STR_STATSTR_SWGPRTOLENOTIFY, 0, m_IFormulaNames.size(), this);
         // ::SetProgressState( count, this );
         // ::EndProgress( this );
         // Note: Requires #include <mdiexp.hxx>
+        m_IFormulaNames.clear();
         Reference< task::XStatusIndicator > xStatusIndicator;
-        orderXText(xText, formulaNames, count, xStatusIndicator);
+        orderXText(xText, m_IFormulaNames, count, xStatusIndicator);
         OUString previousFormulaName = "";
 
-        for (const auto& fn : formulaNames)
+        for (const auto& fn : m_IFormulaNames)
         {
             SAL_INFO("sw.imath", "Processing formula '" << fn << "'");
             bool success = false;
@@ -1305,7 +1306,6 @@ void setFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUStr
 bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, const OUString& oldText)
 {
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
-    bool success = false;
 
     // Extract required formula properties
     OUString formulaText = getFormulaProperty(xFormulaComp, "iFormula");
@@ -1335,10 +1335,10 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     }
 
     std::set<OUString> symbolSet;
-    auto it = std::find(formulaNames.begin(), formulaNames.end(), formulaName);
-    if (it != formulaNames.end()) ++it; // Skip this formula, it has already been compiled
+    auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
+    if (it != m_IFormulaNames.end()) ++it; // Skip this formula, it has already been compiled
 
-    while (it != formulaNames.end())
+    while (it != m_IFormulaNames.end())
     {
         xFormulaComp = getObjectByName(GetModel(), *it);
         setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));

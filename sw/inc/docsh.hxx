@@ -164,7 +164,10 @@ class SW_DLLPUBLIC SwDocShell
     /** iMath stuff
      */
     /// List of iFormula names, in document text flow order
-    std::list<OUString> formulaNames;
+    std::list<OUString> m_IFormulaNames;
+
+    /// Next available iFormula equation number
+    unsigned m_nextIFormulaNumber;
 
 protected:
     /// override to update text fields
@@ -336,6 +339,9 @@ public:
 
     /** iMath stuff
      */
+    /// Retrieve the next available iFormula equation number
+    unsigned GetNextIFormulaNumber() { return m_nextIFormulaNumber++; }
+
     /// Update the information about the previous iFormula
     void UpdatePreviousIFormulaLinks();
 

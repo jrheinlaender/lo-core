@@ -208,6 +208,7 @@ void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
     default: break;
     }
     m_bDelFormat =  false;
+    pDoc->GetDocShell()->RecalculateDependentIFormulas(m_pFrameFormat->GetName(), "");
 }
 
 void SwUndoFlyBase::DelFly( SwDoc* pDoc )

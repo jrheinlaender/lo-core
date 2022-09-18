@@ -422,6 +422,7 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
     $(call gb_Helper_optionals_or,HELPTOOLS XMLHELP,helplinker) \
 	i18npool \
 	i18nsearch \
+	imath \
 	$(if $(ENABLE_JAVA),jdbc) \
 	$(if $(filter WNT,$(OS)),jumplist) \
 	$(if $(ENABLE_LDAP),ldapbe2) \

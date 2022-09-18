@@ -22,13 +22,19 @@
 
 #include "iostream"
 
+#ifdef INSIDE_SM
+#include <imath/imathdllapi.h>
+#else
+#define IMATH_DLLPUBLIC
+#endif
+
 namespace GiNaC {
     class equation;
     class relational;
 }
 class operands;
 
-class msg {
+class IMATH_DLLPUBLIC msg {
 private:
     int level;
 

@@ -49,7 +49,7 @@ std::unique_ptr<T> make_unique( Args&& ...args )
 
 namespace GiNaC {
   extern const ex _ex0;
-  extern const expression _expr0;
+  IMATH_DLLPUBLIC extern const expression _expr0;
   extern const ex _ex1_4;
   extern const expression _expr1_4;
   extern const numeric* _num1_3_p;
@@ -60,7 +60,7 @@ namespace GiNaC {
   extern const expression _expr1_2;
   extern const numeric* _num1_p;
   extern const ex _ex1;
-  extern const expression _expr1;
+  IMATH_DLLPUBLIC extern const expression _expr1;
   extern const numeric* _num2_p;
   extern const ex _ex2;
   extern const expression _expr2;
@@ -72,7 +72,7 @@ namespace GiNaC {
   extern const numeric* _num_1_2_p;
   extern const numeric* _num_1_p;
   extern const ex _ex_1;
-  extern const expression _expr_1;
+  IMATH_DLLPUBLIC extern const expression _expr_1;
   extern const ex _ex_1_2;
   extern const expression _expr_1_2;
   extern const expression _exprPi;
@@ -81,7 +81,7 @@ namespace GiNaC {
   extern const expression _exprI;
 
   // Static initialization for DLLs is not stable, so we do it manually
-  void init_utils();
+  IMATH_DLLPUBLIC void init_utils();
 
   // Defined in GiNaC crc32.h
   #ifndef _MSC_VER
@@ -176,7 +176,7 @@ bool is_quantity (const GiNaC::expression &quantity);
 bool is_symbolic (const GiNaC::expression &e);
 
 /// Check whether the expression is a unit or a product of (powers of) units
-bool is_unit(const GiNaC::expression &e);
+IMATH_DLLPUBLIC bool is_unit(const GiNaC::expression &e);
 
 /// Return the expression as a GiNaC lst object
 inline GiNaC::lst make_lst(const GiNaC::expression &e) {
@@ -203,13 +203,13 @@ GiNaC::matrix make_matrix(const GiNaC::expression &e);
 GiNaC::exvector make_exvector(const GiNaC::expression &e);
 
 /// Extract the numeric value from the expression, or throw an exception
-GiNaC::numeric get_val_from_ex(const GiNaC::ex &e);
+IMATH_DLLPUBLIC GiNaC::numeric get_val_from_ex(const GiNaC::ex &e);
 
 /// Convert a numeric to an unsigned integer (without plausibility testing!)
-unsigned numeric_to_uint(const GiNaC::numeric &n);
+IMATH_DLLPUBLIC unsigned numeric_to_uint(const GiNaC::numeric &n);
 
 /// Convert a numeric to a signed integer (without plausibility testing!)
-int numeric_to_int(const GiNaC::numeric &n);
+IMATH_DLLPUBLIC int numeric_to_int(const GiNaC::numeric &n);
 
 std::string extostr(const GiNaC::expression& e);
 
@@ -271,7 +271,7 @@ struct special_ignore_units : public GiNaC::map_function {
  * - A positive integer
  * - A complex integer that is not zero
  **/
-bool check_modulus(const GiNaC::expression& e);
+IMATH_DLLPUBLIC bool check_modulus(const GiNaC::expression& e);
 
 /// Apply modulus to expression. It is assumed that the modulus is valid
 GiNaC::expression apply_modulus(const GiNaC::expression& e, const GiNaC::expression& mod);

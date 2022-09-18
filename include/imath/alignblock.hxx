@@ -30,7 +30,7 @@
 class textItem;
 class iFormulaNodeExpression;
 
-class alignblock {
+class IMATH_DLLPUBLIC alignblock {
 public:
   /// Initialize the block
   alignblock() : currentResultLine(resultLines.end()), breaks(0), autochain(false), finished(false) {}

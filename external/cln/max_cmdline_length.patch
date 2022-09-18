@@ -3,7 +3,7 @@
 @@ -5336,7 +5336,9 @@
  	polynomial/elem/$(DEPDIR)/$(am__dirstamp)
  
- libcln.la: $(libcln_la_OBJECTS) $(libcln_la_DEPENDENCIES) $(EXTRA_libcln_la_DEPENDENCIES)
+ libcln.la: $(libcln_la_OBJECTS) $(libcln_la_DEPENDENCIES) $(EXTRA_libcln_la_DEPENDENCIES) 
 -	$(AM_V_CXXLD)$(libcln_la_LINK) -rpath $(libdir) $(libcln_la_OBJECTS) $(libcln_la_LIBADD) $(LIBS)
 +	$(file >objectfiles,$(libcln_la_OBJECTS) $(libcln_la_LIBADD) $(LIBS))
 +	sed -i  's/\r//g' objectfiles

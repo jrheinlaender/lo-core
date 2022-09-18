@@ -35,6 +35,7 @@ ifeq ($(COM),MSC)
 		MAKE=$(MAKE) $(gb_RUN_CONFIGURE) ./configure \
 			--build=$(BUILD_PLATFORM) \
 			--host=$(HOST_PLATFORM) \
+			--with-pic \
 			--disable-shared --enable-static \
 			PKG_CONFIG_PATH=$(call gb_UnpackedTarball_get_dir,cln) \
 			--prefix=$(call gb_UnpackedTarball_get_dir,ginac)/instdir \

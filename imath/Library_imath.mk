@@ -24,6 +24,8 @@ $(eval $(call gb_Library_add_defs,imath,\
 	-DOO_IS_AOO=0 \
         -DOO_MAJOR_VERSION=$(LIBO_VERSION_MAJOR) \
         -DOO_MINOR_VERSION=$(LIBO_VERSION_MINOR) \
+	-DSAL_LOG_INFO=1 \
+	-DSAL_LOG_WARN=1 \
 ))
 
 $(eval $(call gb_Library_use_externals,imath,\

@@ -1054,8 +1054,12 @@ sal_Bool checkIsiFormula(const Reference < XComponent >& xComponent) {
   if (checkIsFormula(xComponent)) { // we have a formula, is it an iFormula?
     Reference< XModel > fModel = extractModel(xComponent);
     OUString fText(getFormulaText(fModel));
+#ifdef INSIDE_SM
+    return fText.getLength() > 0;
+#else
     int iipos = fText.indexOfAsciiL("%%ii", 4);
     return (iipos >= 0);
+#endif
   } else {
     return false;
   }
@@ -1080,7 +1084,11 @@ OUString getFormulaText(const Reference < XModel >& fModel) {
 
   // get the formula text
   Any fTextAny;
+#ifdef INSIDE_SM
+  fTextAny = fPS->getPropertyValue(OU("iFormula"));
+#else
   fTextAny = fPS->getPropertyValue(OU("Formula"));
+#endif
   OUString fText;
   fTextAny >>= fText;
   return fText;
@@ -1896,10 +1904,10 @@ void orderXText(const Reference<XText>& xText, std::list< OUString >& formulas, 
            Any tc = xContentEnum->nextElement();
            Reference< XComponent > comp;
            tc >>= comp;
-           //MSG_INFO(3,  "Name: " << STR(getObjectName(xTC)) << endline);
+           //MSG_INFO(3,  "Name: " << STR(getObjectName(comp)) << endline);
 
            if (checkIsiFormula(comp)) {
-             //MSG_INFO(3,  "Found formula: " << STR(getObjectName(xTC)) << endline);
+             //MSG_INFO(3,  "Found formula: " << STR(getObjectName(comp)) << endline);
              formulas.emplace_back(getObjectName(comp));
            }
          }

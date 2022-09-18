@@ -436,7 +436,7 @@ public:
 
 private:
   /// List of arbitrary user text, operators, quoted strings, newlines and expressions
-  std::vector<std::unique_ptr<textItem>> _textlist;
+  std::vector<std::shared_ptr<textItem>> _textlist;
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeEx : public iFormulaNodeExpression {

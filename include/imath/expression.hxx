@@ -28,7 +28,7 @@
 #endif
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning (disable: 4099 4100 4996)
+#pragma warning (disable: 4099 4100 4661 4996)
 #endif
 #include <ginac/ginac.h>
 #ifdef _MSC_VER

@@ -1052,11 +1052,11 @@ sal_Bool checkIsChart(const Reference < XComponent >& xComponent) {
 sal_Bool checkIsiFormula(const Reference < XComponent >& xComponent) {
   MSG_INFO(2,  "checkIsiFormula(XComponent)"<< endline);
   if (checkIsFormula(xComponent)) { // we have a formula, is it an iFormula?
+#ifdef INSIDE_SM
+    return true; // Any formula is a potential iFormula, since the user might double-click on it and start editing, then compilation needs to work immediately
+#else
     Reference< XModel > fModel = extractModel(xComponent);
     OUString fText(getFormulaText(fModel));
-#ifdef INSIDE_SM
-    return fText.getLength() > 0;
-#else
     int iipos = fText.indexOfAsciiL("%%ii", 4);
     return (iipos >= 0);
 #endif

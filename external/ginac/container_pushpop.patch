@@ -1,0 +1,21 @@
+--- ginac/container.h	2022-03-02 17:37:17.000000000 +0100
++++ ginac/container.h	2022-03-02 17:50:30.861326600 +0100
+@@ -382,7 +382,7 @@
+ container<C> & container<C>::prepend(const ex & b)
+ {
+ 	ensure_if_modifiable();
+-	this->seq.push_front(b);
++	this->seq.insert(this->seq.begin(), b);
+ 	return *this;
+ }
+ 
+@@ -400,7 +400,8 @@
+ container<C> & container<C>::remove_first()
+ {
+ 	ensure_if_modifiable();
+-	this->seq.pop_front();
++	if (!this->seq.empty())
++		this->seq.erase(this->seq.begin());
+ 	return *this;
+ }
+ 

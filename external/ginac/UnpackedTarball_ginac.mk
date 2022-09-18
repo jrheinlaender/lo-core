@@ -19,7 +19,7 @@ $(eval $(call gb_UnpackedTarball_set_post_action,ginac,\
 ))
 endif
 
-ginac_patches += workaround_error_c2766.patch container_sort.patch container_pushpop.patch
+ginac_patches += container_sort.patch container_pushpop.patch
 ifeq ($(COM),MSC)
 ginac_patches += add_header_crc32.patch
 endif

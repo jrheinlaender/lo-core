@@ -51,6 +51,7 @@ SwUndoFlyBase::SwUndoFlyBase( SwFrameFormat* pFormat, SwUndoId nUndoId )
     , m_nRndId(RndStdIds::FLY_AT_PARA)
     , m_bDelFormat(false)
 {
+    SAL_INFO("sw.imath", "SwUndoFlyBase::SwUndoFlyBase");
 }
 
 SwUndoFlyBase::~SwUndoFlyBase()
@@ -98,6 +99,7 @@ void SwUndoFlyBase::dumpAsXml(xmlTextWriterPtr pWriter) const
 
 void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
 {
+    SAL_INFO("sw.imath", "SwUndoFlyBase::InsFly");
     SwDoc *const pDoc = & rContext.GetDoc();
 
     // add again into array
@@ -208,6 +210,8 @@ void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
     default: break;
     }
     m_bDelFormat =  false;
+
+    SAL_INFO("sw.imath", "Fly frame inserted from undo: " << m_pFrameFormat->GetName());
     pDoc->GetDocShell()->RecalculateDependentIFormulas(m_pFrameFormat->GetName(), "");
 }
 
@@ -215,7 +219,7 @@ void SwUndoFlyBase::DelFly( SwDoc* pDoc )
 {
     // Note: We could check whether this fly frame is a Math OLE but it seems simpler to just attempt a delete
     // TODO: Can there be two different fly frames with identical names?
-    SAL_INFO("sw.imath", "Found (undo) fly frame " << m_pFrameFormat->GetName());
+    SAL_INFO("sw.imath", "Fly frame deleted: " << m_pFrameFormat->GetName());
     pDoc->GetDocShell()->RemoveIFormula(m_pFrameFormat->GetName());
 
     m_bDelFormat = true;                 // delete Format in DTOR

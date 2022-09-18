@@ -30,7 +30,6 @@
 #include "func.hxx"
 #endif
 
-
 namespace GiNaC {
   extern const ex _ex10;
   extern const ex _ex20;

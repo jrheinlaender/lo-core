@@ -228,6 +228,16 @@ void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
         Compile();
 }
 
+void SmDocShell::SetPreviousFormula(const OUString& aName)
+{
+    if (mPreviousFormula == aName)
+        return;
+
+    mPreviousFormula = aName;
+
+    Compile();
+}
+
 void SmDocShell::SetFormat(SmFormat const & rFormat)
 {
     maFormat = rFormat;

@@ -122,6 +122,10 @@ bool     g_bNoInterrupt     = false;
 #include <dbconfig.hxx>
 #include <navicfg.hxx>
 
+#include <officecfg/Office/iMath.hxx>
+
+#include <imath/msgdriver.hxx>
+
 using namespace com::sun::star;
 using namespace ::com::sun::star::uno;
 
@@ -163,6 +167,11 @@ SwModule::SwModule( SfxObjectFactory* pWebFact,
         GetColorConfig();
         m_xLinguServiceEventListener = new SwLinguServiceEventListener;
     }
+
+    msg::init();
+    sal_Int32 debuglevel = officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get();
+    msg::info().setlevel(debuglevel);
+    MSG_INFO(-1, "sw.imath: Set debug level to " << debuglevel);
 }
 
 OUString SwResId(TranslateId aId)

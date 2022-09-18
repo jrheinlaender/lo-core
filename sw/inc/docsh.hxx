@@ -328,6 +328,11 @@ public:
     // Lock all unlocked views, and returns a guard object which unlocks those views when destructed
     virtual std::unique_ptr<LockAllViewsGuard> LockAllViews() override;
 
+    /** iMath stuff
+     */
+    // Update the information about the previous iFormula
+    void UpdatePreviousIFormulaLinks();
+
 protected:
     class LockAllViewsGuard_Impl final : public LockAllViewsGuard
     {

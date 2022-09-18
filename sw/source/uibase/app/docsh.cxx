@@ -98,11 +98,14 @@
 #include <ooo/vba/XSinkCaller.hpp>
 
 #include <unotextrange.hxx>
+#include <unotxdoc.hxx>
 
 #include <dbmgr.hxx>
 #include <iodetect.hxx>
 
 #include <comphelper/processfactory.hxx>
+
+#include <imath/imathutils.hxx>
 
 using namespace ::com::sun::star;
 using namespace ::com::sun::star::uno;
@@ -1178,12 +1181,65 @@ void SwDocShell::SetView(SwView* pVw)
         m_pWrtShell = nullptr;
 }
 
+void SwDocShell::UpdatePreviousIFormulaLinks()
+{
+    SAL_INFO("sw.imath", "SwDocShell::UpdatePreviousIFormulaLinks()");
+
+    // Note: Unfortunately, this does not provide the objects in textual order
+    // std::unique_ptr<SwOLENodes> pNodes = SwContentNode::CreateOLENodesArray( *GetDoc()->GetDfltGrfFormatColl(), false );
+    // Note: (*pNodes)[i]->GetOLEObj().GetCurrentPersistName() returns a different name (the difference occurs when the user edits the object name through the GUI)
+    auto pDoc = comphelper::getUnoTunnelImplementation<SwXTextDocument>(GetModel());
+    Reference< text::XText > xText(pDoc->getText(), UNO_QUERY);
+    if (xText.is())
+    {
+        std::list<OUString> formulaNames;
+        unsigned count = 0;
+        // TODO: Implement progress bar with
+        // ::StartProgress( STR_STATSTR_SWGPRTOLENOTIFY, 0, formulaNames.size(), this);
+        // ::SetProgressState( count, this );
+        // ::EndProgress( this );
+        // Note: Requires #include <mdiexp.hxx>
+        Reference< task::XStatusIndicator > xStatusIndicator;
+        orderXText(xText, formulaNames, count, xStatusIndicator);
+        OUString previousFormulaName = "";
+
+        for (const auto& fn : formulaNames)
+        {
+            SAL_INFO("sw.imath", "Processing formula '" << fn << "'");
+            bool success = false;
+
+            Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fn);
+            if ( xFormulaComp.is() )
+            {
+                Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
+                if ( xFormulaModel.is() )
+                {
+                    uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
+                    if ( xFormulaProps.is() )
+                    {
+                        // Note: Setting this property to a new value will trigger compilation of the formula
+                        xFormulaProps->setPropertyValue("PreviousIFormula", uno::makeAny(previousFormulaName));
+                        success = true;
+                    }
+                }
+            }
+
+            if (!success) SAL_WARN("sw.imath", "Could not set previous iFormula for " << fn);
+            previousFormulaName = fn;
+        }
+    }
+}
+
 // #i59688#
 // linked graphics are now loaded on demand.
 // Thus, loading of linked graphics no longer needed and necessary for
 // the load of document being finished.
 void SwDocShell::LoadingFinished()
 {
+    // Update iFormulas to avoid problems if document was edited with non-iMath version
+    // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
+    UpdatePreviousIFormulaLinks();
+
     // #i38810#
     // Original fix fails after integration of cws xmlsec11:
     // interface <SfxObjectShell::EnableSetModified(..)> no longer works, because

@@ -77,6 +77,8 @@ class IMATH_DLLPUBLIC textItem {
 public:
   textItem(const OUString& t = OU("")) : _text(t) {};
   textItem(const std::string& t) : _text(OUS8(t)) {};
+  textItem(const textItem&) = default; // Required to avoid compiler warning
+  virtual ~textItem() {}; // Required to avoid compiler warning
   virtual std::shared_ptr<textItem> clone() const;
   virtual bool isNewline() const { return false; }
   virtual bool isOperator() const { return false; }

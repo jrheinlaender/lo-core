@@ -35,7 +35,7 @@
 namespace GiNaC {
 
 /// Extends GiNaC to handle differentials as stand-alone objects
-class differential : public basic {
+class IMATH_DLLPUBLIC differential : public basic {
   GINAC_DECLARE_REGISTERED_CLASS(differential, basic)
 
 public:
@@ -141,7 +141,7 @@ private:
   bool numerator;
 };
 
-class differential_unarchiver {
+class IMATH_DLLPUBLIC differential_unarchiver {
 public:
   differential_unarchiver();
   ~differential_unarchiver();

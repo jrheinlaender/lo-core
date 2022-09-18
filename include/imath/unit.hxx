@@ -30,7 +30,7 @@
 
 namespace GiNaC {
 
-extern const expression _expr0;
+IMATH_DLLPUBLIC extern const expression _expr0;
 
 /// Extends GiNaC to handle physical units
 class Unit : public basic {
@@ -92,7 +92,7 @@ private:
   expression canonical;
 };
 
-class Unit_unarchiver {
+class IMATH_DLLPUBLIC Unit_unarchiver {
 public:
   Unit_unarchiver();
   ~Unit_unarchiver();

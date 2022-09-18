@@ -1324,17 +1324,38 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
         return true;
     }
 
-    std::set<OUString> symbolSet;
     auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
-    if (it != m_IFormulaNames.end()) ++it; // Skip this formula, it has already been compiled
+    if (it == m_IFormulaNames.end())
+    {
+        // New iFormula, probably inserted by Copy+Paste operation, this case is not caught by SwOleShell::SwOleShell because the XComponent does not appear to exist (yet)
+        SAL_INFO("sw.imath", "Formula is not contained in list, updating list");
+        UpdatePreviousIFormulaLinks(); // TODO: orderXText would be sufficient here, links are updated (again) further down in this method
+        it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
+        if (it == m_IFormulaNames.end())
+        {
+            SAL_INFO("sw.imath", "Error, new formula object was not inserted into list of iFormula names");
+            return false;
+        }
+    }
+
+    OUString previousFormulaName = *it;
+    ++it; // Skip this formula, it has already been compiled
+    // TODO: Possibly the next formula has also been compiled, if the previousIFormula property was changed
 
     while (it != m_IFormulaNames.end())
     {
         xFormulaComp = getObjectByName(GetModel(), *it);
+        if (getFormulaProperty(xFormulaComp, "iFormula").getLength() > 0)
+        {
+            SAL_INFO("sw.imath", "Triggering compile on " << *it);
+            // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
+            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
             setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));
+            previousFormulaName = *it;
+        }
 
         /*
-         * TODO: This does not work yet, because there is a linear chain of mpInitialCompiler/mpCurrentCompiler in starmath objects
+         * TODO: This does not work yet, because there is a linear chain of mpInitialCompiler/mpCurrentCompiler in starmath objects, so we cannot skip any of them
         // Add modified symbols of previous formula
         sal_Int32 idx = 0;
         do

@@ -308,8 +308,9 @@ private:
     std::shared_ptr<eqc> mpCurrentCompiler;
 
     /// Initialize options and compiler from previous iFormula (if there is one), document options and registry. Must be repeated whenever document options are changed through the UI
+    // Return error message or empty string if successful
     // TODO: Update on UI changes not implemented yet
-    void ImInitializeCompiler();
+    OUString ImInitializeCompiler();
 
     /// Allow others to access the following private data. Required for compatibility with the iMath extension
     friend class imath::smathparser;

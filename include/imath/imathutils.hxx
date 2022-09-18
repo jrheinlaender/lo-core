@@ -196,7 +196,7 @@ sal_Bool checkIsChart(const Reference < XComponent >& xComponent);
 sal_Bool checkIsiFormula(const Reference < XComponent >& xComponent);
 
 /// Extract the formula model from a component. It is assumed that the component really is a formula
-Reference< XModel > extractModel(const Reference< XComponent >& xComponent);
+IMATH_DLLPUBLIC Reference< XModel > extractModel(const Reference< XComponent >& xComponent);
 
 /// Extract chart from component
 Reference< XChartDocument > getChart(const Reference < XComponent >& xComponent);
@@ -281,7 +281,7 @@ void getInputFormulas(const Reference < XController > &xCtrl, const Sequence < P
 Reference < XComponent > getFormulaByName(const Reference < XNameAccess > &embeddedObjects, const OUString &iFormulaName);
 
 /// get an embedded object by name
-Reference < XComponent > getObjectByName(const Reference < XModel >& xModel, const OUString &objectName);
+IMATH_DLLPUBLIC Reference < XComponent > getObjectByName(const Reference < XModel >& xModel, const OUString &objectName);
 Reference < XComponent > getObjectByName(const Reference< XIndexAccess > &xDrawPages, const OUString &objectName);
 Reference < XComponent > getObjectByName(const Reference < XNameAccess > &embeddedObjects, const OUString &objectName);
 

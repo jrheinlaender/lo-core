@@ -1419,7 +1419,8 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
     if (formulaIterator == m_IFormulaNames.end()) return; // See SwUndoFlyBase::DelFly() why this can happen
 
     SAL_INFO("sw.imath", "Removing iFormula " << formulaName);
-    OUString previousName = FindPreviousIFormulaName(formulaName);
+    Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), *formulaIterator);
+    OUString previousName = getFormulaProperty(xFormulaComp, "PreviousIFormula");
     std::list< OUString >::iterator next_it = m_IFormulaNames.end();
 
     while (formulaIterator != m_IFormulaNames.end()) {
@@ -1429,9 +1430,9 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
     }
 
     if (next_it != m_IFormulaNames.end()) {
-        Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), *next_it);
-        setFormulaProperty(xFormulaComp, "PreviousIFormula", makeAny(previousName));
-        RecalculateDependentIFormulas(*next_it, "");
+        xFormulaComp = getObjectByName(GetModel(), *next_it);
+        setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousName));
+        RecalculateDependentIFormulas(*next_it, getFormulaProperty(xFormulaComp, "iFormula")); // next_it has already been compiled because the previous iFormula was changed
     }
 }
 

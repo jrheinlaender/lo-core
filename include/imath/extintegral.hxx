@@ -23,7 +23,7 @@
 
 namespace GiNaC {
 
-class extintegral : public integral
+class IMATH_DLLPUBLIC extintegral : public integral
 {
   GINAC_DECLARE_REGISTERED_CLASS(extintegral, integral)
 
@@ -73,7 +73,7 @@ private:
   ex C;
 };
 
-class extintegral_unarchiver {
+class IMATH_DLLPUBLIC extintegral_unarchiver {
 public:
   extintegral_unarchiver();
   ~extintegral_unarchiver();

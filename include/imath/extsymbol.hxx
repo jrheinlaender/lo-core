@@ -23,6 +23,11 @@
 #ifndef EXTSYMBOL_H
 #define EXTSYMBOL_H
 
+#ifdef INSIDE_SM
+#include <imath/imathdllapi.h>
+#else
+#define IMATH_DLLPUBLIC
+#endif
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning (disable: 4099 4100 4996)
@@ -34,7 +39,7 @@
 
 namespace GiNaC {
 
-class extsymbol: public symbol {
+class IMATH_DLLPUBLIC extsymbol: public symbol {
 private:
   unsigned _domain;
   unsigned _return_type;
@@ -67,7 +72,7 @@ public:
   inline void make_nc() { _return_type = return_types::noncommutative_composite; }
 };
 
-class extsymbol_unarchiver {
+class IMATH_DLLPUBLIC extsymbol_unarchiver {
 public:
   extsymbol_unarchiver();
   ~extsymbol_unarchiver();

@@ -18,11 +18,8 @@ $(eval $(call gb_Library_set_include,imath,\
     $$(INCLUDE) \
 ))
 
-$(eval $(call gb_Library_add_cxxflags,imath,\
-    -fvisibility=default \
-))
-
 $(eval $(call gb_Library_add_defs,imath,\
+        -DIMATH_DLLIMPLEMENTATION \
 	-DINSIDE_SM \
 	-DOO_IS_AOO=0 \
         -DOO_MAJOR_VERSION=$(LIBO_VERSION_MAJOR) \

@@ -22,8 +22,8 @@
 #include <imath/iFormulaLine.hxx>
 #else
 #include "alignblock.hxx"
-#include "msgdriver.hxx"
 #include "iFormulaLine.hxx"
+#include "msgdriver.hxx"
 #endif
 
 void alignblock::clear() {

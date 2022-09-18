@@ -460,8 +460,7 @@ OUString iFormulaNodeExpression::printEx(const expression& e) const {
   if (units.nops() > 0 && !getOption(o_suppress_units).value.boolean &&
     (e_matched.is_zero() || (is_a<equation>(e_matched) && ex_to<equation>(e_matched).rhs().is_zero()))) {
     // Special case because GiNaC automatic simplification cancels everything multiplied with zero
-    for (const auto& u : units)
-      u.print(i);
+    units.op(units.nops() - 1).print(i); // Print only one unit - this is a best guess
   }
 
   MSG_INFO(3,  "printed on stream" << endline);

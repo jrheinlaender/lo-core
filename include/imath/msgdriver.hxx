@@ -60,7 +60,7 @@ private:
     inline void setlevel(const int p) { level = p; }
 
     // TODO: This is extremely inefficient
-    template<typename T> inline msg& operator<<(const T& element) { SAL_WARN("starmath.imath", element); return *this; }
+    template<typename T> inline msg& operator<<(const T& element) { SAL_WARN("imath", element); return *this; }
 
     static inline msg& error() { return msg_error; }
     static inline msg& warn()  { return msg_warn; }
@@ -72,9 +72,9 @@ private:
 // TODO: Change imath code to make this superfluous
 inline std::ostream& endline(std::ostream& os) { return os; }
 
-#define MSG_ERROR(priority, output) SAL_WARN_IF(msg::error().checkprio(priority), "starmath.imath", output)
-#define MSG_WARN(priority, output)  SAL_WARN_IF(msg::warn( ).checkprio(priority), "starmath.imath", output)
-#define MSG_INFO(priority, output)  SAL_INFO_IF(msg::info( ).checkprio(priority), "starmath.imath", output)
+#define MSG_ERROR(priority, output) SAL_WARN_IF(msg::error().checkprio(priority), "imath", output)
+#define MSG_WARN(priority, output)  SAL_WARN_IF(msg::warn( ).checkprio(priority), "imath", output)
+#define MSG_INFO(priority, output)  SAL_INFO_IF(msg::info( ).checkprio(priority), "imath", output)
 
 namespace GiNaC {
     std::ostream& operator<<(std::ostream& os, const equation& e);

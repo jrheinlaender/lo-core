@@ -1237,6 +1237,7 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
 void SwDocShell::LoadingFinished()
 {
     // Update iFormulas to avoid problems if document was edited with non-iMath version
+    // Also this triggers the necessary initial Compile() of the formulas
     // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
     UpdatePreviousIFormulaLinks();
 

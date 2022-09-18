@@ -110,6 +110,7 @@ using namespace ::com::sun::star::uno;
 #include <imath/msgdriver.hxx>
 #include <imath/settingsmanager.hxx>
 #include <imath/alignblock.hxx>
+#include <imath/func.hxx>
 class iMathDoc;
 class documentObject;
 #define FORMULAOBJECT SmDocShell
@@ -230,7 +231,8 @@ void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 
 void SmDocShell::SetPreviousFormula(const OUString& aName)
 {
-    if (mPreviousFormula == aName)
+    // Force Compile() if the formula has never been compiled yet
+    if (mPreviousFormula == aName && mpCurrentCompiler != nullptr && mpCurrentOptions != nullptr)
         return;
 
     mPreviousFormula = aName;
@@ -283,11 +285,11 @@ void SmDocShell::Parse()
     maUsedSymbols = maParser->GetUsedSymbols();
 }
 
-void SmDocShell::ImInitializeCompiler() {
+OUString SmDocShell::ImInitializeCompiler() {
     SAL_INFO("starmath.imath", "Preparing formula for compilation");
 
     if (mPreviousFormula.getLength() > 0) {
-        // Find previous iFormula from parent document, if there is one
+        // Find previous iFormula from parent document. If this fails, a error message is returned
         SAL_INFO("starmath.imath", "Previous formula is " << mPreviousFormula);
 
         Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
@@ -305,26 +307,27 @@ void SmDocShell::ImInitializeCompiler() {
                 mpInitialOptions = pPreviousDocShell->mpCurrentOptions;
                 if (mpInitialCompiler != nullptr && mpInitialOptions != nullptr) {
                     SAL_INFO("starmath.imath", "Set initial compiler and options from previous formula");
-                    return;
+                    return "";
                 } else {
-                    SAL_INFO("starmath.imath", "Compiler and/or options of previous formula had null value");
+                    return "Compiler and/or options of previous formula had null value";
                 }
             } else {
-                SAL_INFO("starmath.imath", "Previous formula was not usable");
+                return "Previous formula was not usable";
             }
         } else {
-            SAL_INFO("starmath.imath", "Previous formula could not be found in parent document");
+            return "Previous formula could not be found in parent document";
         }
     }
 
     // Stand-alone formula document or first formula in document
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
-    if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return;
+    if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return ""; // Already initialized
     SAL_INFO("starmath.imath", "Preparing stand-alone formula or first formula in document");
     Reference<XComponentContext> xContext(GetContext());
 
     mpInitialOptions = std::make_shared<GiNaC::optionmap>();
     mpInitialCompiler = std::make_shared<eqc>();
+    GiNaC::func::clearall(); // Otherwise there will be error messages about already-registered functions
 
     // Get access to the registry that contains the global options
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
@@ -417,14 +420,15 @@ void SmDocShell::ImInitializeCompiler() {
             if (lines.size() > 0) mpInitialOptions = lines.back()->getGlobalOptions();
         }
     } catch (Exception &e) {
-        // TODO: Show error message to user
-        SAL_WARN("starmath.imath", "Recalculation error in iMath include files\n" << e.Message);
-        return;
+        // TODO: Show error message to user with parser location
+        return "Recalculation error in iMath include files\n" + e.Message;
     } catch (std::exception &e) {
-        // TODO: Show error message to user
+        // TODO: Show error message to user with parser location
         SAL_WARN("starmath.imath", "Recalculation error in iMath include files\n" << OUS8(e.what()));
-        return;
+        return "Recalculation error in iMath include files\n" + OUS8(e.what());
     }
+
+    return "";
 }
 
 void SmDocShell::Compile()
@@ -437,14 +441,19 @@ void SmDocShell::Compile()
     }
     SAL_INFO("starmath.imath", "SmDocShell::Compile()");
 
-    ImInitializeCompiler();
+    OUString error = ImInitializeCompiler();
+    if (error.getLength() > 0) {
+        // TODO: Publish it somewhere
+        SAL_WARN("starmath.imath", error);
+        return;
+    }
 
     // Important settings for the compiler. Note: Initialization must do without them, since no mpInitialOptions are available before initialization...
     GiNaC::imathprint::decimalpoint = mDecimalSeparator;
     setlocale(LC_NUMERIC, "C"); // Ensure printf() always uses decimal points! TODO Why is that important?
     // Inhibit floating point underflow exceptions?
     cln::cl_inhibit_floating_point_underflow = (mpInitialOptions->at(o_underflow).value.boolean);
-    MSG_INFO(3, "Inhibit floating point underflow exception: " << (cln::cl_inhibit_floating_point_underflow ? "true" : "false") << endline);
+    SAL_INFO("starmath.imath", "Inhibit floating point underflow exception: " << (cln::cl_inhibit_floating_point_underflow ? "true" : "false"));
     // Evaluate odd negative roots to the positive real value?
     GiNaC::expression::evalf_real_roots_flag = (mpInitialOptions->at(o_evalf_real_roots).value.boolean);
 

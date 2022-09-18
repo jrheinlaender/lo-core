@@ -390,6 +390,8 @@ void SmDocShell::ImInitializeCompiler() {
 
 void SmDocShell::Compile()
 {
+    if (maImText.equalsAscii("")) return; // empty iFormula
+
     if (mImBlocked) {
         SAL_WARN("starmath.imath", "iMath cannot be used because an iMath extension is still installed");
         return;
@@ -411,8 +413,6 @@ void SmDocShell::Compile()
     mpCurrentCompiler = mpInitialCompiler->clone(); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
 
     try {
-        if (maImText.equalsAscii("")) return; // empty iFormula
-
         // Add %%ii in front of every line
         // TODO: Change parser to make this unnecessary
         sal_Int32 idx = 0;
@@ -446,7 +446,7 @@ void SmDocShell::Compile()
 
             SetText(result);
         }
-    } catch (Exception &) {
+    } catch (Exception &e) {
         // TODO: Show error message to user
         MSG_ERROR(0, "ERROR1: " << STR(e.Message) << endline);
     } catch (duplication_error &e) {
@@ -936,7 +936,7 @@ void SmDocShell::Repaint()
 }
 
 std::string SmDocShell::mDecimalSeparator = "";
-bool mImBlocked = false;
+bool SmDocShell::mImBlocked = false;
 
 void SmDocShell::ImStaticInitialization() {
     static bool imInitialized = false;
@@ -944,7 +944,8 @@ void SmDocShell::ImStaticInitialization() {
 
     // Ensure iMath extension is not installed
     // TODO: Put this in SmModule::SmModule() but how to get the MessageDialog to appear?!
-    OUString iMathExtLocation = getPackageLocation(GetContext(), "de.gmx.rheinlaender.jan.imath");
+    Reference<XComponentContext> xContext = comphelper::getProcessComponentContext();
+    OUString iMathExtLocation = getPackageLocation(xContext, "de.gmx.rheinlaender.jan.imath");
     if (iMathExtLocation.getLength() > 0) {
         MSG_INFO(-1, "ERROR: iMath extension found");
         std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(nullptr, VclMessageType::Error, VclButtonsType::Ok, SmResId(RID_STR_IMATHEXTENSIONFOUND)));
@@ -972,7 +973,6 @@ void SmDocShell::ImStaticInitialization() {
 
     // Find decimal separator character from the Office locale and store it for iMath compilation
     // TODO: Re-initialize if the locale is changed?
-    Reference<XComponentContext> xContext = GetContext();
     Reference<lang::XMultiComponentFactory> xMCF = xContext->getServiceManager();
     OUString ooLocale = getLocaleName(xContext);
     Reference<i18n::XLocaleData> xld(xMCF->createInstanceWithContext(OU("com.sun.star.i18n.LocaleData"), xContext), UNO_QUERY_THROW);
@@ -1005,7 +1005,6 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     , mpInitialCompiler(nullptr)
     , mpCurrentOptions(nullptr)
     , mpCurrentCompiler(nullptr)
-    , mImBlocked(false)
 {
     ImStaticInitialization();
     MSG_INFO(0, "SmDocShell::SmDocShell with iMath version=" << SmModule::get()->GetConfig()->GetDefaultImSyntaxVersion());

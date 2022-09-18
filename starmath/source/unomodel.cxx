@@ -160,6 +160,8 @@ enum SmModelPropertyHandles
     HANDLE_IFORMULA,
     HANDLE_IFORMULA_PENDING_COMPILE,
     HANDLE_PREVIOUSIFORMULA,
+    HANDLE_IFORMULA_DEPENDENCY_IN,
+    HANDLE_IFORMULA_DEPENDENCY_OUT,
     HANDLE_FONT_NAME_VARIABLES,
     HANDLE_FONT_NAME_FUNCTIONS,
     HANDLE_FONT_NAME_NUMBERS,
@@ -271,6 +273,8 @@ static const rtl::Reference<PropertySetInfo> & lcl_createModelPropertyInfo ()
         { u"iFormula"_ustr                         , HANDLE_IFORMULA                           ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
         { u"PreviousIFormula"_ustr                 , HANDLE_PREVIOUSIFORMULA                   ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
         { u"iFormulaPendingCompile"_ustr           , HANDLE_IFORMULA_PENDING_COMPILE           ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
+        { u"iFormulaDependencyIn"_ustr             , HANDLE_IFORMULA_DEPENDENCY_IN             ,  cppu::UnoType<OUString>::get(),                                             PROPERTY_NONE,  0                     },
+        { u"iFormulaDependencyOut"_ustr            , HANDLE_IFORMULA_DEPENDENCY_OUT            ,  cppu::UnoType<OUString>::get(),                                             PROPERTY_NONE,  0                     },
         { u"IsScaleAllBrackets"_ustr               , HANDLE_IS_SCALE_ALL_BRACKETS              ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsTextMode"_ustr                       , HANDLE_IS_TEXT_MODE                       ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsRightToLeft"_ustr                    , HANDLE_IS_RIGHT_TO_LEFT                   ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
@@ -448,6 +452,22 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
                 *pValues >>= aName;
                 SAL_INFO("starmath.imath", "Setting previous formula name to " << aName);
                 pDocSh->SetPreviousFormula(aName);
+            }
+            break;
+            case HANDLE_IFORMULA_DEPENDENCY_IN:
+            {
+                OUString aDep;
+                *pValues >>= aDep;
+                SAL_INFO("starmath.imath", "Setting ingoing dependencies to " << aDep);
+                pDocSh->SetIFormulaDependencyIn(aDep);
+            }
+            break;
+            case HANDLE_IFORMULA_DEPENDENCY_OUT:
+            {
+                OUString aDep;
+                *pValues >>= aDep;
+                SAL_INFO("starmath.imath", "Setting outgoing dependencies to " << aDep);
+                pDocSh->SetIFormulaDependencyOut(aDep);
             }
             break;
             case HANDLE_FONT_NAME_VARIABLES                :
@@ -763,6 +783,12 @@ void SmModel::_getPropertyValues( const PropertyMapEntry **ppEntries, Any *pValu
                 *pValue <<= false; // This is required because there is no PropertyAttribute::WRITEONLY
             case HANDLE_PREVIOUSIFORMULA:
                 *pValue <<= pDocSh->GetPreviousFormula();
+            break;
+            case HANDLE_IFORMULA_DEPENDENCY_IN:
+                *pValue <<= pDocSh->GetIFormulaDependencyIn();
+            break;
+            case HANDLE_IFORMULA_DEPENDENCY_OUT:
+                *pValue <<= pDocSh->GetIFormulaDependencyOut();
             break;
             case HANDLE_FONT_NAME_VARIABLES                :
             case HANDLE_FONT_NAME_FUNCTIONS                :

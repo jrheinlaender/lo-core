@@ -431,6 +431,32 @@ OUString SmDocShell::ImInitializeCompiler() {
     return "";
 }
 
+OUString makeDependencyString(const std::set<GiNaC::ex, GiNaC::ex_is_less>& dependencySet)
+{
+    OUString result;
+
+    for (const auto& e: dependencySet)
+    {
+        if (result.getLength() > 0)
+            result += ",";
+        if (GiNaC::is_a<GiNaC::symbol>(e))
+        {
+            // Note: Symbols may contain anything in their subscripts TODO This might possibly lead to symbol collisions
+            // Note: Using the symbol's internal serial number does not work because it is incremented every time a new instance of the class is created, that is, at every recalculation
+            OUString sname = OUS8(GiNaC::ex_to<GiNaC::symbol>(e).get_name());
+            result += sname.replace(' ', '_');
+        }
+        else if (GiNaC::is_a<GiNaC::func>(e))
+        {
+            GiNaC::func f = GiNaC::ex_to<GiNaC::func>(e);
+            if (f.is_hard()) continue; // Hard-coded functions cannot be influenced by a formula in the document
+            result += OUString("func") + OUString::number(f.get_serial());
+        }
+    }
+
+    return result;
+}
+
 void SmDocShell::Compile()
 {
     if (maImText.equalsAscii("")) return; // empty iFormula
@@ -472,6 +498,10 @@ void SmDocShell::Compile()
                 rawtext += "%%ii " + line + OU("\n");
         } while (idx >= 0);
 
+        // Save list of modified symbols (to catch the case where a symbol is removed from the formula)
+        std::set<GiNaC::ex, GiNaC::ex_is_less> oldOutDep;
+        for (const auto& i : lines) oldOutDep.merge(i->getOut());
+
         lines.clear();
         imath::smathparser parser(*this, nullptr, mpCurrentCompiler, mpInitialOptions); // mpInitialOptions are not modified, copy is taken when OPTIONS keyword is encountered
         smathlexer::scan_begin(STR(rawtext));
@@ -493,6 +523,22 @@ void SmDocShell::Compile()
                     result += i->print() + OU("\n");
 
             SetText(result);
+
+            // Update dependencies
+            std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep;
+            for (const auto& i : lines)
+            {
+                inDep.merge(i->getIn());
+                outDep.merge(i->getOut());
+            }
+
+            outDep.merge(oldOutDep);
+            OUString inDepStr = makeDependencyString(inDep);
+            OUString outDepStr = makeDependencyString(outDep);
+            SAL_INFO("starmath.imath", "This formula depends on '" << inDepStr << "'");
+            SAL_INFO("starmath.imath", "This formula modifies '" << outDepStr << "'");
+            SetIFormulaDependencyIn(inDepStr);
+            SetIFormulaDependencyOut(outDepStr);
         }
     } catch (Exception &e) {
         // TODO: Show error message to user
@@ -1049,6 +1095,9 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     , mnModifyCount(0)
     , mbFormulaArranged(false)
     , mnSmSyntaxVersion(SM_MOD()->GetConfig()->GetDefaultSmSyntaxVersion())
+    , mPreviousFormula("")
+    , mIFormulaDependencyIn("")
+    , mIFormulaDependencyOut("")
     , mpInitialOptions(nullptr)
     , mpInitialCompiler(nullptr)
     , mpCurrentOptions(nullptr)

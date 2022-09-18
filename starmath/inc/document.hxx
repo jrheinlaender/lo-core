@@ -279,12 +279,22 @@ public:
     void SetPreviousFormula(const OUString& aName);
     OUString GetPreviousFormula() const  { return mPreviousFormula; }
 
+    /// Set/Get list of symbols on which this formula depends, and list of symbols which it modifies
+    void SetIFormulaDependencyIn(const OUString& aDep) { mIFormulaDependencyIn = aDep; }
+    void SetIFormulaDependencyOut(const OUString& aDep) { mIFormulaDependencyOut = aDep; }
+    OUString GetIFormulaDependencyIn() const  { return mIFormulaDependencyIn; }
+    OUString GetIFormulaDependencyOut() const  { return mIFormulaDependencyOut; }
+
 private:
     /// Parent document (Writer or Presentation)
     // TODO: Find this directly instead of passing it in and out over the API
     Reference< XModel > mxParentModel;
     /// Name of the previous iFormula (OLE mode), empty if the formula is stand-alone or the first formula in a document
     OUString mPreviousFormula = "";
+    /// Names of variables and functions which this formula depends on
+    OUString mIFormulaDependencyIn;
+    /// Names of variables and functions which this formula creates or modifies
+    OUString mIFormulaDependencyOut;
 
     /**
      * Initial options for this formula.

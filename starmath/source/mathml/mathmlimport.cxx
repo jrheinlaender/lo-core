@@ -454,19 +454,44 @@ void SmXMLImport::endDocument()
             rParser->SetImportSymbolNames(bVal);
 
             pDocShell->SetText(aText);
-            pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
             pDocShell->SetSmSyntaxVersion(mnSmSyntaxVersion);
 
             sal_uInt32 programVersion = SM_MOD()->GetConfig()->GetDefaultImSyntaxVersion();
-            if (mnImSyntaxVersion < programVersion) {
+
+            if (mnImSyntaxVersion < 20301 && aText.getLength() > 4 && aImText == "") {
+                // Legacy document created with iMath extension
+                SAL_INFO("starmath.imath", "Migrating legacy iMath extension document\n" << aText);
+                int lineIdx = 0;
+
+                do
+                {
+                    OUString line = aText.getToken(0, '\n', lineIdx);
+                    if (line.matchAsciiL("%%ii+", 5))
+                        aImText += line.copy(5);
+                    else if (line.matchAsciiL("%%ii", 4))
+                    {
+                        if (aImText.getLength() > 0) aImText += "\n";
+                        aImText += line.copy(4);
+                    }
+                    // TODO: Find a way to honour continuation lines
+                } while (lineIdx >= 0);
+
+                mnImSyntaxVersion = programVersion;
+                SAL_INFO("starmath.imath", "Result\n" << aImText);
+            } else if (mnImSyntaxVersion < programVersion) {
                 // Document has older version than program
+                SAL_INFO("starmath.imath", "Migrating document from version " << mnImSyntaxVersion << " to version " <<  programVersion);
                 //TODO: updateFromTo(mnImSyntaxVersion, programVersion);
+
+                mnImSyntaxVersion = programVersion;
             } else if (mnImSyntaxVersion > programVersion) {
                 // Document has newer version than program
                 // TODO: This is untested
                 std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(nullptr, VclMessageType::Error, VclButtonsType::Ok, SmResId(RID_STR_IMATHVERSIONTOOLOW)));
                 xInfoBox->run();
             }
+
+            pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
         }
         OSL_ENSURE(pModel, "So there *was* a UNO problem after all");
 
@@ -1235,6 +1260,11 @@ void SmXMLAnnotationContext_Impl::characters(const OUString& rChars)
         SAL_INFO("starmath.imath", "Opening file with iMath version " << mnIMathVersion);
         GetSmImport().SetImText(GetSmImport().GetImText() + rChars);
         GetSmImport().SetImSyntaxVersion(mnIMathVersion);
+    }
+    else
+    {
+        SAL_INFO("starmath.imath", "Opening legacy file without iMath version");
+        GetSmImport().SetImSyntaxVersion(0); // This will trigger migration in endDocument()
     }
 }
 

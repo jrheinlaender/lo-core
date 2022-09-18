@@ -19,15 +19,23 @@
 
 #include <sfx2/objface.hxx>
 #include <vcl/EnumContext.hxx>
+#include <tools/globname.hxx>
+#include <sot/exchange.hxx>
+
 #include <view.hxx>
 #include <frmsh.hxx>
 #include <olesh.hxx>
+#include <wrtsh.hxx>
+#include <flyfrm.hxx>
 
 #include <sfx2/sidebar/SidebarController.hxx>
 
 #define ShellClass_SwOleShell
 #include <sfx2/msg.hxx>
 #include <swslots.hxx>
+
+#include <com/sun/star/embed/XEmbeddedObject.hpp>
+#include <com/sun/star/beans/XPropertySet.hpp>
 
 using namespace css::uno;
 using namespace sfx2::sidebar;
@@ -82,6 +90,22 @@ void SwOleShell::Deactivate(bool bMDI)
 
         SfxShell::SetContextBroadcasterEnabled(bIsContextBroadcasterEnabled);
     }
+
+    // Note: Sequence for double-clicking a formula without prior selection is:
+    // Double click - Constructor - User editing - Activate - User removes focus from formula - Deactivate
+    // The last deactivation happens when the focus leaves the formula
+    // If the formula is first selected and then double clicked
+    // Click - Constructor - Activate - Double click - Deactivate - User editing - Activate - User removes focus from formula - Deactivate
+    if (mIFormulaName.getLength() > 0)
+    {
+        SAL_INFO("sw.imath", "Shell for Math object '" << mIFormulaName << "' was deactivated");
+
+        // Notify document that dependent iFormulas need to be recompiled
+        bool textChanged = GetShell().GetDoc()->GetDocShell()->RecalculateDependentIFormulas(mIFormulaName, mIFormulaText);
+        if (textChanged)
+            mIFormulaText = ""; // Clear text so that new text will be set at next Activate() call
+        // Otherwise keep name and text so that repeated activation of the same formula can be handled
+    }
 }
 
 SwOleShell::SwOleShell(SwView &_rView) :
@@ -90,6 +114,32 @@ SwOleShell::SwOleShell(SwView &_rView) :
 {
     SetName("Object");
     SfxShell::SetContextName(vcl::EnumContext::GetContextName(vcl::EnumContext::Context::OLE));
+    mIFormulaName = "";
+    mIFormulaText = "";
+    SAL_INFO("sw.imath", "SwOleShell::SwOleShell()");
+
+    // Set iFormula name and text
+    const uno::Reference < embed::XEmbeddedObject > xObj( GetShell().GetOleRef() );
+    if (xObj.is()) {
+        SvGlobalName aCLSID( xObj->getClassID() );
+        if ( SotExchange::IsMath( aCLSID ) )
+        {
+            mIFormulaName = GetShell().GetFlyName();
+            SAL_INFO("sw.imath", "Shell Math object name set to '" << mIFormulaName << "'");
+
+            Reference < lang::XComponent > formulaComponent(xObj->getComponent(), UNO_QUERY);
+            if (formulaComponent.is()) {
+                Reference < beans::XPropertySet > fPS(formulaComponent, UNO_QUERY);
+                if (fPS.is())
+                {
+                    Any fTextAny;
+                    fTextAny = fPS->getPropertyValue(OUString("iFormula"));
+                    fTextAny >>= mIFormulaText;
+                    SAL_INFO("sw.imath", "Shell Math object text set to\n" << mIFormulaText);
+                }
+            }
+        }
+    }
 }
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <vector>
+#include <list>
 #include <rtl/ref.hxx>
 #include <com/sun/star/uno/Sequence.h>
 #include <sfx2/docfac.hxx>
@@ -159,6 +160,11 @@ class SW_DLLPUBLIC SwDocShell
     SAL_DLLPRIVATE void                  Init_Impl();
 
     using SfxObjectShell::GetVisArea;
+
+    /** iMath stuff
+     */
+    /// List of iFormula names, in document text flow order
+    std::list<OUString> formulaNames;
 
 protected:
     /// override to update text fields
@@ -332,6 +338,9 @@ public:
      */
     // Update the information about the previous iFormula
     void UpdatePreviousIFormulaLinks();
+
+    /// Recalculate formulas that depend on the given formula, if its text has changed. Return true if text has changed
+    bool RecalculateDependentIFormulas(const OUString& formulaName, const OUString& oldText);
 
 protected:
     class LockAllViewsGuard_Impl final : public LockAllViewsGuard

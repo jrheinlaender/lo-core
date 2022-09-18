@@ -158,6 +158,7 @@ enum SmModelPropertyHandles
 {
     HANDLE_FORMULA,
     HANDLE_IFORMULA,
+    HANDLE_IFORMULA_PENDING_COMPILE,
     HANDLE_PREVIOUSIFORMULA,
     HANDLE_FONT_NAME_VARIABLES,
     HANDLE_FONT_NAME_FUNCTIONS,
@@ -269,6 +270,7 @@ static const rtl::Reference<PropertySetInfo> & lcl_createModelPropertyInfo ()
         { u"Formula"_ustr                          , HANDLE_FORMULA                            ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
         { u"iFormula"_ustr                         , HANDLE_IFORMULA                           ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
         { u"PreviousIFormula"_ustr                 , HANDLE_PREVIOUSIFORMULA                   ,  ::cppu::UnoType<OUString>::get(),                                      PROPERTY_NONE,  0                     },
+        { u"iFormulaPendingCompile"_ustr           , HANDLE_IFORMULA_PENDING_COMPILE           ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsScaleAllBrackets"_ustr               , HANDLE_IS_SCALE_ALL_BRACKETS              ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsTextMode"_ustr                       , HANDLE_IS_TEXT_MODE                       ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
         { u"IsRightToLeft"_ustr                    , HANDLE_IS_RIGHT_TO_LEFT                   ,  cppu::UnoType<bool>::get(),                                                 PROPERTY_NONE,  0                     },
@@ -431,6 +433,13 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
                 OUString aText;
                 *pValues >>= aText;
                 pDocSh->SetImText(aText);
+            }
+            break;
+            case HANDLE_IFORMULA_PENDING_COMPILE:
+            {
+                bool bVal;
+                *pValues >>= bVal;
+                if (bVal) pDocSh->Compile();
             }
             break;
             case HANDLE_PREVIOUSIFORMULA:
@@ -750,6 +759,8 @@ void SmModel::_getPropertyValues( const PropertyMapEntry **ppEntries, Any *pValu
             case HANDLE_IFORMULA:
                 *pValue <<= pDocSh->GetImText();
             break;
+            case HANDLE_IFORMULA_PENDING_COMPILE:
+                *pValue <<= false; // This is required because there is no PropertyAttribute::WRITEONLY
             case HANDLE_PREVIOUSIFORMULA:
                 *pValue <<= pDocSh->GetPreviousFormula();
             break;

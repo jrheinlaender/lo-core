@@ -1192,7 +1192,6 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
     Reference< text::XText > xText(pDoc->getText(), UNO_QUERY);
     if (xText.is())
     {
-        std::list<OUString> formulaNames;
         unsigned count = 0;
         // TODO: Implement progress bar with
         // ::StartProgress( STR_STATSTR_SWGPRTOLENOTIFY, 0, formulaNames.size(), this);
@@ -1264,6 +1263,119 @@ void SwDocShell::LoadingFinished()
     {
         m_xDoc->getIDocumentState().SetModified();
     }
+}
+
+OUString getFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName)
+{
+    if ( xFormulaComp.is() )
+    {
+        Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
+        if ( xFormulaModel.is() )
+        {
+            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
+            if ( xFormulaProps.is() )
+            {
+                uno::Any aText = xFormulaProps->getPropertyValue(propertyName);
+                OUString result;
+                aText >>= result;
+                return result;
+            }
+        }
+    }
+
+    return "";
+}
+
+void setFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName, const uno::Any& value)
+{
+    if ( xFormulaComp.is() )
+    {
+        Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
+        if ( xFormulaModel.is() )
+        {
+            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
+            if ( xFormulaProps.is() )
+            {
+                xFormulaProps->setPropertyValue(propertyName, value);
+            }
+        }
+    }
+}
+
+bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, const OUString& oldText)
+{
+    Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
+    bool success = false;
+
+    // Extract required formula properties
+    OUString formulaText = getFormulaProperty(xFormulaComp, "iFormula");
+
+    if (formulaText.getLength() == 0)
+    {
+        SAL_WARN("sw.imath", "RecalculateDependentIFormulas() could not read the iFormula properties");
+        return false;
+    }
+
+    // Check if formula text has changed at all
+    SAL_INFO("sw.imath", "Old formula text\n" << oldText << "\nNew formula text\n" << formulaText);
+    if (oldText == formulaText)
+    {
+        SAL_INFO("sw.imath", "RecalculateDependentIFormulas() called, but formula text is unchanged");
+        return false;
+    }
+
+    SAL_INFO("sw.imath", "Formula text has changed for '" << formulaName << "'");
+
+    // Check if any formulas depend on this formula
+    OUString modifiedSymbols = getFormulaProperty(xFormulaComp, "iFormulaDependencyOut");
+    if (modifiedSymbols.getLength() == 0)
+    {
+        SAL_INFO("sw.imath", "No symbols are modified by this formula, recalculation is not required");
+        return true;
+    }
+
+    std::set<OUString> symbolSet;
+    auto it = std::find(formulaNames.begin(), formulaNames.end(), formulaName);
+    if (it != formulaNames.end()) ++it; // Skip this formula, it has already been compiled
+
+    while (it != formulaNames.end())
+    {
+        xFormulaComp = getObjectByName(GetModel(), *it);
+        setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));
+
+        /*
+         * TODO: This does not work yet, because there is a linear chain of mpInitialCompiler/mpCurrentCompiler in starmath objects
+        // Add modified symbols of previous formula
+        sal_Int32 idx = 0;
+        do
+        {
+            OUString token = modifiedSymbols.getToken(0, ',', idx);
+            if (token.getLength() > 0)
+                symbolSet.insert(token);
+        }
+        while (idx >= 0);
+
+        // Check this formula
+        xFormulaComp = getObjectByName(GetModel(), *it);
+        OUString dependencies = getFormulaProperty(xFormulaComp, "iFormulaDependencyIn");
+        for (const auto& s: symbolSet)
+        {
+            if (dependencies.indexOf(s) >= 0)
+            {
+                SAL_INFO("starmath.imath", "Recalculating " << *it << " because it depends on " << s);
+                setFormulaProperty(xFormulaComp, "iFormula", getFormulaProperty(xFormulaComp, "iFormula") + " ");
+                break;
+            }
+        }
+
+        // Prepare for next iteration
+        modifiedSymbols = getFormulaProperty(xFormulaComp, "iFormulaDependencyOut");
+        */
+
+        ++it;
+    }
+
+    return true;
 }
 
 // a Transfer is cancelled (is called from SFX)

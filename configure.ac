@@ -14,7 +14,7 @@ AC_INIT([LibreOffice],[24.2.7.2.0+],[],[],[http://documentfoundation.org/])
 dnl libnumbertext needs autoconf 2.68, but that can pick up autoconf268 just fine if it is installed
 dnl whereas aclocal (as run by autogen.sh) insists on using autoconf and fails hard
 dnl so check for the version of autoconf that is actually used to create the configure script
-AC_PREREQ([2.59])
+AC_PREREQ([2.71])
 m4_if(m4_version_compare(m4_defn([AC_AUTOCONF_VERSION]), [2.68]), -1,
     [AC_MSG_ERROR([at least autoconf version 2.68 is needed (you can use AUTOCONF environment variable to point to a suitable one)])])
 
@@ -460,7 +460,7 @@ PRODUCTNAME_WITHOUT_SPACES=$(printf %s "$PRODUCTNAME" | sed 's/ //g')
 AC_SUBST(PRODUCTNAME_WITHOUT_SPACES)
 
 dnl ===================================================================
-dnl Our version is defined by the AC_INIT() at the top of this script.
+dnl Our version is defined by the AC_INIT at the top of this script.
 dnl ===================================================================
 
 AC_MSG_CHECKING([for package version])

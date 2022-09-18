@@ -276,7 +276,7 @@ public:
     void SetOption(const option_name oname, const option& value);
 
     /// Set/Get for previous iFormula
-    void SetPreviousFormula(const OUString& aName) { mPreviousFormula = aName; }
+    void SetPreviousFormula(const OUString& aName);
     OUString GetPreviousFormula() const  { return mPreviousFormula; }
 
 private:

@@ -18,7 +18,6 @@ $(eval $(call gb_Library_set_precompiled_header,sm,starmath/inc/pch/precompiled_
 $(eval $(call gb_Library_set_include,sm,\
         -I$(SRCDIR)/starmath/inc \
         -I$(SRCDIR)/starmath/inc/mathml \
-        -I$(SRCDIR)/starmath/inc/imath \
         -I$(WORKDIR)/SdiTarget/starmath/sdi \
         -I$(WORKDIR)/YaccTarget/starmath/source \
         $$(INCLUDE) \

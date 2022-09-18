@@ -1330,19 +1330,6 @@ void deleteFormula(const Reference < XModel > &xModel, const Reference < XCompon
   }
 } // deleteFormula()
 
-Reference < XComponent > getFormulaByName(const Reference < XNameAccess > &embeddedObjects, const OUString &iFormulaName) {
-  try {
-    Any iFormulaEmbedded = embeddedObjects->getByName(iFormulaName);
-    Reference < XComponent > iFormula;
-    iFormulaEmbedded >>= iFormula;
-    if (!checkIsFormula(iFormula))
-      return Reference< XComponent >();
-    return iFormula;
-  } catch (const Exception&) {
-    return Reference< XComponent >();
-  }
-} // getFormulaByName()
-
 Reference < XComponent > getObjectByName(const Reference < XNameAccess > &embeddedObjects, const OUString &objectName) {
   try {
     Any object = embeddedObjects->getByName(objectName);

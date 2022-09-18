@@ -275,10 +275,6 @@ public:
     /// Set an option on the formula (all lines of it) if its value is different from the global option
     void SetOption(const option_name oname, const option& value);
 
-    /// Set/Get parent document
-    void SetParentModel(const Reference< XModel >& xParent) { mxParentModel = xParent; }
-    Reference< XModel > GetParentModel() const { return mxParentModel; }
-
     /// Set/Get for previous iFormula
     void SetPreviousFormula(const OUString& aName) { mPreviousFormula = aName; }
     OUString GetPreviousFormula() const  { return mPreviousFormula; }

@@ -274,15 +274,43 @@ void SmDocShell::Parse()
 }
 
 void SmDocShell::ImInitializeCompiler() {
+    SAL_INFO("starmath.imath", "Preparing formula for compilation");
+
     if (mPreviousFormula.getLength() > 0) {
-        // Formula in context of parent document
-        // TODO
-        return;
+        // Find previous iFormula from parent document, if there is one
+        SAL_INFO("starmath.imath", "Previous formula is " << mPreviousFormula);
+
+        Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
+        Reference<XModel> xParent(xModel->getParent(), UNO_QUERY_THROW);
+        Reference < XComponent > xPreviousFormulaComponent = getObjectByName(xParent, mPreviousFormula);
+
+        if (xPreviousFormulaComponent.is()) {
+            Reference< XModel > xPreviousFormula = extractModel(xPreviousFormulaComponent);
+
+            SmModel* pPreviousModel = comphelper::getUnoTunnelImplementation<SmModel>(xPreviousFormula);
+            SmDocShell* pPreviousDocShell = pPreviousModel ? static_cast<SmDocShell*>(pPreviousModel->GetObjectShell()) : nullptr;
+
+            if (pPreviousDocShell != nullptr) {
+                mpInitialCompiler = pPreviousDocShell->mpCurrentCompiler;
+                mpInitialOptions = pPreviousDocShell->mpCurrentOptions;
+                if (mpInitialCompiler != nullptr && mpInitialOptions != nullptr) {
+                    SAL_INFO("starmath.imath", "Set initial compiler and options from previous formula");
+                    return;
+                } else {
+                    SAL_INFO("starmath.imath", "Compiler and/or options of previous formula had null value");
+                }
+            } else {
+                SAL_INFO("starmath.imath", "Previous formula was not usable");
+            }
+        } else {
+            SAL_INFO("starmath.imath", "Previous formula could not be found in parent document");
+        }
     }
 
     // Stand-alone formula document or first formula in document
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return;
+    SAL_INFO("starmath.imath", "Preparing stand-alone formula or first formula in document");
     Reference<XComponentContext> xContext(GetContext());
 
     mpInitialOptions = std::make_shared<GiNaC::optionmap>();
@@ -410,7 +438,7 @@ void SmDocShell::Compile()
     // Evaluate odd negative roots to the positive real value?
     GiNaC::expression::evalf_real_roots_flag = (mpInitialOptions->at(o_evalf_real_roots).value.boolean);
 
-    // Prepare options and compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
+    // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = mpInitialCompiler->clone(); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
 
     try {

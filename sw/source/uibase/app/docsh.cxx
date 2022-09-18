@@ -1181,13 +1181,41 @@ void SwDocShell::SetView(SwView* pVw)
         m_pWrtShell = nullptr;
 }
 
-OUString SwDocShell::FindPreviousIFormulaName(const OUString& formulaName) const
+OUString getFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName)
 {
-    auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
+    if ( xFormulaComp.is() )
+    {
+        Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
+        if ( xFormulaModel.is() )
+        {
+            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
+            if ( xFormulaProps.is() )
+            {
+                uno::Any aText = xFormulaProps->getPropertyValue(propertyName);
+                OUString result;
+                aText >>= result;
+                return result;
+            }
+        }
+    }
 
-    if (it == m_IFormulaNames.end() || it == m_IFormulaNames.begin()) return "";
+    return "";
+}
 
-    return *(--it);
+void setFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName, const uno::Any& value)
+{
+    if ( xFormulaComp.is() )
+    {
+        Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
+        if ( xFormulaModel.is() )
+        {
+            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
+            if ( xFormulaProps.is() )
+            {
+                xFormulaProps->setPropertyValue(propertyName, value);
+            }
+        }
+    }
 }
 
 void SwDocShell::UpdatePreviousIFormulaLinks()
@@ -1273,43 +1301,6 @@ void SwDocShell::LoadingFinished()
     if ( bHasDocToStayModified && !m_xDoc->getIDocumentState().IsModified() )
     {
         m_xDoc->getIDocumentState().SetModified();
-    }
-}
-
-OUString getFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName)
-{
-    if ( xFormulaComp.is() )
-    {
-        Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
-        if ( xFormulaModel.is() )
-        {
-            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
-            if ( xFormulaProps.is() )
-            {
-                uno::Any aText = xFormulaProps->getPropertyValue(propertyName);
-                OUString result;
-                aText >>= result;
-                return result;
-            }
-        }
-    }
-
-    return "";
-}
-
-void setFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName, const uno::Any& value)
-{
-    if ( xFormulaComp.is() )
-    {
-        Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
-        if ( xFormulaModel.is() )
-        {
-            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
-            if ( xFormulaProps.is() )
-            {
-                xFormulaProps->setPropertyValue(propertyName, value);
-            }
-        }
     }
 }
 

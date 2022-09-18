@@ -342,9 +342,6 @@ public:
     /// Retrieve the next available iFormula equation number
     unsigned GetNextIFormulaNumber() { return m_nextIFormulaNumber++; }
 
-    /// Find the previous IFormula object name
-    OUString FindPreviousIFormulaName(const OUString& formulaName) const;
-
     /// Update the information about the previous iFormula
     void UpdatePreviousIFormulaLinks();
 

@@ -128,7 +128,8 @@ SwOleShell::SwOleShell(SwView &_rView) :
             SAL_INFO("sw.imath", "Shell Math object name set to '" << mIFormulaName << "'");
 
             Reference < lang::XComponent > formulaComponent(xObj->getComponent(), UNO_QUERY);
-            if (formulaComponent.is()) {
+            if (formulaComponent.is())
+            {
                 Reference < beans::XPropertySet > fPS(formulaComponent, UNO_QUERY);
                 if (fPS.is())
                 {

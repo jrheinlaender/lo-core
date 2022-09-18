@@ -30,7 +30,7 @@
 namespace GiNaC {
 
 /// Extends GiNaC to handle string "expressions"
-class stringex : public basic {
+class IMATH_DLLPUBLIC stringex : public basic {
   GINAC_DECLARE_REGISTERED_CLASS(stringex, basic)
 
 public:
@@ -64,7 +64,7 @@ private:
   std::string value;
 };
 
-class stringex_unarchiver {
+class IMATH_DLLPUBLIC stringex_unarchiver {
 public:
   stringex_unarchiver();
   ~stringex_unarchiver();

@@ -21,6 +21,11 @@
 #include <string>
 #include <iostream>
 #include <stdexcept>
+#ifdef INSIDE_SM
+#include <imath/imathdllapi.h>
+#else
+#define IMATH_DLLPUBLIC
+#endif
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning (disable: 4099 4100 4996)
@@ -34,15 +39,15 @@ namespace GiNaC {
 
 typedef std::vector<relational> unitvec;
 
-class expression;
-extern const expression _expr0;
-extern const expression _expr1;
+class IMATH_DLLPUBLIC expression;
+IMATH_DLLPUBLIC extern const expression _expr0;
+IMATH_DLLPUBLIC extern const expression _expr1;
 
 /**
   * @short Subclass of GiNaC::ex to enable special features for expressions
   * @author Jan Rheinlaender
   */
-class expression : public ex {
+class IMATH_DLLPUBLIC expression : public ex {
 private:
   /// Indicates whether a value has been stored in the expression
   bool empty;

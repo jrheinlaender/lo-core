@@ -45,7 +45,7 @@ namespace GiNaC {
 typedef std::map<option_name, option> optionmap;
 
 /// Printing class for iMath
-class imathprint : public print_dflt {
+class IMATH_DLLPUBLIC imathprint : public print_dflt {
   GINAC_DECLARE_PRINT_CONTEXT(imathprint, print_dflt)
 public:
   optionmap* poptions; // iMath-specific print options

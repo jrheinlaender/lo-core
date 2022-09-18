@@ -139,10 +139,10 @@ Reference< XModel > checkDocumentLoaded(Reference< XDesktop >& xDesktop, const O
 Reference< XModel > loadDocument(const Reference < XDesktop >& xDesktop, const OUString& calcURL, const bool readonly);
 
 // Return a system-dependant representation of the file URL
-OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext);
+IMATH_DLLPUBLIC OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext);
 
 /// If newURL is relative, use the given absolute URL to make a new absolute URL
-OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL, const Reference<XComponentContext>& xContext);
+IMATH_DLLPUBLIC OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL, const Reference<XComponentContext>& xContext);
 
 /// Check if this is a global document
 sal_Bool isGlobalDocument(const Reference< XModel >& xModel);
@@ -289,7 +289,7 @@ Reference < XComponent > getObjectByName(const Reference < XNameAccess > &embedd
 OUString getInterText(const Reference<XTextContent>& f1, const Reference<XTextContent>& f2);
 
 /// Get registry access to a certain node path
-Reference< XHierarchicalPropertySet > getRegistryAccess(const Reference< XComponentContext >& mxCC, const OUString& nodepath);
+IMATH_DLLPUBLIC Reference< XHierarchicalPropertySet > getRegistryAccess(const Reference< XComponentContext >& mxCC, const OUString& nodepath);
 
 // Change number of cached inline objects
 void setInlineCache(const Reference< XComponentContext >& mxCC, const sal_Int32 num);
@@ -391,7 +391,7 @@ sal_Int32 getIntProperty(const Reference< XPropertyContainer >& xUserPropsContai
 double getNumberProperty(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
 
 /// Get the value of a document-specific property. Create it if it does not exist, and initialize it with the value from the registry
-OUString getTextProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
+IMATH_DLLPUBLIC OUString getTextProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
                                const Reference<XNamedGraph>& xGraph, const Reference< XHierarchicalPropertySet >& xProperties,
                                const OUString& userPropName, const OUString& propName);
 sal_Bool getBoolProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
@@ -434,10 +434,10 @@ Reference< XCell > getTableCell(const Reference< XTextDocument >& xDoc, const OU
 GiNaC::expression getCellExpression(const Reference< XCell >& xCell);
 
 /// Return the content of the given calc cell range
-GiNaC::expression calcCellRangeContent(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange);
+IMATH_DLLPUBLIC GiNaC::expression calcCellRangeContent(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange);
 
 /// Set the content of the given calc cell range to the expression (scalar, vector or matrix type must match the given cell range)
-void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange, const GiNaC::ex& value);
+IMATH_DLLPUBLIC void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange, const GiNaC::ex& value);
 
 /// Return a cell range of a Calc document
 Reference< XColumnRowRange > getCalcCellRange(const Reference < XSpreadsheetDocument >& xCalcDoc, const OUString& sheetName, const OUString& cellRange);
@@ -452,13 +452,13 @@ void setCalcCellRangeExpression(const Reference < XColumnRowRange >& xColumnRowR
 void setCellExpression(const Reference< XCell >& xCell, const GiNaC::expression& value);
 
 /// Parse the content of a string (currently specific to text field content strings)
-GiNaC::expression getExpressionFromString(const OUString& s);
+IMATH_DLLPUBLIC GiNaC::expression getExpressionFromString(const OUString& s);
 
 /// Create the RDF graph that stores the iMath document-specific properties
-Reference<XNamedGraph> createGraph(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel);
+IMATH_DLLPUBLIC Reference<XNamedGraph> createGraph(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel);
 
 /// Get the RDF graph that stores the iMath document-specific properties
-Reference<XNamedGraph> getGraph(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel);
+IMATH_DLLPUBLIC Reference<XNamedGraph> getGraph(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel);
 
 /// Add a statement to the graph
 void addStatement(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
@@ -490,7 +490,7 @@ void removeStatement(const Reference< XComponentContext >& mxCC, const Reference
 //void saveNextnum(Reference< XFrame > xFrame, sal_Int32 nextnum);
 
 /// Get the location where the package is installed
-OUString getPackageLocation(const Reference < XComponentContext >& mxContext, const OUString& id);
+IMATH_DLLPUBLIC OUString getPackageLocation(const Reference < XComponentContext >& mxContext, const OUString& id);
 
 // About office decimal separator settings
 // Tools-Options-Language Settings-Language-Document language has no influence on the decimal separator!
@@ -498,7 +498,7 @@ OUString getPackageLocation(const Reference < XComponentContext >& mxContext, co
 // Tools-Options-Language Settings-Language-Locale setting changes the decimal separator
 // Tools-Options-Language Settings-Language-Decimal separator key seems to have no influence?
 /// Get the local name
-OUString getLocaleName(const Reference< XComponentContext >& mxCC);
+IMATH_DLLPUBLIC OUString getLocaleName(const Reference< XComponentContext >& mxCC);
 
 /// Check whether the string has enclosing brackets (that is a matching pair of () at the start and end of the string)
 bool hasEnclosingBrackets(const OUString& arg);
@@ -506,13 +506,13 @@ bool hasEnclosingBrackets(const OUString& arg);
 typedef std::vector<std::string> strvec;
 
 /// Trim whitespace from a string
-std::string trimstring(const std::string& s);
+IMATH_DLLPUBLIC std::string trimstring(const std::string& s);
 
 /// Replace a substring inside a string
-OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl);
+IMATH_DLLPUBLIC OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl);
 
 /// Split a string into a list of strings at a given boundary
-std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary);
+IMATH_DLLPUBLIC std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary);
 
 /// Compare two version strings of the form M.m.b~x
 // Returns -1 if file version is smaller than program version

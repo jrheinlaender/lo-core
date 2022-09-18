@@ -35,10 +35,10 @@ Class equation is used to store, print and evaluate equations
 
 namespace GiNaC {
 
-extern const expression _expr1;
+IMATH_DLLPUBLIC extern const expression _expr1;
 
 /// Used to store, print and evaluate equations
-class equation : public relational {
+class IMATH_DLLPUBLIC equation : public relational {
   GINAC_DECLARE_REGISTERED_CLASS(equation, relational)
 
   /// The modulus for modular arithmetic. A value of zero indicates no modulus.
@@ -257,7 +257,7 @@ private:
     using basic::collect; // Shut up warning about our collect() hiding the base classes' collect
 };
 
-class equation_unarchiver {
+class IMATH_DLLPUBLIC equation_unarchiver {
 public:
   equation_unarchiver();
   ~equation_unarchiver();
@@ -273,7 +273,7 @@ static equation_unarchiver equation_unarchiver_instance;
   @returns An ex containing the result of the addition
   @exception invalid_argument
   **/
-const expression operator+(const expression &e, const expression &add);
+IMATH_DLLPUBLIC const expression operator+(const expression &e, const expression &add);
 const expression operator+(const equation &e, const equation &add);
 const expression operator+(const expression &e, const equation &add);
 const expression operator+(const equation &e, const expression &add);
@@ -285,7 +285,7 @@ const expression operator+(const equation &e, const expression &add);
   @returns An ex containing the result of the subtraction
   @exception invalid_argument
   **/
-const expression operator-(const expression &e, const expression &sub);
+IMATH_DLLPUBLIC const expression operator-(const expression &e, const expression &sub);
 const expression operator-(const equation &e, const equation &sub);
 const expression operator-(const expression &e, const equation &sub);
 const expression operator-(const equation &e, const expression &sub);
@@ -298,7 +298,7 @@ const expression operator-(const equation &e, const expression &sub);
   @exception invalid_argument(Multiplication with zero)
   @exception invalid_argument(Cannot multiply two equations)
   **/
-const expression operator*(const expression &e, const expression &mul);
+IMATH_DLLPUBLIC const expression operator*(const expression &e, const expression &mul);
 const expression operator*(const equation &e, const equation &mul);
 const expression operator*(const expression &e, const equation &mul);
 const expression operator*(const equation &e, const expression &mul);
@@ -310,7 +310,7 @@ const expression operator*(const equation &e, const expression &mul);
   @returns An expression containing the result of the division
   @exception invalid_argument(Division by zero)
   **/
-const expression operator/(const expression &e, const expression &divisor);
+IMATH_DLLPUBLIC const expression operator/(const expression &e, const expression &divisor);
 const expression operator/(const equation &e, const equation &divisor);
 const expression operator/(const expression &e, const equation &divisor);
 const expression operator/(const equation &e, const expression &divisor);
@@ -324,7 +324,7 @@ const expression operator/(const equation &e, const expression &divisor);
   @returns An expression containing the result of the operation
   @exception invalid_argument(Cannot calculate power to exponent that is an equation)
   **/
-expression pow(const expression &e, const expression &exponent);
+IMATH_DLLPUBLIC expression pow(const expression &e, const expression &exponent);
 
 /**
   Negate an expression.

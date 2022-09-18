@@ -27,7 +27,7 @@
 #include "iFormulaLine.hxx"
 #include <ginac/ginac.h>
 
-class Settingsmanager {
+class IMATH_DLLPUBLIC Settingsmanager {
 public:
   /// Transfer settings from dialog control to iFormula
   static void setLineOptionsFromControls(iFormulaLine& f, const Reference<XControlContainer>& xControlContainer);

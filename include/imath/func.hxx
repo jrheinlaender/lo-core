@@ -89,7 +89,12 @@ struct funcrec {
 };
 
 /// Extends GiNaC::function by runtime definition of functions
-class func : public exprseq {
+// Note: Making the whole class IMATH_DLLPUBLIC for MSVC results in lots of duplicate defined symbols from container<std::vector>
+class
+#ifndef _MSC_VER
+IMATH_DLLPUBLIC
+#endif
+func : public exprseq {
   GINAC_DECLARE_REGISTERED_CLASS(func, exprseq)
 private:
   /// Helper function for the constructors
@@ -103,17 +108,17 @@ public:
    * @param discardable Required by GiNaC
    */
 #if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
-  func(const std::string &n, const exvector &args = exvector());
-  func(const std::string &n, exvector && args);
+  IMATH_DLLPUBLIC func(const std::string &n, const exvector &args = exvector());
+  IMATH_DLLPUBLIC func(const std::string &n, exvector && args);
 #else
   func(const std::string &n, const exvector &args = exvector(), bool discardable = false);
   func(const std::string &n, exvector &&args, bool discardable = false);
 #endif
-  func(const std::string &n, const exprseq &args);
-  func(const std::string &n, exprseq &&args);
+  IMATH_DLLPUBLIC func(const std::string &n, const exprseq &args);
+  IMATH_DLLPUBLIC func(const std::string &n, exprseq &&args);
 
   /// Create a function with a single argument
-  func(const std::string &n, const expression &e);
+  IMATH_DLLPUBLIC func(const std::string &n, const expression &e);
 
 #ifdef DEBUG_CONSTR_DESTR
   func(const func& other);
@@ -256,7 +261,7 @@ private:
 
 public:
   /// Initialize the map of functions with the GiNaC hard-coded functions
-  static void init();
+  IMATH_DLLPUBLIC static void init();
 
   /// Delete the function
   static void remove(const std::string& fname);
@@ -279,7 +284,7 @@ public:
   static void registr(const std::string &n, exvector &args, const unsigned h = 0, const std::string& printname = "");
 
   /// Return the number assigned to this hint
-  static unsigned hint(const std::string &s);
+  IMATH_DLLPUBLIC static unsigned hint(const std::string &s);
 
   /**
    * Define a user-defined function
@@ -287,7 +292,7 @@ public:
    * @param def  An expression defining how to evaluate the function
    * @exception invalid_argument (Function does not exist)
    **/
-  static void define(const std::string &n, const expression &def);
+  IMATH_DLLPUBLIC static void define(const std::string &n, const expression &def);
 
   /**
    * Check whether fname is a function
@@ -297,7 +302,7 @@ public:
   static bool is_a_func(const std::string &fname);
 
   /// Return true if hint expand is set for this function name
-  static bool is_expand(const std::string& fname);
+  IMATH_DLLPUBLIC static bool is_expand(const std::string& fname);
 
   /// Return true if this function name refers to a library function
   static bool is_lib(const std::string& fname);
@@ -380,7 +385,7 @@ private:
 };
 
 // Fake the GiNaC unarchiver functionality because it breaks unopkg with error "Class ... is already registered" in ginac/archive.cpp
-class func_unarchiver {
+class IMATH_DLLPUBLIC func_unarchiver {
 public:
   func_unarchiver();
   ~func_unarchiver();

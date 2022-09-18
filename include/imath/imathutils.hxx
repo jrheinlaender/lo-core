@@ -277,9 +277,6 @@ void getInputFormulas(const Reference < XController > &xCtrl, const Sequence < P
         expression& original, expression& operand);
 */
 
-/// get an embedded iFormula by name
-Reference < XComponent > getFormulaByName(const Reference < XNameAccess > &embeddedObjects, const OUString &iFormulaName);
-
 /// get an embedded object by name
 IMATH_DLLPUBLIC Reference < XComponent > getObjectByName(const Reference < XModel >& xModel, const OUString &objectName);
 Reference < XComponent > getObjectByName(const Reference< XIndexAccess > &xDrawPages, const OUString &objectName);

@@ -320,6 +320,9 @@ public:
   // Return arguments if there are any, else the variables
   exvector get_args() const;
 
+  /// Return the serial number of the function
+  inline unsigned get_serial() const { return serial; }
+
   /**
   * Return true if this is a trigonometric function, else false
   * @exception runtime_error(Function is not registered)
@@ -340,6 +343,9 @@ public:
 
   /// Return true if the function has no arguments (useful for printing)
   inline bool is_pure() const { return(seq.empty()); }
+
+  /// Return true if the function is hard-coded
+  inline bool is_hard() const { return(hard); }
 
 // member variables -------------------------------------------------
 protected:

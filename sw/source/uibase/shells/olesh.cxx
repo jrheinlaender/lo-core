@@ -141,6 +141,8 @@ SwOleShell::SwOleShell(SwView &_rView) :
                     fTextAny = fPS->getPropertyValue("PreviousIFormula");
                     OUString previousIFormula;
                     fTextAny >>= previousIFormula;
+                    SAL_INFO("sw.imath", "Previous iFormula is " << previousIFormula);
+
                     if (previousIFormula.equalsAscii("_IMATH_UNDEFINED_"))
                     {
                         SAL_INFO("sw.imath", "New math object, triggering compile");

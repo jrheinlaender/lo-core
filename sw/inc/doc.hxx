@@ -1710,6 +1710,12 @@ private:
     // Copies master footer to left / first one, if necessary - used by ChgPageDesc().
     void CopyMasterFooter(const SwPageDesc &rChged, const SwFormatFooter &rFoot, SwPageDesc &pDesc, bool bLeft, bool bFirst);
 
+    /// iMath
+public:
+
+private:
+    /// Run compiler on embedded starmath formulas
+    void Compile();
 };
 
 namespace o3tl {

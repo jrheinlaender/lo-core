@@ -707,48 +707,53 @@ statement: OPTIONS options {
          | FUNCTION '{' funchints ',' gsymbol ',' ex '}' {
            // Using IDENTIFIER does not work because the symbol might have been used in a library function previously, and even
            // CLEAREQUATIONS won't remove it then
+           // Note: Function must be registered before iFormulaNodeStmFunction is created
+           exvector args({*$7});
+           compiler->register_function(ex_to<symbol>(*$5).get_name(), args, $3);
+
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
              formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
 			 line_options = nullptr;
            }
-           exvector args({*$7});
-           compiler->register_function(ex_to<symbol>(*$5).get_name(), args, $3);
            formula.cacheable = false;
            delete ($5); delete ($7);
          }
          | FUNCTION '{' funchints ',' gsymbol ',' exvec '}' {
+           compiler->register_function(ex_to<symbol>(*$5).get_name(), *$7, $3);
+
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
              formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
 			 line_options = nullptr;
            }
-           compiler->register_function(ex_to<symbol>(*$5).get_name(), *$7, $3);
            formula.cacheable = false;
            delete ($5); delete ($7);
          }
-				 | FUNCTION '{' funchints ',' STRING ',' gsymbol ',' ex '}' {
+	 | FUNCTION '{' funchints ',' STRING ',' gsymbol ',' ex '}' {
+	   exvector args({*$9});
+           compiler->register_function(ex_to<symbol>(*$7).get_name(), args, $3, *$5);
+
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
              formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
 			 line_options = nullptr;
            }
-           exvector args({*$9});
-           compiler->register_function(ex_to<symbol>(*$7).get_name(), args, $3, *$5);
            formula.cacheable = false;
            delete ($5); delete ($7); delete ($9);
          }
          | FUNCTION '{' funchints ',' STRING ',' gsymbol ',' exvec '}' {
+           compiler->register_function(ex_to<symbol>(*$7).get_name(), *$9, $3, *$5);
+
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
              formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
 			 line_options = nullptr;
            }
-           compiler->register_function(ex_to<symbol>(*$7).get_name(), *$9, $3, *$5);
            formula.cacheable = false;
            delete ($5); delete ($7); delete ($9);
          }

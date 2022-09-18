@@ -336,7 +336,7 @@ public:
 
     /** iMath stuff
      */
-    // Update the information about the previous iFormula
+    /// Update the information about the previous iFormula
     void UpdatePreviousIFormulaLinks();
 
     /// Recalculate formulas that depend on the given formula, if its text has changed. Return true if text has changed

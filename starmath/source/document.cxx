@@ -321,13 +321,13 @@ OUString SmDocShell::ImInitializeCompiler() {
 
     // Stand-alone formula document or first formula in document
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
+    GiNaC::func::clearall(); // Otherwise there will be error messages about already-registered functions TODO What if more than one document is opened? A function manager is required (like the unit manager)
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return ""; // Already initialized
     SAL_INFO("starmath.imath", "Preparing stand-alone formula or first formula in document");
     Reference<XComponentContext> xContext(GetContext());
 
     mpInitialOptions = std::make_shared<GiNaC::optionmap>();
     mpInitialCompiler = std::make_shared<eqc>();
-    GiNaC::func::clearall(); // Otherwise there will be error messages about already-registered functions
 
     // Get access to the registry that contains the global options
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));

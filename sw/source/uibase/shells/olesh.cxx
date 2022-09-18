@@ -133,9 +133,20 @@ SwOleShell::SwOleShell(SwView &_rView) :
                 if (fPS.is())
                 {
                     Any fTextAny;
-                    fTextAny = fPS->getPropertyValue(OUString("iFormula"));
+                    fTextAny = fPS->getPropertyValue("iFormula");
                     fTextAny >>= mIFormulaText;
-                    SAL_INFO("sw.imath", "Shell Math object text set to\n" << mIFormulaText);
+                    SAL_INFO("sw.imath", "Shell Math object old text set to\n" << mIFormulaText);
+
+                    fTextAny = fPS->getPropertyValue("PreviousIFormula");
+                    OUString previousIFormula;
+                    fTextAny >>= previousIFormula;
+                    if (previousIFormula.equalsAscii("_IMATH_UNDEFINED_"))
+                    {
+                        SAL_INFO("sw.imath", "New math object, triggering compile");
+                        GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks();
+                        mIFormulaText = ""; // This will force recalculation of all dependent formulas because a formula text change is detected
+                        // Note: The immediately following formula is recompiled by UpdatePreviousIFormulaLinks() because the PreviousIFormula property changes
+                    }
                 }
             }
         }

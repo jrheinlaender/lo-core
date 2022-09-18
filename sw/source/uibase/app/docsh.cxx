@@ -1181,6 +1181,15 @@ void SwDocShell::SetView(SwView* pVw)
         m_pWrtShell = nullptr;
 }
 
+OUString SwDocShell::FindPreviousIFormulaName(const OUString& formulaName) const
+{
+    auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
+
+    if (it == m_IFormulaNames.end() || it == m_IFormulaNames.begin()) return "";
+
+    return *(--it);
+}
+
 void SwDocShell::UpdatePreviousIFormulaLinks()
 {
     SAL_INFO("sw.imath", "SwDocShell::UpdatePreviousIFormulaLinks()");
@@ -1218,6 +1227,7 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
                     if ( xFormulaProps.is() )
                     {
                         // Note: Setting this property to a new value will trigger compilation of the formula
+                        // Note: But formulas depending on this formula will not be recompiled!
                         xFormulaProps->setPropertyValue("PreviousIFormula", uno::makeAny(previousFormulaName));
                         success = true;
                     }

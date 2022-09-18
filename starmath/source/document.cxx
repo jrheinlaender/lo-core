@@ -461,11 +461,13 @@ void SmDocShell::Compile()
 {
     if (maImText.equalsAscii("")) return; // empty iFormula
 
+    if (mPreviousFormula.equalsAscii("_IMATH_UNDEFINED_")) return; // Partly-initialized formula (see SwWrtShell::InsertOleObject())
+
     if (mImBlocked) {
         SAL_WARN("starmath.imath", "iMath cannot be used because an iMath extension is still installed");
         return;
     }
-    SAL_INFO("starmath.imath", "SmDocShell::Compile()");
+    SAL_INFO("starmath.imath", "SmDocShell::Compile()\n" << maImText);
 
     OUString error = ImInitializeCompiler();
     if (error.getLength() > 0) {

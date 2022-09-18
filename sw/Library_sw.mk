@@ -47,7 +47,13 @@ $(eval $(call gb_Library_use_api,sw,\
 
 $(eval $(call gb_Library_add_defs,sw,\
     -DSW_DLLIMPLEMENTATION \
-	-DSWUI_DLL_NAME=\"$(call gb_Library_get_runtime_filename,$(call gb_Library__get_name,swui))\" \
+    -DSWUI_DLL_NAME=\"$(call gb_Library_get_runtime_filename,$(call gb_Library__get_name,swui))\" \
+    -DINSIDE_SM \
+    -DOO_IS_AOO=0 \
+    -DOO_MAJOR_VERSION=$(LIBO_VERSION_MAJOR) \
+    -DOO_MINOR_VERSION=$(LIBO_VERSION_MINOR) \
+    -DSAL_LOG_INFO=1 \
+    -DSAL_LOG_WARN=1 \
 ))
 
 $(eval $(call gb_Library_use_libraries,sw,\
@@ -65,6 +71,7 @@ $(eval $(call gb_Library_use_libraries,sw,\
     fwk \
     i18nlangtag \
     i18nutil \
+    imath \
     lng \
     msfilter \
     sal \
@@ -98,6 +105,8 @@ $(eval $(call gb_Library_use_externals,sw,\
 	libxml2 \
 	yrs \
         md4c \
+        cln \
+        ginac \
 ))
 
 ifneq ($(ENABLE_WASM_STRIP_ACCESSIBILITY),TRUE)
@@ -210,6 +219,7 @@ $(eval $(call gb_Library_add_exception_objects,sw,\
     sw/source/core/doc/docglos \
     sw/source/core/doc/doclay \
     sw/source/core/doc/docnew \
+    sw/source/core/doc/docmath \
     sw/source/core/doc/docnum \
     sw/source/core/doc/docredln \
     sw/source/core/doc/docruby \

@@ -315,7 +315,7 @@ Reference<XDialog> createBasicDialog (const Reference < XComponentContext > &xCC
     Reference< XModel > xModel = xCtrl->getModel();
     if (xModel.is()) {
       Sequence< Any > args(1);
-      args[0] = makeAny(xModel);
+      args.getArray()[0] = makeAny(xModel);
 
       xDialogProvider = Reference< XDialogProvider2 >(
         xMCF->createInstanceWithArgumentsAndContext(OU("com.sun.star.awt.DialogProvider2"), args, xCC), UNO_QUERY_THROW);
@@ -373,17 +373,20 @@ Sequence<Reference < XInterface > > getUserSelections(const Reference < XControl
     }
 
     Sequence< Reference < XInterface > > result(xIndexAccess->getCount());
+    auto pResult = result.getArray();
+
     for (int i = 0; i < xIndexAccess->getCount(); i++) {
       Any Index = xIndexAccess->getByIndex(i);
       Reference < XInterface > oI(Index, UNO_QUERY_THROW);
       if (!oI.is()) throw RuntimeException(OU("Invalid selection"), oSelection);
-      result[i] = oI;
+      pResult[i] = oI;
     }
+
     return(result);
   } else { // single selection
     if (!oSelection.is()) throw RuntimeException(OU("Invalid selection"), oSelection);
     Sequence< Reference < XInterface > > result(1);
-    result[0] = oSelection;
+    result.getArray()[0] = oSelection;
     return(result);
   }
 } // getUserSelections()
@@ -633,9 +636,10 @@ void addDataSeries(const Reference < com::sun::star::chart2::XChartDocument >& c
   Reference< XDataSource > XYSource(chartType->getDataSeries()[0], UNO_QUERY_THROW);
 
   Sequence< Reference< XLabeledDataSequence > > sequences(2);
+  auto pSequences = sequences.getArray();
   Reference< XCloneable > templateSeq(XYSource->getDataSequences()[0], UNO_QUERY_THROW);
-  sequences[0] = Reference< XLabeledDataSequence >(templateSeq->createClone(), UNO_QUERY_THROW);
-  sequences[1] = Reference< XLabeledDataSequence >(templateSeq->createClone(), UNO_QUERY_THROW);
+  pSequences[0] = Reference< XLabeledDataSequence >(templateSeq->createClone(), UNO_QUERY_THROW);
+  pSequences[1] = Reference< XLabeledDataSequence >(templateSeq->createClone(), UNO_QUERY_THROW);
   sequences[0]->setValues(seqDataX);
   sequences[0]->setLabel(seqLabelX);
   sequences[1]->setValues(seqDataY);
@@ -709,8 +713,9 @@ Reference < XComponent > insertChart(const Reference < XModel > &xModel, const R
   // Create two sequences
   Reference< XMultiComponentFactory > xServiceManager(xCC->getServiceManager()); // get the service manager (the document service factory cannot create a LabeledDataSequence!)
   Sequence< Reference< XLabeledDataSequence > > sequences(2);
-  sequences[0] = Reference< XLabeledDataSequence > (xServiceManager->createInstanceWithContext(OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC), UNO_QUERY_THROW);
-  sequences[1] = Reference< XLabeledDataSequence > (xServiceManager->createInstanceWithContext(OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC), UNO_QUERY_THROW);
+  auto pSequences = sequences.getArray();
+  pSequences[0] = Reference< XLabeledDataSequence > (xServiceManager->createInstanceWithContext(OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC), UNO_QUERY_THROW);
+  pSequences[1] = Reference< XLabeledDataSequence > (xServiceManager->createInstanceWithContext(OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC), UNO_QUERY_THROW);
   sequences[0]->setValues(seqDataX);
   sequences[0]->setLabel(seqLabelX);
   sequences[1]->setValues(seqDataY);
@@ -720,15 +725,16 @@ Reference < XComponent > insertChart(const Reference < XModel > &xModel, const R
   Reference< XDataSink > XYSink(xServiceManager->createInstanceWithContext(OU("com.sun.star.chart2.DataSeries"), xCC), UNO_QUERY_THROW);
   XYSink->setData(sequences);
   Sequence< Reference< XDataSeries > > XYSeries(1);
-  XYSeries[0] = Reference< XDataSeries > (XYSink, UNO_QUERY_THROW);
+  XYSeries.getArray()[0] = Reference< XDataSeries > (XYSink, UNO_QUERY_THROW);
   chartType->setDataSeries(XYSeries);
 
   // Fill in some data
   Sequence< double > emptyRow(2);
-  emptyRow[0] = 0;
-  emptyRow[1] = 0;
+  auto pEmptyRow = emptyRow.getArray();
+  pEmptyRow[0] = 0;
+  pEmptyRow[1] = 0;
   Sequence< Sequence<double> > emptyData(1);
-  emptyData[0] = emptyRow;
+  emptyData.getArray()[0] = emptyRow;
   Reference < XChartDataArray > cDataArray(chart->getDataProvider(), UNO_QUERY_THROW);
   cDataArray->setData(emptyData);
   forceDiagramUpdate(xChart);
@@ -796,19 +802,21 @@ void setChartData(const Reference< com::sun::star::chart2::XChartDocument > cDoc
   double not_a_number;
   not_a_number = cDataArray->getNotANumber();
   Sequence< Sequence< double > > newData(rows);
+  auto pNewData = newData.getArray();
   Sequence< double > newPoint(series);
+  auto pNewPoint = newPoint.getArray();
 
   for (unsigned r = 0; r < rows; r++) {
     if (r < newx.rows()) {
-      newPoint[iseries-1] = forceDouble(expression(newx(r,0)), not_a_number); // X-values
-      newPoint[iseries] = forceDouble(expression(newy(r,0)), not_a_number); // Y-values
+      pNewPoint[iseries-1] = forceDouble(expression(newx(r,0)), not_a_number); // X-values
+      pNewPoint[iseries] = forceDouble(expression(newy(r,0)), not_a_number); // Y-values
     }
     for (unsigned s = 0; s < series; s++) // copy old data
       if ((s != iseries-1) && (s != iseries))
         if (r < (unsigned)data.getLength())
           if (s < (unsigned)data[r].getLength())
-            newPoint[s] = data[r][s];
-    newData[r] = newPoint;
+            pNewPoint[s] = data[r][s];
+            pNewData[r] = newPoint;
   }
 
   cDataArray->setData(newData);
@@ -847,10 +855,10 @@ Reference < XChartDataArray > getChartDataArray(const Reference < com::sun::star
 void setSeriesDescription(Reference < com::sun::star::chart2::XChartDocument >& cDoc, const OUString& desc, const int idx) {
   Reference < XChartDataArray > cDataArray(cDoc->getDataProvider(), UNO_QUERY_THROW);
   Sequence< OUString > descriptions = cDataArray->getColumnDescriptions();
-  //for (int c = 0; c < descriptions.getLength(); c++)
-  //  MSG_INFO(3,  "Column " << c << ": " << descriptions[c] << endline);
+  auto pDescriptions = descriptions.getArray();
+
   if (idx < descriptions.getLength()) {
-    descriptions[idx] = desc;
+    pDescriptions[idx] = desc;
     cDataArray->setColumnDescriptions(descriptions);
   }
 } // setSeriesDescription()
@@ -1171,29 +1179,37 @@ Sequence< Sequence< Sequence< Reference < XPropertySet > > > > getDiagramAxesTit
   Reference< XCoordinateSystemContainer > xCoordCnt(diagram, UNO_QUERY_THROW);
   Sequence< Reference< XCoordinateSystem> > cSystems = xCoordCnt->getCoordinateSystems();
   Sequence< Sequence< Sequence< Reference < XPropertySet > > > > result_csystems(cSystems.getLength());
+  auto pResult_csystems = result_csystems.getArray();
 
   for (int c = 0; c < cSystems.getLength(); ++c) {
     Sequence< Sequence< Reference < XPropertySet > > > result_dimensions(cSystems[c]->getDimension());
+    auto pResult_dimensions = result_dimensions.getArray();
+
     for (int d = 0; d < cSystems[c]->getDimension(); ++d) {
       Sequence< Reference < XPropertySet > > result_axes(cSystems[c]->getMaximumAxisIndexByDimension(d));
+      auto pResult_axes = result_axes.getArray();
+
       for (int n = 0; n < cSystems[c]->getMaximumAxisIndexByDimension(d); ++n) {
         Reference< XAxis > axis = cSystems[c]->getAxisByDimension(d, n);
+
         if (axis.is()) {
           Reference < XTitled > xTitled(axis, UNO_QUERY_THROW);
           Reference < com::sun::star::chart2::XTitle > title = xTitled->getTitleObject();
           if (!title.is()) {
-            result_axes[n] = Reference < XPropertySet >();
+            pResult_axes[n] = Reference < XPropertySet >();
           } else {
             Sequence< Reference < XFormattedString > > titleText = title->getText();
             Reference < XFormattedString > titleTextPortion = titleText[0]; // No point iterating because UI only allows one font for the title
             Reference < XPropertySet > titleTextProps(titleTextPortion, UNO_QUERY_THROW);
-            result_axes[n] = titleTextProps;
+            pResult_axes[n] = titleTextProps;
           }
         }
       }
-      result_dimensions[d] = result_axes;
+
+      pResult_dimensions[d] = result_axes;
     }
-    result_csystems[c] = result_dimensions;
+
+    pResult_csystems[c] = result_dimensions;
   }
 
   return result_csystems;
@@ -1203,21 +1219,26 @@ Sequence< Sequence< Sequence< Reference < XPropertySet > > > > getDiagramAxesPro
   Reference< XCoordinateSystemContainer > xCoordCnt(diagram, UNO_QUERY_THROW);
   Sequence< Reference< XCoordinateSystem> > cSystems = xCoordCnt->getCoordinateSystems();
   Sequence< Sequence< Sequence< Reference < XPropertySet > > > > result_csystems(cSystems.getLength());
+  auto pResult_csystems = result_csystems.getArray();
 
   for (int c = 0; c < cSystems.getLength(); ++c) {
     Sequence< Sequence< Reference < XPropertySet > > > result_dimensions(cSystems[c]->getDimension());
+    auto pResult_dimensions = result_dimensions.getArray();
+
     for (int d = 0; d < cSystems[c]->getDimension(); ++d) {
       Sequence< Reference < XPropertySet > > result_axes(cSystems[c]->getMaximumAxisIndexByDimension(d));
+      auto pResult_axes = result_axes.getArray();
+
       for (int n = 0; n < cSystems[c]->getMaximumAxisIndexByDimension(d); ++n) {
         Reference< XAxis > axis = cSystems[c]->getAxisByDimension(d, n);
         if (axis.is()) {
           Reference < XPropertySet > axisProps(axis, UNO_QUERY_THROW);
-          result_axes[n] = axisProps;
+          pResult_axes[n] = axisProps;
         }
       }
-      result_dimensions[d] = result_axes;
+      pResult_dimensions[d] = result_axes;
     }
-    result_csystems[c] = result_dimensions;
+    pResult_csystems[c] = result_dimensions;
   }
 
   return result_csystems;
@@ -1388,7 +1409,7 @@ Reference< XHierarchicalPropertySet > getRegistryAccess(const Reference< XCompon
   PropertyValue path;
   path.Name = OU("nodepath");
   path.Value = makeAny(nodepath);
-  args[0] = makeAny(path);
+  args.getArray()[0] = makeAny(path);
   Reference< XHierarchicalPropertySet > xProperties;
   xProperties = Reference< XHierarchicalPropertySet >(xConfig->createInstanceWithArguments(
       OU("com.sun.star.configuration.ConfigurationUpdateAccess"), args), UNO_QUERY_THROW);
@@ -2112,14 +2133,15 @@ Reference< XModel > checkDocumentLoaded(Reference< XDesktop >& xDesktop, const O
 
 Reference< XModel > loadDocument(const Reference < XDesktop >& xDesktop, const OUString& calcURL, const bool readonly) {
   Sequence< PropertyValue > args(2);
+  auto pArgs = args.getArray();
   PropertyValue hidden;
   hidden.Name = OU("Hidden");
   hidden.Value = makeAny(true);
-  args[0] = hidden;
+  pArgs[0] = hidden;
   PropertyValue ro;
   ro.Name = OU("ReadOnly");
   ro.Value = makeAny(readonly);
-  args[1] = ro;
+  pArgs[1] = ro;
 
   try {
     Reference< XComponentLoader > xComponentLoader(xDesktop, UNO_QUERY_THROW);
@@ -2327,7 +2349,7 @@ Reference<XNamedGraph> createGraph(const Reference< XComponentContext >& mxCC, c
   Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
   Reference<XURI> xType = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
   Sequence<Reference<XURI> > types(1);
-  types[0] = xType;
+  types.getArray()[0] = xType;
 
   try {
     Reference<XURI> xGraphName = xDMA->addMetadataFile(OU("imathoptions.rdf"), types);

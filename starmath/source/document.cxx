@@ -110,7 +110,22 @@ using namespace ::com::sun::star::uno;
 #include <imath/msgdriver.hxx>
 #include <imath/settingsmanager.hxx>
 #include <imath/alignblock.hxx>
+
+#ifdef _MSC_VER
+// Avoid including <imath/func.hxx> because MSVC makes trouble with the IMATH_DLLPUBLIC and inheritance from GiNaC::container
+#include <imath/option.hxx>
+namespace GiNaC {
+  class func : public exprseq {
+    public:
+    IMATH_DLLPUBLIC static void clearall();
+    IMATH_DLLPUBLIC bool is_hard() const;
+    IMATH_DLLPUBLIC unsigned get_serial() const;
+  };
+}
+#else
 #include <imath/func.hxx>
+#endif
+
 class iMathDoc;
 class documentObject;
 #define FORMULAOBJECT SmDocShell
@@ -448,7 +463,7 @@ OUString makeDependencyString(const std::set<GiNaC::ex, GiNaC::ex_is_less>& depe
         }
         else if (GiNaC::is_a<GiNaC::func>(e))
         {
-            GiNaC::func f = GiNaC::ex_to<GiNaC::func>(e);
+            const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
             if (f.is_hard()) continue; // Hard-coded functions cannot be influenced by a formula in the document
             result += OUString("func") + OUString::number(f.get_serial());
         }

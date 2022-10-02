@@ -270,7 +270,7 @@ public:
   static void clear();
 
   /// Return the function table to the state after init()
-  static void clearall();
+  IMATH_DLLPUBLIC static void clearall();
 
   /**
    * Register a user-defined function so that the scanner will be able to look it up.
@@ -321,7 +321,7 @@ public:
   exvector get_args() const;
 
   /// Return the serial number of the function
-  inline unsigned get_serial() const { return serial; }
+  IMATH_DLLPUBLIC inline unsigned get_serial() const { return serial; }
 
   /**
   * Return true if this is a trigonometric function, else false
@@ -345,7 +345,7 @@ public:
   inline bool is_pure() const { return(seq.empty()); }
 
   /// Return true if the function is hard-coded
-  inline bool is_hard() const { return(hard); }
+  IMATH_DLLPUBLIC inline bool is_hard() const { return(hard); }
 
 // member variables -------------------------------------------------
 protected:

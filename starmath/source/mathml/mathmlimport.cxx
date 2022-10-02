@@ -461,7 +461,7 @@ void SmXMLImport::endDocument()
             if (mnImSyntaxVersion < 20301 && aText.getLength() > 4 && aImText == "") {
                 // Legacy document created with iMath extension
                 SAL_INFO("starmath.imath", "Migrating legacy iMath extension document\n" << aText);
-                int lineIdx = 0;
+                sal_Int32 lineIdx = 0;
 
                 do
                 {

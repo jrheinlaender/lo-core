@@ -373,6 +373,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     rtl::Bootstrap::expandMacros(shareURL);
     osl::FileBase::getSystemPathFromFileURL(shareURL, shareFolder);
 
+    // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all
     try {
         // Read referenced files
         auto files = splitString(references, ' ');
@@ -386,10 +387,12 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         if (!rawtext.equalsAscii("")) {
             MSG_INFO(0, "Reading referenced files\n" << STR(rawtext));
-            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions);
+            OUString error = "";
+            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
-            parser.parse(); // we discard the return value
+            int parse_result = parser.parse();
             smathlexer::scan_end();
+            if (parse_result != 0) return "Recalculation error in referenced files\n" + error;
             if (lines.size() > 0) mpInitialOptions = lines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
         }
 
@@ -403,10 +406,12 @@ OUString SmDocShell::ImInitializeCompiler() {
             // Recreate the global units expression vector, since this cannot be stored in the registry
             MSG_INFO(0, "Parsing default units\n" << STR(rawtext));
             rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
-            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions);
+            OUString error = "";
+            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
-            parser.parse(); // we discard the return value
+            int parse_result = parser.parse();
             smathlexer::scan_end(); // Result is stored in mpInitialOptions map under the keys o_unit and o_unitstr
+            if (parse_result != 0) return "Recalculation error in global units\n" + error;
             if (lines.size() > 0) mpInitialOptions = lines.back()->getGlobalOptions();
         }
 
@@ -428,18 +433,21 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         if (!rawtext.equalsAscii("")) {
             MSG_INFO(0, "Reading user include files\n" << STR(rawtext));
-            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions);
+            OUString error;
+            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
-            parser.parse();
+            int parse_result = parser.parse();
             smathlexer::scan_end();
+            if (parse_result != 0) return "Recalculation error in user include files\n" + error;
             if (lines.size() > 0) mpInitialOptions = lines.back()->getGlobalOptions();
         }
     } catch (Exception &e) {
         // TODO: Show error message to user with parser location
+        SAL_WARN("starmath.imath", "Exception thrown will recalculating iMath include files" << endline << e.Message);
         return "Recalculation error in iMath include files\n" + e.Message;
     } catch (std::exception &e) {
         // TODO: Show error message to user with parser location
-        SAL_WARN("starmath.imath", "Recalculation error in iMath include files\n" << OUS8(e.what()));
+        SAL_WARN("starmath.imath", "std::exception thrown will recalculating iMath include files" << endline << OUS8(e.what()));
         return "Recalculation error in iMath include files\n" + OUS8(e.what());
     }
 
@@ -503,6 +511,7 @@ void SmDocShell::Compile()
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = mpInitialCompiler->clone(); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
 
+    // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all
     try {
         // Add %%ii in front of every line
         // TODO: Change parser to make this unnecessary
@@ -520,52 +529,55 @@ void SmDocShell::Compile()
         for (const auto& i : lines) oldOutDep.merge(i->getOut());
 
         lines.clear();
-        imath::smathparser parser(*this, nullptr, mpCurrentCompiler, mpInitialOptions); // mpInitialOptions are not modified, copy is taken when OPTIONS keyword is encountered
+        error = "";
+        imath::smathparser parser(*this, nullptr, mpCurrentCompiler, mpInitialOptions, error); // mpInitialOptions are not modified, copy is taken when OPTIONS keyword is encountered
         smathlexer::scan_begin(STR(rawtext));
-        parser.parse(); // we discard the return value
+        int parse_result = parser.parse();
         smathlexer::scan_end();
 
-        if (lines.size() > 0) {
-            mpCurrentOptions = lines.back()->getGlobalOptions();
+        if (parse_result != 0) {
+            // TODO: Show error message to user
+            MSG_ERROR(0, "Syntax error\n" << error);
+        } else {
+            if (lines.size() > 0) {
+                mpCurrentOptions = lines.back()->getGlobalOptions();
 
-            MSG_INFO(0, "Printing " << lines.size() << " lines");
-            for (const auto& i : lines)
-                MSG_INFO(0, i->printFormula());
+                MSG_INFO(0, "Printing " << lines.size() << " lines");
+                for (const auto& i : lines)
+                    MSG_INFO(0, i->printFormula());
 
-            addResultLines();
-            OUString result;
+                addResultLines();
+                OUString result;
 
-            for (const auto& i : lines)
-                if (i->getSelectionType() == formulaTypeResult)
-                    result += i->print() + OU("\n");
+                for (const auto& i : lines)
+                    if (i->getSelectionType() == formulaTypeResult)
+                        result += i->print() + OU("\n");
 
-            SetText(result);
+                SetText(result);
 
-            // Update dependencies
-            std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep;
-            for (const auto& i : lines)
-            {
-                inDep.merge(i->getIn());
-                outDep.merge(i->getOut());
+                // Update dependencies
+                std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep;
+                for (const auto& i : lines)
+                {
+                    inDep.merge(i->getIn());
+                    outDep.merge(i->getOut());
+                }
+
+                outDep.merge(oldOutDep);
+                OUString inDepStr = makeDependencyString(inDep);
+                OUString outDepStr = makeDependencyString(outDep);
+                SAL_INFO("starmath.imath", "This formula depends on '" << inDepStr << "'");
+                SAL_INFO("starmath.imath", "This formula modifies '" << outDepStr << "'");
+                SetIFormulaDependencyIn(inDepStr);
+                SetIFormulaDependencyOut(outDepStr);
             }
-
-            outDep.merge(oldOutDep);
-            OUString inDepStr = makeDependencyString(inDep);
-            OUString outDepStr = makeDependencyString(outDep);
-            SAL_INFO("starmath.imath", "This formula depends on '" << inDepStr << "'");
-            SAL_INFO("starmath.imath", "This formula modifies '" << outDepStr << "'");
-            SetIFormulaDependencyIn(inDepStr);
-            SetIFormulaDependencyOut(outDepStr);
         }
     } catch (Exception &e) {
         // TODO: Show error message to user
-        MSG_ERROR(0, "ERROR1: " << STR(e.Message) << endline);
-    } catch (duplication_error&) {
-        // TODO: Show error message and dialog to user
-        MSG_ERROR(0, "Caught duplication error" << endline);
+        SAL_WARN("starmath.imath", "Exception thrown while compiling user input" << endline << STR(e.Message));
     } catch (std::exception &e) {
         // TODO: Show error message to user
-        MSG_ERROR(0, "ERROR3: " << e.what() << endline);
+        SAL_WARN("starmath.imath", "std::exception thrown while compiling user input" << endline << e.what());
     }
 
     setlocale(LC_NUMERIC, ""); // Reset to system locale

@@ -576,6 +576,7 @@ input:   %empty
 	       MSG_INFO(0,  "Trying to open " << fpath << endline);
          if (!smathlexer::begin_include(fpath)) {
            MSG_INFO(3,  "File " << fpath << " not found" << endline);
+           --include_level; // Otherwise locationstr() will mention the include file
            throw syntax_error(@4, "\nCould not open include file " + fpath);
          }
 
@@ -1078,7 +1079,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         formula.cacheable = false;
         must_autoformat = false;
         if ($1->size() > 0) compiler->register_expression(*$5, compiler->exlabel_ns(*$1)); // Only expressions with labels need to be registered
-        delete($2); delete($5);
+        delete($1); delete($2); delete($5);
       }
       | EXLABEL options EXDEF asterisk ex { // Duplicate expression label
         if (autorenumberduplicate) {

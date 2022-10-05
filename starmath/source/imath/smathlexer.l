@@ -49,6 +49,8 @@
 #ifdef _MSC_VER
   #define YY_NO_UNISTD_H
   #include <codecvt>
+#else
+  #include <sys/stat.h>
 #endif
 
 /* By default yylex returns int, we use token_type.
@@ -1061,13 +1063,20 @@ namespace smathlexer {
   #ifdef _MSC_VER
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::wstring wfname = converter.from_bytes(fname);
-    errno_t err = _wfopen_s(&yyin, wfname.c_str(), L"r");
-    MSG_INFO(1, "Trying to open Windows file " << fname << " with result " << err << endline);
+    errno_t errno = _wfopen_s(&yyin, wfname.c_str(), L"r");
+    MSG_INFO(1, "Trying to open Windows file " << fname << " with result " << errno << endline);
   #else
-    yyin = fopen(fname.c_str(), "r");
+    errno = 0;
+    yyin = nullptr;
+    struct stat statbuf;
+    stat(fname.c_str(), &statbuf);
+    if (S_ISREG(statbuf.st_mode))
+      yyin = fopen(fname.c_str(), "r");
+
+    if (yyin == nullptr && errno == 0) errno = 1; // fopen() does not appear to set errno
   #endif
 
-    if (yyin == NULL) {
+    if (errno != 0) {
       return (false);
     } else {
       new_buffer = yy_create_buffer(yyin, YY_BUF_SIZE);

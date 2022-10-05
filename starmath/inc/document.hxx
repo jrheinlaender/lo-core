@@ -94,18 +94,6 @@ public:
     OutputDevice* GetRefDev()  { return pRefDev.get(); }
 };
 
-// Exception subclass to handle duplicate equation labels properly
-class duplication_error : public std::runtime_error {
-public:
-    duplication_error(const std::string& message, const std::string& label) : runtime_error(message), duplicateLabel(label) {}
-    ~duplication_error() throw() {} // Necessary to avoid compiler error about a "looser throw specification"
-
-    inline const std::string& getLabel() { return duplicateLabel; }
-private:
-    std::string duplicateLabel; // Stores the name of the duplicate label, so that it can be replaced
-};
-
-
 class SM_DLLPUBLIC SmDocShell final : public SfxObjectShell, public SfxListener
 {
     friend class SmPrinterAccess;

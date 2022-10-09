@@ -232,9 +232,15 @@
         </info>
         <value>-1</value>
       </prop>
+      <prop oor:name="O_Autorenumberduplicate" oor:type="xs:boolean">
+        <info>
+          <desc>Automatically renumber duplicate equation labels</desc>
+        </info>
+        <value>false</value>
+      </prop>
       <prop oor:name="O_Echoformula" oor:type="xs:boolean" oor:nillable="false">
         <info>
-          <desc>Show raw formula tet in formulas</desc>
+          <desc>Show raw formula text in formulas</desc>
         </info>
         <value>false</value>
       </prop>

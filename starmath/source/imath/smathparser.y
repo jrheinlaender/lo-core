@@ -42,6 +42,7 @@
   #include <imath/differential.hxx>
   #include <imath/msgdriver.hxx>
   #include <imath/imathutils.hxx>
+  #include <officecfg/Office/iMath.hxx>
 #else
   #include "eqc.hxx"
   #include "func.hxx"
@@ -108,10 +109,14 @@
     set_debug_level(1);
   // Get setting for automatic renumbering of duplicate equation labels
   autorenumberduplicate = false;
+#ifdef INSIDE_SM
+  autorenumberduplicate = officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::get().value_or(false);
+#else
   Reference< XComponentContext> documentContext = (document == nullptr) ? formula.GetContext() : document->GetContext();
-  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(documentContext, OU("/de.gmx.rheinlaender.jan.imath.iMathOptionData/"));
+  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(documentContext, OU("/org.openoffice.Office.iMath/"));
   Any Aautorenumberduplicate = xProperties->getHierarchicalPropertyValue(OU("Miscellaneous/O_Autorenumberduplicate"));
   Aautorenumberduplicate >>= autorenumberduplicate;
+#endif
 };
 
 // enable parser tracing and verbose error messages.

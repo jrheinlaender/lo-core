@@ -443,11 +443,11 @@ OUString SmDocShell::ImInitializeCompiler() {
         }
     } catch (Exception &e) {
         // TODO: Show error message to user with parser location
-        SAL_WARN("starmath.imath", "Exception thrown will recalculating iMath include files" << endline << e.Message);
+        SAL_WARN("starmath.imath", "Exception thrown while recalculating iMath include files\n" << e.Message);
         return "Recalculation error in iMath include files\n" + e.Message;
     } catch (std::exception &e) {
         // TODO: Show error message to user with parser location
-        SAL_WARN("starmath.imath", "std::exception thrown will recalculating iMath include files" << endline << OUS8(e.what()));
+        SAL_WARN("starmath.imath", "std::exception thrown while recalculating iMath include files\n" << OUS8(e.what()));
         return "Recalculation error in iMath include files\n" + OUS8(e.what());
     }
 
@@ -574,10 +574,10 @@ void SmDocShell::Compile()
         }
     } catch (Exception &e) {
         // TODO: Show error message to user
-        SAL_WARN("starmath.imath", "Exception thrown while compiling user input" << endline << STR(e.Message));
+        SAL_WARN("starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
     } catch (std::exception &e) {
         // TODO: Show error message to user
-        SAL_WARN("starmath.imath", "std::exception thrown while compiling user input" << endline << e.what());
+        SAL_WARN("starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
     }
 
     setlocale(LC_NUMERIC, ""); // Reset to system locale

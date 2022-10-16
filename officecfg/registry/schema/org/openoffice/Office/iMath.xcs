@@ -232,7 +232,7 @@
         </info>
         <value>-1</value>
       </prop>
-      <prop oor:name="O_Autorenumberduplicate" oor:type="xs:boolean">
+      <prop oor:name="O_Autorenumberduplicate" oor:type="xs:boolean" oor:nillable="false">
         <info>
           <desc>Automatically renumber duplicate equation labels</desc>
         </info>

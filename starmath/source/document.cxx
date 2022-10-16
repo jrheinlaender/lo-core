@@ -558,14 +558,37 @@ void SmDocShell::Compile()
                 SetText(result);
 
                 // Update dependencies
-                std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep;
-                for (const auto& i : lines)
+                std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep, oldOutDep;
+
+                for (const auto& l : oldLines)
+                    oldOutDep.merge(l->getOut());
+                SAL_INFO("starmath.imath", "This formula had old outgoing dependencies on '" << makeDependencyString(oldOutDep) << "'");
+
+                for (const auto& l : lines)
                 {
-                    inDep.merge(i->getIn());
-                    outDep.merge(i->getOut());
+                    for (const auto& dep : l->getIn())
+                        if (outDep.find(dep) == outDep.end()) // Avoid bogus incoming dependencies in multi-line formulas
+                            inDep.insert(dep);
+                    outDep.merge(l->getOut());
                 }
 
-                outDep.merge(oldOutDep);
+                for (const auto& oldDep : oldOutDep) {
+                    bool found = false;
+                    if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
+
+                    for (const auto& dep : outDep) {
+                        if (GiNaC::is_a<GiNaC::symbol>(dep) && GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() == GiNaC::ex_to<GiNaC::symbol>(dep).get_name()) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        SAL_INFO("starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
+                        outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
+                    }
+                }
+
                 OUString inDepStr = makeDependencyString(inDep);
                 OUString outDepStr = makeDependencyString(outDep);
                 SAL_INFO("starmath.imath", "This formula depends on '" << inDepStr << "'");

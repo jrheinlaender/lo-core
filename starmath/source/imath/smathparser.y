@@ -110,7 +110,7 @@
   // Get setting for automatic renumbering of duplicate equation labels
   autorenumberduplicate = false;
 #ifdef INSIDE_SM
-  autorenumberduplicate = officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::get().value_or(false);
+  autorenumberduplicate = officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::get();
 #else
   Reference< XComponentContext> documentContext = (document == nullptr) ? formula.GetContext() : document->GetContext();
   Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(documentContext, OU("/org.openoffice.Office.iMath/"));

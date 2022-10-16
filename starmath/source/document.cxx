@@ -508,6 +508,10 @@ void SmDocShell::Compile()
     // Evaluate odd negative roots to the positive real value?
     GiNaC::expression::evalf_real_roots_flag = (mpInitialOptions->at(o_evalf_real_roots).value.boolean);
 
+    // Save old compilation state in case there is an error
+    const auto oldCurrentCompiler = mpCurrentCompiler;
+    const auto oldLines = lines;
+
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = mpInitialCompiler->clone(); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
 
@@ -524,10 +528,6 @@ void SmDocShell::Compile()
                 rawtext += "%%ii " + line + OU("\n");
         } while (idx >= 0);
 
-        // Save list of modified symbols (to catch the case where a symbol is removed from the formula)
-        std::set<GiNaC::ex, GiNaC::ex_is_less> oldOutDep;
-        for (const auto& i : lines) oldOutDep.merge(i->getOut());
-
         lines.clear();
         error = "";
         imath::smathparser parser(*this, nullptr, mpCurrentCompiler, mpInitialOptions, error); // mpInitialOptions are not modified, copy is taken when OPTIONS keyword is encountered
@@ -536,6 +536,8 @@ void SmDocShell::Compile()
         smathlexer::scan_end();
 
         if (parse_result != 0) {
+            mpCurrentCompiler = oldCurrentCompiler;
+            lines = std::move(oldLines);
             // TODO: Show error message to user
             MSG_ERROR(0, "Syntax error\n" << error);
         } else {
@@ -573,9 +575,13 @@ void SmDocShell::Compile()
             }
         }
     } catch (Exception &e) {
+        mpCurrentCompiler = oldCurrentCompiler;
+        lines = std::move(oldLines);
         // TODO: Show error message to user
         SAL_WARN("starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
     } catch (std::exception &e) {
+        mpCurrentCompiler = oldCurrentCompiler;
+        lines = std::move(oldLines);
         // TODO: Show error message to user
         SAL_WARN("starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
     }

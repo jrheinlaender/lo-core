@@ -336,7 +336,7 @@ OUString SmDocShell::ImInitializeCompiler() {
 
     // Stand-alone formula document or first formula in document
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
-    GiNaC::func::clearall(); // Otherwise there will be error messages about already-registered functions TODO What if more than one document is opened? A function manager is required (like the unit manager)
+    //GiNaC::func::clearall(); // Otherwise there will be error messages about already-registered functions TODO What if more than one document is opened? A function manager is required (like the unit manager)
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return ""; // Already initialized
     SAL_INFO("starmath.imath", "Preparing stand-alone formula or first formula in document");
     Reference<XComponentContext> xContext(GetContext());
@@ -501,7 +501,7 @@ void SmDocShell::Compile()
 
     // Important settings for the compiler. Note: Initialization must do without them, since no mpInitialOptions are available before initialization...
     GiNaC::imathprint::decimalpoint = mDecimalSeparator;
-    setlocale(LC_NUMERIC, "C"); // Ensure printf() always uses decimal points! TODO Why is that important?
+    //setlocale(LC_NUMERIC, "C"); // Ensure printf() always uses decimal points! TODO Why is that important?
     // Inhibit floating point underflow exceptions?
     cln::cl_inhibit_floating_point_underflow = (mpInitialOptions->at(o_underflow).value.boolean);
     SAL_INFO("starmath.imath", "Inhibit floating point underflow exception: " << (cln::cl_inhibit_floating_point_underflow ? "true" : "false"));
@@ -558,6 +558,7 @@ void SmDocShell::Compile()
                 SetText(result);
 
                 // Update dependencies
+                // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
                 std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep, oldOutDep;
 
                 for (const auto& l : oldLines)
@@ -609,7 +610,7 @@ void SmDocShell::Compile()
         SAL_WARN("starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
     }
 
-    setlocale(LC_NUMERIC, ""); // Reset to system locale
+    //setlocale(LC_NUMERIC, ""); // Reset to system locale
     MSG_INFO(0, "Recalculation finished" << endline);
 }
 

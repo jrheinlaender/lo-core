@@ -508,14 +508,15 @@ void SmDocShell::Compile()
     // Evaluate odd negative roots to the positive real value?
     GiNaC::expression::evalf_real_roots_flag = (mpInitialOptions->at(o_evalf_real_roots).value.boolean);
 
-    // Save old compilation state in case there is an error
-    const auto oldCurrentCompiler = mpCurrentCompiler;
-    const auto oldLines = lines;
+    // Save old outgoing dependencies
+    std::set<GiNaC::ex, GiNaC::ex_is_less> oldOutDep;
+    for (const auto& l : lines) oldOutDep.merge(l->getOut());
+    SAL_INFO("starmath.imath", "This formula had old outgoing dependencies for '" << makeDependencyString(oldOutDep) << "'");
 
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = mpInitialCompiler->clone(); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
 
-    // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all
+    // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all. Requires complete rework of exceptions in imath library
     try {
         // Add %%ii in front of every line
         // TODO: Change parser to make this unnecessary
@@ -536,78 +537,74 @@ void SmDocShell::Compile()
         smathlexer::scan_end();
 
         if (parse_result != 0) {
-            mpCurrentCompiler = oldCurrentCompiler;
-            lines = std::move(oldLines);
-            // TODO: Show error message to user
-            MSG_ERROR(0, "Syntax error\n" << error);
-        } else {
-            if (lines.size() > 0) {
-                mpCurrentOptions = lines.back()->getGlobalOptions();
+            error = "Syntax error\n" + error;
+            SAL_WARN("starmat.imath", error);
+        } else if (lines.size() > 0) {
+            mpCurrentOptions = lines.back()->getGlobalOptions();
 
-                MSG_INFO(0, "Printing " << lines.size() << " lines");
-                for (const auto& i : lines)
-                    MSG_INFO(0, i->printFormula());
+            MSG_INFO(0, "Printing " << lines.size() << " lines");
+            for (const auto& i : lines)
+                MSG_INFO(0, i->printFormula());
 
-                addResultLines();
-                OUString result;
+            addResultLines();
+            OUString result;
 
-                for (const auto& i : lines)
-                    if (i->getSelectionType() == formulaTypeResult)
-                        result += i->print() + OU("\n");
+            for (const auto& i : lines)
+                if (i->getSelectionType() == formulaTypeResult)
+                    result += i->print() + OU("\n");
 
-                SetText(result);
+            SetText(result);
 
-                // Update dependencies
-                // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
-                std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep, oldOutDep;
-
-                for (const auto& l : oldLines)
-                    oldOutDep.merge(l->getOut());
-                SAL_INFO("starmath.imath", "This formula had old outgoing dependencies on '" << makeDependencyString(oldOutDep) << "'");
-
-                for (const auto& l : lines)
-                {
-                    for (const auto& dep : l->getIn())
-                        if (outDep.find(dep) == outDep.end()) // Avoid bogus incoming dependencies in multi-line formulas
-                            inDep.insert(dep);
-                    outDep.merge(l->getOut());
-                }
-
-                for (const auto& oldDep : oldOutDep) {
-                    bool found = false;
-                    if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
-
-                    for (const auto& dep : outDep) {
-                        if (GiNaC::is_a<GiNaC::symbol>(dep) && GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() == GiNaC::ex_to<GiNaC::symbol>(dep).get_name()) {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found) {
-                        SAL_INFO("starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
-                        outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
-                    }
-                }
-
-                OUString inDepStr = makeDependencyString(inDep);
-                OUString outDepStr = makeDependencyString(outDep);
-                SAL_INFO("starmath.imath", "This formula depends on '" << inDepStr << "'");
-                SAL_INFO("starmath.imath", "This formula modifies '" << outDepStr << "'");
-                SetIFormulaDependencyIn(inDepStr);
-                SetIFormulaDependencyOut(outDepStr);
+            // Update dependencies
+            // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
+            std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep;
+            for (const auto& l : lines)
+            {
+                for (const auto& dep : l->getIn())
+                    if (outDep.find(dep) == outDep.end()) // Avoid bogus incoming dependencies in multi-line formulas
+                        inDep.insert(dep);
+                outDep.merge(l->getOut());
             }
+
+            for (const auto& oldDep : oldOutDep) {
+                bool found = false;
+                if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
+
+                for (const auto& dep : outDep) {
+                    if (GiNaC::is_a<GiNaC::symbol>(dep) && GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() == GiNaC::ex_to<GiNaC::symbol>(dep).get_name()) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    SAL_INFO("starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
+                    outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
+                }
+            }
+
+            OUString inDepStr = makeDependencyString(inDep);
+            OUString outDepStr = makeDependencyString(outDep);
+            SAL_INFO("starmath.imath", "This formula depends on '" << inDepStr << "'");
+            SAL_INFO("starmath.imath", "This formula modifies '" << outDepStr << "'");
+            SetIFormulaDependencyIn(inDepStr);
+            SetIFormulaDependencyOut(outDepStr);
         }
     } catch (Exception &e) {
-        mpCurrentCompiler = oldCurrentCompiler;
-        lines = std::move(oldLines);
-        // TODO: Show error message to user
+        error = "Compilation error\n" + e.Message;
         SAL_WARN("starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
     } catch (std::exception &e) {
-        mpCurrentCompiler = oldCurrentCompiler;
-        lines = std::move(oldLines);
-        // TODO: Show error message to user
+        error = OU("Compilation error\n") + OUS8(e.what());
         SAL_WARN("starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
+    }
+
+    if (!error.isEmpty()) {
+        if (!lines.empty())
+            mpCurrentOptions = lines.back()->getGlobalOptions();
+        else
+            mpCurrentOptions = mpInitialOptions;
+        // TODO: Show error in imath edit window, not in formula object
+        SetText(replaceString(error, "\n", "\nnewline\n"));
     }
 
     //setlocale(LC_NUMERIC, ""); // Reset to system locale

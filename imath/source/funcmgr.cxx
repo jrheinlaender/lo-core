@@ -372,6 +372,11 @@ bool Functionmanager::is_a_func(const std::string &fname) const {
   return (hard_functions.find(fname) != hard_functions.end() || user_functions.find(fname) != user_functions.end());
 }
 
+bool Functionmanager::is_hard_func(const std::string& fname) {
+  MSG_INFO(3, "Checking if " << fname << " is a hard-coded function" << endline);
+  return (hard_functions.find(fname) != hard_functions.end());
+}
+
 bool Functionmanager::is_lib(const std::string& fname) const {
   if (hard_functions.find(fname) != hard_functions.end()) return true;
   const auto& it_func = user_functions.find(fname);

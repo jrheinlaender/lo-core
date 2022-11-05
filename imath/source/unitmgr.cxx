@@ -19,10 +19,12 @@
 #include <imath/unitmgr.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/utils.hxx>
+#include <imath/stringex.hxx>
 #else
 #include "unitmgr.hxx"
 #include "msgdriver.hxx"
 #include "utils.hxx"
+#include "stringex.hxx"
 #endif
 
 using namespace GiNaC;
@@ -62,7 +64,7 @@ const expression& Unitmanager::getUnit(const std::string &uname) {
 expression Unitmanager::getCanonicalizedUnit(const std::string& uname) {
   std::map<std::string, expression>::iterator u = units.find(uname);
   if (u == units.end()) {
-    MSG_ERROR(0, "Unitmanager: Cannot get canonicalized unit " << uname << endline);
+    if (!uname.empty()) MSG_ERROR(0, "Unitmanager: Cannot get canonicalized unit " << uname << endline);
     return units.at("unknown");
   } else {
     MSG_INFO(3, "Unitmanager: Found canonicalized unit " << uname << " = " << ex_to<Unit>(u->second).get_canonical() << endline);
@@ -140,6 +142,9 @@ ex Unitmanager::canonicalize_ex::operator()(const ex &e) {
   if (is_a<Unit>(e)) {
     return ex_to<Unit>(e).get_canonical();
   }
+
+  // Suppress warning for empty units because they serve a purpose to de-activate unit display for zero values
+  if (is_a<stringex>(e) && ex_to<stringex>(e).get_string().empty()) return e.map(*this);
 
   // The exception for constants exists to allow for things like Pi. Of course, it is
   // impossible to avoid allowing other constants that should not occur in a unit!

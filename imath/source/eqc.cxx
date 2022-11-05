@@ -39,6 +39,13 @@ extern std::map<unsigned, exrec> remember_split;
     previous_it = equations.end();
     nextlabel = 0;
     current_namespace = "";
+
+    MSG_INFO(2, "Registering hard-coded functions" << endline);
+    for (const auto& n : Functionmanager::get_hard_names()) {
+      MSG_INFO(3, "Function " << n << endline);
+      getsym(n);
+      vars.at(n).setsymtype(t_function);
+    }
   } // eqc::eqc()
 
   std::shared_ptr<eqc> eqc::clone() {
@@ -140,8 +147,10 @@ bool is_internal(const std::string& varname) {
     } else {
       MSG_INFO(3, "Using cached substituted value" << endline);
       alhs = eqr->subsed_lhs;
+      lhs = alhs;
       arhs = eqr->subsed_rhs;
-      try { lhs = alhs.evalf(); } catch (std::exception&) {}
+      rhs = arhs;
+      try { lhs = alhs.evalf(); } catch (std::exception&) { }
       try { rhs = arhs.evalf(); } catch (std::exception&) {}
       lhs_is_quantity = is_quantity(lhs);
       rhs_is_quantity = is_quantity(rhs);
@@ -437,9 +446,9 @@ bool is_internal(const std::string& varname) {
     MSG_INFO(1, "Registered constant: " << varname << " = " << varr->second.val << endline);
   } // eqc::register_constant()
 
-  void eqc::register_function (const std::string &n, exvector &args, const unsigned hints, const std::string& printname) {
+  void eqc::register_function (const std::string &n, const exvector &args, const unsigned hints, const std::string& printname) {
     // Note: A symbol "n" always exists before this call because the \function{} statement gets parsed first!
-    func::registr(n, args, hints, printname);
+    funcmgr.registr(n, args, hints, printname);
     vars.at(n).setsymtype(t_function);
   } // eqc::register_function()
 
@@ -477,10 +486,10 @@ bool is_internal(const std::string& varname) {
     if (varname.find("::") == 0)
       return varname.substr(2); // Access top-level namespace from inside other namespace
 
-    if (current_namespace.size() == 0 || varname.find("::") != std::string::npos || func::is_lib(varname))
+    if (current_namespace.size() == 0 || varname.find("::") != std::string::npos || funcmgr.is_lib(varname))
       return varname;
-    else
-      return current_namespace + "::" + varname;
+
+    return current_namespace + "::" + varname;
   }
 
   std::string eqc::label_ns(const std::string& label, const bool check) const {
@@ -577,7 +586,7 @@ bool is_internal(const std::string& varname) {
     if (varname == "%pi") {
       return Pi;
     } else if (varname == "%e") {
-          return Euler_number;
+      return Euler_number;
     } else if (varname == "i") {
       return I;
     } else if (vars.find(varname) == vars.end()) { // create a new variable
@@ -1108,9 +1117,9 @@ bool is_internal(const std::string& varname) {
         v.second.setsymprop(p_complex);
         v.second.assignments.clear();
       } else if (v.second.getsymtype() == t_function) {
-        if (!func::is_lib(v.first)) {
+        if (!funcmgr.is_lib(v.first)) {
           MSG_INFO(3,  "Deleting function " << v.first << endline);
-          func::remove(v.first);
+          funcmgr.remove(v.first);
           v.second.setsymtype(t_variable); // Keep this variable because it might have been shadowed by a function
           v.second.setsymprop(p_complex);
           v.second.make_unknown();
@@ -1126,7 +1135,7 @@ bool is_internal(const std::string& varname) {
         assignments.emplace(v.second.getsym(), v.second.val);
       }
     }
-    func::clear();
+    funcmgr.clear();
   } //eqc::clear()
 
   void eqc::clearall (const bool persist_symbols) {
@@ -1154,8 +1163,15 @@ bool is_internal(const std::string& varname) {
       vars.clear();
     }
     unitmgr.clear();
-    func::clearall();
+    funcmgr.clearall();
     nextlabel = 0;
+
+    MSG_INFO(1, "Re-Registering hard-coded functions" << endline); // TODO Identical code as in eqc::eqc()
+    for (const auto& n : Functionmanager::get_hard_names()) {
+      MSG_INFO(1, "Function " << n << endline);
+      getsym(n);
+      vars.at(n).setsymtype(t_function);
+    }
   } //eqc::clearall()
 
   void eqc::print(std::ostream &os) const {

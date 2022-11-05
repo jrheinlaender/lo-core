@@ -222,7 +222,6 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
     }
   }
 
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex differential::eval() const {
     MSG_INFO(4, "Eval of differential" << endline);
     if (flags & status_flags::evaluated)
@@ -236,31 +235,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
 
     return this->hold();
   }
-#else
-  ex differential::eval(int level) const {
-    if ((level==1) && (flags & status_flags::evaluated))
-      return *this;
 
-    if (level == -max_recursion_level)
-      throw(std::runtime_error("max recursion level reached"));
-
-    ex ee = (level==1) ? e : e.eval(level-1);
-    ex gg = (level==1) ? grade : grade.eval(level-1);
-
-    if (is_a<differential>(ee) && (partial == ex_to<differential>(ee).is_partial())) {
-      // Handle differentials of differentials by adding the grades
-      const differential& eed = ex_to<differential>(ee);
-      return (new differential(eed.e, partial, gg + eed.grade, eed.parent, eed.numerator))->setflag(status_flags::dynallocated | status_flags::evaluated);
-    }
-
-    if (are_ex_trivially_equal(ee,e) && are_ex_trivially_equal(gg, grade))
-      return this->hold();
-
-   return (new differential(ee, partial, gg, parent, numerator))->setflag(status_flags::dynallocated | status_flags::evaluated);
-  }
-#endif
-
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex differential::evalf() const {
     ex ee = expression(e).evalf();
     ex gg;
@@ -277,33 +252,6 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
 
     return dynallocate<differential>(ee, partial, gg, parent, numerator);
   }
-#else
-  ex differential::evalf(int level) const {
-    ex ee;
-    ex gg;
-
-    if (level==1) {
-      ee = e;
-      gg = grade;
-    } else if (level == -max_recursion_level) {
-      throw(std::runtime_error("max recursion level reached"));
-    } else {
-      ee = expression(e).evalf(level-1);
-      if (grade.info(info_flags::integer))
-        gg = grade; // Avoid things like d^{1.0}x
-      else
-        gg = expression(grade).evalf(level-1);
-    }
-
-    if (is_a<numeric>(ee))
-      return _ex0;
-
-    if (are_ex_trivially_equal(ee,e) && are_ex_trivially_equal(gg, grade))
-      return *this;
-
-    return (new differential(ee, partial, gg, parent, numerator))->setflag(status_flags::dynallocated);
-  }
-#endif
 
   ex differential::evalm() const {
     ex ee = expression(e).evalm();

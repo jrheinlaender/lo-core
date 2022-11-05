@@ -152,7 +152,6 @@ void exderivative::do_print_imath(const imathprint &c, unsigned level) const {
   }
 }
 
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
 ex exderivative::eval() const {
   MSG_INFO(3, "Eval of exderivative" << endline);
   if (flags & status_flags::evaluated)
@@ -166,29 +165,6 @@ ex exderivative::eval() const {
 
   return this->hold();
 }
-#else
-ex exderivative::eval(int level) const {
-  if ((level==1) && (flags & status_flags::evaluated))
-    return *this;
-
-  if (level == -max_recursion_level)
-    throw(std::runtime_error("max recursion level reached"));
-
-  ex nn = (level==1) ? numer : numer.eval(level-1);
-  ex dd = (level==1) ? denom : denom.eval(level-1);
-
-  if (is_a<differential>(dd)) {
-    const differential& d = ex_to<differential>(dd);
-    if (nn.argument().is_equal(d.argument()) && nn.get_grade().is_equal(d.get_grade())
-      return _ex1;
-  }
-
-  if (are_ex_trivially_equal(nn,numer) && are_ex_trivially_equal(dd, denom))
-    return this->hold();
-
-  return (new exderivative(nn, dd))->setflag(status_flags::dynallocated | status_flags::evaluated);
-}
-#endif
 
 size_t exderivative::nops() const {
   return 2;

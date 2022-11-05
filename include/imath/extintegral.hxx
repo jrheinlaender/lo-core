@@ -43,13 +43,8 @@ public:
   // functions overriding virtual functions from base classes
 public:
   inline unsigned precedence() const override {return 45;}
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex eval() const override;
   ex evalf() const override;
-#else
-  ex eval(int level=0) const;
-  ex evalf(int level=0) const;
-#endif
   ex evalm() const override;
   ex subs(const exmap & m, unsigned options = 0) const override;
   int degree(const ex & s) const override;

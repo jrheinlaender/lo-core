@@ -20,7 +20,8 @@
 %require "3.0.0"
 %defines
 %define api.prefix {imath}
-%define api.parser.class {smathparser}%expect 1
+%define parser_class_name {smathparser}
+%expect 1
 %define parse.trace
 
 %{
@@ -30,11 +31,13 @@
   #include <vector>
   #include <stack>
   #include <sstream>
+  #include <numeric>
   #include <cln/cln.h>
 
 #ifdef INSIDE_SM
   #include <imath/eqc.hxx>
   #include <imath/func.hxx>
+  #include <imath/funcmgr.hxx>
   #include <imath/unit.hxx>
   #include <imath/option.hxx>
   #include <imath/stringex.hxx>
@@ -46,6 +49,7 @@
 #else
   #include "eqc.hxx"
   #include "func.hxx"
+  #include "funcmgr.hxx"
   #include "unit.hxx"
   #include "option.hxx"
   #include "stringex.hxx"
@@ -113,7 +117,7 @@
   autorenumberduplicate = officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::get();
 #else
   Reference< XComponentContext> documentContext = (document == nullptr) ? formula.GetContext() : document->GetContext();
-  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(documentContext, OU("/org.openoffice.Office.iMath/"));
+  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(documentContext, OU("/de.gmx.rheinlaender.jan.imath.iMathOptionData/"));
   Any Aautorenumberduplicate = xProperties->getHierarchicalPropertyValue(OU("Miscellaneous/O_Autorenumberduplicate"));
   Aautorenumberduplicate >>= autorenumberduplicate;
 #endif
@@ -685,16 +689,59 @@ statement: OPTIONS options {
 
            for (const auto& o : *$2) {
              if ((o.first == o_units) && (o.second.value.exvec->size() > 0)) {
-               // Units are not overwritten, but appended
+               // Units are not overwritten, but appended. Duplicate units can be removed because they have no effect
                exvector* units = new exvector(current_options->at(o.first).value.exvec->begin(), current_options->at(o.first).value.exvec->end());
-               units->insert(units->end(), o.second.value.exvec->begin(), o.second.value.exvec->end());
+               if (!units->empty() && is_a<stringex>(units->back()) && ex_to<stringex>(units->back()).get_string().empty()) units->pop_back();
+
+               for (const auto& u_new : *o.second.value.exvec) {
+                  // Erase duplicates
+                  auto u_old = units->begin();
+                  //if (is_a<Unit>(u_new)) u_new = ex_to<Unit>(u_new).get_canonical();
+
+                  while (u_old != units->end()) {
+                    //if (is_a<Unit>(*u_old)) *u_old = ex_to<Unit>(*u_old).get_canonical();
+                    MSG_INFO(3, "Checking units for duplicate: " << *u_old << " and " << u_new << " = " << compiler->unitmgr.canonicalize(*u_old/u_new) << endline);
+                    if (is_a<numeric>(compiler->unitmgr.canonicalize(*u_old/u_new)))
+                      u_old = units->erase(u_old);
+                    else
+                      ++u_old;
+                  }
+
+                  units->push_back(u_new);
+               }
+               MSG_INFO(1, "Appended and cleaned unit list: " << *units << endline);
                current_options->at(o.first).value.exvec = units;
                delete(o.second.value.exvec);
              } else if ((o.first == o_unitstr) && (o.second.value.str->size() > 0)) {
-               // Units (string representation) are not overwritten, but appended
-               std::string* unitstr = new std::string(*current_options->at(o.first).value.str);
-               unitstr->append((unitstr->size() > 0 ? ";" : "") + *o.second.value.str);
-               current_options->at(o.first).value.str = unitstr;
+               // Units (string representation) are not overwritten, but appended TODO This code is pretty much a duplicate of the code for o_units
+               std::vector<std::string> units;
+               std::istringstream old_units(*current_options->at(o.first).value.str);
+               std::string unit;
+               while (getline(old_units, unit, ';')) units.push_back(unit);
+               if (!units.empty() && units.back() == "\"\"") units.pop_back();
+
+               std::istringstream new_units(*o.second.value.str);
+               while (getline(new_units, unit, ';')) {
+                 std::string u_str = unit.substr(1); // Remove preceding % or "
+                 if (u_str.back() == '\"') u_str.pop_back(); // Remove trailing "
+                 auto u_old = units.begin();
+
+                  while (u_old != units.end()) {
+                    std::string u_old_str = u_old->substr(1);
+                    if (u_old_str.back() == '\"') u_old_str.pop_back();
+                    MSG_INFO(3, "Checking units for duplicate: " << u_old_str << " and " << u_str << " = " << compiler->unitmgr.getCanonicalizedUnit(u_old_str)/compiler->unitmgr.getCanonicalizedUnit(u_str) << endline);
+
+                    if (is_a<numeric>(compiler->unitmgr.getCanonicalizedUnit(u_old_str)/compiler->unitmgr.getCanonicalizedUnit(u_str)))
+                      u_old = units.erase(u_old);
+                    else
+                      ++u_old;
+                  }
+
+                  units.push_back(unit);
+               }
+
+               current_options->at(o.first).value.str = new std::string(std::accumulate(std::begin(units) + 1, std::end(units), *units.begin(), [](std::string &ss, std::string &s) { return ss + ";" + s;}));
+               MSG_INFO(1, "Appended and cleaned unit string list: " << *current_options->at(o.first).value.str << endline);
                delete(o.second.value.str);
              } else {
                current_options->at(o.first) = o.second;
@@ -735,47 +782,49 @@ statement: OPTIONS options {
            // Using IDENTIFIER does not work because the symbol might have been used in a library function previously, and even
            // CLEAREQUATIONS won't remove it then
            // Must register function first because the iFormulaNodeStmFunction needs it
-           exvector args({*$7});
-           compiler->register_function(ex_to<symbol>(*$5).get_name(), args, $3);
+           std::string fname = ex_to<symbol>(*$5).get_name();
+           compiler->register_function(fname, {*$7}, $3);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
            formula.cacheable = false;
            delete ($5); delete ($7);
          }
          | FUNCTION '{' funchints ',' gsymbol ',' exvec '}' {
-           compiler->register_function(ex_to<symbol>(*$5).get_name(), *$7, $3);
+           std::string fname = ex_to<symbol>(*$5).get_name();
+           compiler->register_function(fname, *$7, $3);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
            formula.cacheable = false;
            delete ($5); delete ($7);
          }
          | FUNCTION '{' funchints ',' STRING ',' gsymbol ',' ex '}' {
-           exvector args({*$9});
-           compiler->register_function(ex_to<symbol>(*$7).get_name(), args, $3, *$5);
+           std::string fname = ex_to<symbol>(*$7).get_name();
+           compiler->register_function(fname, {*$9}, $3, *$5);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
            formula.cacheable = false;
            delete ($5); delete ($7); delete ($9);
          }
          | FUNCTION '{' funchints ',' STRING ',' gsymbol ',' exvec '}' {
-           compiler->register_function(ex_to<symbol>(*$7).get_name(), *$9, $3, *$5);
+           std::string fname = ex_to<symbol>(*$7).get_name();
+           compiler->register_function(fname, *$9, $3, *$5);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
            formula.cacheable = false;
            delete ($5); delete ($7); delete ($9);
@@ -1214,10 +1263,11 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
       }
       | LABEL options FUNCDEF asterisk FUNC leftbracket ex rightbracket '=' ex {
         if (!checkbrackets(*$6, *$8)) throw syntax_error(@8, "\nBracket type mismatch");
-				if ($10->has(func(*$5)) || $10->has(func(*$5, *$7)))
+        expression f = compiler->funcmgr.create(*$5, {*$7});
+				if ($10->has(compiler->funcmgr.create(*$5)) || $10->has(f))
 					throw syntax_error(@10, "\nRecursive function definition");
-        func::define(*$5, *$10); // TODO: Should we check the arguments in $7 ?
-        expression* result = new expression(dynallocate<equation>(func(*$5, *$7), *$10, relational::equal, _expr0));
+        compiler->funcmgr.define(*$5, *$10); // TODO: Should we check the arguments in $7 ?
+        expression* result = new expression(dynallocate<equation>(f, *$10, relational::equal, _expr0));
         std::string nslabel = check_label(compiler, *$1, @1);
 
         if (include_level == 0) {
@@ -1227,12 +1277,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
             std::move(formulaParts), OUS8(nslabel),
             *result, $4));
           line = formula.lines.back();
-		  line_options = nullptr;
+          line_options = nullptr;
           line->force_autoformat(must_autoformat);
         }
         must_autoformat = false;
 
-        if (!func::is_expand(*$5))
+        if (!ex_to<func>(f).is_expand())
           compiler->check_and_register(*result, nslabel);
 
         formula.cacheable = false;
@@ -1240,10 +1290,11 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
       }
       | LABEL options FUNCDEF asterisk FUNC leftbracket exvec rightbracket '=' ex {
         if (!checkbrackets(*$6, *$8)) throw syntax_error(@8, "\nBracket type mismatch");
-				if ($10->has(func(*$5)) || $10->has(func(*$5, *$7)))
+        expression f = compiler->funcmgr.create(*$5, *$7);
+				if ($10->has(compiler->funcmgr.create(*$5)) || $10->has(f))
 					throw syntax_error(@10, "\nRecursive function definition");
-        func::define(*$5, *$10); // TODO: Should we check the arguments in $7 ?
-        expression* result = new expression(dynallocate<equation>(func(*$5, *$7), *$10, relational::equal, _expr0));
+        compiler->funcmgr.define(*$5, *$10); // TODO: Should we check the arguments in $7 ?
+        expression* result = new expression(dynallocate<equation>(f, *$10, relational::equal, _expr0));
         std::string nslabel = check_label(compiler, *$1, @1);
 
         if (include_level == 0) {
@@ -1253,12 +1304,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
             std::move(formulaParts),OUS8(nslabel),
             *result, $4));
           line = formula.lines.back();
-		  line_options = nullptr;
+          line_options = nullptr;
           line->force_autoformat(must_autoformat);
         }
         must_autoformat = false;
 
-        if (!func::is_expand(*$5))
+        if (!ex_to<func>(f).is_expand())
           compiler->check_and_register(*result, nslabel);
 
         formula.cacheable = false;
@@ -1379,11 +1430,7 @@ keyvalpair:   OPT_U '=' ex {
 ;
 unitpair:     OPT_L  '=' '{' ex '}' {
               canonicalize_units = true;
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
               exvector* units = new exvector{*$4};
-#else
-              exvector* units = new exvector(*$4);
-#endif
               $$ = new std::pair<exvector*, std::string>(units, trimstring(rawtext.substr(@4.begin.column-1, @4.end.column-@4.begin.column)));
               delete($4);
             }
@@ -1397,9 +1444,9 @@ funchints: '{' hints '}' {
             $$ = $2;
           }
 ;
-hints:      IDENTIFIER { $$ = func::hint(*$1); delete($1); }
+hints:      IDENTIFIER { $$ = Functionmanager::hint(*$1); delete($1); }
           | hints ';' IDENTIFIER {
-            $$ = $1 | func::hint(*$3);
+            $$ = $1 | Functionmanager::hint(*$3);
             delete($3);
           }
 ;
@@ -1529,7 +1576,10 @@ eq:   ex '=' ex             { $$ = new expression(dynallocate<equation>(*$1, *$3
     }
     | FUNC leftbracket eq rightbracket {
       if (!checkbrackets(*$2, *$4)) throw syntax_error(@4, "\nBracket type mismatch");
-      $$ = new expression(ex_to<equation>(*$3).apply_func(*$1));
+      if (!compiler->funcmgr.is_a_func(*$1)) throw syntax_error(@1, "Argument must be a function name");
+      MSG_INFO(1, "Applying function " << *$1 << " to " << *$3 << endline);
+      const equation& eq = ex_to<equation>(*$3);
+      $$ = new expression(dynallocate<equation>(compiler->funcmgr.create(*$1, {eq.lhs()}), compiler->funcmgr.create(*$1, {eq.rhs()}), eq.getop(), eq.getmod()));
       delete ($1); delete($2); delete($3); delete($4);
     }
     | SIZE sizestr IMPMUL eq { $$ = $4; delete($2); }
@@ -1598,11 +1648,7 @@ eq:   ex '=' ex             { $$ = new expression(dynallocate<equation>(*$1, *$3
 ;
 
 eqlist:   eq            {
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
           $$ = new lst{*$1};
-#else
-          $$ = new lst(*$1);
-#endif
           delete($1); }
         | eqlist ';' eq { $$ = $1; $$->append(*$3); delete($3); }
 ;
@@ -1784,23 +1830,23 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | WILD { $$ = new expression(wild()); }
     | FUNC leftbracket ex rightbracket {
       if (!checkbrackets(*$2, *$4)) throw syntax_error(@4, "\nBracket type mismatch");
-      $$ = new expression(expression(func(*$1, *$3)).evalm());
+      $$ = new expression(compiler->funcmgr.create(*$1, {*$3}).evalm());
       delete ($1); delete($2); delete($3); delete($4);
     }
     | FUNC leftbracket exvec rightbracket {
       if (!checkbrackets(*$2, *$4)) throw syntax_error(@4, "\nBracket type mismatch");
-      $$ = new expression(expression(func(*$1, *$3)).evalm());
+      $$ = new expression(compiler->funcmgr.create(*$1, {*$3}).evalm());
       delete ($1); delete($2); delete($3); delete($4);
     }
     | FUNC leftbracket condition ';' exvec rightbracket { // Currently only ifelse() uses this format
       if (!checkbrackets(*$2, *$6)) throw syntax_error(@6, "\nBracket type mismatch");
       exvector fargs({*$3});
       fargs.insert(fargs.end(), $5->begin(), $5->end());
-      $$ = new expression(expression(func(*$1, fargs)).evalm());
+      $$ = new expression(compiler->funcmgr.create(*$1, fargs).evalm());
       delete ($1); delete($2); delete($3); delete($5); delete($6);
     }
     | FUNC { // a function may be used without arguments
-      $$ = new expression(dynallocate<func>(*$1));
+      $$ = new expression(compiler->funcmgr.create(*$1));
       delete ($1);
     }
     | NROOT number IMPMUL number { // We can't prevent the IMPMUL appearing here
@@ -1866,7 +1912,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       delete($3); delete($5);
     }
     | SUMFROM lowerbound TO upperbound IMPMUL '{' ex '}' { // We can't prevent the IMPMUL appearing here
-      $$ = new expression(dynallocate<func>("sum", exprseq{*$2, *$4, *$7}).evalm());
+      $$ = new expression(Functionmanager::create_hard("sum", exprseq{*$2, *$4, *$7}).evalm());
       delete($2); delete($4); delete($7);
     }
 /*    | PRODUCT FROM ex TO upperbound IMPMUL '{' ex '}' { // We can't prevent the IMPMUL appearing here
@@ -1903,7 +1949,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       if (is_a<matrix>(*$1))
         $$ = new expression(expression(ex_to<matrix>(*$1).transpose()).evalm());
       else
-        $$ = new expression(dynallocate<func>("transpose", *$1));
+        $$ = new expression(Functionmanager::create_hard("transpose", {*$1}));
       delete($1);
     }
     | VSYMBOL '[' ex ']' {
@@ -1918,9 +1964,9 @@ ex:   SUBST '(' ex ',' eqlist ')' {
         }
       } catch(std::exception &e) { (void)e; /* e.g. s does not have a value, ignore error */ }
 
-      expression result = dynallocate<func>("mindex", exprseq{val, *$3, -999});
+      expression result = Functionmanager::create_hard("mindex", exprseq{val, *$3, -999});
       // TODO: This test will fail on vectors that contain functions as elements!
-      if (is_a<func>(result)) result = func("mindex", exprseq{*$1, *$3, -999}); // mindex::eval() changed nothing
+      if (is_a<func>(result)) result = Functionmanager::create_hard("mindex", exprseq{*$1, *$3, -999}); // mindex::eval() changed nothing
       $$ = new expression(result);
       delete ($1); delete($3);
     }
@@ -1940,13 +1986,13 @@ ex:   SUBST '(' ex ',' eqlist ')' {
         }
       } catch(std::exception &e) { (void)e; /* ignore (no value found) */ }
 
-      expression result(dynallocate<func>("mindex", exprseq{val, *$3, *$5}));
-      if (is_a<func>(result)) result = dynallocate<func>("mindex", exprseq{*$1, *$3, *$5}); // mindex::eval() changed nothing
+      expression result(Functionmanager::create_hard("mindex", exprseq{val, *$3, *$5}));
+      if (is_a<func>(result)) result = Functionmanager::create_hard("mindex", exprseq{*$1, *$3, *$5}); // mindex::eval() changed nothing
       $$ = new expression(result);
       delete ($1); delete($3); delete($5);
     }
     | ex '!' {
-      $$ = new expression(dynallocate<func>("fact", *$1));
+      $$ = new expression(Functionmanager::create_hard("fact", {*$1}));
       delete($1);
     }
     | '-' ex %prec NEGATION { $$ = new expression(*$2 * _expr_1); delete($2); }
@@ -1963,30 +2009,24 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     }
     | ex TIMES ex  {
       if (check_anyvector(*$1, compiler) && check_anyvector(*$3, compiler))
-        $$ = new expression(dynallocate<func>("vecprod", exprseq{*$1, *$3}));
+        $$ = new expression(Functionmanager::create_hard("vecprod", exprseq{*$1, *$3}));
       else
         $$ = new expression((*$1 * *$3).evalm());
       delete ($1); delete ($3);
     }
 		| ex HPRODUCT ex { // Hadamard product (element-wise)
-			expression result(dynallocate<func>("hadamard", exprseq{*$1, *$3, h_product}));
-      if (is_a<func>(result)) result = dynallocate<func>("hadamard", exprseq{*$1, *$3, h_product}); // eval() changed nothing
-      $$ = new expression(result);
+      $$ = new expression(Functionmanager::create_hard("hadamard", exprseq{*$1, *$3, h_product}));
       delete ($1); delete($3);
 		}
     | ex '/' ex    { $$ = new expression((*$1 / *$3).evalm()); delete ($1); delete($3); }
 		| ex HDIVISION ex { // Hadamard division (element-wise)
-			expression result(dynallocate<func>("hadamard", exprseq{*$1, *$3, h_division}));
-      if (is_a<func>(result)) result = dynallocate<func>("hadamard", exprseq{*$1, *$3, h_division});
-      $$ = new expression(result);
+      $$ = new expression(Functionmanager::create_hard("hadamard", exprseq{*$1, *$3, h_division}));
       delete ($1); delete($3);
 		}
     | ex '^' exponent { $$ = new expression(pow(*$1, *$3).evalm()); delete ($1); delete ($3); }
     | ex superscript { $$ = new expression(pow(*$1, *$2).evalm()); delete ($1); delete ($2); }
 		| ex HPOWER ex { // Hadamard product (element-wise)
-			expression result(dynallocate<func>("hadamard", exprseq{*$1, *$3, h_power}));
-      if (is_a<func>(result)) result = dynallocate<func>("hadamard", exprseq{*$1, *$3, h_power});
-      $$ = new expression(result);
+      $$ = new expression(Functionmanager::create_hard("hadamard", exprseq{*$1, *$3, h_power}));
       delete ($1); delete($3);
 		}
     | VALUE '(' ex ')' { // Calculate the value of this expression
@@ -2063,11 +2103,11 @@ condition: eq {
 ;
 combinedcondition:
            condition AND condition {
-             $$ = new expression(dynallocate<func>("ifelse", exprseq{*$1, func("ifelse", exprseq{*$3, 1, 0}), 0}));
+             $$ = new expression(Functionmanager::create_hard("ifelse", exprseq{*$1, Functionmanager::create_hard("ifelse", exprseq{*$3, 1, 0}), 0}));
              delete($1); delete($3);
            }
            | condition OR condition {
-             $$ = new expression(dynallocate<func>("ifelse", exprseq{*$1, 1, func("ifelse", exprseq{*$3, 1, 0})}));
+             $$ = new expression(Functionmanager::create_hard("ifelse", exprseq{*$1, 1, Functionmanager::create_hard("ifelse", exprseq{*$3, 1, 0})}));
              delete($1); delete($3);
            }
            | NEG condition {
@@ -2084,7 +2124,7 @@ combinedcondition:
              else if ($2->info(info_flags::relation_greater_or_equal))
                $$ = new expression(dynallocate<relational>($2->lhs(), $2->rhs(), relational::less));
              else
-               $$ = new expression(dynallocate<func>("ifelse", exprseq{*$2, 0, 1}));
+               $$ = new expression(Functionmanager::create_hard("ifelse", exprseq{*$2, 0, 1}));
              delete($2);
            }
            | leftbracket combinedcondition rightbracket { $$ = $2; delete($1); delete($3); }
@@ -2111,7 +2151,7 @@ lowerbound: intvar '=' ex { $$ = new expression(dynallocate<equation>(*$1, *$3))
           | '{' intvar '=' ex '}' { $$ = new expression(dynallocate<equation>(*$2, *$4)); delete($2); delete($4);  }
 ;
 intvar:   symbol
-	| FUNC { $$ = new expression(dynallocate<func>(*$1)); }
+	| FUNC { $$ = new expression(compiler->funcmgr.create(*$1)); }
 ;
 upperbound: number
           | '-' number { $$ = new expression(_expr_1 * *$2); delete($2); }
@@ -2144,8 +2184,8 @@ vector:   VSYMBOL { $$ = new expression(*$1); delete($1); }
             }
           } catch(std::exception &e) { (void)e; } // ignore (no value found)
 
-          expression result = dynallocate<func>("mindex", exprseq{val, *$3, wild()});
-          if (is_a<func>(result)) result = dynallocate<func>("mindex", exprseq{*$1, *$3, wild()}); // mindex::eval() changed nothing
+          expression result = Functionmanager::create_hard("mindex", exprseq{val, *$3, wild()});
+          if (is_a<func>(result)) result = Functionmanager::create_hard("mindex", exprseq{*$1, *$3, wild()}); // mindex::eval() changed nothing
           $$ = new expression(result);
           delete ($1); delete($3);
         }
@@ -2161,8 +2201,8 @@ vector:   VSYMBOL { $$ = new expression(*$1); delete($1); }
             }
           } catch(std::exception &e) { (void)e; } // ignore (no value found)
 
-          expression result = dynallocate<func>("mindex", exprseq{val, wild(), *$5});
-          if (is_a<func>(result)) result = dynallocate<func>("mindex", exprseq{*$1, wild(), *$5}); // mindex::eval() changed nothing
+          expression result = Functionmanager::create_hard("mindex", exprseq{val, wild(), *$5});
+          if (is_a<func>(result)) result = Functionmanager::create_hard("mindex", exprseq{*$1, wild(), *$5}); // mindex::eval() changed nothing
           $$ = new expression(result);
           delete ($1); delete($5);
         }
@@ -2206,20 +2246,12 @@ vector:   VSYMBOL { $$ = new expression(*$1); delete($1); }
         }
 ;
 exvec:     ex ';' ex      {
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
            $$ = new exvector{*$1, *$3};
-#else
-           $$ = new exvector(*$1, *$3);
-#endif
            delete($1); delete($3); }
          | exvec ';' ex  { $$ = $1; $$->emplace_back(*$3); delete($3); }
 ;
 lvector:   ex '#' ex      {
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
            $$ = new lst{*$1, *$3};
-#else
-           $$ = new lst(*$1, *$3);
-#endif
            delete($1); delete($3);
         }
          | lvector '#' ex { $$ = $1; $$->append(*$3); delete($3); }
@@ -2251,11 +2283,7 @@ matrix:   MSYMBOL { $$ = new expression(*$1); delete($1); }
         }
 ;
 lmatrix:   lvector DOUBLEHASH lvector {
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
            $$ = new lst{*$1, *$3};
-#else
-           $$ = new lst(*$1, *$3);
-#endif
            delete($1); delete($3); }
          | lmatrix DOUBLEHASH lvector { $$ = $1; $$->append(*$3); delete($3); }
 ;

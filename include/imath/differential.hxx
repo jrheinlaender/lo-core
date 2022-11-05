@@ -77,18 +77,10 @@ public:
    * @param level Unused, required by GiNaC
    * @returns An expression with the result of the evaluation
    */
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex eval() const override;
-#else
-  ex eval(int level = 0) const;
-#endif
 
   /// Try to evaluate the differential to a number. Only possible if the expression evaluates to a numeric, then the result is zero
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex evalf() const override;
-#else
-  ex evalf(int level = 0) const;
-#endif
 
   /// Evaluate matrices in the arguments
   ex evalm() const override;

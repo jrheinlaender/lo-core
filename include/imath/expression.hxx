@@ -90,11 +90,8 @@ public:
   void print(const print_context &c, unsigned level = 0) const;
 
   /// Evaluate the expression. The difference to ex::evalf() is that we take positive real nth roots instead of roots on the principal branch
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   expression evalf() const;
-#else
-  expression evalf(int level = 0) const;
-#endif
+
   /// Evaluate matrices in the expression
   expression evalm() const;
   /**

@@ -1063,8 +1063,7 @@ namespace smathlexer {
   #ifdef _MSC_VER
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::wstring wfname = converter.from_bytes(fname);
-    errno_t errno = _wfopen_s(&yyin, wfname.c_str(), L"r");
-    MSG_INFO(1, "Trying to open Windows file " << fname << " with result " << errno << endline);
+    errno = _wfopen_s(&yyin, wfname.c_str(), L"r");
   #else
     errno = 0;
     yyin = nullptr;

@@ -176,7 +176,6 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
     return dynallocate<equation>(expression(lh).expand(options), expression(rh).expand(options), o, mod);
   }
 
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex equation::eval() const {
     if (flags & status_flags::evaluated) return *this;
 
@@ -186,29 +185,11 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
     }
     return this->hold();
   }
-#else
-  ex equation::eval(int level) const {
-    if (flags & status_flags::evaluated) return *this;
 
-    if (check_modulus(mod)) {
-      MSG_INFO(2, "Applying modulus to equation " << (const equation&)this->hold() << endline);
-      return new equation(apply_modulus(lh, mod), apply_modulus(rh, mod), o, mod).setflag(status_flags::dynallocated|status_flags::evaluated);
-    }
-    return this->hold();
-  }
-#endif
-
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex equation::evalf() const {
     MSG_INFO(3, "Evaluating " << *this << endline);
     return dynallocate<equation>(expression(lh).evalf(), expression(rh).evalf(), o, mod);
   }
-#else
-  ex equation::evalf(int level) const {
-    MSG_INFO(3, "Evaluating " << *this << endline);
-    return equation(expression(lh).evalf(), expression(rh).evalf(), o, mod);
-  }
-#endif
 
   ex equation::evalm() const {
     MSG_INFO(3, "Evaluating matrices in " << *this << endline);
@@ -244,21 +225,6 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
       rh *= mul;
     }
     return *this;
-  }
-
-  expression equation::apply_func(const expression &e) const {
-    MSG_INFO(1, "Applying function " << e << " to " << *this << endline);
-    if (!is_a<func>(e))
-      throw std::invalid_argument("Argument must be a function name");
-    return dynallocate<equation>(func(ex_to<func>(e).get_name(), lh),
-                    func(ex_to<func>(e).get_name(), rh), o, mod);
-  }
-
-  expression equation::apply_func(const std::string &fname) const {
-    MSG_INFO(1, "Applying function " << fname << " to " << *this << endline);
-    if (!func::is_a_func(fname))
-      throw std::invalid_argument("Argument must be a function name");
-    return dynallocate<equation>(func(fname, lh), func(fname, rh), o, mod);
   }
 
   expression equation::apply_power(const expression &e) const {

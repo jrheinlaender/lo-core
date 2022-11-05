@@ -71,11 +71,7 @@ public:
    * @param level Unused, required by GiNaC
    * @returns An expression with the result of the evaluation
    */
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex eval() const override;
-#else
-  ex eval(int level = 0) const;
-#endif
 
   size_t nops() const override;
   ex op(size_t i) const override;

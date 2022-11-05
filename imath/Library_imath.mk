@@ -52,6 +52,8 @@ $(eval $(call gb_Library_add_exception_objects,imath,\
     imath/source/extintegral \
     imath/source/extsymbol \
     imath/source/func \
+    imath/source/funcmgr \
+    imath/source/hardfuncs \
     imath/source/imathutils \
     imath/source/iFormulaLine \
     imath/source/iIterator \

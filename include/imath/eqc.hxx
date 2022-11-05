@@ -39,6 +39,7 @@ possible to request variable values from eqc, which will be derived from the reg
 #include "extsymbol.hxx"
 #include "utils.hxx"
 #include "unitmgr.hxx"
+#include "funcmgr.hxx"
 
 #define VALSYM "__eqc-val-sym__"
 #define VALLABEL "__eqc-val-label__"
@@ -157,6 +158,9 @@ public:
   /// Unit management
   Unitmanager unitmgr;
 
+  /// Function management
+  Functionmanager funcmgr;
+
 private:
   /**
   A map which stores all equations. The key is a string containing the label of the equation or the equation number.
@@ -261,7 +265,7 @@ public:
   void register_constant (const GiNaC::expression &eq);
 
   /// Register a function with the compiler
-  void register_function (const std::string &n, GiNaC::exvector &args, const unsigned hints, const std::string& printname = "");
+  void register_function (const std::string &n, const GiNaC::exvector &args, const unsigned hints, const std::string& printname = "");
 
   /*
    * Register an expression so that it can be retrieved by its label

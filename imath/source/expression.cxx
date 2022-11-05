@@ -20,7 +20,9 @@
 #include <imath/expression.hxx>
 #include <imath/unit.hxx>
 #include <imath/func.hxx>
+#include <imath/funcmgr.hxx>
 #include <imath/differential.hxx>
+#include <imath/equation.hxx>
 #include <imath/extintegral.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/utils.hxx>
@@ -29,7 +31,9 @@
 #include "expression.hxx"
 #include "unit.hxx"
 #include "func.hxx"
+#include "funcmgr.hxx"
 #include "differential.hxx"
+#include "equation.hxx"
 #include "extintegral.hxx"
 #include "msgdriver.hxx"
 #include "utils.hxx"
@@ -81,7 +85,6 @@ expression::expression(const std::string &s, const ex &l) : ex(s, l), empty(fals
   }
 #endif
 
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
 expression expression::evalf() const {
   MSG_INFO(2, "expression: Applying evalf() on " << ex(*this) << endline);
   if (evalf_real_roots_flag) {
@@ -91,17 +94,6 @@ expression expression::evalf() const {
     return ex::evalf();
   }
 }
-#else
-expression expression::evalf(int level) const {
-  MSG_INFO(2, "expression: Applying evalf() on " << ex(*this) << endline);
-  if (evalf_real_roots_flag) {
-    evalf_real_roots eval_roots;
-    return eval_roots(*this).evalf(level);
-  } else {
-    return ex::evalf(level);
-  }
-}
-#endif
 
 expression expression::evalm() const {
   MSG_INFO(3, "expression: Applying evalm() on " << ex(*this) << endline);
@@ -163,11 +155,65 @@ expression expression::evalm() const {
   }
 }
 
+/// Do unsafe evaluations of the function
+struct reduce_double_funcs : public map_function {
+  static std::map<std::string, std::string> func_inv;
+  ex operator()(const ex &e) {
+    MSG_INFO(2, "Reducing pairs of function/inverse function in " << e << endline);
+
+    if (is_a<function>(e)) {
+      const function& f = ex_to<function>(e);
+      MSG_INFO(3,  "Found G-function " << f.get_name() << ". This should not happen!!!!" << endline);
+    }
+    if (is_a<func>(e)) {
+      const func& f = ex_to<func>(e);
+
+      if (f.nops() == 0) return e; // Nothing to reduce
+      ex me = e.map(*this); // map arguments first
+      if (f.get_numargs() > 1) return me; // cannot work on functions with multiple arguments
+      if (!is_a<func>(me)) return me; // Something was contracted
+      const func& mf = ex_to<func>(me);
+
+      if (is_a<func>(mf.op(0))) { // The argument is a function
+        const func& argf = ex_to<func>(mf.op(0));
+        std::string fnamebare = mf.get_name();
+        std::string argfnamebare = argf.get_name();
+        const auto& inv = func_inv.find(fnamebare);
+
+        if (inv != func_inv.end() && inv->second == argfnamebare && argf.nops() == 1)
+          return argf.op(0);
+      }
+
+      return me;
+    }
+
+    return e.map(*this);
+  }
+};
+std::map<std::string, std::string> reduce_double_funcs::func_inv = {
+  {"sin",  "arcsin"}, {"arcsin", "sin" },
+  {"sinh", "arsinh"}, {"arsinh", "sinh"},
+  {"cos",  "arccos"}, {"arccos", "cos" },
+  {"cosh", "arcosh"}, {"arcosh", "cosh"},
+  {"tan",  "arctan"}, {"arctan", "tan" },
+  {"tanh", "artanh"}, {"artanh", "tanh"},
+  {"sec",  "arcsec"}, {"arcsec", "sec" },
+  {"sech", "arsech"}, {"arsech", "sech"},
+  {"csc",  "arccsc"}, {"arcscs", "csc" },
+  {"csch", "arcsch"}, {"arcsch", "csch"},
+  {"cot",  "arccot"}, {"arccot", "cot" },
+  {"coth", "arcoth"}, {"arcoth", "coth"},
+  {"ln",   "exp"   }, {"exp"   , "ln"  },
+  {"conjugate", "conjugate"},
+  {"transpose", "transpose"},
+  {"invertmatrix", "invertmatrix"}
+};
+
 expression expression::evalu() const {
   MSG_INFO(2, "expression: Applying evalu() on " << ex(*this) << endline);
   expand_real_powers expand_powers;
   reduce_double_powers reduce_powers;
-  func::reduce_double_funcs reduce_funcs;
+  reduce_double_funcs reduce_funcs;
   return (reduce_powers(expand_powers(reduce_funcs(*this))));
 }
 
@@ -273,13 +319,7 @@ expression expression::subsv(const expression& e, const bool consecutive, unsign
       // First equation in the list
       rows = m.rows();
       for (unsigned i = 0; i < rows; ++i)
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
         substitutions.push_back(exmap{{eq.op(0), m[i]}}); // { {var1 = vector1[0]}; {var1 = vector1[1]}; ... }
-#else
-        exmap mm;
-        mm[eq.op(0)] = m[i];
-        substitutions.push_back(mm);
-#endif
     } else {
       if (m.rows() != rows)
         throw std::runtime_error("All expressions to substitute must have the same number of vector elements");
@@ -399,6 +439,45 @@ ex reduce_differentials::operator()(const ex& e) {
   return e.map(*this);
 }
 
+/// Expand all sum functions (by adding up)
+struct expand_sum : public map_function {
+  ex operator()(const ex &e) {
+    MSG_INFO(2, "Expanding sum in " << e << endline);
+
+    if (is_a<func>(e) && (ex_to<func>(e).get_name() == "sum")) {
+      const func& f = ex_to<func>(e);
+      exprseq fargs(f.begin(), f.end());
+
+      // Handle children first
+      expand_sum expand_s;
+      for (size_t i = 0; i < fargs.nops(); ++i)
+        fargs[i] = expand_s(fargs[i]);
+
+      MSG_INFO(0,  "Lower bound: " << fargs[0] << endline);
+      const symbol& var = ex_to<symbol>(ex_to<equation>(fargs[0]).lhs());
+      expression lbound = ex_to<equation>(fargs[0]).rhs();
+      expression hbound = fargs[1];
+      MSG_INFO(0,  "Summing up " << fargs[2] << " from " << var << " = " << lbound
+                        << " to " << hbound << endline);
+
+      int l, h;
+      if (!lbound.info(info_flags::integer) || !hbound.info(info_flags::integer)) return e.map(*this);
+      l = numeric_to_int(ex_to<numeric>(lbound));
+      h = numeric_to_int(ex_to<numeric>(hbound));
+
+      expression result;
+      while (l <= h) {
+        MSG_INFO(0,  "Summing up: current value: " << result << endline);
+        result = result + expression(fargs[2].subs(var == l));
+        ++l;
+      }
+      return std::move(result);
+    }
+
+    return e.map(*this);
+  }
+};
+
 expression expression::simplify(const std::vector<std::string> &s) const {
     expression result(*this);
 
@@ -430,7 +509,7 @@ expression expression::simplify(const std::vector<std::string> &s) const {
         match_differentials match_diffs;
         result = match_diffs(reduce_diffs(expand_devs(result)));
       } else if (i == "sum") { // Evalute \sum function objects
-        func::expand_sum expand_s;
+        expand_sum expand_s;
         result = expand_s(result);
       } else if (i == "gather-sqrt") {
         MSG_INFO(1, "Gathering square roots in " << result << endline);
@@ -524,8 +603,7 @@ expression expression::diff(const expression &var, const expression& nth, bool t
   MSG_INFO(2, "Result of differentiation: " << result << endline);
 
   // Differentiating powers might have introduced the GiNaC log() function
-  func::replace_function_by_func replace_functions;
-  return replace_functions(result);
+  return Functionmanager::replace_function_by_func(result);
 }
 
 /// Map function for use in partial differentiation

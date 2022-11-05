@@ -257,7 +257,7 @@ std::set<ex, ex_is_less> collectSymbols(const expression& e) {
         result.emplace(*i);
       else if (is_a<func>(*i))
         // TODO Since funcs are not created in a factory, the expressions do not compare equal
-        result.emplace(func(ex_to<func>(*i).get_name())); // Use pure func to avoid differences in the arguments
+        result.emplace(ex_to<func>(*i).makepure()); // Use pure func to avoid differences in the arguments
   }
   return result;
 }
@@ -313,9 +313,9 @@ iFormulaNodeStmNamespace::iFormulaNodeStmNamespace(std::shared_ptr<optionmap> g_
 }
 
 // NodeStmFunction
-iFormulaNodeStmFunction::iFormulaNodeStmFunction(std::shared_ptr<optionmap> g_options, std::vector<OUString>&& formulaParts) :
+iFormulaNodeStmFunction::iFormulaNodeStmFunction(std::shared_ptr<optionmap> g_options, std::vector<OUString>&& formulaParts, const GiNaC::expression& f) :
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
-  out.insert(func(STR(_formulaParts[3])));
+  out.insert(f);
 }
 
 // NodeStmUnitdef

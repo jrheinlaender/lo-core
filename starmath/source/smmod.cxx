@@ -182,7 +182,6 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
         // Init iMath compiler
         GiNaC::Digits = 17;
         GiNaC::init_utils();
-        GiNaC::func::init();
         GiNaC::imathprint::init();
 
         // Note: To enable logging, set compiler flags SAL_LOG_INFO and SAL_LOG_WARN in Library_sm.mk and

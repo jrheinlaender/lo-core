@@ -118,7 +118,6 @@ namespace GiNaC {
   class func : public exprseq {
     public:
     IMATH_DLLPUBLIC static void clearall();
-    IMATH_DLLPUBLIC bool is_hard() const;
     IMATH_DLLPUBLIC unsigned get_serial() const;
   };
 }
@@ -472,7 +471,7 @@ OUString makeDependencyString(const std::set<GiNaC::ex, GiNaC::ex_is_less>& depe
         else if (GiNaC::is_a<GiNaC::func>(e))
         {
             const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
-            if (f.is_hard()) continue; // Hard-coded functions cannot be influenced by a formula in the document
+            if (Functionmanager::is_hard_func(f.get_name())) continue; // Hard-coded functions cannot be influenced by a formula in the document
             result += OUString("func") + OUString::number(f.get_serial());
         }
     }
@@ -610,7 +609,6 @@ void SmDocShell::Compile()
     //setlocale(LC_NUMERIC, ""); // Reset to system locale
     MSG_INFO(0, "Recalculation finished" << endline);
 }
-
 
 void SmDocShell::ArrangeFormula()
 {

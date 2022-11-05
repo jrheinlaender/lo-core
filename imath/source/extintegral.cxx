@@ -18,6 +18,7 @@
 #ifdef INSIDE_SM
 #include <imath/extintegral.hxx>
 #include <imath/func.hxx>
+#include <imath/funcmgr.hxx>
 #include <imath/differential.hxx>
 #include <imath/printing.hxx>
 #include <imath/func.hxx>
@@ -25,6 +26,7 @@
 #else
 #include "extintegral.hxx"
 #include "func.hxx"
+#include "funcmgr.hxx"
 #include "differential.hxx"
 #include "printing.hxx"
 #include "func.hxx"
@@ -206,7 +208,6 @@ ex ensure_extintegral(const ex& e, const unsigned& flags)
 // an integral here (meaning that the expression returned is always an extintegral)
 // This is for consistency in the user interface: Evaluation will always take
 // place in a simplify(..., "integrate") call
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
 ex extintegral::eval() const {
   MSG_INFO(2, "Doing eval of extintegral" << endline);
   if (flags & status_flags::evaluated) return *this;
@@ -215,38 +216,7 @@ ex extintegral::eval() const {
 
   return this->hold();
 }
-#else
-ex extintegral::eval(int level) const {
-  if ((level==1) && (flags & status_flags::evaluated))
-    return *this;
-  if (level == -max_recursion_level)
-    throw(std::runtime_error("max recursion level reached"));
 
-  ex eintvar = (level==1) ? op(0) : op(0).eval(level-1);
-  ex ef      = (level==1) ? op(3) : op(3).eval(level-1);
-
-  if (ef.is_zero())
-    return ef;
-
-  if (hasboundaries) {
-    ex ea      = (level==1) ? op(1) : op(1).eval(level-1);
-    ex eb      = (level==1) ? op(2) : op(2).eval(level-1);
-
-    if (are_ex_trivially_equal(eintvar,op(0)) && are_ex_trivially_equal(ea,op(1))
-                    && are_ex_trivially_equal(eb,op(2)) && are_ex_trivially_equal(ef,op(3)))
-            return this->hold();
-    return (new extintegral(eintvar, ea, eb, ef))
-            ->setflag(status_flags::dynallocated | status_flags::evaluated);
-  } else {
-    if (are_ex_trivially_equal(eintvar,op(0)) && are_ex_trivially_equal(ef,op(3)))
-      return this->hold();
-    return (new extintegral(eintvar, ef, C))
-      ->setflag(status_flags::dynallocated | status_flags::evaluated);
-  }
-}
-#endif
-
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
 ex extintegral::evalf() const {
   if (!hasboundaries)
     throw(runtime_error("Integral without boundaries cannot be evaluated numerically"));
@@ -255,17 +225,6 @@ ex extintegral::evalf() const {
   // TODO: expression::evalf() will not be called here
   return ensure_extintegral(integral::evalf(), status_flags::dynallocated);
 }
-#else
-ex extintegral::evalf(int level) const
-{
-  if (!hasboundaries)
-    throw(runtime_error("Integral without boundaries cannot be evaluated numerically"));
-
-  // TODO: This can potentially throw an exception if the integral does not evaluate and x is not a symbol
-  // TODO: expression::evalf() will not be called here
-  return ensure_extintegral(integral::evalf(level), status_flags::dynallocated);
-}
-#endif
 
 ex extintegral::evalm() const {
   ex eintvar = expression(op(0)).evalm();
@@ -418,43 +377,41 @@ void init_table() {
   n = wild(8);
   DELTA1 = b * f - a * g;
   DELTA2 = 4 * a * c - pow(b,2);
-  Y1p = func("arctan", x/a);
-  Y2p = func("arctan", b * GiNaC::sqrt(x) / a);
-  Y2m = func("ln", (a + b * GiNaC::sqrt(x)) / (a - b * GiNaC::sqrt(x))) / 2;
+  Y1p = Functionmanager::create_hard("arctan", {x/a});
+  Y2p = Functionmanager::create_hard("arctan", {b * GiNaC::sqrt(x) / a}); // Note: Using GiNaC::sqrt does not introduce a GiNaC::function but evals immediately to a power
+  Y2m = Functionmanager::create_hard("ln", {(a + b * GiNaC::sqrt(x)) / (a - b * GiNaC::sqrt(x))}) / 2;
 
   // Taken from Bronstein/Semendjajew, Taschenbuch der Mathematik
   // Beware: The compiler views 1/2 as an integer expression with value 0!
-  // Note: If sometime this table is statically initalized, we must use GiNaC::log() etc. and replace with
-  // func objects at runtime, otherwise there is an exception "Function ... has not been registered"
   // Note: There is no guarantee that the table will be iterated in this order!
   integrals = {
         { a,                a * x },
         { pow(x, n),        1 / (n+1) * pow(x, n+1) },
-/*001*/  { pow(X1, n),       1 / (a * (n+1)) * pow(X1, n+1) },
-/*002*/  { pow(X1, -1),       1 / a * func("ln", X1) },
-/*002*/ { pow(x, -1),       func("ln", x) },
-/*003*/  { x * pow(X1, n),   1 / (pow(a,2) * (n+2)) * pow(X1, n+2) - b / (pow(a,2) * (n+1)) * pow(X1, n+1) },
+/*001*/ { pow(X1, n),       1 / (a * (n+1)) * pow(X1, n+1) },
+/*002*/ { pow(X1, -1),       1 / a * Functionmanager::create_hard("ln", {X1}) },
+/*002*/ { pow(x, -1),       Functionmanager::create_hard("ln", {x}) },
+/*003*/ { x * pow(X1, n),   1 / (pow(a,2) * (n+2)) * pow(X1, n+2) - b / (pow(a,2) * (n+1)) * pow(X1, n+1) },
 /*004 is partial integration */
-/*005*/ { x * pow(X1, -1),  x / a - b / pow(a,2) * func("ln", X1) },
-/*006*/  { x * pow(X1, -2),  b / (pow(a,2) * X1) + 1 / pow(a,2) * func("ln", X1) },
+/*005*/ { x * pow(X1, -1),  x / a - b / pow(a,2) * Functionmanager::create_hard("ln", {X1}) },
+/*006*/ { x * pow(X1, -2),  b / (pow(a,2) * X1) + 1 / pow(a,2) * Functionmanager::create_hard("ln", {X1}) },
 /*007 is contained in 003 */
 /*008*/ { x * pow(X1, -n),  1 / pow(a,2) * (-1 / ((n-2) * pow(X1, n-2)) + b / ((n-1) * pow(X1, n-1))) },
 /*008*/ { x * pow(pow(X1, n), -1), 1 / pow(a,2) * (-1 / ((n-2) * pow(X1, n-2)) + b / ((n-1) * pow(X1, n-1))) },
-/*009*/ { pow(x,2) * pow(X1, -1),  1 / pow(a,3) * (pow(X1, 2) / 2 - 2 * b * X1 + pow(b,2) * func("ln", X1)) },
-/*010*/ { pow(x,2) * pow(X1, -2),  1 / pow(a,3) * (X1 - 2 * b * func("ln", X1) - pow(b,2) / X1) },
-/*011*/ { pow(x,2) * pow(X1, -3),  1 / pow(a,3) * (func("ln", X1) + 2 * b / X1 - pow(b,2) / (2 * pow(X1, 2))) },
+/*009*/ { pow(x,2) * pow(X1, -1),  1 / pow(a,3) * (pow(X1, 2) / 2 - 2 * b * X1 + pow(b,2) * Functionmanager::create_hard("ln", {X1})) },
+/*010*/ { pow(x,2) * pow(X1, -2),  1 / pow(a,3) * (X1 - 2 * b * Functionmanager::create_hard("ln", {X1}) - pow(b,2) / X1) },
+/*011*/ { pow(x,2) * pow(X1, -3),  1 / pow(a,3) * (Functionmanager::create_hard("ln", {X1}) + 2 * b / X1 - pow(b,2) / (2 * pow(X1, 2))) },
 /*012*/ { pow(x,2) * pow(X1, -n),  1 / pow(a,3) * (-1 / ((n-3)*pow(X1, n-3)) + 2 * b / ((n-2) * pow(X1, n-2)) - pow(b,2) / ((n-1) * pow(X1, n-1))) },
 /*012*/ { pow(x,2) * pow(pow(X1, n), -1),    1 / pow(a,3) * (-1 / ((n-3)*pow(X1, n-3)) + 2 * b / ((n-2) * pow(X1, n-2)) - pow(b,2) / ((n-1) * pow(X1, n-1))) },
-/*018*/ { pow(x,-1) * pow(X1, -1), -1/b * func("ln", X1/x) },
-/*031*/ { X1 * pow(f * x + g, -1), a * x / f + DELTA1 / pow(f,2) * func("ln", f * x + g) },
-/*032*/ { pow(X1, -1) * pow(f * x + g, -1), 1/DELTA1 * func("ln", (f * x + g) * pow(X1, -1)) },
-/*040*/ { pow(X2, -1),       2/GiNaC::sqrt(DELTA2) * func("arctan", (2 * a * x + b) / GiNaC::sqrt(DELTA2)) }, // TODO: Two results depending on DELTA2
+/*018*/ { pow(x,-1) * pow(X1, -1), -1/b * Functionmanager::create_hard("ln", {X1/x}) },
+/*031*/ { X1 * pow(f * x + g, -1), a * x / f + DELTA1 / pow(f,2) * Functionmanager::create_hard("ln", {f * x + g}) },
+/*032*/ { pow(X1, -1) * pow(f * x + g, -1), 1/DELTA1 * Functionmanager::create_hard("ln", {(f * x + g) * pow(X1, -1)}) },
+/*040*/ { pow(X2, -1),       2/GiNaC::sqrt(DELTA2) * Functionmanager::create_hard("arctan", {(2 * a * x + b) / GiNaC::sqrt(DELTA2)}) }, // TODO: Two results depending on DELTA2
 /*041 to 056 are partial integrals depending on prior entries in the table */
 /*057*/ { pow(a2pX2, -1),     1/a * Y1p }, // TODO negative branch depends on abs(x)
 /*058*/ { pow(a2pX2, -2),     x / (2 * pow(a,2) * a2pX2) + 1/(2 * pow(a,3)) * Y1p }, // TODO negative branch depends on abs(x)
-/*083*/ { pow(a3pX3, -1),               1 / (6 * pow(a,2)) * func("ln", pow(a + x, 2) / (pow(a,2) - a * x + pow(x,2))) + 1 / (pow(a,2) * pow(3, numeric(1,2))) * func("arctan", (2 * x - a) / (a * pow(3, numeric(1,2)))) },
-/*083*/ { pow(a3mX3, -1),              -1 / (6 * pow(a,2)) * func("ln", pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))) + 1 / (pow(a,2) * pow(3, numeric(1,2))) * func("arctan", (2 * x + a) / (a * pow(3, numeric(1,2)))) },
-/*083*/ { pow(pow(x,3)-pow(a,3), -1),   1 / (6 * pow(a,2)) * func("ln", pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))) - 1 / (pow(a,2) * pow(3, numeric(1,2))) * func("arctan", (2 * x + a) / (a * pow(3, numeric(1,2)))) },
+/*083*/ { pow(a3pX3, -1),               1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {pow(a + x, 2) / (pow(a,2) - a * x + pow(x,2))}) + 1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x - a) / (a * pow(3, numeric(1,2)))}) },
+/*083*/ { pow(a3mX3, -1),              -1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))}) + 1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
+/*083*/ { pow(pow(x,3)-pow(a,3), -1),   1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))}) - 1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
 /*109*/ { GiNaC::sqrt(x) / a2pb2X,  2 * GiNaC::sqrt(x) / pow(b,2) - 2 * a / pow(b,3) * Y2p },
 /*109*/ { GiNaC::sqrt(x) / a2mb2X, -2 * GiNaC::sqrt(x) / pow(b,2) + 2 * a / pow(b,3) * Y2p },
 /*121 is contained in 001 */
@@ -464,31 +421,31 @@ void init_table() {
 /*128 is partial integral using 127 */
 /*132*/ { GiNaC::sqrt(pow(X1, 3)), 2 * GiNaC::sqrt(pow(X1,5)) / (5 * a) },
 /*140 is contained in 001 */
-/*157*/ { GiNaC::sqrt(a2mX2), (x * GiNaC::sqrt(a2mX2) + pow(a,2) * func("arcsin", x/a)) / 2 },
-/*164*/ { pow(GiNaC::sqrt(a2mX2), -1), func("arcsin", x/a) },
-/*185*/ { GiNaC::sqrt(a2pX2), (x * GiNaC::sqrt(a2pX2) + pow(a,2) * func("arsinh", x/a)) / 2 },
+/*157*/ { GiNaC::sqrt(a2mX2), (x * GiNaC::sqrt(a2mX2) + pow(a,2) * Functionmanager::create_hard("arcsin", {x/a})) / 2 },
+/*164*/ { pow(GiNaC::sqrt(a2mX2), -1), Functionmanager::create_hard("arcsin", {x/a}) },
+/*185*/ { GiNaC::sqrt(a2pX2), (x * GiNaC::sqrt(a2pX2) + pow(a,2) * Functionmanager::create_hard("arsinh", {x/a})) / 2 },
 /*186*/ { x * GiNaC::sqrt(a2pX2),   GiNaC::sqrt(pow(a2pX2, 3))/3 },
-/*213*/ { GiNaC::sqrt(X2ma2), (x * GiNaC::sqrt(X2ma2) - pow(a,2) * func("arcosh", x/a))/ 2 },
+/*213*/ { GiNaC::sqrt(X2ma2), (x * GiNaC::sqrt(X2ma2) - pow(a,2) * Functionmanager::create_hard("arcosh", {x/a}))/ 2 },
 /*241 has 4 different cases depending on a and DELTA2 */
 /*245 is partial integral using 214 */
 /*268 is contained in 001 */
 /*274 is a basic function */
-/*275*/ { pow(func("sin", a * x), 2), x / 2 - func("sin", 2 * a * x) / (4 * a) },
-/*345*/ { pow(1 - pow(func("cos", a * x), 2), -1), -1 / (func("tan", a * x) * a) },
-/*345*/ { pow(pow(func("cos", a * x), 2) - 1, -1),  1 / (func("tan", a * x) * a) },
-/*354*/ { ex(func("sin", a * x)) * ex(func("cos", a * x)), pow(func("sin", a * x), 2) / (2 * a) },
+/*275*/ { pow(Functionmanager::create_hard("sin", {a * x}), 2), x / 2 - Functionmanager::create_hard("sin", {2 * a * x}) / (4 * a) },
+/*345*/ { pow(1 - pow(Functionmanager::create_hard("cos", {a * x}), 2), -1), -1 / (Functionmanager::create_hard("tan", {a * x}) * a) },
+/*345*/ { pow(pow(Functionmanager::create_hard("cos", {a * x}), 2) - 1, -1),  1 / (Functionmanager::create_hard("tan", {a * x}) * a) },
+/*354*/ { ex(Functionmanager::create_hard("sin", {a * x})) * ex(Functionmanager::create_hard("cos", {a * x})), pow(Functionmanager::create_hard("sin", {a * x}), 2) / (2 * a) },
 /*409 is a basic function */
-/*410*/ { pow(func("tan", a * x), 2),  func("tan", a * x) / a - x },
+/*410*/ { pow(Functionmanager::create_hard("tan", {a * x}), 2),  Functionmanager::create_hard("tan", {a * x}) / a - x },
 /*418 is a basic function */
 /*426 is a basic function */
 /*427 is a basic function */
 /*436 is a basic function */
 /*437 is a basic function */
-/*438*/ { pow(func("tanh", a * x), 2), x - func("tanh", a * x) / a },
+/*438*/ { pow(Functionmanager::create_hard("tanh", {a * x}), 2), x - Functionmanager::create_hard("tanh", {a * x}) / a },
 /*447 is a basic function */
-/*448*/ { x * ex(func("exp", a * x)), func("exp", a * x) / pow(a, 2) * (a * x - 1) },
-/*---*/ { pow(a, b * x + c), pow(a, b * x + c) / (b * func("ln", a)) },
-/*---*/ { pow(a, x), pow(a, x) / func("ln", a) }
+/*448*/ { x * ex(Functionmanager::create_hard("exp", {a * x})), Functionmanager::create_hard("exp", {a * x}) / pow(a, 2) * (a * x - 1) },
+/*---*/ { pow(a, b * x + c), pow(a, b * x + c) / (b * Functionmanager::create_hard("ln", {a})) },
+/*---*/ { pow(a, x), pow(a, x) / Functionmanager::create_hard("ln", {a}) }
 /*465 is a basic function */
 /*488 is a basic function */
 /*493 is a basic function */
@@ -567,9 +524,8 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
 
     return result;
   } else if (is_a<func>(remainder)) {
-    ex result;
-    if (ex_to<func>(remainder).find_integral(var, result))
-      return result;
+    expression result = ex_to<func>(remainder).find_integral(var);
+    if (!result.is_empty()) return result;
   } else if (is_a<exderivative>(remainder)) {
     const exderivative& e = ex_to<exderivative>(remainder);
     if (!e.is_partial() && is_a<differential>(e.get_denom())) {
@@ -595,8 +551,7 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
             }
 
           if (!nonconst) {
-            func::replace_function_by_func replace_functions;
-            return replace_functions(i.second.subs(repl, subs_options::no_pattern).subs(integral_table::x == var));
+            return Functionmanager::replace_function_by_func(i.second.subs(repl, subs_options::no_pattern).subs(integral_table::x == var));
           }
         }
       } catch (std::exception& e) {

@@ -173,18 +173,10 @@ public:
   ex expand(unsigned options = 0) const override;
 
   /// Apply the modulus to both sides of the equation (if it is numeric and not zero)
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex eval() const override;
-#else
-  ex eval(int level=0) const;
-#endif
 
   /// Evaluate both sides of the equation
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   ex evalf() const override;
-#else
-  ex evalf(int level=0) const;
-#endif
 
   /// Evaluate matrices on both sides of the equation
   ex evalm() const override;
@@ -194,15 +186,6 @@ public:
 
   /// Multiply the equation with an expression
   equation &eqmul(const expression &mul);
-
-  /**
-  Applies a function to both sides of the equation. Beware: The user must handle any
-  mathematical problems resulting from this, for example, if the function is sqrt().
-  @param e An expression containing the function
-  @returns An equation containing the result of the operation
-  **/
-  expression apply_func(const expression &e) const;
-  expression apply_func(const std::string& fname) const;
 
   /// Raises both sides to the power of e
   expression apply_power(const expression &e) const;

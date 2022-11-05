@@ -803,20 +803,18 @@ void setChartData(const Reference< com::sun::star::chart2::XChartDocument > cDoc
   not_a_number = cDataArray->getNotANumber();
   Sequence< Sequence< double > > newData(rows);
   auto pNewData = newData.getArray();
-  Sequence< double > newPoint(series);
-  auto pNewPoint = newPoint.getArray();
 
-  for (unsigned r = 0; r < rows; r++) {
+  for (unsigned r = 0; r < rows; ++r) {
+    pNewData[r] = Sequence< double >(series);
     if (r < newx.rows()) {
-      pNewPoint[iseries-1] = forceDouble(expression(newx(r,0)), not_a_number); // X-values
-      pNewPoint[iseries] = forceDouble(expression(newy(r,0)), not_a_number); // Y-values
+      pNewData[r][iseries-1] = forceDouble(expression(newx(r,0)), not_a_number); // X-values
+      pNewData[r][iseries] = forceDouble(expression(newy(r,0)), not_a_number); // Y-values
     }
-    for (unsigned s = 0; s < series; s++) // copy old data
+    for (unsigned s = 0; s < series; ++s) // copy old data
       if ((s != iseries-1) && (s != iseries))
         if (r < (unsigned)data.getLength())
           if (s < (unsigned)data[r].getLength())
-            pNewPoint[s] = data[r][s];
-            pNewData[r] = newPoint;
+            pNewData[r][s] = data[r][s];
   }
 
   cDataArray->setData(newData);
@@ -1920,6 +1918,7 @@ void orderXText(const Reference<XText>& xText, std::list< OUString >& formulas, 
            }
          }
        }
+       // Note: Also possible (sw/source/core/unocore/unoobj2.cxx: SwXTextGraphicObject
      }
   }
   //MSG_INFO(3,  "orderXText() finished" << endline);

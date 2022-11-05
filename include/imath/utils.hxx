@@ -109,14 +109,6 @@ namespace GiNaC {
     return crc32(mangled_name, (int)std::strlen(mangled_name), 0);
   }
   #endif
-
-  // Copied from GiNaC 1.7 basic.h
-  #if ((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION < 7))
-  template<class B, typename... Args>
-  inline B & dynallocate(Args &&... args) {
-    return const_cast<B &>(static_cast<const B &>((new B(std::forward<Args>(args)...))->setflag(status_flags::dynallocated)));
-  }
-  #endif
 }
 
 /// This structure is necessary to use sets of const char*. It defines the string comparison
@@ -180,11 +172,7 @@ IMATH_DLLPUBLIC bool is_unit(const GiNaC::expression &e);
 
 /// Return the expression as a GiNaC lst object
 inline GiNaC::lst make_lst(const GiNaC::expression &e) {
-#if (((GINACLIB_MAJOR_VERSION == 1) && (GINACLIB_MINOR_VERSION >= 7)) || (GINACLIB_MAJOR_VERSION >= 1))
   return (GiNaC::is_a<GiNaC::lst>(e) ? GiNaC::ex_to<GiNaC::lst>(e) : GiNaC::lst{e});
-#else
-  return (GiNaC::is_a<GiNaC::lst>(e) ? GiNaC::ex_to<GiNaC::lst>(e) : GiNaC::lst(e));
-#endif
 } // make_lst()
 
 /**

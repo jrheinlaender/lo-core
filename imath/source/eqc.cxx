@@ -72,6 +72,7 @@ extern std::map<unsigned, exrec> remember_split;
 
     // The rest is plain data
     result->unitmgr = unitmgr;
+    result->funcmgr = funcmgr;
     result->expressions = expressions;
     result->assignments = assignments;
     result->recent_assgn = recent_assgn;

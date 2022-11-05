@@ -86,6 +86,9 @@ public:
    **/
   bool is_a_func(const std::string &fname) const;
 
+  /// Check whether fname is a hard-coded function
+  static bool is_hard_func(const std::string& fname);
+
   /// Return true if this function name refers to a library function
   bool is_lib(const std::string& fname) const;
 

@@ -38,8 +38,9 @@ possible to request variable values from eqc, which will be derived from the reg
 #include "equation.hxx"
 #include "extsymbol.hxx"
 #include "utils.hxx"
-#include "unitmgr.hxx"
-#include "funcmgr.hxx"
+
+class Functionmanager;
+class Unitmanager;
 
 #define VALSYM "__eqc-val-sym__"
 #define VALLABEL "__eqc-val-label__"
@@ -155,61 +156,6 @@ public:
 /// Used to store all equations, variables and constants encountered during processing.
 class IMATH_DLLPUBLIC eqc {
 public:
-  /// Unit management
-  Unitmanager unitmgr;
-
-  /// Function management
-  Functionmanager funcmgr;
-
-private:
-  /**
-  A map which stores all equations. The key is a string containing the label of the equation or the equation number.
-  **/
-  std::map<const std::string, eqrec> equations;
-  typedef std::map<const std::string, eqrec>::iterator eqrec_it;
-  typedef std::map<const std::string, eqrec>::const_iterator eqrec_cit;
-
-  /// A map which stores all expression. The key is a string containing the label
-  std::map<const std::string, GiNaC::expression> expressions;
-
-  /// Contains the next number to be given to an equation if no label is supplied.
-  int nextlabel;
-
-  /// A list which stores equations that are not assignments
-  std::list<eqrec*> other_equations; // Note: This will only take pointers to entries in equations, therefore no deletion on destruction of the eqc is required
-  typedef std::list<eqrec*>::iterator eqreclist_it;
-  typedef std::list<eqrec*>::const_iterator eqreclist_cit;
-
-  /// An exmap which contains all constants and assignments for variables found so far
-  GiNaC::exmap assignments;
-
-  /**
-  An exmap which contains newly created constants and assignments, until they are used
-  in find_values()
-  **/
-  GiNaC::exmap recent_assgn; // Cannot use exhashmap because subs() doesn't accept it
-
-  /**
-  A map which stores all variables used in the equations. The key is the variable name (string), and the variables are
-  stored with their calculated values in the structure symrec, which has the following members:
-  @li symbol: A GiNaC symbol that represents the variable
-  @li value:  A GiNaC expression that contains the value of the variable (a quantity). This member is
-              only used for constants
-  @li constant: A boolean that indicates whether the variable is a constant
-
-  Note that variables marked as constants are not deleted with the clear() method.
-  **/
-  std::map <std::string, symrec> vars;
-  typedef std::map <std::string, symrec>::iterator symrec_it;
-  typedef std::map <std::string, symrec>::const_iterator symrec_cit;
-
-  /// The current namespace
-  std::string current_namespace;
-
-  /// This iterator always points to the previously registered equation
-  eqrec_it previous_it;
-
-public:
   /**
   Constructs an empty eqc.
   **/
@@ -244,7 +190,7 @@ public:
   @exception invalid_argument(The equation label does not exist)
   **/
   void deleq(const std::string &which);
-  void deleq(eqrec_it which);
+  void deleq(std::map<const std::string, eqrec>::iterator& which);
 
   /**
   Register a constant with the eqc.
@@ -266,6 +212,23 @@ public:
 
   /// Register a function with the compiler
   void register_function (const std::string &n, const GiNaC::exvector &args, const unsigned hints, const std::string& printname = "");
+
+  /// Define a function that is already registered with the compiler
+  void define_function(const std::string &n, const GiNaC::expression &def);
+
+  /// Create a user-defined function
+  GiNaC::expression create_function(const std::string& n, const GiNaC::exprseq &args = GiNaC::exprseq()) const;
+  GiNaC::expression create_function(const std::string& n, GiNaC::exprseq &&args) const;
+
+  /// Indirect access to the Unitmanager to enable copy-on-write
+  void addUnit(const std::string &uname, const std::string& pname, const GiNaC::expression &other_units);
+  void addPrefix(const std::string &prefixname, const GiNaC::numeric &pvalue);
+  GiNaC::expression canonicalizeUnits(const GiNaC::expression &e) const;
+  bool isUnit(const std::string &uname);
+  const GiNaC::expression& getUnit(const std::string &uname) const;
+  GiNaC::expression getCanonicalizedUnit(const std::string& uname) const;
+  std::vector<std::string> getUnitnames() const;
+  GiNaC::unitvec create_conversions(const GiNaC::lst& e, const bool always = false);
 
   /*
    * Register an expression so that it can be retrieved by its label
@@ -317,6 +280,9 @@ public:
 
   /// Check whether the string is the label of a library equation
   bool is_lib(const std::string &s) const;
+
+  /// Check whether the string is the name of a function
+  bool is_func(const std::string &fname) const;
 
   /**
   Check whether a given symbol has a value (i.e., a quantity). Throws an exception if the symbol
@@ -444,7 +410,8 @@ public:
 
   /// Find the nth previous equation and return its label
   std::string getPreviousEquationLabel(const unsigned n) const;
-private:
+
+private: /* Methods */
   /**
   Investigate all equations that influence the value of a variable, and try to calculate the
   value from these equations. Up to now, only equations that have this variable on the left hand side
@@ -505,5 +472,63 @@ private:
   @param name The name of the variable that has no value any more
   **/
   void remove_subsed(const GiNaC::ex& sym);
+
+private: /* Data */
+  /// Unit management
+  std::shared_ptr<Unitmanager> unitmgr;
+
+  /// Function management
+  std::shared_ptr<Functionmanager> funcmgr;
+
+  /// Manage copy-on-write
+  bool unitmgr_writable;
+  bool funcmgr_writable;
+
+  /**
+  A map which stores all equations. The key is a string containing the label of the equation or the equation number.
+  **/
+  std::map<const std::string, eqrec> equations;
+  typedef std::map<const std::string, eqrec>::iterator eqrec_it;
+  typedef std::map<const std::string, eqrec>::const_iterator eqrec_cit;
+
+  /// A map which stores all expression. The key is a string containing the label
+  std::map<const std::string, GiNaC::expression> expressions;
+
+  /// Contains the next number to be given to an equation if no label is supplied.
+  int nextlabel;
+
+  /// A list which stores equations that are not assignments
+  std::list<eqrec*> other_equations; // Note: This will only take pointers to entries in equations, therefore no deletion on destruction of the eqc is required
+  typedef std::list<eqrec*>::iterator eqreclist_it;
+  typedef std::list<eqrec*>::const_iterator eqreclist_cit;
+
+  /// An exmap which contains all constants and assignments for variables found so far
+  GiNaC::exmap assignments;
+
+  /**
+  An exmap which contains newly created constants and assignments, until they are used
+  in find_values()
+  **/
+  GiNaC::exmap recent_assgn; // Cannot use exhashmap because subs() doesn't accept it
+
+  /**
+  A map which stores all variables used in the equations. The key is the variable name (string), and the variables are
+  stored with their calculated values in the structure symrec, which has the following members:
+  @li symbol: A GiNaC symbol that represents the variable
+  @li value:  A GiNaC expression that contains the value of the variable (a quantity). This member is
+              only used for constants
+  @li constant: A boolean that indicates whether the variable is a constant
+
+  Note that variables marked as constants are not deleted with the clear() method.
+  **/
+  std::map <std::string, symrec> vars;
+  typedef std::map <std::string, symrec>::iterator symrec_it;
+  typedef std::map <std::string, symrec>::const_iterator symrec_cit;
+
+  /// The current namespace
+  std::string current_namespace;
+
+  /// This iterator always points to the previously registered equation
+  eqrec_it previous_it;
 };
 #endif

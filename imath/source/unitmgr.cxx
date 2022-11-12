@@ -16,16 +16,15 @@
  ***************************************************************************/
 
 #ifdef INSIDE_SM
-#include <imath/unitmgr.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/utils.hxx>
 #include <imath/stringex.hxx>
 #else
-#include "unitmgr.hxx"
 #include "msgdriver.hxx"
 #include "utils.hxx"
 #include "stringex.hxx"
 #endif
+#include "unitmgr.hxx"
 
 using namespace GiNaC;
 
@@ -50,8 +49,8 @@ Unitmanager::Unitmanager() {
   MSG_INFO(2, "Unitmanager: Finished initializing units" << endline);
 }
 
-const expression& Unitmanager::getUnit(const std::string &uname) {
-  std::map<std::string, expression>::iterator u = units.find(uname);
+const expression& Unitmanager::getUnit(const std::string &uname) const {
+  const auto& u = units.find(uname);
   if (u == units.end()) {
     MSG_ERROR(0, "Unitmanager: Unknown unit " << uname << endline);
     return units.at("unknown");
@@ -61,8 +60,8 @@ const expression& Unitmanager::getUnit(const std::string &uname) {
   }
 }
 
-expression Unitmanager::getCanonicalizedUnit(const std::string& uname) {
-  std::map<std::string, expression>::iterator u = units.find(uname);
+expression Unitmanager::getCanonicalizedUnit(const std::string& uname) const {
+  const auto& u = units.find(uname);
   if (u == units.end()) {
     if (!uname.empty()) MSG_ERROR(0, "Unitmanager: Cannot get canonicalized unit " << uname << endline);
     return units.at("unknown");
@@ -166,8 +165,8 @@ expression Unitmanager::canonicalize(const expression &e) const {
   return result;
 }
 
-unitvec *Unitmanager::create_conversions2(const lst &e, const bool always) {
-  unitvec *result = new unitvec;
+unitvec Unitmanager::create_conversions(const lst &e, const bool always) {
+  unitvec result;
   unitvec convs;
 
   for (const auto& u : e) {
@@ -184,7 +183,7 @@ unitvec *Unitmanager::create_conversions2(const lst &e, const bool always) {
       continue;
     }
 
-    if (!result->empty()) conversion = conversion.csubs(convs);
+    if (!result.empty()) conversion = conversion.csubs(convs);
 
     // Any numerics on the left hand side of the relation need to be moved to the
     // right hand side because 3\mm will not match "1000\mm == \m"
@@ -204,7 +203,7 @@ unitvec *Unitmanager::create_conversions2(const lst &e, const bool always) {
 
     if (always || (conversion != pref_unit)) {
       MSG_INFO(2, "Adding " << conversion << "==" << pref_unit << " to list of preferred units." << endline);
-      result->emplace_back(conversion == pref_unit);
+      result.emplace_back(conversion == pref_unit);
       convs.emplace_back(conversion == pref_unit);
     }
   }

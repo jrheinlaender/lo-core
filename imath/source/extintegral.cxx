@@ -18,7 +18,6 @@
 #ifdef INSIDE_SM
 #include <imath/extintegral.hxx>
 #include <imath/func.hxx>
-#include <imath/funcmgr.hxx>
 #include <imath/differential.hxx>
 #include <imath/printing.hxx>
 #include <imath/func.hxx>
@@ -26,13 +25,14 @@
 #else
 #include "extintegral.hxx"
 #include "func.hxx"
-#include "funcmgr.hxx"
 #include "differential.hxx"
 #include "printing.hxx"
 #include "func.hxx"
 #include "msgdriver.hxx"
 #endif
 #include "exderivative.hxx"
+#include "funcmgr.hxx"
+
 #include <ginac/symbol.h>
 
 using namespace std;

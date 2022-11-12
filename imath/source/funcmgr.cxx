@@ -18,13 +18,12 @@
 #include <sstream>
 
 #ifdef INSIDE_SM
-#include <imath/funcmgr.hxx>
 #include <imath/func.hxx>
 #else
 #include "func.hxx"
-#include "funcmgr.hxx"
 #endif
 #include "exderivative.hxx"
+#include "funcmgr.hxx"
 
 using namespace GiNaC;
 

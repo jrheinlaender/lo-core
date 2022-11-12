@@ -24,8 +24,13 @@
  */
 
 #include <string>
+#ifdef INSIDE_SM
+#include <imath/expression.hxx>
+#include <imath/unit.hxx>
+#else
 #include "expression.hxx"
 #include "unit.hxx"
+#endif
 
 /// Manage units for EQC
 class IMATH_DLLPUBLIC Unitmanager {
@@ -37,7 +42,7 @@ public:
    * @param uname A string with the name of the unit that is to be looked up
    * @returns An expression containing the unit
    */
-  const GiNaC::expression& getUnit(const std::string &uname);
+  const GiNaC::expression& getUnit(const std::string &uname) const;
 
   /**
    * Returns the unit expressed in base units
@@ -46,7 +51,7 @@ public:
    * @param uname A string with the name of the unit that is to be looked up
    * @returns An expression with the units corresponding to the name given
    */
-  GiNaC::expression getCanonicalizedUnit(const std::string& uname);
+  GiNaC::expression getCanonicalizedUnit(const std::string& uname) const;
 
   /// Checks if this is an unknown unit (as might be returned by getUnit())
   bool isUnknown(const GiNaC::expression& u) const;
@@ -95,7 +100,7 @@ public:
    * @returns A vector of relationals containing the necessary conversions
    */
   /// This version allows expressions as the LHS of the argument
-  GiNaC::unitvec* create_conversions2(const GiNaC::lst& e, const bool always = false);
+  GiNaC::unitvec create_conversions(const GiNaC::lst& e, const bool always = false);
 
   // Return a map of names of all units currently defined
   std::vector<std::string> getUnitnames() const;

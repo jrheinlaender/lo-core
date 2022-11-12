@@ -174,7 +174,7 @@ public:
    * Return the name of the function
    * @returns A string with the name of the function - not the Latex name!
    */
-  inline const std::string& get_name() const { return(name); }
+  IMATH_DLLPUBLIC inline const std::string& get_name() const { return(name); }
 
   /// Return the number of arguments of the function
   inline size_t get_numargs() const { return vars.size(); }

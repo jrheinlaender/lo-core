@@ -329,7 +329,7 @@ option getLineOption(const option_name& o) {
     return current_options->at(o);
 }
 
-std::string check_label(std::shared_ptr<eqc> compiler, const std::string& label, const imath::location& loc) {
+std::string check_label(const std::shared_ptr<eqc>& compiler, const std::string& label, const imath::location& loc) {
   std::string nslabel = compiler->label_ns(label);
   if (compiler->is_label(nslabel)) {
     if (!autorenumberduplicate) throw imath::smathparser::syntax_error(loc, "Duplicate label: " + nslabel);
@@ -339,6 +339,33 @@ std::string check_label(std::shared_ptr<eqc> compiler, const std::string& label,
   }
 
   return nslabel;
+}
+
+GiNaC::unitvec unitConversions(const std::shared_ptr<eqc>& compiler) {
+  // Create a combined list with all global and local units. Local units have precedence, so they must come last
+  // Note: create_conversions() only works properly if ALL units are processed in one go!
+  MSG_INFO(2, "unitConversions()" << endline);
+  auto it_option = current_options->find(o_units);
+  lst units;
+  if (it_option != current_options->end())
+    for (const auto& u : *(it_option->second.value.exvec))
+      units.append(u);
+
+  if (msg::info().checkprio(3))
+      for (const auto& u : units)
+        msg::info() <<  "Unit GLOBAL: " << u << endline;
+
+  it_option = line_options->find(o_units);
+  if (it_option != line_options->end()) { // There are units local to this line
+    for (const auto& o : *(it_option->second.value.exvec))
+      units.append(o);
+
+    if (msg::info().checkprio(3))
+      for (const auto& u : *(it_option->second.value.exvec))
+        msg::info() <<  "Unit LOCAL: " << u << endline;
+  }
+
+  return compiler->create_conversions(units, true);
 }
 
 #define GETARG(index) \
@@ -543,14 +570,14 @@ input:   %empty
        } comment end
        | input options TEXT usertext { // User-defined text after %%ii {options} TEXT
           std::vector<OUString> formulaParts = {OUS8(rawtext.substr(@4.begin.column-1, @4.end.column-@4.begin.column))}; // not GETARG because it trims the string
-          formula.lines.push_back(std::make_shared<iFormulaNodeText>(&compiler->unitmgr, current_options, std::move(*$2), std::move(formulaParts), std::move(*$4)));
+          formula.lines.push_back(std::make_shared<iFormulaNodeText>(unitConversions(compiler), current_options, std::move(*$2), std::move(formulaParts), std::move(*$4)));
           line = formula.lines.back();
 		  line_options = nullptr;
           delete($2); delete($4);
        } comment end
        | input usertext { // user-defined text on a line by itself. The end removes 3 shift/reduce conflicts
           std::vector<OUString> formulaParts = {GETARG(@2)};
-          formula.lines.push_back(std::make_shared<iFormulaNodeText>(&compiler->unitmgr, current_options, optionmap(), std::move(formulaParts), std::move(*$2)));
+          formula.lines.push_back(std::make_shared<iFormulaNodeText>(unitConversions(compiler), current_options, optionmap(), std::move(formulaParts), std::move(*$2)));
           line = formula.lines.back();
 		  line_options = nullptr;
           delete($2);
@@ -700,8 +727,8 @@ statement: OPTIONS options {
 
                   while (u_old != units->end()) {
                     //if (is_a<Unit>(*u_old)) *u_old = ex_to<Unit>(*u_old).get_canonical();
-                    MSG_INFO(3, "Checking units for duplicate: " << *u_old << " and " << u_new << " = " << compiler->unitmgr.canonicalize(*u_old/u_new) << endline);
-                    if (is_a<numeric>(compiler->unitmgr.canonicalize(*u_old/u_new)))
+                    MSG_INFO(3, "Checking units for duplicate: " << *u_old << " and " << u_new << " = " << compiler->canonicalizeUnits(*u_old/u_new) << endline);
+                    if (is_a<numeric>(compiler->canonicalizeUnits(*u_old/u_new)))
                       u_old = units->erase(u_old);
                     else
                       ++u_old;
@@ -729,9 +756,9 @@ statement: OPTIONS options {
                   while (u_old != units.end()) {
                     std::string u_old_str = u_old->substr(1);
                     if (u_old_str.back() == '\"') u_old_str.pop_back();
-                    MSG_INFO(3, "Checking units for duplicate: " << u_old_str << " and " << u_str << " = " << compiler->unitmgr.getCanonicalizedUnit(u_old_str)/compiler->unitmgr.getCanonicalizedUnit(u_str) << endline);
+                    MSG_INFO(3, "Checking units for duplicate: " << u_old_str << " and " << u_str << " = " << compiler->getCanonicalizedUnit(u_old_str)/compiler->getCanonicalizedUnit(u_str) << endline);
 
-                    if (is_a<numeric>(compiler->unitmgr.getCanonicalizedUnit(u_old_str)/compiler->unitmgr.getCanonicalizedUnit(u_str)))
+                    if (is_a<numeric>(compiler->getCanonicalizedUnit(u_old_str)/compiler->getCanonicalizedUnit(u_str)))
                       u_old = units.erase(u_old);
                     else
                       ++u_old;
@@ -786,7 +813,7 @@ statement: OPTIONS options {
            compiler->register_function(fname, {*$7}, $3);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->create_function(fname)));
              line = formula.lines.back();
              line_options = nullptr;
            }
@@ -798,7 +825,7 @@ statement: OPTIONS options {
            compiler->register_function(fname, *$7, $3);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->create_function(fname)));
              line = formula.lines.back();
              line_options = nullptr;
            }
@@ -810,7 +837,7 @@ statement: OPTIONS options {
            compiler->register_function(fname, {*$9}, $3, *$5);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->create_function(fname)));
              line = formula.lines.back();
              line_options = nullptr;
            }
@@ -822,7 +849,7 @@ statement: OPTIONS options {
            compiler->register_function(fname, *$9, $3, *$5);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->funcmgr.create(fname)));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), compiler->create_function(fname)));
              line = formula.lines.back();
              line_options = nullptr;
            }
@@ -841,7 +868,7 @@ statement: OPTIONS options {
              name.erase(0,1);
            else
              throw syntax_error(@5, "\nUnit name should start with '%'");
-           compiler->unitmgr.addUnit(name, *$3, *$7);
+           compiler->addUnit(name, *$3, *$7);
            formula.cacheable = false;
            delete($3); delete ($5); delete($7);
          }
@@ -855,7 +882,7 @@ statement: OPTIONS options {
            std::string name = *$5;
            if (name[0] == '%')
              throw syntax_error(@5, "\nQuoted unit name should not start with '%'");
-           compiler->unitmgr.addUnit(name, *$3, *$7);
+           compiler->addUnit(name, *$3, *$7);
            formula.cacheable = false;
            delete($3); delete ($5); delete($7);
          }
@@ -881,7 +908,7 @@ statement: OPTIONS options {
            if (!is_a<numeric>(*$5))
              throw syntax_error(@3, "\nPrefix must have a numeric value");
 
-           compiler->unitmgr.addPrefix(name, ex_to<numeric>(*$5));
+           compiler->addPrefix(name, ex_to<numeric>(*$5));
            formula.cacheable = false;
            delete($3); delete ($5);
          }
@@ -897,7 +924,7 @@ statement: OPTIONS options {
            if (!is_a<numeric>(*$5))
              throw syntax_error(@3, "\nPrefix must have a numeric value");
 
-           compiler->unitmgr.addPrefix(*$3, ex_to<numeric>(*$5));
+           compiler->addPrefix(*$3, ex_to<numeric>(*$5));
            formula.cacheable = false;
            delete($3); delete ($5);
          }
@@ -1108,7 +1135,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@4)};
           formula.lines.push_back(std::make_shared<iFormulaNodeEx>(
-            &compiler->unitmgr, current_options, std::move(*$1),
+            unitConversions(compiler), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
             *$4, $3));
           line = formula.lines.back();
@@ -1123,7 +1150,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5)};
           formula.lines.push_back(std::make_shared<iFormulaNodeEx>(
-            &compiler->unitmgr, current_options, std::move(*$2),
+            unitConversions(compiler), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(compiler->exlabel_ns(*$1)),
             *$5, $4));
           line = formula.lines.back();
@@ -1142,7 +1169,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           if (include_level == 0) {
             std::vector<OUString> formulaParts = {GETARG(@5)};
             formula.lines.push_back(std::make_shared<iFormulaNodeEx>(
-              &compiler->unitmgr, current_options, std::move(*$2),
+              unitConversions(compiler), current_options, std::move(*$2),
               std::move(formulaParts), OUS8(label),
               *$5, $4));
             line = formula.lines.back();
@@ -1163,7 +1190,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           std::vector<OUString> formulaParts = {GETARG(@3)};
 
           formula.lines.push_back(std::make_shared<iFormulaNodePrintval>(
-            &compiler->unitmgr, current_options, std::move(*$1),
+            unitConversions(compiler), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
             (is_a<matrix>(*$3) ? calcvalueofmatrix(compiler, type, *$3, lst()) : calcvalue(compiler, type, *$3, lst())), false,
             *$3,
@@ -1184,7 +1211,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           std::vector<OUString> formulaParts = {OU("{"), GETARG(@4), OU(","), GETARG(@6), OU("}")};
 
           formula.lines.push_back(std::make_shared<iFormulaNodePrintval>(
-            &compiler->unitmgr, current_options, std::move(*$1),
+            unitConversions(compiler), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
             (is_a<matrix>(*$4) ? calcvalueofmatrix(compiler, type, *$4, *$6) : calcvalue(compiler, type, *$4, *$6)), false,
             *$4,
@@ -1206,7 +1233,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           std::vector<OUString> formulaParts = {GETARG(@4)};
 
           formula.lines.push_back(std::make_shared<iFormulaNodeExplainval>(
-            &compiler->unitmgr, current_options, std::move(*$1),
+            unitConversions(compiler), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
             value, $3,
             *$4, definition,
@@ -1228,7 +1255,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5)};
           formula.lines.push_back(std::make_shared<iFormulaNodeEq>(
-            &compiler->unitmgr, current_options, std::move(*$2),
+            unitConversions(compiler), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *$5, $4));
           line = formula.lines.back();
@@ -1247,7 +1274,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5)};
           formula.lines.push_back(std::make_shared<iFormulaNodeConst>(
-            &compiler->unitmgr, current_options, std::move(*$2),
+            unitConversions(compiler), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *$5, $4));
           line = formula.lines.back();
@@ -1263,17 +1290,17 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
       }
       | LABEL options FUNCDEF asterisk FUNC leftbracket ex rightbracket '=' ex {
         if (!checkbrackets(*$6, *$8)) throw syntax_error(@8, "\nBracket type mismatch");
-        expression f = compiler->funcmgr.create(*$5, {*$7});
-				if ($10->has(compiler->funcmgr.create(*$5)) || $10->has(f))
+        expression f = compiler->create_function(*$5, {*$7});
+				if ($10->has(compiler->create_function(*$5)) || $10->has(f))
 					throw syntax_error(@10, "\nRecursive function definition");
-        compiler->funcmgr.define(*$5, *$10); // TODO: Should we check the arguments in $7 ?
+        compiler->define_function(*$5, *$10); // TODO: Should we check the arguments in $7 ?
         expression* result = new expression(dynallocate<equation>(f, *$10, relational::equal, _expr0));
         std::string nslabel = check_label(compiler, *$1, @1);
 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
           formula.lines.push_back(std::make_shared<iFormulaNodeFuncdef>(
-            &compiler->unitmgr, current_options, std::move(*$2),
+            unitConversions(compiler), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *result, $4));
           line = formula.lines.back();
@@ -1290,17 +1317,17 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
       }
       | LABEL options FUNCDEF asterisk FUNC leftbracket exvec rightbracket '=' ex {
         if (!checkbrackets(*$6, *$8)) throw syntax_error(@8, "\nBracket type mismatch");
-        expression f = compiler->funcmgr.create(*$5, *$7);
-				if ($10->has(compiler->funcmgr.create(*$5)) || $10->has(f))
+        expression f = compiler->create_function(*$5, *$7);
+				if ($10->has(compiler->create_function(*$5)) || $10->has(f))
 					throw syntax_error(@10, "\nRecursive function definition");
-        compiler->funcmgr.define(*$5, *$10); // TODO: Should we check the arguments in $7 ?
+        compiler->define_function(*$5, *$10); // TODO: Should we check the arguments in $7 ?
         expression* result = new expression(dynallocate<equation>(f, *$10, relational::equal, _expr0));
         std::string nslabel = check_label(compiler, *$1, @1);
 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
           formula.lines.push_back(std::make_shared<iFormulaNodeFuncdef>(
-            &compiler->unitmgr, current_options, std::move(*$2),
+            unitConversions(compiler), current_options, std::move(*$2),
             std::move(formulaParts),OUS8(nslabel),
             *result, $4));
           line = formula.lines.back();
@@ -1322,7 +1349,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), OU("="), GETARG(@7)};
           formula.lines.push_back(std::make_shared<iFormulaNodeVectordef>(
-            &compiler->unitmgr, current_options, std::move(*$2),
+            unitConversions(compiler), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *result, $4));
           line = formula.lines.back();
@@ -1341,7 +1368,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), OU("="), GETARG(@7)};
           formula.lines.push_back(std::make_shared<iFormulaNodeMatrixdef>(
-            &compiler->unitmgr, current_options, std::move(*$2),
+            unitConversions(compiler), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             expression(result), $4));
           line = formula.lines.back();
@@ -1576,10 +1603,10 @@ eq:   ex '=' ex             { $$ = new expression(dynallocate<equation>(*$1, *$3
     }
     | FUNC leftbracket eq rightbracket {
       if (!checkbrackets(*$2, *$4)) throw syntax_error(@4, "\nBracket type mismatch");
-      if (!compiler->funcmgr.is_a_func(*$1)) throw syntax_error(@1, "Argument must be a function name");
+      if (!compiler->is_func(*$1)) throw syntax_error(@1, "Argument must be a function name");
       MSG_INFO(1, "Applying function " << *$1 << " to " << *$3 << endline);
       const equation& eq = ex_to<equation>(*$3);
-      $$ = new expression(dynallocate<equation>(compiler->funcmgr.create(*$1, {eq.lhs()}), compiler->funcmgr.create(*$1, {eq.rhs()}), eq.getop(), eq.getmod()));
+      $$ = new expression(dynallocate<equation>(compiler->create_function(*$1, {eq.lhs()}), compiler->create_function(*$1, {eq.rhs()}), eq.getop(), eq.getmod()));
       delete ($1); delete($2); delete($3); delete($4);
     }
     | SIZE sizestr IMPMUL eq { $$ = $4; delete($2); }
@@ -1785,19 +1812,19 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     }
     | UNIT {
       if (canonicalize_units)
-        $$ = new expression(compiler->unitmgr.getCanonicalizedUnit(*$1));
+        $$ = new expression(compiler->getCanonicalizedUnit(*$1));
       else
-        $$ = new expression(compiler->unitmgr.getUnit(*$1));
+        $$ = new expression(compiler->getUnit(*$1));
       delete($1);
     }
     | STRING {
       expression newUnit;
 
-      if (compiler->unitmgr.isUnit(*$1)) {
+      if (compiler->isUnit(*$1)) {
         if (canonicalize_units)
-          newUnit = compiler->unitmgr.getCanonicalizedUnit(*$1);
+          newUnit = compiler->getCanonicalizedUnit(*$1);
         else
-          newUnit = compiler->unitmgr.getUnit(*$1);
+          newUnit = compiler->getUnit(*$1);
 
         $$ = new expression(newUnit);
       } else {
@@ -1830,23 +1857,23 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | WILD { $$ = new expression(wild()); }
     | FUNC leftbracket ex rightbracket {
       if (!checkbrackets(*$2, *$4)) throw syntax_error(@4, "\nBracket type mismatch");
-      $$ = new expression(compiler->funcmgr.create(*$1, {*$3}).evalm());
+      $$ = new expression(compiler->create_function(*$1, {*$3}).evalm());
       delete ($1); delete($2); delete($3); delete($4);
     }
     | FUNC leftbracket exvec rightbracket {
       if (!checkbrackets(*$2, *$4)) throw syntax_error(@4, "\nBracket type mismatch");
-      $$ = new expression(compiler->funcmgr.create(*$1, {*$3}).evalm());
+      $$ = new expression(compiler->create_function(*$1, {*$3}).evalm());
       delete ($1); delete($2); delete($3); delete($4);
     }
     | FUNC leftbracket condition ';' exvec rightbracket { // Currently only ifelse() uses this format
       if (!checkbrackets(*$2, *$6)) throw syntax_error(@6, "\nBracket type mismatch");
       exvector fargs({*$3});
       fargs.insert(fargs.end(), $5->begin(), $5->end());
-      $$ = new expression(compiler->funcmgr.create(*$1, fargs).evalm());
+      $$ = new expression(compiler->create_function(*$1, fargs).evalm());
       delete ($1); delete($2); delete($3); delete($5); delete($6);
     }
     | FUNC { // a function may be used without arguments
-      $$ = new expression(compiler->funcmgr.create(*$1));
+      $$ = new expression(compiler->create_function(*$1));
       delete ($1);
     }
     | NROOT number IMPMUL number { // We can't prevent the IMPMUL appearing here
@@ -2151,7 +2178,7 @@ lowerbound: intvar '=' ex { $$ = new expression(dynallocate<equation>(*$1, *$3))
           | '{' intvar '=' ex '}' { $$ = new expression(dynallocate<equation>(*$2, *$4)); delete($2); delete($4);  }
 ;
 intvar:   symbol
-	| FUNC { $$ = new expression(compiler->funcmgr.create(*$1)); }
+	| FUNC { $$ = new expression(compiler->create_function(*$1)); }
 ;
 upperbound: number
           | '-' number { $$ = new expression(_expr_1 * *$2); delete($2); }

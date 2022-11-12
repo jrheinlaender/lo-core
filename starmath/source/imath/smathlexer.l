@@ -886,7 +886,7 @@ BEGIN(INITIAL);
 
          MSG_INFO(4,  "Found string "  << name << endline);
 
-         if ((name[0] == '%') && (name.length() > 1) && compiler->unitmgr.isUnit(name.substr(1))) {
+         if ((name[0] == '%') && (name.length() > 1) && compiler->isUnit(name.substr(1))) {
            // The name is a unit
            name.erase(0,1);
            implicit_mul_might_follow = true;

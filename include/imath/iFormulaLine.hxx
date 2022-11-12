@@ -20,12 +20,12 @@
 
 #ifdef INSIDE_SM
 #include <imath/imathutils.hxx>
-#include <imath/eqc.hxx>
 #include <imath/option.hxx>
+#include <imath/printing.hxx>
 #else
 #include "imathutils.hxx"
-#include "eqc.hxx"
 #include "option.hxx"
+#include "printing.hxx"
 #endif
 
 // Mapping of formula types to the index in the list box of the edit formula dialog
@@ -388,7 +388,7 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeExpression : public iFormulaLine {
 public:
   iFormulaNodeExpression(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
@@ -416,14 +416,14 @@ protected:
   OUString _label;
   GiNaC::expression _expr;
   bool _hide;
-  Unitmanager* unitmgr;
+  GiNaC::unitvec _unitconv;
   OUString displayedLhs; // Remember the displayed LHS (up to the operator, if there is one), for chaining of formulas
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeText : public iFormulaNodeExpression {
 public:
   iFormulaNodeText(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, std::vector<std::shared_ptr<textItem>>&& textlist);
   iFormulaNodeText(const iFormulaNodeText& other);
   virtual iFormulaLine_ptr clone() const override;
@@ -444,7 +444,7 @@ private:
 class IMATH_DLLPUBLIC iFormulaNodeEx : public iFormulaNodeExpression {
 public:
   iFormulaNodeEx(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
@@ -459,7 +459,7 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeValue : public iFormulaNodeExpression {
 public:
   iFormulaNodeValue(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide,
     const GiNaC::expression& lh
@@ -477,7 +477,7 @@ protected:
 class IMATH_DLLPUBLIC iFormulaNodePrintval : public iFormulaNodeValue {
 public:
   iFormulaNodePrintval(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide,
     const GiNaC::expression& lh,
@@ -498,7 +498,7 @@ private:
 class IMATH_DLLPUBLIC iFormulaNodeExplainval : public iFormulaNodeValue {
 public:
   iFormulaNodeExplainval(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide,
     const GiNaC::expression& lh,
@@ -520,7 +520,7 @@ private:
 class IMATH_DLLPUBLIC iFormulaNodeEq : public iFormulaNodeExpression {
 public:
   iFormulaNodeEq(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
@@ -541,7 +541,7 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeConst : public iFormulaNodeEq {
 public:
   iFormulaNodeConst(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
@@ -553,7 +553,7 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeFuncdef : public iFormulaNodeEq {
 public:
   iFormulaNodeFuncdef(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
@@ -565,7 +565,7 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeVectordef : public iFormulaNodeEq {
 public:
   iFormulaNodeVectordef(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
@@ -576,7 +576,7 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeMatrixdef : public iFormulaNodeEq {
 public:
   iFormulaNodeMatrixdef(
-    Unitmanager* um, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );

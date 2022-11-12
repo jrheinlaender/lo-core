@@ -24,8 +24,13 @@
  */
 
 #include <string>
+#ifdef INSIDE_SM
+#include <imath/msgdriver.hxx>
+#include <imath/expression.hxx>
+#else
 #include "msgdriver.hxx"
 #include "expression.hxx"
+#endif
 
 // Element-wise operations on vectors and matrices
 enum hadamard_operation {

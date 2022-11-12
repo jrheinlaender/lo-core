@@ -17,16 +17,15 @@
 
 #ifdef INSIDE_SM
 #include <imath/func.hxx>
-#include <imath/funcmgr.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/unit.hxx>
 #else
 #include "func.hxx"
-#include "funcmgr.hxx"
 #include "msgdriver.hxx"
 #include "unit.hxx"
 #endif
 #include "exderivative.hxx"
+#include "funcmgr.hxx"
 
 namespace GiNaC {
 class round_SERIAL { public: static unsigned serial; };

@@ -21,16 +21,21 @@
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
 #include <imath/alignblock.hxx>
+#include <imath/equation.hxx>
 #include <imath/func.hxx>
 #include <imath/settingsmanager.hxx>
+#include <imath/unit.hxx>
 #include <imath/iFormulaLine.hxx>
 #else
 #include "msgdriver.hxx"
 #include "alignblock.hxx"
+#include "equation.hxx"
 #include "func.hxx"
 #include "settingsmanager.hxx"
+#include "unit.hxx"
 #include "iFormulaLine.hxx"
 #endif
+#include "operands.hxx"
 
 using namespace GiNaC;
 
@@ -385,10 +390,10 @@ iFormulaNodeStmReadfile::iFormulaNodeStmReadfile(std::shared_ptr<optionmap> g_op
 
 // Node Expression (virtual superclass of Node Ex and Node Eq)
 iFormulaNodeExpression::iFormulaNodeExpression(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide
-  ) : iFormulaLine(g_options, std::move(l_options), std::move(formulaParts)), _label(label), _expr(expr), _hide(hide), unitmgr(um) {
+  ) : iFormulaLine(g_options, std::move(l_options), std::move(formulaParts)), _label(label), _expr(expr), _hide(hide), _unitconv(std::move(unitConversions)) {
 }
 
 iFormulaLine_ptr iFormulaNodeExpression::clone() const {
@@ -402,22 +407,6 @@ OUString iFormulaNodeExpression::print() const {
 // Print an expression with the given options and units
 OUString iFormulaNodeExpression::printEx(const expression& e) const {
   MSG_INFO(3,  "printEx() for '" << e << "'" << endline);
-  // Create a combined list with all global and local units. Local units have precedence, so they must come last
-  // Note: create_conversions2() only works properly if ALL units are processed in one go!
-  lst units(global_options->at(o_units).value.exvec->begin(), global_options->at(o_units).value.exvec->end());
-  if (msg::info().checkprio(3))
-      for (const auto& u : units)
-        msg::info() <<  "Unit GLOBAL: " << u << endline;
-
-  if (hasOption(o_units)) { // There are units local to this line
-    for (const auto& o : *(options.at(o_units).value.exvec))
-      units.append(o);
-
-    if (msg::info().checkprio(3))
-      for (const auto& u : *(options.at(o_units).value.exvec))
-        msg::info() <<  "Unit LOCAL: " << u << endline;
-  }
-
   // Create a combined optionmap with all global and local options. Local options have precedence
   optionmap o = options;
   for (const auto& i : *global_options) {
@@ -425,8 +414,7 @@ OUString iFormulaNodeExpression::printEx(const expression& e) const {
       o.emplace(i.first, i.second); // Local option doesn't exist, use global option instead
   }
 
-  unitvec* conversions = unitmgr->create_conversions2(units, true);
-  expression e_subst = subst_units(e, *conversions);
+  expression e_subst = subst_units(e, _unitconv);
   MSG_INFO(3,  "Substituted: '" << e_subst << "'" << endline);
 
   // Suppress units
@@ -457,14 +445,20 @@ OUString iFormulaNodeExpression::printEx(const expression& e) const {
   if (is_a<Unit>(e_matched))
     numeric(1).print(i, 0); // Top level single unit must print with 1 as coefficient
   e_matched.print(i, 0);
-  if (units.nops() > 0 && !getOption(o_suppress_units).value.boolean &&
+
+  expression preferredUnit;
+  if (hasOption(o_units) && !options.at(o_units).value.exvec->empty())
+    preferredUnit = options.at(o_units).value.exvec->back();
+  else if (!global_options->at(o_units).value.exvec->empty())
+    preferredUnit = global_options->at(o_units).value.exvec->back();
+
+  if (!preferredUnit.is_empty() && !getOption(o_suppress_units).value.boolean &&
     (e_matched.is_zero() || (is_a<equation>(e_matched) && ex_to<equation>(e_matched).rhs().is_zero()))) {
     // Special case because GiNaC automatic simplification cancels everything multiplied with zero
-    units.op(units.nops() - 1).print(i); // Print only one unit - this is a best guess
+    preferredUnit.print(i); // Print only one unit - this is a best guess
   }
 
   MSG_INFO(3,  "printed on stream" << endline);
-  delete conversions;
   return OUS8(os.str());
 } // printEx()
 
@@ -475,9 +469,9 @@ std::string iFormulaNodeExpression::getGraphLabel() const {
 }
 
 // NodeText
-iFormulaNodeText::iFormulaNodeText(Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+iFormulaNodeText::iFormulaNodeText(const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts,
-    std::vector<std::shared_ptr<textItem>>&& textlist) : iFormulaNodeExpression(um, g_options, std::move(l_options), std::move(formulaParts), OU(""), expression(), false),
+    std::vector<std::shared_ptr<textItem>>&& textlist) : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), OU(""), expression(), false),
     _textlist(std::move(textlist))
 {
   for (const auto& p : _textlist) {
@@ -542,10 +536,10 @@ unsigned iFormulaNodeText::countLinesWithOperators(bool& have_operator) const {
 
 // Node Ex
 iFormulaNodeEx::iFormulaNodeEx(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide
-  ) : iFormulaNodeExpression(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide)
+  ) : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide)
 {
   in = collectSymbols(_expr);
 }
@@ -577,11 +571,11 @@ void iFormulaNodeEx::display(const Reference< XModel >& xModel,
 
 // Node Value
 iFormulaNodeValue::iFormulaNodeValue(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide,
     const expression& lh
-  ) : iFormulaNodeExpression(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide), _lh(lh)
+  ) : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide), _lh(lh)
 {
   in = collectSymbols(_lh);
 }
@@ -592,12 +586,12 @@ iFormulaLine_ptr iFormulaNodeValue::clone() const {
 
 // Node Printval
 iFormulaNodePrintval::iFormulaNodePrintval(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide,
     const expression& lh,
     const bool algebraic, const bool with
-  ) : iFormulaNodeValue(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide, lh), _algebraic(algebraic), _with(with) {
+  ) : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide, lh), _algebraic(algebraic), _with(with) {
 }
 
 iFormulaLine_ptr iFormulaNodePrintval::clone() const {
@@ -634,12 +628,12 @@ void iFormulaNodePrintval::display(const Reference< XModel >& xModel,
 
 // Node Explainval
 iFormulaNodeExplainval::iFormulaNodeExplainval(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide,
     const expression& lh,
     const expression& definition, exhashmap<ex>&& symbols
-  ) : iFormulaNodeValue(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide, lh), _definition(definition), _symbols(std::move(symbols)) {
+  ) : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide, lh), _definition(definition), _symbols(std::move(symbols)) {
 }
 
 iFormulaLine_ptr iFormulaNodeExplainval::clone() const {
@@ -705,10 +699,10 @@ void iFormulaNodeExplainval::display(const Reference< XModel >& xModel,
 
 // Node Eq
 iFormulaNodeEq::iFormulaNodeEq(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide
-  ) : iFormulaNodeExpression(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide)
+  ) : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide)
 {
   ex lhs = ex_to<equation>(_expr).lhs();
   ex rhs = ex_to<equation>(_expr).rhs();
@@ -767,34 +761,34 @@ void iFormulaNodeEq::display(const Reference< XModel >& xModel,
 
 // Node Const
 iFormulaNodeConst::iFormulaNodeConst(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide
-  ) : iFormulaNodeEq(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
+  ) : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
 }
 
 // Node Funcdef
 iFormulaNodeFuncdef::iFormulaNodeFuncdef(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide
-  ) : iFormulaNodeEq(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
+  ) : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
 }
 
 // Node Vectordef
 iFormulaNodeVectordef::iFormulaNodeVectordef(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide
-  ) : iFormulaNodeEq(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
+  ) : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
 }
 
 // Node Matrixdef
 iFormulaNodeMatrixdef::iFormulaNodeMatrixdef(
-    Unitmanager* um, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
+    const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
     std::vector<OUString>&& formulaParts, const OUString& label,
     const expression& expr, const bool hide
-  ) : iFormulaNodeEq(um, g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
+  ) : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
 }
 
 // NodeChart

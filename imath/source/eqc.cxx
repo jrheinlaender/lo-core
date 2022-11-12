@@ -28,17 +28,24 @@
 #include "msgdriver.hxx"
 #endif
 #include "operands.hxx"
+#include "funcmgr.hxx"
+#include "unitmgr.hxx"
 
 using namespace GiNaC;
 
 extern std::map<unsigned, exrec> remember_split;
 
 // constructors
-  eqc::eqc() : unitmgr() {
+  eqc::eqc() {
     MSG_INFO(3, "Constructing empty eqc"  << endline);
     previous_it = equations.end();
     nextlabel = 0;
     current_namespace = "";
+
+    unitmgr = std::make_shared<Unitmanager>();
+    funcmgr = std::make_shared<Functionmanager>();
+    unitmgr_writable = true;
+    funcmgr_writable = true;
 
     MSG_INFO(2, "Registering hard-coded functions" << endline);
     for (const auto& n : Functionmanager::get_hard_names()) {
@@ -70,9 +77,13 @@ extern std::map<unsigned, exrec> remember_split;
         }
     }
 
-    // The rest is plain data
+    // Functionmanager and Unitmanager are not cloned (copy-on-write)
     result->unitmgr = unitmgr;
     result->funcmgr = funcmgr;
+    result->unitmgr_writable = false;
+    result->funcmgr_writable = false;
+
+    // The rest is plain data
     result->expressions = expressions;
     result->assignments = assignments;
     result->recent_assgn = recent_assgn;
@@ -354,7 +365,7 @@ bool is_internal(const std::string& varname) {
     deleq(it_eqr);
   }
 
-  void eqc::deleq(eqrec_it which) {
+  void eqc::deleq(eqrec_it& which) {
     std::string label = which->first;
     if (is_lib(label))
       MSG_WARN(0,  "Warning: Requesting deletion of " << label
@@ -449,9 +460,84 @@ bool is_internal(const std::string& varname) {
 
   void eqc::register_function (const std::string &n, const exvector &args, const unsigned hints, const std::string& printname) {
     // Note: A symbol "n" always exists before this call because the \function{} statement gets parsed first!
-    funcmgr.registr(n, args, hints, printname);
+    if (!funcmgr_writable) {
+      funcmgr = std::make_shared<Functionmanager>(*funcmgr);
+      funcmgr_writable = true;
+    }
+
+    funcmgr->registr(n, args, hints, printname);
     vars.at(n).setsymtype(t_function);
   } // eqc::register_function()
+
+  void eqc::define_function(const std::string &n, const GiNaC::expression &def) {
+    if (!funcmgr_writable) {
+      funcmgr = std::make_shared<Functionmanager>(*funcmgr);
+      funcmgr_writable = true;
+    }
+
+    funcmgr->define(n, def);
+  }
+
+  GiNaC::expression eqc::create_function(const std::string& n, const GiNaC::exprseq &args) const {
+    return funcmgr->create(n, args);
+  }
+
+  GiNaC::expression eqc::create_function(const std::string& n, GiNaC::exprseq &&args) const {
+    return funcmgr->create(n, std::move(args));
+  }
+
+
+  void eqc::addUnit(const std::string &uname, const std::string& pname, const GiNaC::expression &other_units) {
+    if (!unitmgr) {
+      unitmgr = std::make_shared<Unitmanager>(*unitmgr);
+      unitmgr_writable = true;
+    }
+
+    unitmgr->addUnit(uname, pname, other_units);
+  }
+
+  void eqc::addPrefix(const std::string &prefixname, const GiNaC::numeric &pvalue) {
+    if (!unitmgr) {
+      unitmgr = std::make_shared<Unitmanager>(*unitmgr);
+      unitmgr_writable = true;
+    }
+
+    unitmgr->addPrefix(prefixname, pvalue);
+  }
+
+  GiNaC::expression eqc::canonicalizeUnits(const GiNaC::expression &e) const {
+    return unitmgr->canonicalize(e);
+  }
+
+  bool eqc::isUnit(const std::string &uname) {
+    if (!unitmgr) {
+      unitmgr = std::make_shared<Unitmanager>(*unitmgr);
+      unitmgr_writable = true;
+    }
+
+    return unitmgr->isUnit(uname);
+  }
+
+  const GiNaC::expression& eqc::getUnit(const std::string &uname) const {
+    return unitmgr->getUnit(uname);
+  }
+
+  GiNaC::expression eqc::getCanonicalizedUnit(const std::string& uname) const {
+    return unitmgr->getCanonicalizedUnit(uname);
+  }
+
+  std::vector<std::string> eqc::getUnitnames() const {
+    return unitmgr->getUnitnames();
+  }
+
+  GiNaC::unitvec eqc::create_conversions(const GiNaC::lst& e, const bool always) {
+    if (!unitmgr) {
+      unitmgr = std::make_shared<Unitmanager>(*unitmgr);
+      unitmgr_writable = true;
+    }
+
+    return unitmgr->create_conversions(e, always);
+  }
 
   void eqc::register_expression (const expression &ex, const std::string& l) {
     if (expressions.find(l) != expressions.end()) { // An expressions with this label already exists
@@ -487,7 +573,7 @@ bool is_internal(const std::string& varname) {
     if (varname.find("::") == 0)
       return varname.substr(2); // Access top-level namespace from inside other namespace
 
-    if (current_namespace.size() == 0 || varname.find("::") != std::string::npos || funcmgr.is_lib(varname))
+    if (current_namespace.size() == 0 || varname.find("::") != std::string::npos || funcmgr->is_lib(varname))
       return varname;
 
     return current_namespace + "::" + varname;
@@ -643,6 +729,10 @@ bool is_internal(const std::string& varname) {
   bool eqc::is_lib(const std::string &s) const {
     return (std::string(s, 0, 4) == "lib:");
   } // eqc::is_lib()
+
+  bool eqc::is_func(const std::string &fname) const {
+    return funcmgr->is_a_func(fname);
+  }
 
   bool eqc::has_value(const symbol& s) const {
     symrec_cit v = vars.find(s.get_name());
@@ -1108,6 +1198,11 @@ bool is_internal(const std::string& varname) {
     }
     expressions.clear();
 
+    if (!funcmgr_writable) {
+      funcmgr = std::make_shared<Functionmanager>(*funcmgr);
+      funcmgr_writable = true;
+    }
+
     // Clear only variables and non-library functions
     assignments.clear();
     recent_assgn.clear();
@@ -1118,9 +1213,9 @@ bool is_internal(const std::string& varname) {
         v.second.setsymprop(p_complex);
         v.second.assignments.clear();
       } else if (v.second.getsymtype() == t_function) {
-        if (!funcmgr.is_lib(v.first)) {
+        if (!funcmgr->is_lib(v.first)) {
           MSG_INFO(3,  "Deleting function " << v.first << endline);
-          funcmgr.remove(v.first);
+          funcmgr->remove(v.first);
           v.second.setsymtype(t_variable); // Keep this variable because it might have been shadowed by a function
           v.second.setsymprop(p_complex);
           v.second.make_unknown();
@@ -1136,7 +1231,7 @@ bool is_internal(const std::string& varname) {
         assignments.emplace(v.second.getsym(), v.second.val);
       }
     }
-    funcmgr.clear();
+    funcmgr->clear();
   } //eqc::clear()
 
   void eqc::clearall (const bool persist_symbols) {
@@ -1163,8 +1258,14 @@ bool is_internal(const std::string& varname) {
     } else {
       vars.clear();
     }
-    unitmgr.clear();
-    funcmgr.clearall();
+    unitmgr->clear();
+
+    if (!funcmgr_writable) {
+      funcmgr = std::make_shared<Functionmanager>(*funcmgr);
+      funcmgr_writable = true;
+    }
+
+    funcmgr->clearall();
     nextlabel = 0;
 
     MSG_INFO(1, "Re-Registering hard-coded functions" << endline); // TODO Identical code as in eqc::eqc()
@@ -1188,7 +1289,7 @@ bool is_internal(const std::string& varname) {
     for (auto& ex : expressions)
       os << ex.first << ": " << ex.second << std::endl;
 
-    unitmgr.print(os);
+    unitmgr->print(os);
   }
 
   void eqc::dumpvars(std::ostream & os) {

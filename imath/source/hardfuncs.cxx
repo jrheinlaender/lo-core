@@ -29,18 +29,19 @@
 #ifdef INSIDE_SM
 #include <imath/expression.hxx>
 #include <imath/func.hxx>
+#include <imath/funcmgr.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/printing.hxx>
 #include <imath/stringex.hxx>
 #else
 #include "expression.hxx"
 #include "func.hxx"
+#include "funcmgr.hxx"
 #include "msgdriver.hxx"
 #include "printing.hxx"
 #include "stringex.hxx"
 #endif
 #include "hardfuncs.hxx"
-#include "funcmgr.hxx"
 #include "operands.hxx"
 
 namespace GiNaC {

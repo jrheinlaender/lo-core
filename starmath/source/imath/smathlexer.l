@@ -35,6 +35,7 @@
   #include <imath/unit.hxx>
   #include <imath/func.hxx>
   #include <imath/msgdriver.hxx>
+  #include <imath/eqc.hxx>
 #else
   #include "iFormula.hxx"
   #define FORMULAOBJECT iFormula
@@ -42,6 +43,7 @@
   #include "unit.hxx"
   #include "func.hxx"
   #include "msgdriver.hxx"
+  #include "eqc.hxx"
 #endif
 #include "smathparser.hxx"
 

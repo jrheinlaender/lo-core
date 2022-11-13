@@ -20,6 +20,7 @@
 #include <imath/expression.hxx>
 #include <imath/unit.hxx>
 #include <imath/func.hxx>
+#include <imath/funcmgr.hxx>
 #include <imath/differential.hxx>
 #include <imath/equation.hxx>
 #include <imath/extintegral.hxx>
@@ -30,6 +31,7 @@
 #include "expression.hxx"
 #include "unit.hxx"
 #include "func.hxx"
+#include "funcmgr.hxx"
 #include "differential.hxx"
 #include "equation.hxx"
 #include "extintegral.hxx"
@@ -38,7 +40,6 @@
 #include "printing.hxx"
 #endif
 #include "exderivative.hxx"
-#include "funcmgr.hxx"
 
 namespace GiNaC {
 

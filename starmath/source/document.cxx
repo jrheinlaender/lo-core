@@ -110,6 +110,7 @@ using namespace ::com::sun::star::uno;
 #include <imath/msgdriver.hxx>
 #include <imath/settingsmanager.hxx>
 #include <imath/alignblock.hxx>
+#include <imath/funcmgr.hxx>
 
 #ifdef _MSC_VER
 // Avoid including <imath/func.hxx> because MSVC makes trouble with the IMATH_DLLPUBLIC and inheritance from GiNaC::container

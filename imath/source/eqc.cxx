@@ -20,15 +20,16 @@
 #include <imath/eqc.hxx>
 #include <imath/printing.hxx>
 #include <imath/func.hxx>
+#include <imath/funcmgr.hxx>
 #include <imath/msgdriver.hxx>
 #else
 #include "eqc.hxx"
 #include "printing.hxx"
 #include "func.hxx"
+#include "funcmgr.hxx"
 #include "msgdriver.hxx"
 #endif
 #include "operands.hxx"
-#include "funcmgr.hxx"
 #include "unitmgr.hxx"
 
 using namespace GiNaC;

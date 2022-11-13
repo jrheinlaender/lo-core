@@ -9,6 +9,8 @@
 
 $(eval $(call gb_ExternalProject_ExternalProject,ginac))
 
+$(call gb_ExternalProject_use_external_project,ginac,cln)
+
 $(eval $(call gb_ExternalProject_use_autoconf,ginac,configure))
 $(eval $(call gb_ExternalProject_use_autoconf,ginac,build))
 

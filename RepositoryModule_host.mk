@@ -95,6 +95,7 @@ $(eval $(call gb_Module_add_moduledirs,libreoffice,\
 	i18npool \
 	i18nutil \
 	idl \
+	imath \
 	instsetoo_native \
 	io \
 	javaunohelper \

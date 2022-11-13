@@ -49,7 +49,6 @@ $(eval $(call gb_Library_use_libraries,msword,\
     editeng \
     i18nlangtag \
     i18nutil \
-    imath \
     msfilter \
     sal \
     sax \
@@ -76,8 +75,6 @@ $(eval $(call gb_Library_use_externals,msword,\
 	icuuc \
 	icu_headers \
 	libxml2 \
-        cln \
-        ginac \
 ))
 
 $(eval $(call gb_Library_add_exception_objects,msword,\

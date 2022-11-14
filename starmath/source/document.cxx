@@ -89,12 +89,11 @@
 #define ShellClass_SmDocShell
 #include <smslots.hxx>
 
+#include <com/sun/star/presentation/XPresentationSupplier.hpp>
+
 using namespace ::com::sun::star;
 using namespace ::com::sun::star::accessibility;
 using namespace ::com::sun::star::uno;
-
-#define ShellClass_SmDocShell
-#include <smslots.hxx>
 
 #include <config_folders.h>
 #include <osl/file.hxx>
@@ -346,8 +345,26 @@ OUString SmDocShell::ImInitializeCompiler() {
 
     // Get access to the registry that contains the global options
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
+
+    // Check for stand-alone formula or part of Text / Presentation
+    Reference<container::XChild> xChild(GetModel(), UNO_QUERY_THROW);
+    Reference<XModel> xParent(xChild->getParent(), UNO_QUERY_THROW);
+    Reference<XModel> xModel;
+    Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
+    Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY);
+
+    if (xTextDoc.is()) {
+        SAL_INFO("starmath.imath", "Detected parent Writer document");
+        xModel = xParent;
+    } else if (xPresDoc.is()) {
+        SAL_INFO("starmath.imath", "Detected parent Impress document");
+        xModel = xParent;
+    } else {
+        SAL_INFO("starmath.imath", "Detected Starmath document");
+        xModel = GetBaseModel();
+    }
+
     // Get access to the RDF graph that contains the document-specific options. Create one if it doesn't exist
-    Reference<XModel> xModel(GetBaseModel());
     Reference<XNamedGraph> xGraph = getGraph(xContext, xModel);
     if (!xGraph.is()) xGraph = createGraph(xContext, xModel);
 
@@ -358,6 +375,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     //    document display consistency
     // References. These are always document specific
     OUString references = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_references"), OU("Includes/txt_References"));
+    SAL_INFO("starmath.imath", "Found references '" << references << "'");
     OUString include1 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include1"));
     OUString include2 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include2"));
     OUString include3 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include3"));

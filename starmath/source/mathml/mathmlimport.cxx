@@ -477,7 +477,7 @@ void SmXMLImport::endDocument()
                 } while (lineIdx >= 0);
 
                 mnImSyntaxVersion = programVersion;
-                SAL_INFO("starmath.imath", "Result\n" << aImText);
+                SAL_INFO("starmath.imath", "Result\n'" << aImText << "'");
             } else if (mnImSyntaxVersion < programVersion) {
                 // Document has older version than program
                 SAL_INFO("starmath.imath", "Migrating document from version " << mnImSyntaxVersion << " to version " <<  programVersion);
@@ -491,7 +491,7 @@ void SmXMLImport::endDocument()
                 xInfoBox->run();
             }
 
-            pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
+            if (aImText.getLength() > 0) pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
         }
         OSL_ENSURE(pModel, "So there *was* a UNO problem after all");
 

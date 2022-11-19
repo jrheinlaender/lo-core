@@ -38,9 +38,9 @@ public:
     SwOleShell(SwView& rView);
 
 private:
-    // Name of the OLE flyframe, if this shell represents a Starmath OLE object
+    /// Name of the OLE flyframe, if this shell represents a Starmath OLE object
     OUString mIFormulaName;
-    // Formula text of the Starmath formula
+    /// Formula text of the Starmath formula
     OUString mIFormulaText;
 };
 

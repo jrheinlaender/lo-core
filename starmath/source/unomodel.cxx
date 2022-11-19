@@ -230,7 +230,8 @@ enum SmModelPropertyHandles
     HANDLE_DIALOG_LIBRARIES,  // #i73329#
     HANDLE_BASELINE,
     HANDLE_INTEROP_GRAB_BAG,
-    HANDLE_STARMATH_VERSION
+    HANDLE_STARMATH_VERSION,
+    HANDLE_IMATH_VERSION
 };
 
 }
@@ -318,6 +319,7 @@ static const rtl::Reference<PropertySetInfo> & lcl_createModelPropertyInfo ()
         { u"BaseLine"_ustr                         , HANDLE_BASELINE                           ,  ::cppu::UnoType<sal_Int16>::get(),                                     PROPERTY_NONE,  0                     },
         { u"InteropGrabBag"_ustr                   , HANDLE_INTEROP_GRAB_BAG                   ,  cppu::UnoType<uno::Sequence< beans::PropertyValue >>::get(),           PROPERTY_NONE,  0                     },
         { u"SyntaxVersion"_ustr                    , HANDLE_STARMATH_VERSION                   ,  ::cppu::UnoType<sal_Int16>::get(),                             PROPERTY_NONE,  0                     },
+        { u"ImSyntaxVersion"_ustr                  , HANDLE_IMATH_VERSION                      ,  ::cppu::UnoType<sal_Int32>::get(),                             PROPERTY_NONE,  0                     },
     };
     static const rtl::Reference<PropertySetInfo> PROPS_INFO = new PropertySetInfo ( aModelPropertyInfoMap );
     return PROPS_INFO;
@@ -710,6 +712,9 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
             case HANDLE_STARMATH_VERSION:
                 pDocSh->SetSmSyntaxVersion(pValues->get<sal_Int16>());
                 break;
+            case HANDLE_IMATH_VERSION:
+                pDocSh->SetImSyntaxVersion(pValues->get<sal_uInt32>());
+                break;
         }
     }
 
@@ -989,6 +994,9 @@ void SmModel::_getPropertyValues( const PropertyMapEntry **ppEntries, Any *pValu
             break;
             case HANDLE_STARMATH_VERSION:
                 *pValue <<= pDocSh->GetSmSyntaxVersion();
+                break;
+            case HANDLE_IMATH_VERSION:
+                *pValue <<= pDocSh->GetImSyntaxVersion();
                 break;
         }
     }

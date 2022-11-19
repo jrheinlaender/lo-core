@@ -100,10 +100,14 @@ using namespace ::com::sun::star::uno;
 #include <rtl/bootstrap.hxx>
 
 #include <smim.hrc>
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4099)
+#endif
 #include <cln/cln.h>
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 #include <com/sun/star/lang/XMultiComponentFactory.hpp>
 #include <com/sun/star/i18n/XLocaleData.hpp>
 #include <imath/msgdriver.hxx>

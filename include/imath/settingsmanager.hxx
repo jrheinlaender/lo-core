@@ -56,7 +56,7 @@ public:
   // for all future recalculations
   static void initializeOptionmap(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
                                   const Reference<XNamedGraph>& xGraph, const Reference<XHierarchicalPropertySet>& xProperties,
-                                  GiNaC::optionmap* o, const bool hasMasterDoc);
+                                  std::shared_ptr<GiNaC::optionmap> o, const bool hasMasterDoc);
 
   /// Create an iFormula option string from current settings
   static OUString createOptionString(const GiNaC::optionmap& options);

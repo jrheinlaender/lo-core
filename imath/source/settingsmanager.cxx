@@ -252,7 +252,7 @@ OUString Settingsmanager::createOptionStringFromControls(const optionmap& option
 
 void Settingsmanager::initializeOptionmap(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
                                           const Reference<XNamedGraph>& xGraph, const Reference<XHierarchicalPropertySet>& xProperties,
-                                          optionmap* o, const bool hasMasterDoc) {
+                                          std::shared_ptr<optionmap> o, const bool hasMasterDoc) {
   for (const auto& srec : settings) {
     if (srec.second.propertyName.getLength() == 0 || srec.second.statementName.getLength() == 0) {
             if (srec.second.formulaOptionName.getLength() > 0)

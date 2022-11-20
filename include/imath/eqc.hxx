@@ -157,11 +157,12 @@ public:
 class IMATH_DLLPUBLIC eqc {
 public:
   /**
-  Constructs an empty eqc.
+  Constructs an empty eqc. Avoid initializing a new Unitmanager when cloning
   **/
-  eqc();
+  eqc(std::shared_ptr<Functionmanager> fm = nullptr, std::shared_ptr<Unitmanager> um = nullptr);
 
   /// Prevent shallow copies
+  eqc() = delete;
   eqc(const eqc& other) = delete;
   eqc(eqc&& other) noexcept = delete;
   eqc& operator=(const eqc& other) = delete;

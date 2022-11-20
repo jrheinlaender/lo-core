@@ -36,17 +36,27 @@ using namespace GiNaC;
 
 extern std::map<unsigned, exrec> remember_split;
 
-// constructors
-  eqc::eqc() {
+// constructor
+  eqc::eqc(std::shared_ptr<Functionmanager> fm, std::shared_ptr<Unitmanager> um) {
     MSG_INFO(3, "Constructing empty eqc"  << endline);
     previous_it = equations.end();
     nextlabel = 0;
     current_namespace = "";
 
-    unitmgr = std::make_shared<Unitmanager>();
-    funcmgr = std::make_shared<Functionmanager>();
-    unitmgr_writable = true;
-    funcmgr_writable = true;
+    if (um == nullptr) {
+        unitmgr = std::make_shared<Unitmanager>();
+        unitmgr_writable = true;
+    } else {
+        unitmgr = um;
+        unitmgr_writable = false;
+    }
+    if (fm == nullptr) {
+        funcmgr = std::make_shared<Functionmanager>();
+        funcmgr_writable = true;
+    } else {
+        funcmgr = fm;
+        funcmgr_writable = false;
+    }
 
     MSG_INFO(2, "Registering hard-coded functions" << endline);
     for (const auto& n : Functionmanager::get_hard_names()) {
@@ -58,7 +68,7 @@ extern std::map<unsigned, exrec> remember_split;
 
   std::shared_ptr<eqc> eqc::clone() {
     MSG_INFO(3, "Taking deep copy of eqc"  << endline);
-    auto result = std::make_shared<eqc>();
+    auto result = std::make_shared<eqc>(funcmgr, unitmgr);
 
     // Ensure that previous_it points to the correct item in the clone
     result->previous_it = result->equations.end();
@@ -77,12 +87,6 @@ extern std::map<unsigned, exrec> remember_split;
             }
         }
     }
-
-    // Functionmanager and Unitmanager are not cloned (copy-on-write)
-    result->unitmgr = unitmgr;
-    result->funcmgr = funcmgr;
-    result->unitmgr_writable = false;
-    result->funcmgr_writable = false;
 
     // The rest is plain data
     result->expressions = expressions;
@@ -489,7 +493,7 @@ bool is_internal(const std::string& varname) {
 
 
   void eqc::addUnit(const std::string &uname, const std::string& pname, const GiNaC::expression &other_units) {
-    if (!unitmgr) {
+    if (!unitmgr_writable) {
       unitmgr = std::make_shared<Unitmanager>(*unitmgr);
       unitmgr_writable = true;
     }
@@ -498,7 +502,7 @@ bool is_internal(const std::string& varname) {
   }
 
   void eqc::addPrefix(const std::string &prefixname, const GiNaC::numeric &pvalue) {
-    if (!unitmgr) {
+    if (!unitmgr_writable) {
       unitmgr = std::make_shared<Unitmanager>(*unitmgr);
       unitmgr_writable = true;
     }
@@ -511,7 +515,7 @@ bool is_internal(const std::string& varname) {
   }
 
   bool eqc::isUnit(const std::string &uname) {
-    if (!unitmgr) {
+    if (!unitmgr_writable) {
       unitmgr = std::make_shared<Unitmanager>(*unitmgr);
       unitmgr_writable = true;
     }
@@ -532,7 +536,7 @@ bool is_internal(const std::string& varname) {
   }
 
   GiNaC::unitvec eqc::create_conversions(const GiNaC::lst& e, const bool always) {
-    if (!unitmgr) {
+    if (!unitmgr_writable) {
       unitmgr = std::make_shared<Unitmanager>(*unitmgr);
       unitmgr_writable = true;
     }
@@ -1258,6 +1262,11 @@ bool is_internal(const std::string& varname) {
       }
     } else {
       vars.clear();
+    }
+
+    if (!unitmgr_writable) {
+      unitmgr = std::make_shared<Unitmanager>(*unitmgr);
+      unitmgr_writable = true;
     }
     unitmgr->clear();
 

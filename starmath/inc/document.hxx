@@ -29,6 +29,8 @@
 #include <oox/core/filterbase.hxx>
 #include <oox/export/utils.hxx>
 
+#include <com/sun/star/util/XCloseListener.hpp>
+
 #include "format.hxx"
 #include "node.hxx"
 #include "parsebase.hxx"
@@ -338,6 +340,13 @@ private:
     static bool mImBlocked;
     /// Decimal separator character(s)
     static std::string mDecimalSeparator;
+
+    /// Prevent the document from being closed
+    // Note: By default, the OLE cache is set to 20 objects in /org.openoffice.Office.Common/Cache/Writer/OLE_Objects
+    //       If a office document has more formulas, older ones will be closed. This is bad for performance
+    //       and also gives headaches about persisting the mpCurrentCompiler
+    css::uno::Reference< css::util::XCloseListener > m_xIFormulaClosePreventer;
+    void PreventFormulaClose(const bool prevent);
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

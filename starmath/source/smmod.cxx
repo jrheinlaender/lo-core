@@ -157,6 +157,7 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
         for (int r_idx = 0; r_idx < packages.getLength(); ++r_idx) {
             for (int p_idx = 0; p_idx < packages[r_idx].getLength(); ++p_idx) {
                 Reference<css::deployment::XPackage> package = packages[r_idx][p_idx];
+                if (!package.is()) continue;
                 css::beans::Optional<OUString> pkgIdentifier = package->getIdentifier();
                 if (package->getRepositoryName() != "user") continue;
 

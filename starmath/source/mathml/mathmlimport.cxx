@@ -467,11 +467,11 @@ void SmXMLImport::endDocument()
                 {
                     OUString line = aText.getToken(0, '\n', lineIdx);
                     if (line.matchAsciiL("%%ii+", 5))
-                        aImText += line.copy(5);
+                        aImText += line.copy(5).trim();
                     else if (line.matchAsciiL("%%ii", 4))
                     {
                         if (aImText.getLength() > 0) aImText += "\n";
-                        aImText += line.copy(4);
+                        aImText += line.copy(4).trim();
                     }
                     // TODO: Find a way to honour continuation lines
                 } while (lineIdx >= 0);

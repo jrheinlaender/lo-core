@@ -325,7 +325,7 @@ void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 
 void SmDocShell::SetPreviousFormula(const OUString& aName)
 {
-    // Force Compile() if the formula has never been compiled yet
+    // Force Compile() only if the formula has never been compiled yet
     if (mPreviousFormula == aName && mpCurrentCompiler != nullptr && mpCurrentOptions != nullptr)
         return;
 
@@ -403,7 +403,13 @@ OUString SmDocShell::ImInitializeCompiler() {
                     SAL_INFO_LEVEL(1, "starmath.imath", "Set initial compiler and options from previous formula");
                     return "";
                 } else {
-                    return "Compiler and/or options of previous formula had null value";
+                    if (mpInitialCompiler == nullptr)
+                        if (mpInitialOptions == nullptr)
+                            return "Compiler and options of previous formula had null value";
+                        else
+                            return "Compiler of previous formula had null value";
+                    else
+                        return "Options of previous formula had null value";
                 }
             } else {
                 return "Previous formula was not usable";
@@ -415,13 +421,12 @@ OUString SmDocShell::ImInitializeCompiler() {
 
     // Stand-alone formula document or first formula in document
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
-    //GiNaC::func::clearall(); // Otherwise there will be error messages about already-registered functions TODO What if more than one document is opened? A function manager is required (like the unit manager)
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return ""; // Already initialized
     SAL_INFO_LEVEL(1, "starmath.imath", "Preparing stand-alone formula or first formula in document");
     Reference<XComponentContext> xContext(GetContext());
 
     mpInitialOptions = std::make_shared<GiNaC::optionmap>();
-    mpInitialCompiler = std::make_shared<eqc>();
+    mpInitialCompiler = std::make_shared<eqc>(nullptr, nullptr);
 
     // Get access to the registry that contains the global options
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
@@ -431,7 +436,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     Reference<XModel> xParent(xChild->getParent(), UNO_QUERY_THROW);
     Reference<XModel> xModel;
     Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
-    Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY);
+    Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY); // TODO: Implement functionality for Impress
 
     if (xTextDoc.is()) {
         SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Writer document");
@@ -463,7 +468,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     // Formatting
     // TODO: This will copy all the options from the registry into the local document graph, which is not what we want for multi-formula documents in Writer or Presentation
     // Note: We could mis-use the master document flag to avoid the copying
-    Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, &*mpInitialOptions, false);
+     Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, false);
 
     // Path to iMath's own include files (references)
     OUString shareFolder;
@@ -588,7 +593,7 @@ void SmDocShell::Compile()
         SAL_WARN_LEVEL(-1, "starmath.imath", "iMath cannot be used because an iMath extension is still installed");
         return;
     }
-    SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::Compile()\n" << maImText);
+    SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::Compile()\n'" << maImText << "'");
 
     OUString error = ImInitializeCompiler();
     if (error.getLength() > 0) {
@@ -1289,6 +1294,7 @@ SmDocShell::~SmDocShell()
     mpPrinter.disposeAndClear();
 
     mathml::SmMlIteratorFree(m_pMlElementTree);
+    SAL_INFO_LEVEL(1, "starmath.imath", "Destroyed SmDocShell");
 }
 
 bool SmDocShell::ConvertFrom(SfxMedium &rMedium)

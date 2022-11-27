@@ -214,7 +214,7 @@ void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
     m_bDelFormat =  false;
 
     SAL_INFO_LEVEL(1, "sw.imath", OUString("Fly frame inserted from undo: ") << m_pFrameFormat->GetName());
-    pDoc->GetDocShell()->RecalculateDependentIFormulas(m_pFrameFormat->GetName(), "");
+    pDoc->GetDocShell()->RecalculateDependentIFormulas(m_pFrameFormat->GetName());
 }
 
 void SwUndoFlyBase::DelFly( SwDoc* pDoc )

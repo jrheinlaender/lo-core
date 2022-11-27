@@ -1461,12 +1461,14 @@ bool SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& form
 }
 
 void SwDocShell::RemoveIFormula(const OUString& formulaName) {
+    SAL_INFO_LEVEL(1, "sw.imath", "SwDocShell::RemoveIFormula '" << formulaName << "'");
     auto formulaIterator = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
     if (formulaIterator == m_IFormulaNames.end()) return; // See SwUndoFlyBase::DelFly() why this can happen
 
     SAL_INFO_LEVEL(1, "sw.imath", "Removing iFormula " << formulaName);
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), *formulaIterator);
     OUString previousName = getFormulaProperty(xFormulaComp, "PreviousIFormula");
+    setFormulaProperty(xFormulaComp, "iFormula", uno::makeAny(OUString("_imath_formula_deletion_"))); // This will remove the IFormulaClosePreventer instance, after this xFormulaComp may become invalid at any time!
     std::list< OUString >::iterator next_it = m_IFormulaNames.end();
 
     while (formulaIterator != m_IFormulaNames.end()) {
@@ -1478,6 +1480,7 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
     if (next_it != m_IFormulaNames.end()) {
         xFormulaComp = getObjectByName(GetModel(), *next_it);
         setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousName));
+        SAL_INFO_LEVEL(1, "sw.imath", "Updating previous formula of " << *next_it << " to '" << previousName << "'");
         RecalculateDependentIFormulasAfterDeletion(*next_it, getFormulaProperty(xFormulaComp, "iFormulaDependencyOut")); // Note: next_it has already been compiled because the previous iFormula was changed
     }
 }

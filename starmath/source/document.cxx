@@ -274,43 +274,53 @@ void SmDocShell::SetText(const OUString& rBuffer)
 
 void SmDocShell::PreventFormulaClose(const bool prevent)
 {
-    SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::PreventFormulaClose()");
+    SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::PreventFormulaClose(): " << (prevent ? "on" : "off"));
     const uno::Reference < util::XCloseBroadcaster > xCloseBroadcaster(GetModel(), UNO_QUERY);
     if (!xCloseBroadcaster.is()) return;
 
     if (prevent)
     {
-        if (!m_xIFormulaClosePreventer.is()) {
-            SAL_INFO_LEVEL(1, "starmath.imath", "Created new close preventer for SmDocShell");
+        if (!m_xIFormulaClosePreventer.is())
+        {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Adding new close preventer to SmDocShell");
             m_xIFormulaClosePreventer = new IFormulaClosePreventer;
+            xCloseBroadcaster->addCloseListener(m_xIFormulaClosePreventer);
         }
-        xCloseBroadcaster->addCloseListener(m_xIFormulaClosePreventer);
-        SAL_INFO_LEVEL(1, "starmath.imath", "Added close preventer to SmDocShell");
     }
     else
     {
         if (m_xIFormulaClosePreventer.is()) {
             xCloseBroadcaster->removeCloseListener(m_xIFormulaClosePreventer);
-            SAL_INFO_LEVEL(1, "starmath.imath", "Removed close preventer to SmDocShell");
+            m_xIFormulaClosePreventer.clear();
+            SAL_INFO_LEVEL(1, "starmath.imath", "Removed close preventer from SmDocShell");
         }
-        else {
-            SAL_INFO_LEVEL(1, "starmath.imath", "Not removing close preventer for SmDocShell because none exists");
+        else
+        {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Not removing close preventer from SmDocShell because none exists");
         }
     }
 }
 
 void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 {
+    SAL_INFO_LEVEL(1, "starmath.imath", "SetImText\n'" << rBuffer << "'");
     if (rBuffer == maImText)
         return;
 
     maImText = rBuffer;
 
     // Ensure that this formula will not be cleaned out of the OLE cache
-    PreventFormulaClose(maImText.getLength() > 0);
-
-    if (doCompile)
-        Compile();
+    if (maImText.equalsAscii("_imath_formula_deletion_"))
+    {
+        PreventFormulaClose(false); // TODO Is there a better way to pass the information from sw/uibase/app/docsh.xx: SwDocShell::RemoveIFormula() ?
+        maImText = "";
+    }
+    else
+    {
+        PreventFormulaClose(true);
+        if (doCompile && maImText.getLength() > 0)
+            Compile();
+    }
 }
 
 void SmDocShell::SetPreviousFormula(const OUString& aName)
@@ -380,7 +390,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         Reference<XModel> xParent(xModel->getParent(), UNO_QUERY_THROW);
         Reference < XComponent > xPreviousFormulaComponent = getObjectByName(xParent, mPreviousFormula);
 
-        if (xPreviousFormulaComponent.is()) {
+         if (xPreviousFormulaComponent.is()) {
             Reference< XModel > xPreviousFormula = extractModel(xPreviousFormulaComponent);
 
             SmModel* pPreviousModel = comphelper::getFromUnoTunnel<SmModel>(xPreviousFormula);

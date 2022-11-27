@@ -38,6 +38,7 @@
 #include <com/sun/star/beans/XPropertySet.hpp>
 
 #include <logging.hxx>
+
 using namespace css::uno;
 using namespace sfx2::sidebar;
 
@@ -76,6 +77,31 @@ void SwOleShell::Activate(bool bMDI)
 
         SfxShell::SetContextBroadcasterEnabled(bIsContextBroadcasterEnabled);
     }
+
+    const uno::Reference < embed::XEmbeddedObject > xObj( GetShell().GetOleRef() );
+    if (xObj.is())
+    {
+        Reference < lang::XComponent > formulaComponent(xObj->getComponent(), UNO_QUERY);
+        OUString newFormulaText;
+
+        if (formulaComponent.is())
+        {
+            Reference < beans::XPropertySet > fPS(formulaComponent, UNO_QUERY);
+            if (fPS.is())
+            {
+                fPS->getPropertyValue("iFormula") >>= newFormulaText;
+                newFormulaText = newFormulaText.trim();
+            }
+        }
+        SAL_INFO_LEVEL(1, "sw.imath", "SwOleShell::Activate() found formula text\n'" << newFormulaText << "'");
+
+        // Note: Activate() is called AFTER the user has finished editing
+        if (mIFormulaText.equals(newFormulaText))
+            SAL_INFO_LEVEL(1, "sw.imath", "Formula text is unchanged");
+
+        mFormulaTextChanged = !mIFormulaText.equals(newFormulaText);
+        mIFormulaText = newFormulaText;
+    }
 }
 
 void SwOleShell::Deactivate(bool bMDI)
@@ -99,13 +125,23 @@ void SwOleShell::Deactivate(bool bMDI)
     // Click - Constructor - Activate - Double click - Deactivate - User editing - Activate - User removes focus from formula - Deactivate
     if (mIFormulaName.getLength() > 0)
     {
-        SAL_INFO("sw.imath", "Shell for Math object '" << mIFormulaName << "' was deactivated");
+        SAL_INFO_LEVEL(1, "sw.imath", "Shell for Math object '" << mIFormulaName << "' was deactivated");
 
-        // Notify document that dependent iFormulas need to be recompiled
-        bool textChanged = GetShell().GetDoc()->GetDocShell()->RecalculateDependentIFormulas(mIFormulaName, mIFormulaText);
-        if (textChanged)
-            mIFormulaText = ""; // Clear text so that new text will be set at next Activate() call
-        // Otherwise keep name and text so that repeated activation of the same formula can be handled
+        if (!mFormulaTextChanged)
+        {
+            SAL_INFO_LEVEL(1, "sw.imath", "Not recalculating dependent iFormulas because formula text is unchanged");
+        }
+        else if (mIFormulaText.getLength() > 0)
+        {
+            // Notify document that dependent iFormulas need to be recompiled
+            SAL_INFO_LEVEL(1, "sw.imath", "Recalculating dependent iFormulas");
+            GetShell().GetDoc()->GetDocShell()->RecalculateDependentIFormulas(mIFormulaName);
+        }
+        else
+        {
+            SAL_INFO_LEVEL(1, "sw.imath", "iFormula became empty, removing...");
+            GetShell().GetDoc()->GetDocShell()->RemoveIFormula(mIFormulaName); // Note: This will recalculate dependent iFormulas after the deletion
+        }
     }
 }
 
@@ -117,6 +153,7 @@ SwOleShell::SwOleShell(SwView &_rView) :
     SfxShell::SetContextName(vcl::EnumContext::GetContextName(vcl::EnumContext::Context::OLE));
     mIFormulaName = "";
     mIFormulaText = "";
+    mFormulaTextChanged = false;
     SAL_INFO_LEVEL(1, "sw.imath", "SwOleShell::SwOleShell()");
 
     // Set iFormula name and text
@@ -129,26 +166,37 @@ SwOleShell::SwOleShell(SwView &_rView) :
             SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object name set to '" << mIFormulaName << "'");
 
             Reference < lang::XComponent > formulaComponent(xObj->getComponent(), UNO_QUERY);
+            if (!formulaComponent.is())
+            {
+                // Note: Sequence when inserting a formula from clipboard
+                // Constructor - Activate - user removes focus - Deactivate
+                SAL_INFO_LEVEL(1, "sw.imath", "Pasted math object, triggering compile");
+                GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks();
+                // Note: The immediately following formula is recompiled by UpdatePreviousIFormulaLinks() because the PreviousIFormula property changes
+                formulaComponent = Reference < lang::XComponent >(xObj->getComponent(), UNO_QUERY); // try again (we must extract the formula text into mIFormulaText)
+            }
+
             if (formulaComponent.is())
             {
                 Reference < beans::XPropertySet > fPS(formulaComponent, UNO_QUERY);
                 if (fPS.is())
                 {
-                    Any fTextAny;
-                    fTextAny = fPS->getPropertyValue("iFormula");
-                    fTextAny >>= mIFormulaText;
-                    SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object old text set to\n" << mIFormulaText);
+                    fPS->getPropertyValue("iFormula") >>= mIFormulaText;
+                    mIFormulaText = mIFormulaText.trim();
+                    SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object old text set to\n'" << mIFormulaText << "'");
 
-                    fTextAny = fPS->getPropertyValue("PreviousIFormula");
                     OUString previousIFormula;
-                    fTextAny >>= previousIFormula;
+                    fPS->getPropertyValue("PreviousIFormula") >>= previousIFormula;
                     SAL_INFO_LEVEL(1, "sw.imath", "Previous iFormula is '" << previousIFormula << "'");
 
                     if (previousIFormula.equalsAscii("_IMATH_UNDEFINED_"))
                     {
+                        // When inserting a formula via undo no (new) SwOleShell appears to be created. A complete recalculate is triggered elsewhere to insert the new formula in the iFormulaNames list
+                        // When inserting a new formula object, a complete recalculate is triggered elsewhere to insert the new formula in the iFormulaNames list
+                        // TODO: So is this code ever reached?
+                        fPS->setPropertyValue("IsScaleAllBrackets", makeAny(true)); // WRRRRRRRRRRRONG PLACE !!!!!!!!!
                         SAL_INFO_LEVEL(1, "sw.imath", "New math object, triggering compile");
                         GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks();
-                        mIFormulaText = ""; // This will force recalculation of all dependent formulas because a formula text change is detected
                         // Note: The immediately following formula is recompiled by UpdatePreviousIFormulaLinks() because the PreviousIFormula property changes
                     }
                 }

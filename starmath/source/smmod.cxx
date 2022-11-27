@@ -44,7 +44,8 @@
 
 #include <ginac/ginac.h>
 
-#include <imath/msgdriver.hxx>
+#include <logging.hxx>
+#include <imath/msgdriver.hxx> // TODO: Only required to set debug level for imath library
 #include <imath/utils.hxx>
 #include <imath/func.hxx>
 #include <imath/printing.hxx>
@@ -139,7 +140,7 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
     // Get debuglevel from registry
     sal_Int32 debuglevel = officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get();
     msg::info().setlevel(debuglevel);
-    MSG_INFO(-1, "Set debug level to " << debuglevel);
+    SAL_INFO_LEVEL(-1, "starmath.imath", "Set debug level to " << debuglevel);
 
     // Check for existing iMath extension
     // TODO: Fix .deb package dependencies so that iMath gets uninstalled by the package manager
@@ -161,7 +162,7 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
 
                 if (pkgIdentifier.IsPresent && pkgIdentifier.Value == "de.gmx.rheinlaender.jan.imath" && !package->isRemoved()) {
                     // TODO: Migrate all settings from the extension first!
-                    MSG_INFO(-1, "iMath extension was found ...");
+                    SAL_INFO_LEVEL(-1, "starmath.imath", "iMath extension was found ...");
                     // TODO: This throws a RuntimeException which is not caught below - why?
                     //extMgr->removeExtension(pkgIdentifier.Value, package->getName(), package->getRepositoryName(), Reference<css::task::XAbortChannel>(), Reference<css::ucb::XCommandEnvironment>());
                     //MSG_INFO(-1, "... and removed");

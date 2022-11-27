@@ -110,7 +110,7 @@ using namespace ::com::sun::star::uno;
 #endif
 #include <com/sun/star/lang/XMultiComponentFactory.hpp>
 #include <com/sun/star/i18n/XLocaleData.hpp>
-#include <imath/msgdriver.hxx>
+#include <logging.hxx>
 #include <imath/settingsmanager.hxx>
 #include <imath/alignblock.hxx>
 #include <imath/funcmgr.hxx>
@@ -309,11 +309,11 @@ void SmDocShell::Parse()
 }
 
 OUString SmDocShell::ImInitializeCompiler() {
-    SAL_INFO("starmath.imath", "Preparing formula for compilation");
+    SAL_INFO_LEVEL(1, "starmath.imath", "Preparing formula for compilation");
 
     if (mPreviousFormula.getLength() > 0) {
         // Find previous iFormula from parent document. If this fails, a error message is returned
-        SAL_INFO("starmath.imath", "Previous formula is " << mPreviousFormula);
+        SAL_INFO_LEVEL(1, "starmath.imath", "Previous formula is " << mPreviousFormula);
 
         Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
         Reference<XModel> xParent(xModel->getParent(), UNO_QUERY_THROW);
@@ -329,7 +329,7 @@ OUString SmDocShell::ImInitializeCompiler() {
                 mpInitialCompiler = pPreviousDocShell->mpCurrentCompiler;
                 mpInitialOptions = pPreviousDocShell->mpCurrentOptions;
                 if (mpInitialCompiler != nullptr && mpInitialOptions != nullptr) {
-                    SAL_INFO("starmath.imath", "Set initial compiler and options from previous formula");
+                    SAL_INFO_LEVEL(1, "starmath.imath", "Set initial compiler and options from previous formula");
                     return "";
                 } else {
                     return "Compiler and/or options of previous formula had null value";
@@ -346,7 +346,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
     //GiNaC::func::clearall(); // Otherwise there will be error messages about already-registered functions TODO What if more than one document is opened? A function manager is required (like the unit manager)
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return ""; // Already initialized
-    SAL_INFO("starmath.imath", "Preparing stand-alone formula or first formula in document");
+    SAL_INFO_LEVEL(1, "starmath.imath", "Preparing stand-alone formula or first formula in document");
     Reference<XComponentContext> xContext(GetContext());
 
     mpInitialOptions = std::make_shared<GiNaC::optionmap>();
@@ -363,13 +363,13 @@ OUString SmDocShell::ImInitializeCompiler() {
     Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY);
 
     if (xTextDoc.is()) {
-        SAL_INFO("starmath.imath", "Detected parent Writer document");
+        SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Writer document");
         xModel = xParent;
     } else if (xPresDoc.is()) {
-        SAL_INFO("starmath.imath", "Detected parent Impress document");
+        SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Impress document");
         xModel = xParent;
     } else {
-        SAL_INFO("starmath.imath", "Detected Starmath document");
+        SAL_INFO_LEVEL(1, "starmath.imath", "Detected Starmath document");
         xModel = GetBaseModel();
     }
 
@@ -384,7 +384,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     //    document display consistency
     // References. These are always document specific
     OUString references = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_references"), OU("Includes/txt_References"));
-    SAL_INFO("starmath.imath", "Found references '" << references << "'");
+    SAL_INFO_LEVEL(1, "starmath.imath", "Found references '" << references << "'");
     OUString include1 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include1"));
     OUString include2 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include2"));
     OUString include3 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include3"));
@@ -413,7 +413,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         }
 
         if (!rawtext.equalsAscii("")) {
-            MSG_INFO(0, "Reading referenced files\n" << STR(rawtext));
+            SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(rawtext));
             OUString error = "";
             imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
@@ -431,7 +431,7 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         if (units.getLength() > 0) {
             // Recreate the global units expression vector, since this cannot be stored in the registry
-            MSG_INFO(0, "Parsing default units\n" << STR(rawtext));
+            SAL_INFO_LEVEL(0, "starmath.imath", "Parsing default units\n" << STR(rawtext));
             rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
             OUString error = "";
             imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
@@ -459,7 +459,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         }
 
         if (!rawtext.equalsAscii("")) {
-            MSG_INFO(0, "Reading user include files\n" << STR(rawtext));
+            SAL_INFO_LEVEL(0, "starmath.imath", "Reading user include files\n" << STR(rawtext));
             OUString error;
             imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
@@ -470,7 +470,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         }
     } catch (Exception &e) {
         // TODO: Show error message to user with parser location
-        SAL_WARN("starmath.imath", "Exception thrown while recalculating iMath include files\n" << e.Message);
+        SAL_WARN_LEVEL(-1, "starmath.imath", "Exception thrown while recalculating iMath include files\n" << e.Message);
         return "Recalculation error in iMath include files\n" + e.Message;
     } catch (std::exception &e) {
         // TODO: Show error message to user with parser location
@@ -514,15 +514,15 @@ void SmDocShell::Compile()
     if (mPreviousFormula.equalsAscii("_IMATH_UNDEFINED_")) return; // Partly-initialized formula (see SwWrtShell::InsertOleObject())
 
     if (mImBlocked) {
-        SAL_WARN("starmath.imath", "iMath cannot be used because an iMath extension is still installed");
+        SAL_WARN_LEVEL(-1, "starmath.imath", "iMath cannot be used because an iMath extension is still installed");
         return;
     }
-    SAL_INFO("starmath.imath", "SmDocShell::Compile()\n" << maImText);
+    SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::Compile()\n" << maImText);
 
     OUString error = ImInitializeCompiler();
     if (error.getLength() > 0) {
         // TODO: Publish it somewhere
-        SAL_WARN("starmath.imath", error);
+        SAL_WARN_LEVEL(-1, "starmath.imath", error);
         return;
     }
 
@@ -531,14 +531,14 @@ void SmDocShell::Compile()
     //setlocale(LC_NUMERIC, "C"); // Ensure printf() always uses decimal points! TODO Why is that important?
     // Inhibit floating point underflow exceptions?
     cln::cl_inhibit_floating_point_underflow = (mpInitialOptions->at(o_underflow).value.boolean);
-    SAL_INFO("starmath.imath", "Inhibit floating point underflow exception: " << (cln::cl_inhibit_floating_point_underflow ? "true" : "false"));
+    SAL_INFO_LEVEL(1, "starmath.imath", "Inhibit floating point underflow exception: " << (cln::cl_inhibit_floating_point_underflow ? "true" : "false"));
     // Evaluate odd negative roots to the positive real value?
     GiNaC::expression::evalf_real_roots_flag = (mpInitialOptions->at(o_evalf_real_roots).value.boolean);
 
     // Save old outgoing dependencies
     std::set<GiNaC::ex, GiNaC::ex_is_less> oldOutDep;
     for (const auto& l : lines) oldOutDep.merge(l->getOut());
-    SAL_INFO("starmath.imath", "This formula had old outgoing dependencies for '" << makeDependencyString(oldOutDep) << "'");
+    SAL_INFO_LEVEL(1, "starmath.imath", "This formula had old outgoing dependencies for '" << makeDependencyString(oldOutDep) << "'");
 
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = mpInitialCompiler->clone(); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
@@ -565,13 +565,13 @@ void SmDocShell::Compile()
 
         if (parse_result != 0) {
             error = "Syntax error\n" + error;
-            SAL_WARN("starmat.imath", error);
+            SAL_WARN_LEVEL(-1, "starmat.imath", error);
         } else if (lines.size() > 0) {
             mpCurrentOptions = lines.back()->getGlobalOptions();
 
-            MSG_INFO(0, "Printing " << lines.size() << " lines");
+            SAL_INFO_LEVEL(0, "starmath.imath", "Printing " << lines.size() << " lines");
             for (const auto& i : lines)
-                MSG_INFO(0, i->printFormula());
+                SAL_INFO_LEVEL(0, "starmath.imath", i->printFormula());
 
             addResultLines();
             OUString result;
@@ -605,24 +605,24 @@ void SmDocShell::Compile()
                 }
 
                 if (!found) {
-                    SAL_INFO("starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
+                    SAL_INFO_LEVEL(1, "starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
                     outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
                 }
             }
 
             OUString inDepStr = makeDependencyString(inDep);
             OUString outDepStr = makeDependencyString(outDep);
-            SAL_INFO("starmath.imath", "This formula depends on '" << inDepStr << "'");
-            SAL_INFO("starmath.imath", "This formula modifies '" << outDepStr << "'");
+            SAL_INFO_LEVEL(1, "starmath.imath", "This formula depends on '" << inDepStr << "'");
+            SAL_INFO_LEVEL(1, "starmath.imath", "This formula modifies '" << outDepStr << "'");
             SetIFormulaDependencyIn(inDepStr);
             SetIFormulaDependencyOut(outDepStr);
         }
     } catch (Exception &e) {
         error = "Compilation error\n" + e.Message;
-        SAL_WARN("starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
+        SAL_WARN_LEVEL(-1, "starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
     } catch (std::exception &e) {
         error = OU("Compilation error\n") + OUS8(e.what());
-        SAL_WARN("starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
+        SAL_WARN_LEVEL(-1, "starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
     }
 
     if (!error.isEmpty()) {
@@ -635,7 +635,7 @@ void SmDocShell::Compile()
     }
 
     //setlocale(LC_NUMERIC, ""); // Reset to system locale
-    MSG_INFO(0, "Recalculation finished" << endline);
+    SAL_INFO_LEVEL(0, "starmath.imath", "Recalculation finished" << endline);
 }
 
 void SmDocShell::ArrangeFormula()
@@ -710,10 +710,10 @@ bool SmDocShell::align_makes_sense() const {
 } // align_makes_sense()
 
 void SmDocShell::addResultLines() {
-  MSG_INFO(2, "SmDocShell::addResultLines" << endline);
+  SAL_INFO_LEVEL(2, "starmath.imath", "SmDocShell::addResultLines" << endline);
   // Don't try to align one-line iFormulas!
   bool do_not_align = !align_makes_sense();
-  MSG_INFO(3,  "do_not_align = " << (do_not_align ? "true" : "false") << endline);
+  SAL_INFO_LEVEL(3, "starmath.imath", "do_not_align = " << (do_not_align ? "true" : "false") << endline);
 
   // Collects all the lines that should be aligned to one another
   alignblock a;
@@ -726,7 +726,7 @@ void SmDocShell::addResultLines() {
 
   // Note: Using _cit here breaks debian trusty build on i = emplace(i, ...)
   for (iFormulaLine_it i = lines.begin(); i != lines.end();) {
-    MSG_INFO(3, "Line type = " << (*i)->getSelectionType() << endline);
+    SAL_INFO_LEVEL(3, "starmath.imath",  "Line type = " << (*i)->getSelectionType() << endline);
     // Echo iFormula text
     if ((*i)->getOption(o_echoformula).value.boolean == true) {
       if ((*i)->getSelectionType() != formulaTypeComment && (*i)->getSelectionType() != formulaTypeEmptyLine && (*i)->getSelectionType() != formulaTypeResult) {
@@ -744,7 +744,7 @@ void SmDocShell::addResultLines() {
         }
 
         i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(rtext));
-        MSG_INFO(3, "Created echo line" << endline);
+        SAL_INFO_LEVEL(3, "starmath.imath", "Created echo line" << endline);
         ++i;
       }
     }
@@ -758,7 +758,7 @@ void SmDocShell::addResultLines() {
       iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*i);
       if (pExpr != nullptr && !(pExpr->getHide() && pExpr->getDisplayedLhs().getLength() == 0))
         prev_lhs = pExpr->getDisplayedLhs();
-      MSG_INFO(3, "Line is displayable and has " << (hasResult ? "a" : "no") << " textual result" << endline);
+      SAL_INFO_LEVEL(3, "starmath.imath", "Line is displayable and has " << (hasResult ? "a" : "no") << " textual result" << endline);
     }
 
     // Point iterator to next element because emplace moves everything backwards
@@ -772,7 +772,7 @@ void SmDocShell::addResultLines() {
     // 5. We have processed the last line. Insert the alignblock
     // After emplacing lines, ensure that the iterator points to the line after the newly created line
     if (a.isEmpty()) { // Case 1.
-      MSG_INFO(3, "Not aligning this line. There is " << (hasResult ? "a" : "no") << " textual result" << endline);
+      SAL_INFO_LEVEL(3, "starmath.imath", "Not aligning this line. There is " << (hasResult ? "a" : "no") << " textual result" << endline);
       if (hasResult) {
         i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
         ++i;
@@ -780,11 +780,11 @@ void SmDocShell::addResultLines() {
         hasResult = false;
       }
     } else if (a.isFinished()) { // Case 4.
-      MSG_INFO(3, "Finishing alignblock with a result line" << endline);
+      SAL_INFO_LEVEL(3, "starmath.imath", "Finishing alignblock with a result line" << endline);
       i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(a.print()));
       ++i;
       if (hasResult) {
-        MSG_INFO(3, "... and inserting new result line" << endline);
+        SAL_INFO_LEVEL(3, "starmath.imath", "... and inserting new result line" << endline);
         i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
         ++i;
         resultText = OU("");
@@ -792,7 +792,7 @@ void SmDocShell::addResultLines() {
       }
       a.clear();
     } else if (i == lines.end()) { // Case 5.
-      MSG_INFO(3, "Reached last line, inserting alignblock in a result line" << endline);
+      SAL_INFO_LEVEL(3, "starmath.imath", "Reached last line, inserting alignblock in a result line" << endline);
       a.finish();
       lines.emplace_back(std::make_shared<iFormulaNodeResult>(a.print()));
       i = lines.end();
@@ -1124,7 +1124,7 @@ void SmDocShell::ImStaticInitialization() {
     Reference<XComponentContext> xContext = comphelper::getProcessComponentContext();
     OUString iMathExtLocation = getPackageLocation(xContext, "de.gmx.rheinlaender.jan.imath");
     if (iMathExtLocation.getLength() > 0) {
-        MSG_INFO(-1, "ERROR: iMath extension found");
+        SAL_WARN("starmath.imath", "ERROR: iMath extension found");
         std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(nullptr, VclMessageType::Error, VclButtonsType::Ok, SmResId(RID_STR_IMATHEXTENSIONFOUND)));
         xInfoBox->run();
         mImBlocked = true; // This will block execution of ::Compile() to avoid problems with CLN and GiNaC
@@ -1187,7 +1187,7 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     , mpCurrentCompiler(nullptr)
 {
     ImStaticInitialization();
-    MSG_INFO(0, "SmDocShell::SmDocShell with iMath version=" << mnImSyntaxVersion);
+    SAL_INFO_LEVEL(0, "starmath.imath", "SmDocShell::SmDocShell with iMath version=" << mnImSyntaxVersion);
 
     SvtLinguConfig().GetOptions(maLinguOptions);
 

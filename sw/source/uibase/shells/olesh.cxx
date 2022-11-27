@@ -37,6 +37,7 @@
 #include <com/sun/star/embed/XEmbeddedObject.hpp>
 #include <com/sun/star/beans/XPropertySet.hpp>
 
+#include <logging.hxx>
 using namespace css::uno;
 using namespace sfx2::sidebar;
 
@@ -116,7 +117,7 @@ SwOleShell::SwOleShell(SwView &_rView) :
     SfxShell::SetContextName(vcl::EnumContext::GetContextName(vcl::EnumContext::Context::OLE));
     mIFormulaName = "";
     mIFormulaText = "";
-    SAL_INFO("sw.imath", "SwOleShell::SwOleShell()");
+    SAL_INFO_LEVEL(1, "sw.imath", "SwOleShell::SwOleShell()");
 
     // Set iFormula name and text
     const uno::Reference < embed::XEmbeddedObject > xObj( GetShell().GetOleRef() );
@@ -125,7 +126,7 @@ SwOleShell::SwOleShell(SwView &_rView) :
         if ( SotExchange::IsMath( aCLSID ) )
         {
             mIFormulaName = GetShell().GetFlyName();
-            SAL_INFO("sw.imath", "Shell Math object name set to '" << mIFormulaName << "'");
+            SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object name set to '" << mIFormulaName << "'");
 
             Reference < lang::XComponent > formulaComponent(xObj->getComponent(), UNO_QUERY);
             if (formulaComponent.is())
@@ -136,16 +137,16 @@ SwOleShell::SwOleShell(SwView &_rView) :
                     Any fTextAny;
                     fTextAny = fPS->getPropertyValue("iFormula");
                     fTextAny >>= mIFormulaText;
-                    SAL_INFO("sw.imath", "Shell Math object old text set to\n" << mIFormulaText);
+                    SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object old text set to\n" << mIFormulaText);
 
                     fTextAny = fPS->getPropertyValue("PreviousIFormula");
                     OUString previousIFormula;
                     fTextAny >>= previousIFormula;
-                    SAL_INFO("sw.imath", "Previous iFormula is '" << previousIFormula << "'");
+                    SAL_INFO_LEVEL(1, "sw.imath", "Previous iFormula is '" << previousIFormula << "'");
 
                     if (previousIFormula.equalsAscii("_IMATH_UNDEFINED_"))
                     {
-                        SAL_INFO("sw.imath", "New math object, triggering compile");
+                        SAL_INFO_LEVEL(1, "sw.imath", "New math object, triggering compile");
                         GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks();
                         mIFormulaText = ""; // This will force recalculation of all dependent formulas because a formula text change is detected
                         // Note: The immediately following formula is recompiled by UpdatePreviousIFormulaLinks() because the PreviousIFormula property changes

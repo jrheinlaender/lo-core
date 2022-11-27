@@ -125,6 +125,7 @@ bool     g_bNoInterrupt     = false;
 #include <officecfg/Office/iMath.hxx>
 
 #include <imath/msgdriver.hxx>
+#include <logging.hxx>
 
 using namespace com::sun::star;
 using namespace ::com::sun::star::uno;
@@ -171,7 +172,7 @@ SwModule::SwModule( SfxObjectFactory* pWebFact,
     msg::init();
     sal_Int32 debuglevel = officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get();
     msg::info().setlevel(debuglevel);
-    MSG_INFO(-1, "sw.imath: Set debug level to " << debuglevel);
+    SAL_INFO_LEVEL(-1, "sw.imath", "Set debug level to " << debuglevel);
 }
 
 OUString SwResId(TranslateId aId)

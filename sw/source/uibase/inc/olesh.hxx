@@ -42,6 +42,8 @@ private:
     OUString mIFormulaName;
     /// Formula text of the Starmath formula
     OUString mIFormulaText;
+    /// Formula text was changed since last deactivation
+    bool mFormulaTextChanged;
 };
 
 #endif

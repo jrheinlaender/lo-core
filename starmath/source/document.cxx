@@ -110,6 +110,7 @@ using namespace ::com::sun::star::uno;
 #endif
 #include <com/sun/star/lang/XMultiComponentFactory.hpp>
 #include <com/sun/star/i18n/XLocaleData.hpp>
+#include <com/sun/star/util/CloseVetoException.hpp>
 #include <logging.hxx>
 #include <imath/settingsmanager.hxx>
 #include <imath/alignblock.hxx>
@@ -136,6 +137,36 @@ class documentObject;
 #include <imath/smathparser.hxx>
 
 #include <iostream>
+
+namespace
+{
+    // Taken from embeddedobject TODO Is there a way to use that code directly instead of duplicating it?
+    class IFormulaClosePreventer : public ::cppu::WeakImplHelper < css::util::XCloseListener >
+    {
+        virtual void SAL_CALL queryClosing( const css::lang::EventObject& Source, sal_Bool GetsOwnership ) override;
+        virtual void SAL_CALL notifyClosing( const css::lang::EventObject& Source ) override;
+
+        virtual void SAL_CALL disposing( const css::lang::EventObject& Source ) override;
+    };
+
+    void SAL_CALL IFormulaClosePreventer::queryClosing(const css::lang::EventObject&, sal_Bool)
+    {
+        SAL_INFO_LEVEL(3, "starmath.imath", "Vetoing closure of iFormula");
+        throw css::util::CloseVetoException();
+    }
+
+    void SAL_CALL IFormulaClosePreventer::notifyClosing(const css::lang::EventObject&)
+    {
+        // just a disaster
+        OSL_FAIL("The object can not be prevented from closing!");
+    }
+
+    void SAL_CALL IFormulaClosePreventer::disposing(const css::lang::EventObject&)
+    {
+        // just a disaster
+        OSL_FAIL("The object can not be prevented from closing!");
+    }
+}
 
 SFX_IMPL_SUPERCLASS_INTERFACE(SmDocShell, SfxObjectShell)
 
@@ -241,12 +272,42 @@ void SmDocShell::SetText(const OUString& rBuffer)
         OnDocumentPrinterChanged(nullptr);
 }
 
+void SmDocShell::PreventFormulaClose(const bool prevent)
+{
+    SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::PreventFormulaClose()");
+    const uno::Reference < util::XCloseBroadcaster > xCloseBroadcaster(GetModel(), UNO_QUERY);
+    if (!xCloseBroadcaster.is()) return;
+
+    if (prevent)
+    {
+        if (!m_xIFormulaClosePreventer.is()) {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Created new close preventer for SmDocShell");
+            m_xIFormulaClosePreventer = new IFormulaClosePreventer;
+        }
+        xCloseBroadcaster->addCloseListener(m_xIFormulaClosePreventer);
+        SAL_INFO_LEVEL(1, "starmath.imath", "Added close preventer to SmDocShell");
+    }
+    else
+    {
+        if (m_xIFormulaClosePreventer.is()) {
+            xCloseBroadcaster->removeCloseListener(m_xIFormulaClosePreventer);
+            SAL_INFO_LEVEL(1, "starmath.imath", "Removed close preventer to SmDocShell");
+        }
+        else {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Not removing close preventer for SmDocShell because none exists");
+        }
+    }
+}
+
 void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 {
     if (rBuffer == maImText)
         return;
 
     maImText = rBuffer;
+
+    // Ensure that this formula will not be cleaned out of the OLE cache
+    PreventFormulaClose(maImText.getLength() > 0);
 
     if (doCompile)
         Compile();

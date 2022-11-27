@@ -1325,7 +1325,7 @@ void SwDocShell::LoadingFinished()
     }
 }
 
-bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, const OUString& oldText)
+void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
 {
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
 
@@ -1335,27 +1335,11 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     if (formulaText.getLength() == 0)
     {
         // Note: This warning is triggered also when a formula object has been deleted
-        SAL_WARN("sw.imath", "RecalculateDependentIFormulas() could not read the iFormula properties or iFormula text is empty");
-        return false;
+        SAL_WARN_LEVEL(1, "sw.imath", "RecalculateDependentIFormulas() could not read the iFormula properties or iFormula text is empty");
+        return;
     }
 
-    // Check if formula text has changed at all
-    SAL_INFO("sw.imath", "Old formula text\n" << oldText << "\nNew formula text\n" << formulaText);
-    if (oldText == formulaText)
-    {
-        SAL_INFO("sw.imath", "RecalculateDependentIFormulas() called, but formula text is unchanged");
-        return false;
-    }
-
-    SAL_INFO("sw.imath", "Formula text has changed for '" << formulaName << "'");
-
-    // Check if any formulas depend on this formula
-    OUString modifiedSymbols = getFormulaProperty(xFormulaComp, "iFormulaDependencyOut");
-    if (modifiedSymbols.getLength() == 0)
-    {
-        SAL_INFO("sw.imath", "No symbols are modified by this formula, recalculation is not required");
-        return true;
-    }
+    SAL_INFO_LEVEL(1, "sw.imath", "Recalculating formulas that depend on '" << formulaName << "'");
 
     auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
     if (it == m_IFormulaNames.end())
@@ -1367,7 +1351,17 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
         if (it == m_IFormulaNames.end())
         {
             SAL_INFO_LEVEL(1, "sw.imath", "Error, new formula object was not inserted into list of iFormula names");
-            return false;
+            return;
+        }
+    }
+    else
+    {
+        // Check if any formulas depend on this formula
+        OUString modifiedSymbols = getFormulaProperty(xFormulaComp, "iFormulaDependencyOut");
+        if (modifiedSymbols.getLength() == 0)
+        {
+            SAL_INFO_LEVEL(1, "sw.imath", "No symbols are modified by this formula, recalculation is not required");
+            return;
         }
     }
 
@@ -1419,10 +1413,10 @@ bool SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
         ++it;
     }
 
-    return true;
+    return;
 }
 
-bool SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& formulaName, const OUString& dependencies)
+void SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& formulaName, const OUString& dependencies)
 {
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
 
@@ -1440,7 +1434,7 @@ bool SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& form
         if (it == m_IFormulaNames.end())
         {
             SAL_INFO_LEVEL(1, "sw.imath", "Error, new formula object was not inserted into list of iFormula names");
-            return false;
+            return;
         }
     }
 
@@ -1489,7 +1483,7 @@ bool SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& form
         ++it;
     }
 
-    return true;
+    return;
 }
 
 void SwDocShell::RemoveIFormula(const OUString& formulaName) {

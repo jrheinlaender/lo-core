@@ -37,26 +37,16 @@ using namespace GiNaC;
 extern std::map<unsigned, exrec> remember_split;
 
 // constructor
-  eqc::eqc(std::shared_ptr<Functionmanager> fm, std::shared_ptr<Unitmanager> um) {
+  eqc::eqc() {
     MSG_INFO(3, "Constructing empty eqc"  << endline);
     previous_it = equations.end();
     nextlabel = 0;
     current_namespace = "";
 
-    if (um == nullptr) {
-        unitmgr = std::make_shared<Unitmanager>();
-        unitmgr_writable = true;
-    } else {
-        unitmgr = um;
-        unitmgr_writable = false;
-    }
-    if (fm == nullptr) {
-        funcmgr = std::make_shared<Functionmanager>();
-        funcmgr_writable = true;
-    } else {
-        funcmgr = fm;
-        funcmgr_writable = false;
-    }
+    unitmgr = std::make_shared<Unitmanager>();
+    unitmgr_writable = true;
+    funcmgr = std::make_shared<Functionmanager>();
+    funcmgr_writable = true;
 
     MSG_INFO(2, "Registering hard-coded functions" << endline);
     for (const auto& n : Functionmanager::get_hard_names()) {
@@ -66,37 +56,37 @@ extern std::map<unsigned, exrec> remember_split;
     }
   } // eqc::eqc()
 
-  std::shared_ptr<eqc> eqc::clone() {
-    MSG_INFO(3, "Taking deep copy of eqc"  << endline);
-    auto result = std::make_shared<eqc>(funcmgr, unitmgr);
-
-    // Ensure that previous_it points to the correct item in the clone
-    result->previous_it = result->equations.end();
-    for (auto e = equations.begin(); e != equations.end(); ++e) {
-        eqrec_it newrec = result->equations.emplace(*e).first;
-        if (e == previous_it)
-            result->previous_it = newrec;
-    }
+  eqc::eqc(const eqc& other)
+    : unitmgr(other.unitmgr), funcmgr(other.funcmgr), unitmgr_writable(false), funcmgr_writable(false),
+      expressions(other.expressions), nextlabel(other.nextlabel), assignments(other.assignments), recent_assgn(other.recent_assgn), current_namespace(other.current_namespace)
+  {
+    MSG_INFO(3, "Copy-constructor of eqc with deep copy of members"  << endline); // But copy-on-write for Functionmanager and Unitmanager
 
     // Take copy of pointer data, preserving relationships
-    for (const auto& o_eq : other_equations) {
-        for (auto& e : result->equations) {
-            if (o_eq->label == e.second.label) {
-                result->other_equations.emplace_back(&e.second);
-                break;
-            }
+    // TODO Check if maybe non-pointer relationships are more efficient (they would require more uses of std::find(), though)
+    previous_it = equations.end();
+    for (auto e = other.equations.begin(); e != other.equations.end(); ++e) {
+        eqrec_it newrec = equations.emplace(*e).first;
+        // Ensure that previous_it points to the correct item in the clone
+        if (e == other.previous_it)
+            previous_it = newrec;
+    }
+
+    for (auto v = other.vars.begin(); v != other.vars.end(); ++v) {
+        symrec_it newv = vars.emplace(*v).first;
+        newv->second.assignments.clear();
+        for (const auto& assgn : v->second.assignments) {
+            const auto& rec_it = equations.find(assgn->label); // The label should always be found
+            if (rec_it != equations.end())
+                newv->second.assignments.emplace_back(&rec_it->second);
         }
     }
 
-    // The rest is plain data
-    result->expressions = expressions;
-    result->assignments = assignments;
-    result->recent_assgn = recent_assgn;
-    result->vars = vars;
-    result->current_namespace = current_namespace;
-    result->nextlabel = nextlabel;
-
-    return result;
+    for (const auto& o_eq : other.other_equations) {
+        const auto& rec_it = equations.find(o_eq->label); // The label should always be found
+        if (rec_it != equations.end())
+            other_equations.emplace_back(&rec_it->second);
+    }
   }
 
 namespace GiNaC {
@@ -490,7 +480,6 @@ bool is_internal(const std::string& varname) {
   GiNaC::expression eqc::create_function(const std::string& n, GiNaC::exprseq &&args) const {
     return funcmgr->create(n, std::move(args));
   }
-
 
   void eqc::addUnit(const std::string &uname, const std::string& pname, const GiNaC::expression &other_units) {
     if (!unitmgr_writable) {

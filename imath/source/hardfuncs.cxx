@@ -508,11 +508,12 @@ static ex ifelse_eval(const ex& condition, const ex& e1, const ex& e2) {
   // max(x;y) = ifelse(x < y; y; x) will always return false...
   MSG_INFO(3, "eval ifelse: "  << condition << " ? " << e1 << " : " << e2 << endline);
 
-  int result = eval_condition(condition);
+  ex e_condition = condition.eval();
+  int result = eval_condition(e_condition);
   if (result == -1)
-    return Functionmanager::create_hard("ifelse", exprseq{condition, e1, e2});
+    return Functionmanager::create_hard("ifelse", exprseq{e_condition, e1.eval(), e2.eval()});
 
-  return result ? e1 : e2;
+  return result ? e1.eval() : e2.eval();
 }
 
 static ex ifelse_evalf(const ex& condition, const ex& e1, const ex& e2) {

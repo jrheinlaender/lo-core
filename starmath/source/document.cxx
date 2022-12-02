@@ -426,7 +426,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     Reference<XComponentContext> xContext(GetContext());
 
     mpInitialOptions = std::make_shared<GiNaC::optionmap>();
-    mpInitialCompiler = std::make_shared<eqc>(nullptr, nullptr);
+    mpInitialCompiler = std::make_shared<eqc>();
 
     // Get access to the registry that contains the global options
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
@@ -617,7 +617,7 @@ void SmDocShell::Compile()
     SAL_INFO_LEVEL(1, "starmath.imath", "This formula had old outgoing dependencies for '" << makeDependencyString(oldOutDep) << "'");
 
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
-    mpCurrentCompiler = mpInitialCompiler->clone(); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
+    mpCurrentCompiler = std::make_shared<eqc>(*mpInitialCompiler); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
 
     // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all. Requires complete rework of exceptions in imath library
     try {

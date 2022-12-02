@@ -202,13 +202,13 @@ const Functionmanager::funcrec& Functionmanager::findAttributes(const std::strin
 expression Functionmanager::create(const std::string& n, const exprseq &args) const {
   MSG_INFO(2, "Creating function " << n << "(" << args << ")" << endline);
   const funcrec& fr = findAttributes(n, args.nops());
-  return expression(dynallocate<func>(n, args, fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname));
+  return dynallocate<func>(n, args, fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname).eval(); // The eval() is required for FUNCHINT_EXPAND functions
 }
 
 expression Functionmanager::create(const std::string& n, exprseq &&args) const {
   MSG_INFO(2, "Move-creating function " << n << "(" << args << ")" << endline);
   const funcrec& fr = findAttributes(n, args.nops());
-  return dynallocate<func>(n, std::move(args), fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname);
+  return dynallocate<func>(n, std::move(args), fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname).eval(); // The eval() is required for FUNCHINT_EXPAND functions
 }
 
 expression Functionmanager::create_hard(const std::string& n, const exprseq &args) {

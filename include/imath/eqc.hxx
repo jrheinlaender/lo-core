@@ -157,20 +157,16 @@ public:
 class IMATH_DLLPUBLIC eqc {
 public:
   /**
-  Constructs an empty eqc. Avoid initializing a new Unitmanager when cloning
+  Constructs an empty eqc
   **/
-  eqc(std::shared_ptr<Functionmanager> fm = nullptr, std::shared_ptr<Unitmanager> um = nullptr);
+  eqc();
+  /// Copy-constructor with deep copy of members
+  eqc(const eqc& other);
 
   /// Prevent shallow copies
-  eqc() = delete;
-  eqc(const eqc& other) = delete;
   eqc(eqc&& other) noexcept = delete;
   eqc& operator=(const eqc& other) = delete;
   eqc& operator=(eqc&& other) noexcept = delete;
-
-  /// Implement deep copy
-  // Note: A shared_ptr is returned because it is impossible to create one from a plain eqc object without invoking the move constructor
-  std::shared_ptr<eqc> clone();
 
   /**
   Register this equation with the compiler. An exception is thrown if

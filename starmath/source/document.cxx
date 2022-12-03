@@ -123,6 +123,7 @@ namespace GiNaC {
   class func : public exprseq {
     public:
     IMATH_DLLPUBLIC static void clearall();
+    IMATH_DLLPUBLIC inline const std::string& get_name() const;
     IMATH_DLLPUBLIC unsigned get_serial() const;
   };
 }

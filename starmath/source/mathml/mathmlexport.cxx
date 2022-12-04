@@ -442,46 +442,49 @@ void SmXMLExport::ExportContent_()
 
     ExportNodes(pTree, 0);
 
-    if (aText.isEmpty())
-        return;
-
     SmModule* pMod = SM_MOD();
-    sal_Int16 nSmSyntaxVersion = pMod->GetConfig()->GetDefaultSmSyntaxVersion();
-    // Note: The iMath syntax version is only used to check that a file does not have newer version than the office
-    sal_Int32 nImSyntaxVersion = pMod->GetConfig()->GetDefaultImSyntaxVersion();
 
-    // Convert symbol names
-    if (pDocShell)
+    if (!aText.isEmpty())
     {
-        nSmSyntaxVersion = pDocShell->GetSmSyntaxVersion();
-        AbstractSmParser* rParser = pDocShell->GetParser();
-        bool bVal = rParser->IsExportSymbolNames();
-        rParser->SetExportSymbolNames(true);
-        auto pTmpTree = rParser->Parse(aText);
-        aText = rParser->GetText();
-        pTmpTree.reset();
-        rParser->SetExportSymbolNames(bVal);
+        sal_Int16 nSmSyntaxVersion = pMod->GetConfig()->GetDefaultSmSyntaxVersion();
 
-        // TODO: What about parsing the iMath symbol names? That won't work via rParser->Parse(aImText)
+        // Convert symbol names
+        if (pDocShell)
+        {
+            nSmSyntaxVersion = pDocShell->GetSmSyntaxVersion();
+            AbstractSmParser* rParser = pDocShell->GetParser();
+            bool bVal = rParser->IsExportSymbolNames();
+            rParser->SetExportSymbolNames(true);
+            auto pTmpTree = rParser->Parse(aText);
+            aText = rParser->GetText();
+            pTmpTree.reset();
+            rParser->SetExportSymbolNames(bVal);
+
+            // TODO: What about parsing the iMath symbol names? That won't work via rParser->Parse(aImText)
+        }
+
+        OUStringBuffer sStrBuf(12);
+        sStrBuf.append(u"StarMath ");
+        if (nSmSyntaxVersion == 5)
+            sStrBuf.append(u"5.0");
+        else
+            sStrBuf.append(static_cast<sal_Int32>(nSmSyntaxVersion));
+
+        {
+            // The XML element is closed when the SvXMLElementExport goes out of scope
+            AddAttribute(XML_NAMESPACE_MATH, XML_ENCODING, sStrBuf.makeStringAndClear());
+            SvXMLElementExport aAnnotation(*this, XML_NAMESPACE_MATH, XML_ANNOTATION, true, false);
+            GetDocHandler()->characters(aText);
+        }
     }
 
-    OUStringBuffer sStrBuf(12);
-    sStrBuf.append(u"StarMath ");
-    if (nSmSyntaxVersion == 5)
-        sStrBuf.append(u"5.0");
-    else
-        sStrBuf.append(static_cast<sal_Int32>(nSmSyntaxVersion));
-
+    if (!aImText.isEmpty())
     {
-        // The XML element is closed when the SvXMLElementExport goes out of scope
-        AddAttribute(XML_NAMESPACE_MATH, XML_ENCODING, sStrBuf.makeStringAndClear());
-        SvXMLElementExport aAnnotation(*this, XML_NAMESPACE_MATH, XML_ANNOTATION, true, false);
-        GetDocHandler()->characters(aText);
-    }
+        // Note: The iMath syntax version is only used to check that a file does not have newer version than the office
+        sal_Int32 nImSyntaxVersion = pMod->GetConfig()->GetDefaultImSyntaxVersion();
 
-    sStrBuf.append(u"iMath ");
-
-    if (!aImText.isEmpty()) {
+        OUStringBuffer sStrBuf(12);
+        sStrBuf.append(u"iMath ");
         sStrBuf.append(static_cast<sal_Int32>(nImSyntaxVersion));
         AddAttribute(XML_NAMESPACE_MATH, XML_ENCODING, sStrBuf.makeStringAndClear());
         SvXMLElementExport aAnnotation(*this, XML_NAMESPACE_MATH, XML_ANNOTATION, true, false);

@@ -33,6 +33,7 @@
   #include <sstream>
   #include <numeric>
   #include <cln/cln.h>
+  #include <com/sun/star/frame/XStorable.hpp>
 
 #ifdef INSIDE_SM
   #include <imath/eqc.hxx>
@@ -60,30 +61,16 @@
 #endif
 #if defined INSIDE_SM
   #include <document.hxx>
-  // Dummy class for now, document is nullptr inside Starmath
-  class documentObject {
-  public:
-    ::com::sun::star::uno::Reference<::com::sun::star::uno::XComponentContext> GetContext() { return ::com::sun::star::uno::Reference<::com::sun::star::uno::XComponentContext>(); };
-    ::com::sun::star::uno::Reference<::com::sun::star::frame::XModel> GetModel() { return ::com::sun::star::uno::Reference<::com::sun::star::frame::XModel>(); };
-    void insertUpdate(const OUString& after, const OUString& fName) { (void)after; (void)fName; };
-    OUString textFieldContent(const OUString& textFieldName) { (void)textFieldName; return OU(""); };
-    GiNaC::expression tableCellContent(const OUString& tableName, const OUString& tableCellname) { (void)tableName; (void)tableCellname; return GiNaC::expression(); };
-    void setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::ex& value) { (void) tableName; (void)tableCellName; (void)value; };
-  };
   #define FORMULAOBJECT SmDocShell
-  #define DOCUMENTOBJECT documentObject
   #include <imath/iFormulaLine.hxx>
 #else
   #include "iFormula.hxx"
-  #include "iMathDoc.hxx"
   #define FORMULAOBJECT iFormula
-  #define DOCUMENTOBJECT iMathDoc
 #endif
 %}
 
 // The parsing context. It must match YY_DECL at the top of iFormula.hxx
 %parse-param { FORMULAOBJECT& formula }
-%parse-param { DOCUMENTOBJECT* document }
 %parse-param { std::shared_ptr<eqc> compiler }
 %parse-param { const std::shared_ptr<GiNaC::optionmap> global_options }
 %parse-param { OUString& errormessage }
@@ -116,8 +103,8 @@
 #ifdef INSIDE_SM
   autorenumberduplicate = officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::get();
 #else
-  Reference< XComponentContext> documentContext = (document == nullptr) ? formula.GetContext() : document->GetContext();
-  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(documentContext, OU("/de.gmx.rheinlaender.jan.imath.iMathOptionData/"));
+  Reference< XComponentContext> context = formula.GetContext();
+  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(context, OU("/de.gmx.rheinlaender.jan.imath.iMathOptionData/"));
   Any Aautorenumberduplicate = xProperties->getHierarchicalPropertyValue(OU("Miscellaneous/O_Autorenumberduplicate"));
   Aautorenumberduplicate >>= autorenumberduplicate;
 #endif
@@ -604,10 +591,11 @@ input:   %empty
          ++include_level;
 	       locationstack.push(yyla.location);
 	       yyla.location = location();
-         OUString documentURL = (document == nullptr) ? formula.GetModel()->getURL() : document->GetModel()->getURL();
-         Reference< XComponentContext> documentContext = (document == nullptr) ? formula.GetContext() : document->GetContext();
-         OUString result = makeURLFor(OUS8(*$4), documentURL, documentContext);
-         std::string fpath = STR(makeSystemPathFor(result, documentContext));
+         Reference<XStorable> xStorable(formula.GetDocumentModel(), UNO_QUERY_THROW);
+         OUString documentURL = xStorable->getLocation();
+         Reference< XComponentContext> context = formula.GetContext();
+         OUString result = makeURLFor(OUS8(*$4), documentURL, context);
+         std::string fpath = STR(makeSystemPathFor(result, context));
 
 	       MSG_INFO(0,  "Trying to open " << fpath << endline);
          if (!smathlexer::begin_include(fpath)) {
@@ -994,16 +982,18 @@ statement: OPTIONS options {
              std::vector<OUString> formulaParts = {GETARG(@2)};
              formula.lines.push_back(std::make_shared<iFormulaNodeStmUpdate>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
-           if (document == nullptr)
-             throw syntax_error(@1, "This document type does not support the UPDATE statement");
-           document->insertUpdate(formula.GetName(), OUS8(*$2));
+#ifdef INSIDE_SM
+           throw syntax_error(@1, "This document type does not (yet) support the UPDATE statement");
+#else
+           formula.insertUpdate(formula.GetName(), OUS8(*$2));
            formula.cacheable = false;
            delete($2);
+#endif
          }
          | CHART '{' STRING ',' ex ',' ex ',' ex ',' ex ',' uinteger ',' STRING '}' {
-           if (document == nullptr)
+           if (!formula.CheckHasChartsAndTables())
              throw syntax_error(@1, "This document type does not support the CHART statement");
            if (include_level == 0) {
              std::vector<OUString> formulaParts =
@@ -1020,7 +1010,7 @@ statement: OPTIONS options {
            delete($3); delete($5); delete($7); delete($9); delete($11); delete($15);
          }
          | CHART '{' STRING ',' symbol '=' ex ',' ex ',' eq ',' ex ',' uinteger ',' STRING '}' {
-           if (document == nullptr)
+           if (!formula.CheckHasChartsAndTables())
              throw syntax_error(@1, "This document type does not support the CHART statement");
            if (include_level == 0) {
              std::vector<OUString> formulaParts =
@@ -1037,7 +1027,7 @@ statement: OPTIONS options {
            delete($3); delete($5); delete($7); delete($9); delete($11); delete($13);  delete($17);
          }
          | CHART '{' STRING ',' symbol '=' ex ',' ex ',' ex ',' ex ',' uinteger ',' STRING '}' {
-           if (document == nullptr)
+           if (!formula.CheckHasChartsAndTables())
              throw syntax_error(@1, "This document type does not support the CHART statement");
            if (include_level == 0) {
              std::vector<OUString> formulaParts =
@@ -1054,7 +1044,7 @@ statement: OPTIONS options {
            delete($3); delete($5); delete($7); delete($9); delete($11); delete($13);  delete($17);
          }
          | SETTABLECELL '{' ex ',' ex ',' ex '}' {
-           if (document == nullptr)
+           if (!formula.CheckHasChartsAndTables())
              throw syntax_error(@1, "This document cannot hold any tables");
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
@@ -1068,7 +1058,7 @@ statement: OPTIONS options {
 					 OUString tableName(OUS8(ex_to<stringex>(*$3).get_string()));
 
 					 if (is_a<stringex>(*$5)) {
-						 document->setTableCell(tableName, OUS8(ex_to<stringex>(*$5).get_string()), *$7);
+						 formula.setTableCell(tableName, OUS8(ex_to<stringex>(*$5).get_string()), *$7);
 					 } else if (is_a<matrix>(*$5)) {
 						 const matrix& l = ex_to<matrix>(*$5);
 						 if (is_a<matrix>(*$7)) {
@@ -1087,7 +1077,7 @@ statement: OPTIONS options {
 									 } else {
 										 val = *$7;
 									 }
-									 document->setTableCell(tableName, OUS8(ex_to<stringex>(l(r,c)).get_string()), val);
+									 formula.setTableCell(tableName, OUS8(ex_to<stringex>(l(r,c)).get_string()), val);
 								 }
 							 }
 						 }
@@ -1099,8 +1089,6 @@ statement: OPTIONS options {
            delete ($3); delete($5); delete ($7);
          }
          | SETCALCCELLS '{' ex ',' ex ',' ex ',' ex '}' {
-           if (document == nullptr)
-             throw syntax_error(@1, "This document cannot hold any tables");
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
              formula.lines.push_back(std::make_shared<iFormulaNodeStmCalccell>(current_options, std::move(formulaParts)));
@@ -1109,10 +1097,11 @@ statement: OPTIONS options {
            }
 					 if (!is_a<stringex>(*$3) || !is_a<stringex>(*$5) || !is_a<stringex>(*$7))
 							throw syntax_error(@3, "File name, table name and cell reference must be a string");
-           OUString documentURL = document->GetModel()->getURL();
-           Reference< XComponentContext> documentContext = document->GetContext();
-           OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, documentContext); // Handle relative paths in the URL
-           setCalcCellRange(documentContext, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string()), *$9);
+           Reference<XStorable> xStorable(formula.GetDocumentModel(), UNO_QUERY_THROW);
+           OUString documentURL = xStorable->getLocation();
+           Reference< XComponentContext> context = formula.GetContext();
+           OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, context); // Handle relative paths in the URL
+           setCalcCellRange(context, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string()), *$9);
            formula.cacheable = false;
            delete ($3); delete($5); delete ($7); delete($9);
          }
@@ -1751,24 +1740,28 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       delete($3); delete($5);
     }
     | TEXTFIELD '(' ex ')' {
+      if (!formula.CheckHasChartsAndTables())
+        throw syntax_error(@1, "\nThis document cannot hold any text fields");
 			if (!is_a<stringex>(*$3))
 				throw syntax_error(@3, "\nTextfield name must be a string");
-      if (document == nullptr)
-        throw syntax_error(@1, "\nThis document cannot hold any text fields");
-      $$ = new expression(getExpressionFromString(document->textFieldContent(
-				OUS8(ex_to<stringex>(*$3).get_string()))));
+
+      Reference< XTextDocument > xDoc(formula.GetDocumentModel(), UNO_QUERY_THROW);
+      $$ = new expression(getExpressionFromString(getTextFieldContent(xDoc, OUS8(ex_to<stringex>(*$3).get_string()))));
       must_autoformat = true;
       delete($3);
     }
     | TABLECELL '(' ex ',' exvec_or_ex ')' {
 			if (!is_a<stringex>(*$3))
 				throw syntax_error(@3, "\nTable name must be a string");
-      if (document == nullptr)
+      if (!formula.CheckHasChartsAndTables())
         throw syntax_error(@1, "\nThis document cannot hold any tables");
-			OUString tableName(OUS8(ex_to<stringex>(*$3).get_string()));
+
+      OUString tableName(OUS8(ex_to<stringex>(*$3).get_string()));
+      Reference< XTextDocument > xDoc(formula.GetDocumentModel(), UNO_QUERY_THROW);
 
 			if (is_a<stringex>(*$5)) {
-				$$ = new expression(document->tableCellContent(tableName, OUS8(ex_to<stringex>(*$5).get_string())));
+        Reference< XCell > xCell = getTableCell(xDoc, tableName, OUS8(ex_to<stringex>(*$5).get_string()).toAsciiUpperCase());
+				$$ = new expression(getCellExpression(xCell));
 			} else if (is_a<matrix>(*$5)) {
 				const matrix& l = ex_to<matrix>(*$5);
 				matrix& m = dynallocate<matrix>(l.rows(), l.cols());
@@ -1776,7 +1769,8 @@ ex:   SUBST '(' ex ',' eqlist ')' {
 				for (unsigned r = 0; r < l.rows(); ++r) {
 					for (unsigned c = 0; c < l.cols(); ++c) {
 						if (is_a<stringex>(l(r,c))) {
-							m(r,c) = document->tableCellContent(tableName, OUS8(ex_to<stringex>(l(r,c)).get_string()));
+              Reference< XCell > xCell = getTableCell(xDoc, tableName, OUS8(ex_to<stringex>(l(r,c)).get_string()).toAsciiUpperCase());
+							m(r,c) = getCellExpression(xCell);
 						} else {
 							m(r,c) = dynallocate<stringex>("Error: Cell reference must be a string");
 						}
@@ -1793,14 +1787,13 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       delete($3); delete($5);
     }
     | CALCCELL '(' ex ',' ex ',' ex ')' {
-      if (document == nullptr)
-        throw syntax_error(@1, "This document cannot hold any tables");
 			if (!is_a<stringex>(*$3) || !is_a<stringex>(*$5) || !is_a<stringex>(*$7))
 				throw syntax_error(@7, "\nFile name, table name and cell reference must be a string");
-      OUString documentURL = document->GetModel()->getURL();
-      Reference< XComponentContext> documentContext = document->GetContext();
-      OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, documentContext); // Handle relative paths in the URL
-      $$ = new expression(calcCellRangeContent(documentContext, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string())));
+      Reference<XStorable> xStorable(formula.GetDocumentModel(), UNO_QUERY_THROW);
+      OUString documentURL = xStorable->getLocation();
+      Reference< XComponentContext> context = formula.GetContext();
+      OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, context); // Handle relative paths in the URL
+      $$ = new expression(calcCellRangeContent(context, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string())));
       must_autoformat = true;
       delete($3); delete($5); delete($7);
     }

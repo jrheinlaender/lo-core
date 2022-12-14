@@ -422,13 +422,13 @@ IMATH_DLLPUBLIC void orderXText(const Reference< XText >& xText, std::list< OUSt
 void orderPresentation(const Reference< XModel >& xModel, std::list< OUString >& formulas, unsigned& count, const Reference < XStatusIndicator >& xStatus);
 
 /// Return the content of the given DDE text field
-OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUString& textFieldName);
+IMATH_DLLPUBLIC OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUString& textFieldName);
 
 /// Return a cell of a Writer table
-Reference< XCell > getTableCell(const Reference< XTextDocument >& xDoc, const OUString& tableName, const OUString& tableCellName);
+IMATH_DLLPUBLIC Reference< XCell > getTableCell(const Reference< XTextDocument >& xDoc, const OUString& tableName, const OUString& tableCellName);
 
 /// Return an expression from the content of the given cell. The result will be an integer, a numeric or a stringex
-GiNaC::expression getCellExpression(const Reference< XCell >& xCell);
+IMATH_DLLPUBLIC GiNaC::expression getCellExpression(const Reference< XCell >& xCell);
 
 /// Return the content of the given calc cell range
 IMATH_DLLPUBLIC GiNaC::expression calcCellRangeContent(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange);
@@ -446,7 +446,7 @@ GiNaC::expression getCalcRangeExpression(const Reference < XColumnRowRange >& xC
 void setCalcCellRangeExpression(const Reference < XColumnRowRange >& xColumnRowRange, const GiNaC::expression& value);
 
 /// Set the given cell to the given value (if it is a string formula, the formula will be interpreted)
-void setCellExpression(const Reference< XCell >& xCell, const GiNaC::expression& value);
+IMATH_DLLPUBLIC void setCellExpression(const Reference< XCell >& xCell, const GiNaC::expression& value);
 
 /// Parse the content of a string (currently specific to text field content strings)
 IMATH_DLLPUBLIC GiNaC::expression getExpressionFromString(const OUString& s);

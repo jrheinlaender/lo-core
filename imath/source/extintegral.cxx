@@ -529,10 +529,48 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
     if (!result.is_empty()) return result;
   } else if (is_a<exderivative>(remainder)) {
     const exderivative& e = ex_to<exderivative>(remainder);
-    if (!e.is_partial() && is_a<differential>(e.get_denom())) {
-      const differential& d = ex_to<differential>(e.get_denom());
-      if (d.argument().is_equal(var))
-        return e.get_numer().argument(); // int df/dt dt = df
+
+    if (!e.is_partial()) {
+      // TODO Integration of partial derivatives is possible but the integration constant becomes a function of the remaining variables (that disappeared through partial derivation)
+      if (e.get_numer().get_grade().info(info_flags::posint)) {
+        int grade = ex_to<numeric>(e.get_numer().get_grade()).to_int();
+
+        if (grade == 1) {
+          const differential& d = ex_to<differential>(e.get_denom());
+          if (d.argument().is_equal(var))
+            return e.get_numer().argument(); // int df/dt dt = df
+        } else {
+          // Denominator can be any combination of differentials (in different variables) and their powers
+          // Search for matching differential in the denominator, and reduce its grade by one
+          ex d_new = _ex1;
+          bool found = false;
+
+          for (const auto dd : (is_a<mul>(e.get_denom()) ? e.get_denom() : lst{e.get_denom()})) {
+            if (is_a<differential>(dd) && ex_to<differential>(dd).argument().is_equal(var)) {
+              // Omit from new denominator
+              found = true;
+            } else if (is_a<power>(dd)) {
+              const power& p = ex_to<power>(dd);
+              const differential& d = ex_to<differential>(get_basis(p));
+
+              if (d.argument().is_equal(var)) {
+                d_new *= dynallocate<power>(d, get_exp(p) - 1); // Reduce grade by 1
+                found = true;
+              } else {
+                d_new *= dd;
+              }
+            } else {
+              d_new *= dd; // Keep unchanged
+            }
+
+            if (found) {
+              differential n = e.get_numer();
+              n.set_grade(grade - 1);
+              return dynallocate<exderivative>(n, d_new); // int d^n f / dt^n du^m ... = d^(n-1) f / d t^(n-1) du^m ...
+            }
+          }
+        }
+      }
     }
   } else {
     exmap repl;

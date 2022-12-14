@@ -654,6 +654,10 @@ void addDataSeries(const Reference < com::sun::star::chart2::XChartDocument >& c
 }
 
 void forceDiagramUpdate(const Reference< XComponent >& xChart) {
+#ifdef INSIDE_SM
+  // TODO Switching to INPLACE_ACTIVE throws an exception, find another way
+  return;
+#endif
   // Hack: Force the diagram to recognize changed data points
   Reference < XEmbeddedObjectSupplier2 >xEOS2(xChart, UNO_QUERY);
   if (xEOS2.is()) {
@@ -1984,6 +1988,8 @@ unsigned countFormulas(const Reference< XModel >& xModel) {
 OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUString& textFieldName) {
   Reference< XTextFieldsSupplier > xTFSupplier(xDoc, UNO_QUERY_THROW);
   Reference< XNameAccess > xTextFieldMasters = xTFSupplier->getTextFieldMasters();
+  if (!xTextFieldMasters->hasByName(OU("com.sun.star.text.fieldmaster.") + textFieldName))
+    return OU("notfound");
 
   Reference< XPropertySet > xTextFieldMaster(xTextFieldMasters->getByName(OU("com.sun.star.text.fieldmaster.") + textFieldName), UNO_QUERY);
 
@@ -2006,7 +2012,7 @@ OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUStr
     return c;
   }
 
-  return OU("notfound");
+  return OU("error");
 }
 
 Reference< XCell > getTableCell(const Reference< XTextDocument >& xDoc, const OUString& tableName, const OUString& tableCellName) {

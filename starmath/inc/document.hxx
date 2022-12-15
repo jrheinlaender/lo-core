@@ -30,6 +30,7 @@
 #include <oox/export/utils.hxx>
 
 #include <com/sun/star/util/XCloseListener.hpp>
+#include <com/sun/star/frame/XModel.hpp>
 
 #include "format.hxx"
 #include "node.hxx"
@@ -263,7 +264,18 @@ public:
 
 // iMath ==========================================================================================
 public:
-    ::com::sun::star::uno::Reference<::com::sun::star::uno::XComponentContext> GetContext() const;
+    // These methods define a common interface for iFormula (iMath extension) and document (starmath)
+    /// Access the context
+    css::uno::Reference<css::uno::XComponentContext> GetContext() const;
+    /// Access the document model. Either starmath or writer or impress, depending on whether the formula is stand-alone or inside a document
+    css::uno::Reference<css::frame::XModel> GetDocumentModel() const;
+    /// Insert the formula (again) after the given formula for an update.
+    // Note: Formula parts with labels can not be updated to avoid cyclic references
+    void insertUpdate(const OUString&, const OUString&) const { /* Not implemented */ }
+    /// Check whether the document containing the formula (if it exists) can hold charts
+    bool CheckHasChartsAndTables() const;
+    /// Set the content of the given table cell to a string or double value
+    void setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::ex& value) const;
 
     /// Set an option on the formula (all lines of it) if its value is different from the global option
     void SetOption(const option_name oname, const option& value);

@@ -201,8 +201,55 @@ void SmDocShell::Notify(SfxBroadcaster&, const SfxHint& rHint)
     }
 }
 
-Reference<XComponentContext> SmDocShell::GetContext() const {
+Reference<XComponentContext> SmDocShell::GetContext() const
+{
     return comphelper::getProcessComponentContext();
+}
+
+Reference<XModel> SmDocShell::GetDocumentModel() const
+{
+    Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
+    Reference<XModel> xParent(xModel->getParent(), UNO_QUERY);
+
+    if (xParent.is())
+    {
+        Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
+        if (xTextDoc.is())
+        {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Found parent text document");
+            return xParent;
+        }
+
+        Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY);
+        if (xPresDoc.is())
+        {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Found parent presentation document");
+            return xParent;
+        }
+    }
+
+    SAL_INFO_LEVEL(1, "starmath.imath", "No parent document for formula");
+    return GetModel();
+}
+
+bool SmDocShell::CheckHasChartsAndTables() const
+{
+    Reference<XModel> xModel = GetDocumentModel();
+    Reference<XTextDocument> xTextDoc(xModel, UNO_QUERY);
+    if (xTextDoc.is())
+        return true;
+
+    Reference<presentation::XPresentationSupplier> xPresDoc(xModel, UNO_QUERY);
+    if (xPresDoc.is())
+        return true;
+
+    return false;
+}
+
+void SmDocShell::setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::ex& value) const {
+  Reference< XTextDocument > xDoc(GetDocumentModel(), UNO_QUERY_THROW); // This must be checked in the parser before calling the method
+  Reference< XCell > xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
+  setCellExpression(xCell, value);
 }
 
 void SmDocShell::LoadSymbols()
@@ -492,7 +539,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         if (!rawtext.equalsAscii("")) {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(rawtext));
             OUString error = "";
-            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
+            imath::smathparser parser(*this, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
             int parse_result = parser.parse();
             smathlexer::scan_end();
@@ -511,7 +558,7 @@ OUString SmDocShell::ImInitializeCompiler() {
             SAL_INFO_LEVEL(0, "starmath.imath", "Parsing default units\n" << STR(rawtext));
             rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
             OUString error = "";
-            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
+            imath::smathparser parser(*this, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
             int parse_result = parser.parse();
             smathlexer::scan_end(); // Result is stored in mpInitialOptions map under the keys o_unit and o_unitstr
@@ -538,7 +585,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         if (!rawtext.equalsAscii("")) {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading user include files\n" << STR(rawtext));
             OUString error;
-            imath::smathparser parser(*this, nullptr, mpInitialCompiler, mpInitialOptions, error);
+            imath::smathparser parser(*this, mpInitialCompiler, mpInitialOptions, error);
             smathlexer::scan_begin(STR(rawtext));
             int parse_result = parser.parse();
             smathlexer::scan_end();
@@ -635,7 +682,7 @@ void SmDocShell::Compile()
 
         lines.clear();
         error = "";
-        imath::smathparser parser(*this, nullptr, mpCurrentCompiler, mpInitialOptions, error); // mpInitialOptions are not modified, copy is taken when OPTIONS keyword is encountered
+        imath::smathparser parser(*this, mpCurrentCompiler, mpInitialOptions, error); // mpInitialOptions are not modified, copy is taken when OPTIONS keyword is encountered
         smathlexer::scan_begin(STR(rawtext));
         int parse_result = parser.parse();
         smathlexer::scan_end();
@@ -829,9 +876,19 @@ void SmDocShell::addResultLines() {
     // Display the result of the line
     (*i)->setBasefontHeight(basefontheight);
     if ((*i)->isDisplayable()) {
-      // Note: A valid xModel is only required for the CHART statement
-      (*i)->display(GetModel(), resultText, prev_lhs, a, do_not_align);
-      hasResult = (*i)->getSelectionType() != formulaTypeChart; // CHART is displayable but has no textual result
+      if ((*i)->getSelectionType() == formulaTypeChart) {
+        // A valid xModel is only required for the CHART statement
+        Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
+        Reference<XModel> xParent(xModel->getParent(), UNO_QUERY_THROW);
+        Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
+        if (xTextDoc.is()) {
+            (*i)->display(xParent, resultText, prev_lhs, a, do_not_align); // For stand-alone formulas ignore CHART statement // TODO Implement for charts in presentations
+        }
+        hasResult = false; // CHART is displayable but has no textual result
+      } else {
+        (*i)->display(Reference< XModel>(), resultText, prev_lhs, a, do_not_align);
+        hasResult = true;
+      }
       iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*i);
       if (pExpr != nullptr && !(pExpr->getHide() && pExpr->getDisplayedLhs().getLength() == 0))
         prev_lhs = pExpr->getDisplayedLhs();

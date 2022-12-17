@@ -520,7 +520,9 @@ OUString SmDocShell::ImInitializeCompiler() {
 
     // Path to iMath's own include files (references)
     OUString shareFolder;
-    OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/imath/references/");
+    // TODO Fix build system to include share/imath into the Windows msi files
+    //OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/imath/references/");
+    OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/calc/");
     rtl::Bootstrap::expandMacros(shareURL);
     osl::FileBase::getSystemPathFromFileURL(shareURL, shareFolder);
 

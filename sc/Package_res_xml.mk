@@ -9,8 +9,21 @@
 
 $(eval $(call gb_Package_Package,sc_res_xml,$(SRCDIR)/sc/res/xml))
 
+# The imath files here are a stupid hack because we can't figure out how to
+# include starmath/Package_res_imath.xml into the Windows msi files
 $(eval $(call gb_Package_add_files,sc_res_xml,$(LIBO_SHARE_FOLDER)/calc,\
 	styles.xml \
+	../../../starmath/res/imath/references/init.imath \
+        ../../../starmath/res/imath/references/units.imath \
+        ../../../starmath/res/imath/references/siunits.imath \
+        ../../../starmath/res/imath/references/siunits_abbrev.imath \
+        ../../../starmath/res/imath/references/siprefixes.imath \
+        ../../../starmath/res/imath/references/siprefixes_abbrev.imath \
+        ../../../starmath/res/imath/references/engunits.imath \
+        ../../../starmath/res/imath/references/engunits_abbrev.imath  \
+        ../../../starmath/res/imath/references/impunits.imath \
+        ../../../starmath/res/imath/references/impunits_abbrev.imath \
+        ../../../starmath/res/imath/references/substitutions.imath \
 ))
 
 # vim: set noet sw=4 ts=4:

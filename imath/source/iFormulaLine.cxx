@@ -388,6 +388,11 @@ iFormulaNodeStmReadfile::iFormulaNodeStmReadfile(std::shared_ptr<optionmap> g_op
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
 }
 
+// NodeStmChart
+iFormulaNodeStmChart::iFormulaNodeStmChart(std::shared_ptr<optionmap> g_options, std::vector<OUString>&& formulaParts) :
+   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
+}
+
 // Node Expression (virtual superclass of Node Ex and Node Eq)
 iFormulaNodeExpression::iFormulaNodeExpression(
     const GiNaC::unitvec&& unitConversions, std::shared_ptr<optionmap> g_options, optionmap&& l_options,
@@ -791,52 +796,3 @@ iFormulaNodeMatrixdef::iFormulaNodeMatrixdef(
   ) : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options), std::move(formulaParts), label, expr, hide) {
 }
 
-// NodeChart
-iFormulaNodeChart::iFormulaNodeChart(
-    std::shared_ptr<optionmap> g_options, std::vector<OUString>&& formulaParts,
-    const OUString& objectName, const unsigned seriesNumber, const OUString& seriesDescription,
-    const extsymbol& s, const matrix& xvalues,
-    const matrix& yvalues, const expression& yexpression
-  ) : iFormulaLine(g_options, optionmap(), std::move(formulaParts)),
-      _objectName(objectName), _seriesNumber(seriesNumber), _seriesDescription(seriesDescription),
-      _symbol(s), _xvalues(xvalues),
-      _yvalues(yvalues), _yexpression(yexpression)
-{
-  if (_yexpression.is_empty()) {
-    if (_xvalues.rows() == 0) {
-      _type = y_values;
-      in = collectSymbols(_yvalues);
-    } else {
-      _type = x_and_y_values;
-      in = collectSymbols(_xvalues);
-      std::set<ex, ex_is_less> iny = collectSymbols(_yvalues);
-      in.insert(iny.begin(), iny.end());
-    }
-  } else {
-    _type = x_values_and_y_expression;
-    in = collectSymbols(_xvalues);
-    std::set<ex, ex_is_less> ine = collectSymbols(_yexpression);
-    in.insert(ine.begin(), ine.end());
-  }
-}
-
-iFormulaLine_ptr iFormulaNodeChart::clone() const {
-  return std::make_shared<iFormulaNodeChart>(*this);
-}
-
-void iFormulaNodeChart::display(const Reference< XModel >& xModel,
-  OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) {
-  (void)prev_lhs;
-  if (isGlobalDocument(xModel)) return; // Access to chart data throws an exception for global documents
-
-  if (_type == y_values)
-    setChartData(xModel, _objectName, _yvalues, _seriesNumber);
-  else if (_type == x_and_y_values)
-    setChartData(xModel, _objectName, _xvalues, _yvalues, _seriesNumber);
-  else if (_type == x_values_and_y_expression)
-    setChartData(xModel, _objectName, _symbol, _xvalues, _yexpression, _seriesNumber);
-
-  setSeriesDescription(xModel, _objectName, _seriesDescription, _seriesNumber == 1 ? 1 : _seriesNumber - 1);
-
-  (void)unalignedText; (void)alignedText; (void)block_alignment;
-}

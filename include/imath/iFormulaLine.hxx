@@ -385,6 +385,13 @@ public:
   virtual formulaType getSelectionType() const override { return formulaTypeReadfile; }
 };
 
+class IMATH_DLLPUBLIC iFormulaNodeStmChart : public iFormulaNodeStatement {
+public:
+  iFormulaNodeStmChart(std::shared_ptr<GiNaC::optionmap> g_options, std::vector<OUString>&& formulaParts);
+  virtual OUString getCommand() const override { return OU("CHART"); }
+  virtual formulaType getSelectionType() const override { return formulaTypeChart; }
+};
+
 class IMATH_DLLPUBLIC iFormulaNodeExpression : public iFormulaLine {
 public:
   iFormulaNodeExpression(
@@ -582,39 +589,6 @@ public:
   );
 
   virtual OUString getCommand() const override { return OU("MATRIXDEF"); }
-};
-
-class IMATH_DLLPUBLIC iFormulaNodeChart : public iFormulaLine {
-public:
-  iFormulaNodeChart(
-    std::shared_ptr<GiNaC::optionmap> g_options, std::vector<OUString>&& formulaParts,
-    const OUString& objectName, const unsigned seriesNumber, const OUString& seriesDescription,
-    const GiNaC::extsymbol& _s, const GiNaC::matrix& xvalues,
-    const GiNaC::matrix& yvalues, const GiNaC::expression& yexpression
-  );
-  virtual iFormulaLine_ptr clone() const override;
-
-  virtual void display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) override;
-
-  virtual OUString getCommand() const override { return OU("CHART"); }
-  virtual formulaType getSelectionType() const override { return formulaTypeChart; }
-  virtual bool isDisplayable() const override { return true; } // Displaying the node updates the chart object
-  virtual depType dependencyType() const override { return depIn; }
-
-private:
-  enum dataType {
-    y_values,
-    x_and_y_values,
-    x_values_and_y_expression
-  } _type;
-  OUString _objectName;
-  unsigned _seriesNumber;
-  OUString _seriesDescription;
-  GiNaC::extsymbol _symbol;
-  GiNaC::matrix _xvalues;
-  GiNaC::matrix _yvalues;
-  GiNaC::expression _yexpression;
 };
 
 #endif // _IFORMULALINE_HXX

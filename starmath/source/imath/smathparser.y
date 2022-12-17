@@ -998,15 +998,20 @@ statement: OPTIONS options {
            if (include_level == 0) {
              std::vector<OUString> formulaParts =
                {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeChart>(
-               current_options, std::move(formulaParts),
-               OUS8(*$3), $13, OUS8(*$15),
-               extsymbol(), $5->info(info_flags::integer) ? matrix() : check_vector(expression(*$5 / *$7).evalm(), @5),
-               check_vector(expression(*$9 / *$11).evalm(), @9), expression()
-             ));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
+
+           if (!isGlobalDocument(formula.GetDocumentModel())) {
+             // Access to chart data throws an exception for global documents
+            if ($5->info(info_flags::integer))
+              setChartData(formula.GetDocumentModel(), OUS8(*$3), check_vector(expression(*$9 / *$11).evalm(), @9), $13);
+            else
+              setChartData(formula.GetDocumentModel(), OUS8(*$3), check_vector(expression(*$5 / *$7).evalm(), @5), check_vector(expression(*$9 / *$11).evalm(), @9), $13);
+            setSeriesDescription(formula.GetDocumentModel(), OUS8(*$3), OUS8(*$15), $13 == 1 ? 1 : $13 - 1);
+           }
+
            delete($3); delete($5); delete($7); delete($9); delete($11); delete($15);
          }
          | CHART '{' STRING ',' symbol '=' ex ',' ex ',' eq ',' ex ',' uinteger ',' STRING '}' {
@@ -1015,15 +1020,17 @@ statement: OPTIONS options {
            if (include_level == 0) {
              std::vector<OUString> formulaParts =
                {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeChart>(
-               current_options, std::move(formulaParts),
-               OUS8(*$3), $15, OUS8(*$17),
-               ex_to<extsymbol>(*$5), check_vector(expression(*$7 / *$9).evalm(), @7),
-               matrix(), subs(ex($11->rhs()) / ex(*$13), ex_to<extsymbol>(*$5) == ex_to<extsymbol>(*$5) * *$9)
-             ));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
+
+           if (!isGlobalDocument(formula.GetDocumentModel())) {
+             // Access to chart data throws an exception for global documents
+             setChartData(formula.GetDocumentModel(), OUS8(*$3), ex_to<extsymbol>(*$5), check_vector(expression(*$7 / *$9).evalm(), @7), subs(ex($11->rhs()) / ex(*$13), ex_to<extsymbol>(*$5) == ex_to<extsymbol>(*$5) * *$9), $15);
+             setSeriesDescription(formula.GetDocumentModel(), OUS8(*$3), OUS8(*$17), $15 == 1 ? 1 : $15 - 1);
+           }
+
            delete($3); delete($5); delete($7); delete($9); delete($11); delete($13);  delete($17);
          }
          | CHART '{' STRING ',' symbol '=' ex ',' ex ',' ex ',' ex ',' uinteger ',' STRING '}' {
@@ -1032,15 +1039,17 @@ statement: OPTIONS options {
            if (include_level == 0) {
              std::vector<OUString> formulaParts =
                {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
-             formula.lines.push_back(std::make_shared<iFormulaNodeChart>(
-               current_options, std::move(formulaParts),
-               OUS8(*$3), $15, OUS8(*$17),
-               ex_to<extsymbol>(*$5), check_vector(expression(*$7 / *$9).evalm(), @7),
-               matrix(), subs(*$11 / *$13, ex_to<extsymbol>(*$5) == ex_to<extsymbol>(*$5) * *$9)
-             ));
+             formula.lines.push_back(std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)));
              line = formula.lines.back();
-			 line_options = nullptr;
+             line_options = nullptr;
            }
+
+           if (!isGlobalDocument(formula.GetDocumentModel())) {
+             // Access to chart data throws an exception for global documents
+             setChartData(formula.GetDocumentModel(), OUS8(*$3), ex_to<extsymbol>(*$5), check_vector(expression(*$7 / *$9).evalm(), @7), subs(*$11 / *$13, ex_to<extsymbol>(*$5) == ex_to<extsymbol>(*$5) * *$9), $15);
+             setSeriesDescription(formula.GetDocumentModel(), OUS8(*$3), OUS8(*$17), $15 == 1 ? 1 : $15 - 1);
+           }
+
            delete($3); delete($5); delete($7); delete($9); delete($11); delete($13);  delete($17);
          }
          | SETTABLECELL '{' ex ',' ex ',' ex '}' {

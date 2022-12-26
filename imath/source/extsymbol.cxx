@@ -23,12 +23,20 @@
 
 namespace GiNaC {
 
+GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(extsymbol, symbol,
+  print_func<print_context>(&extsymbol::do_print).
+  print_func<imathprint>(&imathprint_symbol))
+
 extsymbol::extsymbol() : symbol(), _domain(domain::complex), _return_type(return_types::commutative) {
   MSG_INFO(3, "Constructing empty extsymbol" << endline);
 }
 
 extsymbol::extsymbol(const std::string & initname) : symbol(initname), _domain(domain::complex), _return_type(return_types::commutative) {
   MSG_INFO(3, "Constructing extsymbol with " << initname << endline);
+}
+
+extsymbol::extsymbol(const std::string & initname, const std::string & texname) : symbol(initname, texname), _domain(domain::complex), _return_type(return_types::commutative) {
+  MSG_INFO(3, "Constructing extsymbol with " << initname << " and textname " << texname << endline);
 }
 
 #ifdef DEBUG_CONSTR_DESTR
@@ -48,6 +56,16 @@ extsymbol::extsymbol(const std::string & initname) : symbol(initname), _domain(d
     MSG_INFO(3, "Destructing extsymbol " << name << endline);
   }
 #endif
+
+int extsymbol::compare_same_type(const basic & other) const
+{
+  return symbol::compare_same_type(other);
+}
+
+void extsymbol::do_print(const print_context & c, unsigned level) const
+{
+  symbol::do_print(c, level);
+}
 
 ex extsymbol::conjugate() const {
   if (_domain == domain::real || _domain == domain::positive)

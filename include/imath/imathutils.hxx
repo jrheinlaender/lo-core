@@ -123,153 +123,184 @@ using com::sun::star::container::XIndexAccess;
 inline rtl::OUString OU(const char* what) { return rtl::OUString::createFromAscii(what); }
 // Better use OUS8!
 /*inline const rtl::OUString OU8(const char* what) { return rtl::OUString(what, (sal_Int32)(sizeof(what)-1), RTL_TEXTENCODING_UTF8); }*/
-inline rtl::OUString OUS8(const std::string& what) { return rtl::OUString(what.c_str(), (sal_Int32)what.length(), RTL_TEXTENCODING_UTF8); }
-inline rtl::OUString OUS(const std::string& what) { return rtl::OUString::createFromAscii(what.c_str()); }
-inline std::string STR(const rtl::OUString& what) { return std::string(OUStringToOString(what, RTL_TEXTENCODING_UTF8).getStr()); }
+inline rtl::OUString OUS8(const std::string& what)
+{
+    return rtl::OUString(what.c_str(), (sal_Int32)what.length(), RTL_TEXTENCODING_UTF8);
+}
+inline rtl::OUString OUS(const std::string& what)
+{
+    return rtl::OUString::createFromAscii(what.c_str());
+}
+inline std::string STR(const rtl::OUString& what)
+{
+    return std::string(OUStringToOString(what, RTL_TEXTENCODING_UTF8).getStr());
+}
 
 /// Show a message box with the UNO based toolkit
-short ShowMessageBox(const Reference< XToolkit >& rToolkit, const Reference< XFrame >& rFrame,
-                          const OUString& aTitle, const OUString& aMsgText, const unsigned width=300,
-                          const long buttons=com::sun::star::awt::MessageBoxButtons::BUTTONS_OK);
+short ShowMessageBox(const Reference<XToolkit>& rToolkit, const Reference<XFrame>& rFrame,
+                     const OUString& aTitle, const OUString& aMsgText, const unsigned width = 300,
+                     const long buttons = com::sun::star::awt::MessageBoxButtons::BUTTONS_OK);
 
 /// Check if this document is already loaded into a top-level frame
-Reference< XModel > checkDocumentLoaded(Reference< XDesktop >& xDesktop, const OUString& URL);
+Reference<XModel> checkDocumentLoaded(Reference<XDesktop>& xDesktop, const OUString& URL);
 
 /// Load a document in the background
-Reference< XModel > loadDocument(const Reference < XDesktop >& xDesktop, const OUString& calcURL, const bool readonly);
+Reference<XModel> loadDocument(const Reference<XDesktop>& xDesktop, const OUString& calcURL,
+                               const bool readonly);
 
 // Return a system-dependant representation of the file URL
-IMATH_DLLPUBLIC OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext);
+IMATH_DLLPUBLIC OUString makeSystemPathFor(const OUString& theURL,
+                                           const Reference<XComponentContext>& xContext);
 
 /// If newURL is relative, use the given absolute URL to make a new absolute URL
-IMATH_DLLPUBLIC OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL, const Reference<XComponentContext>& xContext);
+IMATH_DLLPUBLIC OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL,
+                                    const Reference<XComponentContext>& xContext);
 
 /// Check if this is a global document
-sal_Bool isGlobalDocument(const Reference< XModel >& xModel);
+IMATH_DLLPUBLIC sal_Bool isGlobalDocument(const Reference<XModel>& xModel);
 
 /// Return the document type (currently TextDocument or Presentation)
-OUString docType(const Reference< XModel >& xModel);
+OUString docType(const Reference<XModel>& xModel);
 
 /// Create a generic dialog without reference to a component
-Reference<XDialog> createBasicDialog (const Reference < XComponentContext > &xCC, const Reference< XToolkit >& xToolkit,
-                                      const Reference< XFrame >& xFrame, const OUString &DialogURL,
-                                      const Reference< XInterface >& xHandler = Reference< XInterface >());
+Reference<XDialog>
+createBasicDialog(const Reference<XComponentContext>& xCC, const Reference<XToolkit>& xToolkit,
+                  const Reference<XFrame>& xFrame, const OUString& DialogURL,
+                  const Reference<XInterface>& xHandler = Reference<XInterface>());
 
 /// get the user selection
-Reference < XInterface > getUserSelection(const Reference < XController > &xCtrl);
-Sequence<Reference < XInterface > > getUserSelections(const Reference < XController > &xCtrl);
+Reference<XInterface> getUserSelection(const Reference<XController>& xCtrl);
+Sequence<Reference<XInterface>> getUserSelections(const Reference<XController>& xCtrl);
 
 /// Set the user selection
-void setUserSelection(const Reference < XController > &xCtrl, const Reference < XComponent >& newSelection);
+void setUserSelection(const Reference<XController>& xCtrl,
+                      const Reference<XComponent>& newSelection);
 
 /// Get the selected iFormula, return false if none is selected
 // The strict version checks whether the object is actually an iFormula
-bool getSelectedFormula(const Reference < XController >& xCtrl, Reference < XComponent >& mFormula, const bool strict = false);
+bool getSelectedFormula(const Reference<XController>& xCtrl, Reference<XComponent>& mFormula,
+                        const bool strict = false);
 
 /// Get the document URL or the title for an empty (newly created) document
 //const OUString getDocURL(const Reference< XModel >& xModel);
 
 /// Get the unique runtime ID for this document
-OUString getDocUID(const Reference< XModel >& xModel);
+OUString getDocUID(const Reference<XModel>& xModel);
 
 /// Extract the text from an edit field
-OUString getEditfield(const Sequence < PropertyValue >& lArgs);
+OUString getEditfield(const Sequence<PropertyValue>& lArgs);
 
 /// Get text at user selection
 //Reference < XText > getDocumentText(const Reference < XController > &xCtrl, Reference < XTextCursor > &xModelCursor);
 
 /// Activate embedded object (in-place)
-sal_Bool activateOLE(const Reference< XComponent >& xComponent);
+sal_Bool activateOLE(const Reference<XComponent>& xComponent);
 
 /// Check if the object is activated
-sal_Bool isOLEactivated(const Reference< XComponent >& xComponent);
+sal_Bool isOLEactivated(const Reference<XComponent>& xComponent);
 
 /// Check if any formula is open for editing
-sal_Bool formulaActive(const Reference< XModel >& xModel);
+sal_Bool formulaActive(const Reference<XModel>& xModel);
 
 /// Check if this component is a certain kind of object
-sal_Bool checkIsObject(const Reference < XComponent >& xComponent, const OUString& clsid);
-sal_Bool checkIsFormula(const Reference < XComponent >& xComponent);
-sal_Bool checkIsChart(const Reference < XComponent >& xComponent);
+sal_Bool checkIsObject(const Reference<XComponent>& xComponent, const OUString& clsid);
+sal_Bool checkIsFormula(const Reference<XComponent>& xComponent);
+sal_Bool checkIsChart(const Reference<XComponent>& xComponent);
 
 /// Check if this object is an iFormula
-sal_Bool checkIsiFormula(const Reference < XComponent >& xComponent);
+sal_Bool checkIsiFormula(const Reference<XComponent>& xComponent);
 
 /// Extract the formula model from a component. It is assumed that the component really is a formula
-IMATH_DLLPUBLIC Reference< XModel > extractModel(const Reference< XComponent >& xComponent);
+IMATH_DLLPUBLIC Reference<XModel> extractModel(const Reference<XComponent>& xComponent);
 
 /// Extract chart from component
-Reference< XChartDocument > getChart(const Reference < XComponent >& xComponent);
+Reference<XChartDocument> getChart(const Reference<XComponent>& xComponent);
 
 /// Count formulas in a presentation document
-unsigned countFormulas(const Reference< XModel >& xModel);
+unsigned countFormulas(const Reference<XModel>& xModel);
 
 /// get the formula text from the embedded formula
-OUString getFormulaText(const Reference < XModel >& fModel);
+OUString getFormulaText(const Reference<XModel>& fModel);
 
 /// set the formula text of the embedded formula
-void setFormulaText(const Reference < XModel > &fModel, const OUString &fText);
+void setFormulaText(const Reference<XModel>& fModel, const OUString& fText);
 
-void setFormulaProperty(const Reference < XModel >& fModel, const OUString &propName, const Any& prop);
+void setFormulaProperty(const Reference<XModel>& fModel, const OUString& propName, const Any& prop);
 
 /// Get the value of a formula property
-unsigned getFormulaUnsignedProperty(const Reference < XModel >& fModel, const OUString &propName);
+unsigned getFormulaUnsignedProperty(const Reference<XModel>& fModel, const OUString& propName);
 
 /// get the object's name
-OUString getObjectName(const Reference < XComponent> &comp);
+OUString getObjectName(const Reference<XComponent>& comp);
 
 /// set the object's name
-void setObjectName(const Reference < XComponent > &comp, const OUString& name);
+void setObjectName(const Reference<XComponent>& comp, const OUString& name);
 
 /// Toggle the formula's text mode
-void toggleTextMode(const Reference< XComponent >& f);
+void toggleTextMode(const Reference<XComponent>& f);
 
 /// Copy formula properties from one formula to another
-void copyProperties(const Reference< XComponent >& source, const Reference< XComponent >& target);
+void copyProperties(const Reference<XComponent>& source, const Reference<XComponent>& target);
 
 /// insert a formula and return it's model
-Reference < XComponent > insertFormula(const Reference < XModel > &xModel);
+Reference<XComponent> insertFormula(const Reference<XModel>& xModel);
 
 /// insert a chart and return it's model
-Reference < XComponent > insertChart(const Reference < XModel > &xModel, const Reference < XComponentContext > &xCC);
+Reference<XComponent> insertChart(const Reference<XModel>& xModel,
+                                  const Reference<XComponentContext>& xCC);
 
 /// Get chart properties
-Reference< XPropertySet > getChartTitleProperties(const Reference< XChartDocument >& chart);
-Reference< XPropertySet > getDiagramTitleProperties(const Reference< com::sun::star::chart2::XDiagram >& diagram);
-Reference< XPropertySet > getDiagramLegendProperties(const Reference< com::sun::star::chart2::XDiagram >& diagram);
-Sequence< Sequence< Sequence< Reference < XPropertySet > > > > getDiagramAxesProperties(const Reference< com::sun::star::chart2::XDiagram >& diagram);
-Sequence< Sequence< Sequence< Reference < XPropertySet > > > > getDiagramAxesTitleProperties(const Reference< com::sun::star::chart2::XDiagram >& diagram);
-void setDiagramAxesProperties(Reference< com::sun::star::chart2::XDiagram >& diagram, const Sequence< Sequence< Sequence< Reference < XPropertySet > > > >& props);
-void setDiagramAxesTitleProperties(Reference< com::sun::star::chart2::XDiagram >& diagram, const Sequence< Sequence< Sequence< Reference < XPropertySet > > > >& props);
+Reference<XPropertySet> getChartTitleProperties(const Reference<XChartDocument>& chart);
+Reference<XPropertySet>
+getDiagramTitleProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram);
+Reference<XPropertySet>
+getDiagramLegendProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram);
+Sequence<Sequence<Sequence<Reference<XPropertySet>>>>
+getDiagramAxesProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram);
+Sequence<Sequence<Sequence<Reference<XPropertySet>>>>
+getDiagramAxesTitleProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram);
+void setDiagramAxesProperties(Reference<com::sun::star::chart2::XDiagram>& diagram,
+                              const Sequence<Sequence<Sequence<Reference<XPropertySet>>>>& props);
+void setDiagramAxesTitleProperties(
+    Reference<com::sun::star::chart2::XDiagram>& diagram,
+    const Sequence<Sequence<Sequence<Reference<XPropertySet>>>>& props);
 
 /// Set series line properties
-void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16 series = 1,
-  const sal_uInt16 pointsize = 50, const sal_uInt16 linewidth = 50, const sal_uInt32 linecolor = 0);
+void setSeriesProperties(const Reference<XComponent>& xChart, const sal_uInt16 series = 1,
+                         const sal_uInt16 pointsize = 50, const sal_uInt16 linewidth = 50,
+                         const sal_uInt32 linecolor = 0);
 
 /// Get the chart data
-Sequence< Sequence<double> > getChartData(const Reference< XComponent >& xChart);
+Sequence<Sequence<double>> getChartData(const Reference<XComponent>& xChart);
 
 /// Get the chart data array object of a chart object
-Reference < XChartDataArray > getChartDataArray(const Reference < com::sun::star::chart2::XChartDocument >& cDoc);
+Reference<XChartDataArray>
+getChartDataArray(const Reference<com::sun::star::chart2::XChartDocument>& cDoc);
 
 /// Set a series description
-void setSeriesDescription(const Reference< XComponent >& xChart, const OUString& desc, const int idx);
-void setSeriesDescription(const Reference< XModel >& xModel, const OUString& cName, const OUString& desc, const int idx);
+void setSeriesDescription(const Reference<XComponent>& xChart, const OUString& desc, const int idx);
+IMATH_DLLPUBLIC void setSeriesDescription(const Reference<XModel>& xModel, const OUString& cName,
+                                          const OUString& desc, const int idx);
 
 /// Set an axis title
-void setTitles(const Reference< XComponent >& xChart, const OUString& main, const OUString& xAxis, const OUString& yAxis);
+void setTitles(const Reference<XComponent>& xChart, const OUString& main, const OUString& xAxis,
+               const OUString& yAxis);
 
 /// Set the data for a chart series, or add a series
-void setChartData(const Reference < XModel >& xModel, const OUString& cName, const GiNaC::matrix& yval, const unsigned iseries);
-void setChartData(const Reference < XModel >& xModel, const OUString& cName, const GiNaC::matrix& xval, const GiNaC::matrix& yval, const unsigned iseries);
-void setChartData(const Reference < XModel >& xModel, const OUString& cName,
-  const GiNaC::extsymbol& s, const GiNaC::matrix& xval, const GiNaC::expression& yexpr, const unsigned iseries);
+IMATH_DLLPUBLIC void setChartData(const Reference<XModel>& xModel, const OUString& cName,
+                                  const GiNaC::matrix& yval, const unsigned iseries);
+IMATH_DLLPUBLIC void setChartData(const Reference<XModel>& xModel, const OUString& cName,
+                                  const GiNaC::matrix& xval, const GiNaC::matrix& yval,
+                                  const unsigned iseries);
+IMATH_DLLPUBLIC void setChartData(const Reference<XModel>& xModel, const OUString& cName,
+                                  const GiNaC::extsymbol& s, const GiNaC::matrix& xval,
+                                  const GiNaC::expression& yexpr, const unsigned iseries);
 
 /// Force the diagram to update
-void forceDiagramUpdate(const Reference< XComponent >& xChart);
+void forceDiagramUpdate(const Reference<XComponent>& xChart);
 
 /// remove a formula
-void deleteFormula(const Reference < XModel > &xModel, const Reference < XComponent >& iFormula);
+void deleteFormula(const Reference<XModel>& xModel, const Reference<XComponent>& iFormula);
 
 /*
 /// get the input formulas of the user (selected original formula and operand entered into the editfield)
@@ -278,216 +309,277 @@ void getInputFormulas(const Reference < XController > &xCtrl, const Sequence < P
 */
 
 /// get an embedded object by name
-IMATH_DLLPUBLIC Reference < XComponent > getObjectByName(const Reference < XModel >& xModel, const OUString &objectName);
-Reference < XComponent > getObjectByName(const Reference< XIndexAccess > &xDrawPages, const OUString &objectName);
-Reference < XComponent > getObjectByName(const Reference < XNameAccess > &embeddedObjects, const OUString &objectName);
+IMATH_DLLPUBLIC Reference<XComponent> getObjectByName(const Reference<XModel>& xModel,
+                                                      const OUString& objectName);
+Reference<XComponent> getObjectByName(const Reference<XIndexAccess>& xDrawPages,
+                                      const OUString& objectName);
+Reference<XComponent> getObjectByName(const Reference<XNameAccess>& embeddedObjects,
+                                      const OUString& objectName);
 
 /// Get intermediate text between two formulas
 OUString getInterText(const Reference<XTextContent>& f1, const Reference<XTextContent>& f2);
 
 /// Get registry access to a certain node path
-IMATH_DLLPUBLIC Reference< XHierarchicalPropertySet > getRegistryAccess(const Reference< XComponentContext >& mxCC, const OUString& nodepath);
+IMATH_DLLPUBLIC Reference<XHierarchicalPropertySet>
+getRegistryAccess(const Reference<XComponentContext>& mxCC, const OUString& nodepath);
 
 // Change number of cached inline objects
-void setInlineCache(const Reference< XComponentContext >& mxCC, const sal_Int32 num);
+void setInlineCache(const Reference<XComponentContext>& mxCC, const sal_Int32 num);
 
 // Get number of cacheable inline objects
-sal_Int32 getInlineCache(const Reference< XComponentContext >& mxCC);
+sal_Int32 getInlineCache(const Reference<XComponentContext>& mxCC);
 
 // Check if the container has the named control
-bool hasControl(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+bool hasControl(const Reference<XControlContainer>& xControlContainer, const OUString& controlName);
 
 /// extract selections of listbox control
-Sequence<OUString> getListBoxSelections(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+Sequence<OUString> getListBoxSelections(const Reference<XControlContainer>& xControlContainer,
+                                        const OUString& controlName);
 /// extract first selection of listbox control
-OUString getFirstListBoxSelection(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+OUString getFirstListBoxSelection(const Reference<XControlContainer>& xControlContainer,
+                                  const OUString& controlName);
 
 /// extract selections of listbox control by item position (important if using translated items)
-Sequence<short> getListBoxSelectionsPos(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+Sequence<short> getListBoxSelectionsPos(const Reference<XControlContainer>& xControlContainer,
+                                        const OUString& controlName);
 
 /// extract value of text control
-OUString getTextcontrol(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+OUString getTextcontrol(const Reference<XControlContainer>& xControlContainer,
+                        const OUString& controlName);
 
 /// extract value of radio button
-sal_Bool getRadioButton(const Reference < XControlContainer >& xControlContainer, const OUString& buttonName);
+sal_Bool getRadioButton(const Reference<XControlContainer>& xControlContainer,
+                        const OUString& buttonName);
 
 /// extract the value of a check box
 // -1 is error value
-sal_Int32 getCheckBox(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+sal_Int32 getCheckBox(const Reference<XControlContainer>& xControlContainer,
+                      const OUString& controlName);
 
 /// extract value of numeric field
 // -1 is error value
-sal_Int32 getNumericFieldPosInt(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+sal_Int32 getNumericFieldPosInt(const Reference<XControlContainer>& xControlContainer,
+                                const OUString& controlName);
 
 /// extract value of numeric field
-sal_Int32 getNumericFieldInt(const Reference < XControlContainer >& xControlContainer, const OUString& controlName);
+sal_Int32 getNumericFieldInt(const Reference<XControlContainer>& xControlContainer,
+                             const OUString& controlName);
 
 /// set the value of a text control
-void setTextcontrol(const Reference< XControlContainer >& xContainer, const OUString& controlName, const OUString& text);
-void setTextcontrol(const Reference< XControlContainer >& xContainer, const OUString& controlName, const Any& value);
+void setTextcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const OUString& text);
+void setTextcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const Any& value);
 
 /// set the value of a text label
-void setLabelcontrol(const Reference< XControlContainer >& xContainer, const OUString& controlName, const OUString& text);
-void setLabelcontrol(const Reference< XControlContainer >& xContainer, const OUString& controlName, const Any& value);
+void setLabelcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                     const OUString& text);
+void setLabelcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                     const Any& value);
 
 /// set the value of a radio button
-void setRadioButton(const Reference< XControlContainer >& xContainer, const OUString& controlName, const sal_Bool value);
+void setRadioButton(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const sal_Bool value);
 
 /// set the value of a check box
-void setCheckBox(const Reference< XControlContainer >& xContainer, const OUString& controlName, const sal_Bool value);
+void setCheckBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                 const sal_Bool value);
 
 /// set the value of a numeric field (positive integer only)
-void setNumericFieldPosInt(const Reference< XControlContainer >& xContainer, const OUString& controlName, const sal_uInt32 value);
+void setNumericFieldPosInt(const Reference<XControlContainer>& xContainer,
+                           const OUString& controlName, const sal_uInt32 value);
 
 /// set the value of a numeric field (integer only)
-void setNumericFieldInt(const Reference< XControlContainer >& xContainer, const OUString& controlName, const sal_Int32 value);
+void setNumericFieldInt(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                        const sal_Int32 value);
 
 /// Select an entry in a list box
-void setListBox(const Reference< XControlContainer >& xContainer, const OUString& controlName, const OUString& itemName);
-void setListBox(const Reference< XControlContainer >& xContainer, const OUString& controlName, const short itemPos);
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const OUString& itemName);
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const short itemPos);
 /// Select multiple entries in a list box
-void setListBox(const Reference< XControlContainer >& xContainer, const OUString& controlName, const std::list<OUString>& itemNames);
-void setListBox(const Reference< XControlContainer >& xContainer, const OUString& controlName, const Sequence<short>& itemPos);
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const std::list<OUString>& itemNames);
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const Sequence<short>& itemPos);
 /// Deselect all items in a list box
-void deselectListBox(const Reference< XControlContainer >& xContainer, const OUString& controlName);
+void deselectListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName);
 
 /// Hide/Show a control in a dialog
-void showControl(const Reference< XControlContainer >& xContainer, const OUString& controlName, const bool show = true);
+void showControl(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                 const bool show = true);
 
 /// Enable/Disable a control in a dialog
-void enableControl(const Reference< XControlContainer >& xContainer, const OUString& controlName, const bool enable = true);
+void enableControl(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                   const bool enable = true);
 
 /// Move a control (relative to existing width and heigth)
-void moveControlRel(const Reference< XControlContainer >& xContainer, const OUString& controlName, const int deltaX, const int deltaY);
+void moveControlRel(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const int deltaX, const int deltaY);
 
 /// Checks if the name property of the window is one of the supported names and returns always a valid string or null
-OUString getWindowName(const Reference< XWindow >& aWindow);
+OUString getWindowName(const Reference<XWindow>& aWindow);
 
 /// Check if a user-defined document property exists
-sal_Bool propertyIs(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
+sal_Bool propertyIs(const Reference<XPropertyContainer>& xUserPropsContainer,
+                    const OUString& propName);
 /// Check if a property in the registry exists
-sal_Bool propertyIs(const Reference< XHierarchicalPropertySet >& xProperties, const OUString& propName);
+sal_Bool propertyIs(const Reference<XHierarchicalPropertySet>& xProperties,
+                    const OUString& propName);
 
 /// Get the text value of a document-specific property
-OUString getTextProperty(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
+OUString getTextProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName);
 
 /// Get the boolean value of a document-specific property
-sal_Bool getBoolProperty(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
+sal_Bool getBoolProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName);
 
 /// Get the unsigned int value of a document-specific property
 #if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_IS_AOO == 1)
-sal_Int64 getPosIntProperty(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
+sal_Int64 getPosIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                            const OUString& propName);
 #else
-sal_uInt32 getPosIntProperty(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
+sal_uInt32 getPosIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                             const OUString& propName);
 #endif
 
 /// Get the integer value of a document-specific property
-sal_Int32 getIntProperty(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
+sal_Int32 getIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName);
 
 /// Get the numeric value of a user-defined document property
-double getNumberProperty(const Reference< XPropertyContainer >& xUserPropsContainer, const OUString& propName);
+double getNumberProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName);
 
 /// Get the value of a document-specific property. Create it if it does not exist, and initialize it with the value from the registry
-IMATH_DLLPUBLIC OUString getTextProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                               const Reference<XNamedGraph>& xGraph, const Reference< XHierarchicalPropertySet >& xProperties,
-                               const OUString& userPropName, const OUString& propName);
-sal_Bool getBoolProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                               const Reference<XNamedGraph>& xGraph, const Reference< XHierarchicalPropertySet >& xProperties,
-                               const OUString& userPropName, const OUString& propName);
+IMATH_DLLPUBLIC OUString getTextProperty(const Reference<XComponentContext>& mxCC,
+                                         const Reference<XModel>& xModel,
+                                         const Reference<XNamedGraph>& xGraph,
+                                         const Reference<XHierarchicalPropertySet>& xProperties,
+                                         const OUString& userPropName, const OUString& propName);
+sal_Bool getBoolProperty(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                         const Reference<XNamedGraph>& xGraph,
+                         const Reference<XHierarchicalPropertySet>& xProperties,
+                         const OUString& userPropName, const OUString& propName);
 #if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_IS_AOO == 1)
-sal_Int64 getPosIntProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                                   const Reference<XNamedGraph>& xGraph, const Reference< XHierarchicalPropertySet >& xProperties,
-                                   const OUString& userPropName, const OUString& propName);
+sal_Int64 getPosIntProperty(const Reference<XComponentContext>& mxCC,
+                            const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                            const Reference<XHierarchicalPropertySet>& xProperties,
+                            const OUString& userPropName, const OUString& propName);
 #else
-sal_uInt32 getPosIntProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                                   const Reference<XNamedGraph>& xGraph, const Reference< XHierarchicalPropertySet >& xProperties,
-                                   const OUString& userPropName, const OUString& propName);
+sal_uInt32 getPosIntProperty(const Reference<XComponentContext>& mxCC,
+                             const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                             const Reference<XHierarchicalPropertySet>& xProperties,
+                             const OUString& userPropName, const OUString& propName);
 #endif
-sal_Int32 getIntProperty(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                               const Reference<XNamedGraph>& xGraph, const Reference< XHierarchicalPropertySet >& xProperties,
-                               const OUString& userPropName, const OUString& propName);
+sal_Int32 getIntProperty(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                         const Reference<XNamedGraph>& xGraph,
+                         const Reference<XHierarchicalPropertySet>& xProperties,
+                         const OUString& userPropName, const OUString& propName);
 
 // Extract document references from the controls of the dialog
-OUString extractReferences(const Reference< XControlContainer >& xContainer);
+OUString extractReferences(const Reference<XControlContainer>& xContainer);
 // Set dialog controls according to references listed in the string
-void setReferences(const Reference< XControlContainer >& xContainer, const OUString& references);
+void setReferences(const Reference<XControlContainer>& xContainer, const OUString& references);
 
 // Check if this formula is in a paragraph containing non-whitespace text
-bool checkTextmodeFormula(const Reference< XTextContent >& formula);
+bool checkTextmodeFormula(const Reference<XTextContent>& formula);
 
 /// Get all formulas in a text document in the order they appear in the text
 // Also count total of all XTextContent on the page for setInlineCache hack
-IMATH_DLLPUBLIC void orderXText(const Reference< XText >& xText, std::list< OUString >& formulas, unsigned& count, const Reference < XStatusIndicator >& xStatus);
+IMATH_DLLPUBLIC void orderXText(const Reference<XText>& xText, std::list<OUString>& formulas,
+                                unsigned& count, const Reference<XStatusIndicator>& xStatus);
 
-void orderPresentation(const Reference< XModel >& xModel, std::list< OUString >& formulas, unsigned& count, const Reference < XStatusIndicator >& xStatus);
+void orderPresentation(const Reference<XModel>& xModel, std::list<OUString>& formulas,
+                       unsigned& count, const Reference<XStatusIndicator>& xStatus);
 
 /// Return the content of the given DDE text field
-IMATH_DLLPUBLIC OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUString& textFieldName);
+IMATH_DLLPUBLIC OUString getTextFieldContent(const Reference<XTextDocument>& xDoc,
+                                             const OUString& textFieldName);
 
 /// Return a cell of a Writer table
-IMATH_DLLPUBLIC Reference< XCell > getTableCell(const Reference< XTextDocument >& xDoc, const OUString& tableName, const OUString& tableCellName);
+IMATH_DLLPUBLIC Reference<XCell> getTableCell(const Reference<XTextDocument>& xDoc,
+                                              const OUString& tableName,
+                                              const OUString& tableCellName);
 
 /// Return an expression from the content of the given cell. The result will be an integer, a numeric or a stringex
-IMATH_DLLPUBLIC GiNaC::expression getCellExpression(const Reference< XCell >& xCell);
+IMATH_DLLPUBLIC GiNaC::expression getCellExpression(const Reference<XCell>& xCell);
 
 /// Return the content of the given calc cell range
-IMATH_DLLPUBLIC GiNaC::expression calcCellRangeContent(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange);
+IMATH_DLLPUBLIC GiNaC::expression calcCellRangeContent(const Reference<XComponentContext>& xContext,
+                                                       const OUString& calcURL,
+                                                       const OUString& sheetName,
+                                                       const OUString& cellRange);
 
 /// Set the content of the given calc cell range to the expression (scalar, vector or matrix type must match the given cell range)
-IMATH_DLLPUBLIC void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange, const GiNaC::ex& value);
+IMATH_DLLPUBLIC void setCalcCellRange(const Reference<XComponentContext>& xContext,
+                                      const OUString& calcURL, const OUString& sheetName,
+                                      const OUString& cellRange, const GiNaC::ex& value);
 
 /// Return a cell range of a Calc document
-Reference< XColumnRowRange > getCalcCellRange(const Reference < XSpreadsheetDocument >& xCalcDoc, const OUString& sheetName, const OUString& cellRange);
+Reference<XColumnRowRange> getCalcCellRange(const Reference<XSpreadsheetDocument>& xCalcDoc,
+                                            const OUString& sheetName, const OUString& cellRange);
 
 /// Return an expression from the given calc cell range
-GiNaC::expression getCalcRangeExpression(const Reference < XColumnRowRange >& xColumnRowRange);
+GiNaC::expression getCalcRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange);
 
 /// Set the given calc cell range to the given value which may be a scalar, vector or matrix
-void setCalcCellRangeExpression(const Reference < XColumnRowRange >& xColumnRowRange, const GiNaC::expression& value);
+void setCalcCellRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange,
+                                const GiNaC::expression& value);
 
 /// Set the given cell to the given value (if it is a string formula, the formula will be interpreted)
-IMATH_DLLPUBLIC void setCellExpression(const Reference< XCell >& xCell, const GiNaC::expression& value);
+IMATH_DLLPUBLIC void setCellExpression(const Reference<XCell>& xCell,
+                                       const GiNaC::expression& value);
 
 /// Parse the content of a string (currently specific to text field content strings)
 IMATH_DLLPUBLIC GiNaC::expression getExpressionFromString(const OUString& s);
 
 /// Create the RDF graph that stores the iMath document-specific properties
-IMATH_DLLPUBLIC Reference<XNamedGraph> createGraph(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel);
+IMATH_DLLPUBLIC Reference<XNamedGraph> createGraph(const Reference<XComponentContext>& mxCC,
+                                                   const Reference<XModel>& xModel);
 
 /// Get the RDF graph that stores the iMath document-specific properties
-IMATH_DLLPUBLIC Reference<XNamedGraph> getGraph(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel);
+IMATH_DLLPUBLIC Reference<XNamedGraph> getGraph(const Reference<XComponentContext>& mxCC,
+                                                const Reference<XModel>& xModel);
 
 /// Add a statement to the graph
-void addStatement(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                  const Reference<XNamedGraph>& xGraph, const OUString& predicate, const OUString& value);
+void addStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                  const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                  const OUString& value);
 
 /// Update a statement in the graph
-void updateStatement(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                     const Reference<XNamedGraph>& xGraph, const OUString& predicate, const OUString& value);
+void updateStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                     const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                     const OUString& value);
 
 /// Check if the graph contains a statement
-bool hasStatement(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                        const Reference<XNamedGraph>& xGraph, const OUString& predicate);
+bool hasStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                  const Reference<XNamedGraph>& xGraph, const OUString& predicate);
 
 /// Retrieve the value of a statement from the graph
-OUString getStatementString(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                                  const Reference<XNamedGraph>& xGraph, const OUString& predicate);
-sal_Bool getStatementBool(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                                const Reference<XNamedGraph>& xGraph, const OUString& predicate);
-sal_uInt32 getStatementPosInt(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                                    const Reference<XNamedGraph>& xGraph, const OUString& predicate);
-sal_Int32 getStatementInt(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
-                                const Reference<XNamedGraph>& xGraph, const OUString& predicate);
+OUString getStatementString(const Reference<XComponentContext>& mxCC,
+                            const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                            const OUString& predicate);
+sal_Bool getStatementBool(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                          const Reference<XNamedGraph>& xGraph, const OUString& predicate);
+sal_uInt32 getStatementPosInt(const Reference<XComponentContext>& mxCC,
+                              const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                              const OUString& predicate);
+sal_Int32 getStatementInt(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                          const Reference<XNamedGraph>& xGraph, const OUString& predicate);
 
 // Remove a statement from the graph
-void removeStatement(const Reference< XComponentContext >& mxCC, const Reference<XModel>& xModel,
+void removeStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
                      const Reference<XNamedGraph>& xGraph, const OUString& predicate);
 
 /// Save nextnum property in user-defined document properties
 //void saveNextnum(Reference< XFrame > xFrame, sal_Int32 nextnum);
 
 /// Get the location where the package is installed
-IMATH_DLLPUBLIC OUString getPackageLocation(const Reference < XComponentContext >& mxContext, const OUString& id);
+IMATH_DLLPUBLIC OUString getPackageLocation(const Reference<XComponentContext>& mxContext,
+                                            const OUString& id);
 
 // About office decimal separator settings
 // Tools-Options-Language Settings-Language-Document language has no influence on the decimal separator!
@@ -495,7 +587,7 @@ IMATH_DLLPUBLIC OUString getPackageLocation(const Reference < XComponentContext 
 // Tools-Options-Language Settings-Language-Locale setting changes the decimal separator
 // Tools-Options-Language Settings-Language-Decimal separator key seems to have no influence?
 /// Get the local name
-IMATH_DLLPUBLIC OUString getLocaleName(const Reference< XComponentContext >& mxCC);
+IMATH_DLLPUBLIC OUString getLocaleName(const Reference<XComponentContext>& mxCC);
 
 /// Check whether the string has enclosing brackets (that is a matching pair of () at the start and end of the string)
 bool hasEnclosingBrackets(const OUString& arg);
@@ -506,7 +598,8 @@ typedef std::vector<std::string> strvec;
 IMATH_DLLPUBLIC std::string trimstring(const std::string& s);
 
 /// Replace a substring inside a string
-IMATH_DLLPUBLIC OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl);
+IMATH_DLLPUBLIC OUString replaceString(const OUString& str, const OUString& substr,
+                                       const OUString& repl);
 
 /// Split a string into a list of strings at a given boundary
 IMATH_DLLPUBLIC std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary);

@@ -458,7 +458,8 @@ void SmXMLImport::endDocument()
 
             sal_uInt32 programVersion = SM_MOD()->GetConfig()->GetDefaultImSyntaxVersion();
 
-            if (mnImSyntaxVersion < 20301 && aText.getLength() > 4 && aImText == "") {
+            if (mnImSyntaxVersion < 20301 && aText.getLength() > 4 && aImText == "")
+            {
                 // Legacy document created with iMath extension
                 SAL_INFO("starmath.imath", "Migrating legacy iMath extension document\n" << aText);
                 sal_Int32 lineIdx = 0;
@@ -470,7 +471,8 @@ void SmXMLImport::endDocument()
                         aImText += line.copy(5).trim();
                     else if (line.matchAsciiL("%%ii", 4))
                     {
-                        if (aImText.getLength() > 0) aImText += "\n";
+                        if (aImText.getLength() > 0)
+                            aImText += "\n";
                         aImText += line.copy(4).trim();
                     }
                     // TODO: Find a way to honour continuation lines
@@ -478,20 +480,31 @@ void SmXMLImport::endDocument()
 
                 mnImSyntaxVersion = programVersion;
                 SAL_INFO("starmath.imath", "Result\n'" << aImText << "'");
-            } else if (mnImSyntaxVersion < programVersion) {
+            }
+            else if (mnImSyntaxVersion < programVersion)
+            {
                 // Document has older version than program
-                SAL_INFO("starmath.imath", "Migrating document from version " << mnImSyntaxVersion << " to version " <<  programVersion);
+                SAL_INFO("starmath.imath", "Migrating document from version " << mnImSyntaxVersion
+                                                                              << " to version "
+                                                                              << programVersion);
                 //TODO: updateFromTo(mnImSyntaxVersion, programVersion);
 
                 mnImSyntaxVersion = programVersion;
-            } else if (mnImSyntaxVersion > programVersion) {
+            }
+            else if (mnImSyntaxVersion > programVersion)
+            {
                 // Document has newer version than program
                 // TODO: This is untested
-                std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(nullptr, VclMessageType::Error, VclButtonsType::Ok, SmResId(RID_STR_IMATHVERSIONTOOLOW)));
+                std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(
+                    nullptr, VclMessageType::Error, VclButtonsType::Ok,
+                    SmResId(RID_STR_IMATHVERSIONTOOLOW)));
                 xInfoBox->run();
             }
 
-            if (aImText.getLength() > 0) pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
+            if (aImText.getLength() > 0)
+                pDocShell->SetImText(
+                    aImText,
+                    false); // Set text but don't compile, because document is not fully initialized yet
         }
         OSL_ENSURE(pModel, "So there *was* a UNO problem after all");
 
@@ -1229,11 +1242,11 @@ void SmXMLAnnotationContext_Impl::startFastElement(
         {
             case XML_ENCODING:
                 if (aIter.toView().substr(0, 5) == "iMath")
-                    mnIMathVersion
-                        = std::stoi(std::string(aIter.toView().substr(6)));
+                    mnIMathVersion = std::stoi(std::string(aIter.toView().substr(6)));
                 else
-                    mnStarMathVersion
-                        = aIter.toView() == "StarMath 5.0" ? 5 : aIter.toView() == "StarMath 6" ? 6 : 0;
+                    mnStarMathVersion = aIter.toView() == "StarMath 5.0"
+                                            ? 5
+                                            : aIter.toView() == "StarMath 6" ? 6 : 0;
                 break;
             default:
                 XMLOFF_WARN_UNKNOWN("starmath", aIter);

@@ -145,7 +145,7 @@ IMATH_DLLPUBLIC OUString makeSystemPathFor(const OUString& theURL, const Referen
 IMATH_DLLPUBLIC OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL, const Reference<XComponentContext>& xContext);
 
 /// Check if this is a global document
-sal_Bool isGlobalDocument(const Reference< XModel >& xModel);
+IMATH_DLLPUBLIC sal_Bool isGlobalDocument(const Reference< XModel >& xModel);
 
 /// Return the document type (currently TextDocument or Presentation)
 OUString docType(const Reference< XModel >& xModel);
@@ -254,15 +254,15 @@ Reference < XChartDataArray > getChartDataArray(const Reference < com::sun::star
 
 /// Set a series description
 void setSeriesDescription(const Reference< XComponent >& xChart, const OUString& desc, const int idx);
-void setSeriesDescription(const Reference< XModel >& xModel, const OUString& cName, const OUString& desc, const int idx);
+IMATH_DLLPUBLIC void setSeriesDescription(const Reference< XModel >& xModel, const OUString& cName, const OUString& desc, const int idx);
 
 /// Set an axis title
 void setTitles(const Reference< XComponent >& xChart, const OUString& main, const OUString& xAxis, const OUString& yAxis);
 
 /// Set the data for a chart series, or add a series
-void setChartData(const Reference < XModel >& xModel, const OUString& cName, const GiNaC::matrix& yval, const unsigned iseries);
-void setChartData(const Reference < XModel >& xModel, const OUString& cName, const GiNaC::matrix& xval, const GiNaC::matrix& yval, const unsigned iseries);
-void setChartData(const Reference < XModel >& xModel, const OUString& cName,
+IMATH_DLLPUBLIC void setChartData(const Reference < XModel >& xModel, const OUString& cName, const GiNaC::matrix& yval, const unsigned iseries);
+IMATH_DLLPUBLIC void setChartData(const Reference < XModel >& xModel, const OUString& cName, const GiNaC::matrix& xval, const GiNaC::matrix& yval, const unsigned iseries);
+IMATH_DLLPUBLIC void setChartData(const Reference < XModel >& xModel, const OUString& cName,
   const GiNaC::extsymbol& s, const GiNaC::matrix& xval, const GiNaC::expression& yexpr, const unsigned iseries);
 
 /// Force the diagram to update

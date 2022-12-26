@@ -25,6 +25,7 @@
 #include "funcmgr.hxx"
 #endif
 #include "exderivative.hxx"
+#include "hardfuncs.hxx"
 
 using namespace GiNaC;
 
@@ -139,33 +140,34 @@ Functionmanager::Functionmanager() {
       {"Im",     {function::find_function("imag_part", 1), {x}, true, empty, FUNCHINT_LIB,                "Im"}},
       {"conjugate",{function::find_function("conjugate",1),{x}, true, empty, FUNCHINT_LIB,                "conjugate"}},
       // Hard-coded functions that come with iMath
-      {"ceil",     {function::find_function("ceil",     2), {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ceil"}},
-      {"concat",   {function::find_function("concat",   2), {v1, v2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "concat"}},
-      {"floor",    {function::find_function("floor",    2), {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "floor"}},
-      {"hadamard", {function::find_function("hadamard", 3), {m1, m2, n1}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "hadamard"}},
-      {"ifelse",   {function::find_function("ifelse",   3), {x,  e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ifelse"}},
-      {"mindex",   {function::find_function("mindex",   3), {m1, e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "mindex"}},
-      {"round",    {function::find_function("round",    2), {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "round"}},
-      {"scalprod", {function::find_function("scalprod", 2), {v1, v2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "scalprod"}},
-      {"sum",      {function::find_function("sum",      3), {e1, e2, x},  true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "sum"}},
-      {"transpose",{function::find_function("transpose",1), {m1},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "transpose"}},
-      {"vecprod",  {function::find_function("vecprod",  2), {v1, v2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "vecprod"}},
-      {"vmax",     {function::find_function("vmax",     1), {v1},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "vmax"}},
-      {"vmin",     {function::find_function("vmin",     1), {v2},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "vmin"}},
+      // Note: These reference the serial directly because otherwise MSVC excludes REGISTER_FUNCTION from the library
+      {"ceil",     {ceil_SERIAL::serial,     {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ceil"}},
+      {"concat",   {concat_SERIAL::serial,   {v1, v2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "concat"}},
+      {"floor",    {floor_SERIAL::serial,    {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "floor"}},
+      {"hadamard", {hadamard_SERIAL::serial, {m1, m2, n1}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "hadamard"}},
+      {"ifelse",   {ifelse_SERIAL::serial,   {x,  e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ifelse"}},
+      {"mindex",   {mindex_SERIAL::serial,   {m1, e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "mindex"}},
+      {"round",    {round_SERIAL::serial,    {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "round"}},
+      {"scalprod", {scalprod_SERIAL::serial, {v1, v2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "scalprod"}},
+      {"sum",      {sum_SERIAL::serial,      {e1, e2, x},  true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "sum"}},
+      {"transpose",{transpose_SERIAL::serial,{m1},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "transpose"}},
+      {"vecprod",  {vecprod_SERIAL::serial,  {v1, v2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "vecprod"}},
+      {"vmax",     {vmax_SERIAL::serial,     {v1},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "vmax"}},
+      {"vmin",     {vmin_SERIAL::serial,     {v2},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "vmin"}},
       // Hard-coded matrix functions from GiNaC matrix.h
-      {"charpoly",     {function::find_function("charpoly",     2), {m1, v1},             true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "charpoly"}},
-      {"det",          {function::find_function("determinant",  1), {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "det"}},
-      {"diag",         {function::find_function("diagmatrix",   1), {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "diag"}},
-      {"ident",        {function::find_function("identmatrix",  2), {e1, e2},             true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ident"}},
-      {"invertmatrix", {function::find_function("invertmatrix", 1), {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "invertmatrix"}},
-      {"matrixcols",   {function::find_function("matrixcols",   1), {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "matrixcols"}},
-      {"matrixrows",   {function::find_function("matrixrows",   1), {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "matrixrows"}},
-      {"ones",         {function::find_function("onesmatrix",   2), {e1, e2},             true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ones"}},
-      {"rank",         {function::find_function("rank",         1), {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "rank"}},
-      {"reducematrix", {function::find_function("reducematrix", 3), {m1, e1, e2},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "reducematrix"}},
-      {"solvematrix",  {function::find_function("solvematrix",  3), {m1, v1, e1},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "solvematrix"}},
-      {"submatrix",    {function::find_function("submatrix",    5), {m1, e1, n1, e2, n2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "submatrix"}},
-      {"tr",           {function::find_function("trace",        1), {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "tr"}}
+      {"charpoly",     {charpoly_SERIAL::serial,     {m1, v1},             true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "charpoly"}},
+      {"det",          {determinant_SERIAL::serial,  {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "det"}},
+      {"diag",         {diagmatrix_SERIAL::serial,   {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "diag"}},
+      {"ident",        {identmatrix_SERIAL::serial,  {e1, e2},             true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ident"}},
+      {"invertmatrix", {invertmatrix_SERIAL::serial, {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "invertmatrix"}},
+      {"matrixcols",   {matrixcols_SERIAL::serial,   {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "matrixcols"}},
+      {"matrixrows",   {matrixrows_SERIAL::serial,   {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "matrixrows"}},
+      {"ones",         {onesmatrix_SERIAL::serial,   {e1, e2},             true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ones"}},
+      {"rank",         {rank_SERIAL::serial,         {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "rank"}},
+      {"reducematrix", {reducematrix_SERIAL::serial, {m1, e1, e2},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "reducematrix"}},
+      {"solvematrix",  {solvematrix_SERIAL::serial,  {m1, v1, e1},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "solvematrix"}},
+      {"submatrix",    {submatrix_SERIAL::serial,    {m1, e1, n1, e2, n2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "submatrix"}},
+      {"tr",           {trace_SERIAL::serial,        {m1},                 true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "tr"}}
       // TODO: complete this list both from the list of functions starmath recognizes and the list of functions GiNaC has built-in
       // TODO: atan2, arg, binom/binomial, csgn, deg, dim, gcd, hom, inf, ker, lg, lim, liminf, limsup, max (see vmax), min (see vmin), Pr, sup, step
     };

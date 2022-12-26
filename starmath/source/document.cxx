@@ -115,6 +115,7 @@ using namespace ::com::sun::star::uno;
 #include <imath/settingsmanager.hxx>
 #include <imath/alignblock.hxx>
 #include <imath/funcmgr.hxx>
+#include <imath/imathutils.hxx>
 
 #ifdef _MSC_VER
 // Avoid including <imath/func.hxx> because MSVC makes trouble with the IMATH_DLLPUBLIC and inheritance from GiNaC::container
@@ -600,7 +601,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         return "Recalculation error in iMath include files\n" + e.Message;
     } catch (std::exception &e) {
         // TODO: Show error message to user with parser location
-        SAL_WARN("starmath.imath", "std::exception thrown while recalculating iMath include files\n" << OUS8(e.what()));
+        SAL_WARN_LEVEL(-1, "starmath.imath", "std::exception thrown while recalculating iMath include files\n" << OUS8(e.what()));
         return "Recalculation error in iMath include files\n" + OUS8(e.what());
     }
 
@@ -1260,7 +1261,7 @@ void SmDocShell::ImStaticInitialization() {
     Reference<XComponentContext> xContext = comphelper::getProcessComponentContext();
     OUString iMathExtLocation = getPackageLocation(xContext, "de.gmx.rheinlaender.jan.imath");
     if (iMathExtLocation.getLength() > 0) {
-        SAL_WARN("starmath.imath", "ERROR: iMath extension found");
+        SAL_WARN_LEVEL(-1, "starmath.imath", "ERROR: iMath extension found");
         std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(nullptr, VclMessageType::Error, VclButtonsType::Ok, SmResId(RID_STR_IMATHEXTENSIONFOUND)));
         xInfoBox->run();
         mImBlocked = true; // This will block execution of ::Compile() to avoid problems with CLN and GiNaC

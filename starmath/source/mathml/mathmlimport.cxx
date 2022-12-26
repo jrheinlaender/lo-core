@@ -491,7 +491,8 @@ void SmXMLImport::endDocument()
                 xInfoBox->run();
             }
 
-            if (aImText.getLength() > 0) pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
+            if (aImText.getLength() > 0)
+                pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
         }
         OSL_ENSURE(pModel, "So there *was* a UNO problem after all");
 

@@ -123,6 +123,8 @@
 #include <formatcontentcontrol.hxx>
 #include <textcontentcontrol.hxx>
 
+#include <logging.hxx>
+
 using namespace sw::mark;
 using namespace com::sun::star;
 namespace {
@@ -562,7 +564,7 @@ bool SwWrtShell::InsertOleObject( const svt::EmbeddedObjectRef& xRef, SwFlyFrame
 
             if( !aMathData.isEmpty() && svt::EmbeddedObjectRef::TryRunningState( xRef.GetObject() ) )
             {
-                SAL_INFO("sw.imath", "New Math object inserted from selection");
+                SAL_INFO_LEVEL(2, "sw.imath", "New Math object inserted from selection");
 
                 uno::Reference < beans::XPropertySet > xSet( xRef->getComponent(), uno::UNO_QUERY );
                 if ( xSet.is() )
@@ -579,7 +581,7 @@ bool SwWrtShell::InsertOleObject( const svt::EmbeddedObjectRef& xRef, SwFlyFrame
 
                         // Note: It is not possible to compile the formula and recalculate the document at this point, because the fly frame
                         // does not appear to be positioned yet, so that it is not possible to discover the previous iFormula
-                        SAL_INFO("sw.imath", "Setting formula text but delaying compile");
+                        SAL_INFO_LEVEL(2, "sw.imath", "Setting formula text but delaying compile");
                         xSet->setPropertyValue(u"PreviousIFormula"_ustr, uno::makeAny(OUString("_IMATH_UNDEFINED_"))); // Does not trigger compile, because formula text is empty
                         xSet->setPropertyValue(u"iFormula"_ustr, uno::makeAny(iFormulaText)); // Would trigger compile only when previous iFormula is defined
 
@@ -597,7 +599,7 @@ bool SwWrtShell::InsertOleObject( const svt::EmbeddedObjectRef& xRef, SwFlyFrame
     {
         if ( bStarMath && svt::EmbeddedObjectRef::TryRunningState( xRef.GetObject() ) )
         {
-            SAL_INFO("sw.imath", "New Math object inserted");
+            SAL_INFO_LEVEL(2, "sw.imath", "New Math object inserted");
 
             uno::Reference < beans::XPropertySet > xSet( xRef->getComponent(), uno::UNO_QUERY );
             if ( xSet.is() )

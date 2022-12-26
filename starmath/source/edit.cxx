@@ -190,6 +190,10 @@ ImEditWindow::ImEditWindow(SmCmdBoxWindow &rMyCmdBoxWin, weld::Builder& rBuilder
     : AbstractEditWindow(rMyCmdBoxWin, rBuilder, "iscrolledwindow")
 {
     CreateEditView(rBuilder);
+    EditEngine *pEditEngine = const_cast< ImEditWindow* >(this)->GetEditEngine();
+    OSL_ENSURE( pEditEngine, "EditEngine missing" );
+    if (pEditEngine && pEditEngine->GetTextLen() > 0)
+        mxNotebook->set_current_page(1);
 }
 
 ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE

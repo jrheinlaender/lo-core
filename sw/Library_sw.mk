@@ -100,7 +100,8 @@ $(eval $(call gb_Library_use_externals,sw,\
 	icuuc \
 	icu_headers \
 	libxml2 \
-        ginac \
+	cln \
+	ginac \
 ))
 
 ifneq ($(ENABLE_WASM_STRIP_ACCESSIBILITY),TRUE)

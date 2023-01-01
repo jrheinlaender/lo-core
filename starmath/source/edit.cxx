@@ -601,6 +601,18 @@ void AbstractEditWindow::GrabFocus()
     mxTextControl->GrabFocus();
 }
 
+void SmEditWindow::GrabFocus()
+{
+    mxNotebook->set_current_page(0);
+    AbstractEditWindow::GrabFocus();
+}
+
+void ImEditWindow::GrabFocus()
+{
+    mxNotebook->set_current_page(1);
+    AbstractEditWindow::GrabFocus();
+}
+
 bool AbstractEditWindow::HasFocus() const
 {
     if (!mxTextControl)

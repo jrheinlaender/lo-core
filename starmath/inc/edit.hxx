@@ -125,7 +125,7 @@ public:
     void SetText(const OUString& rText);
     OUString GetText() const;
     void Flush();
-    void GrabFocus();
+    virtual void GrabFocus();
     bool HasFocus() const;
     // Is the page of this view current in the notebook?
     virtual bool IsCurrent() const = 0;
@@ -172,6 +172,8 @@ public:
 
     EditEngine* GetEditEngine() override;
 
+    void GrabFocus() override;
+
     bool IsImWindow() const override { return false; }
     bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == 0) : true; }
 };
@@ -186,6 +188,8 @@ public:
     virtual ~ImEditWindow() COVERITY_NOEXCEPT_FALSE override;
 
     EditEngine* GetEditEngine() override;
+
+    void GrabFocus() override;
 
     bool IsImWindow() const override { return true; }
     bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == 1) : false; }

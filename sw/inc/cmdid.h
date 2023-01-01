@@ -54,6 +54,7 @@ class SwUINumRuleItem;
 #define FN_SIDEBAR              (SID_SW_START + 2550)
 #define FN_HEADERFOOTER         (SID_SW_START + 2600)
 #define FN_PAGEBREAK            (SID_SW_START + 2610)
+#define FN_IMATH                (SID_SW_START + 9000)
 
  /* More accurately, this range should be from FN_EXTRA2 to FN_PARAM2-1, but
  * FN_NUMBER_NEWSTART comes from FN_FORMAT2, and FN_PARAM_LINK_DISPLAY_NAME
@@ -910,6 +911,8 @@ class SwUINumRuleItem;
 #define SID_ATTR_PAGE_FOOTER_SPACING    TypedWhichId<SvxLongULSpaceItem>(FN_SIDEBAR + 9)
 #define SID_ATTR_PAGE_FOOTER_LAYOUT     TypedWhichId<SfxInt16Item>(FN_SIDEBAR + 10)
 #define SID_ATTR_PAGE_MARGIN            (FN_SIDEBAR + 11)
+
+#define FN_IMATH_INSERT_CREATE          (FN_IMATH + 0) /* Insert-create iFormula */
 
 //Member IDs for Fill / SetVariable of items
 #define         MID_STYLE       0xe0

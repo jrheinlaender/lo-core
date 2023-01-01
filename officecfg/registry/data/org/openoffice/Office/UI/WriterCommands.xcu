@@ -4271,6 +4271,24 @@
           <value>1</value>
         </prop>
       </node>
+      <node oor:name=".uno:iMathMenu" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iMath</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertMenu" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Insert</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertCreate" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iFormula</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertCreate</value>
+        </prop>
+      </node>
     </node>
   </node>
 </oor:component-data>

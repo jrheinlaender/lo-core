@@ -3427,6 +3427,24 @@ SfxVoidItem InsertObjectStarMath FN_INSERT_SMA
     GroupId = SfxGroupId::Insert;
 ]
 
+SfxVoidItem iMathInsertCreate FN_IMATH_INSERT_CREATE
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+    Asynchron;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Insert;
+]
+
 SfxVoidItem InsertPagebreak FN_INSERT_PAGEBREAK
 ()
 [

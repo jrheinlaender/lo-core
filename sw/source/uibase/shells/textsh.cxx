@@ -93,6 +93,8 @@
 
 using namespace ::com::sun::star;
 
+#include <logging.hxx>
+
 SFX_IMPL_INTERFACE(SwTextShell, SwBaseShell)
 
 IMPL_STATIC_LINK( SwTextShell, DialogClosedHdl, css::ui::dialogs::DialogClosedEvent*, pEvent, void )
@@ -425,6 +427,28 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
             rSh.InsertObject( svt::EmbeddedObjectRef(), &aGlobalName );
         }
         break;
+    case FN_IMATH_INSERT_CREATE:
+        {
+            GetView().GetEditWin().StopQuickHelp();
+            SvGlobalName aGlobalName( SO3_SM_CLASSID );
+            rSh.InsertObject( svt::EmbeddedObjectRef(), &aGlobalName );
+            rSh.LaunchOLEObj();
+            svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+            if(xObj.is())
+            {
+                SAL_INFO_LEVEL(2, "sw.imath", "New iFormula inserted");
+
+                uno::Reference < beans::XPropertySet > xSet( xObj->getComponent(), uno::UNO_QUERY );
+                if ( xSet.is() )
+                {
+                    xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_"))); // Prepare for user entry into iMath tab of the formula
+                    // Note: If the iFormula property is empty, orderXText does not include this formula and thus the previous formula is not set and starmath::document::Compile() exits
+                    xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@Einstein@ EQDEF E = m c^2")));
+                }
+            }
+        }
+        break;
 
     case FN_INSERT_TABLE:
         InsertTable( rReq );
@@ -649,6 +673,7 @@ void SwTextShell::StateInsert( SfxItemSet &rSet )
             break;
 
             case FN_INSERT_SMA:
+            case FN_IMATH_INSERT_CREATE:
                 if( !aMOpt.IsMath()
                     || eCreateMode == SfxObjectCreateMode::EMBEDDED
                     || bCursorInHidden

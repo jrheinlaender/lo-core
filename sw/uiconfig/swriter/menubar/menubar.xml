@@ -675,6 +675,13 @@
       <menu:menuitem menu:id=".uno:TableDialog"/>
     </menu:menupopup>
   </menu:menu>
+  <menu:menu menu:id=".uno:iMathMenu">
+    <menu:menupopup>
+      <menu:menu menu:id=".uno:iMathInsertMenu">
+        <menu:menupopup>
+          <menu:menuitem menu:id=".uno:iMathInsertCreate"/>
+        </menu:menupopup>
+      </menu:menu>
   <menu:menu menu:id=".uno:FormatFormMenu">
     <menu:menupopup>
       <menu:menuitem menu:id=".uno:SwitchControlDesignMode"/>

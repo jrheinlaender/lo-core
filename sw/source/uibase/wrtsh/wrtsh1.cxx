@@ -595,27 +595,6 @@ bool SwWrtShell::InsertOleObject( const svt::EmbeddedObjectRef& xRef, SwFlyFrame
         }
         DelRight();
     }
-    else
-    {
-        if ( bStarMath && svt::EmbeddedObjectRef::TryRunningState( xRef.GetObject() ) )
-        {
-            SAL_INFO_LEVEL(2, "sw.imath", "New Math object inserted");
-
-            uno::Reference < beans::XPropertySet > xSet( xRef->getComponent(), uno::UNO_QUERY );
-            if ( xSet.is() )
-            {
-                try
-                {
-                    xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_"))); // Prepare for user entry into iMath tab of the formula
-                    // Note: If the iFormula property is empty, orderXText does not include this formula and thus the previous formula is not set and starmath::document::Compile() exits
-                    xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@Einstein@ EQDEF E = m c^2")));
-                }
-                catch (const uno::Exception&)
-                {
-                }
-            }
-        }
-    }
 
     if ( !bStarMath )
         SwFEShell::SplitNode( false, false );

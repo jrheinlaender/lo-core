@@ -482,20 +482,28 @@ OUString SmDocShell::ImInitializeCompiler() {
 
     // Check for stand-alone formula or part of Text / Presentation
     Reference<container::XChild> xChild(GetModel(), UNO_QUERY_THROW);
-    Reference<XModel> xParent(xChild->getParent(), UNO_QUERY_THROW);
+    Reference<XModel> xParent(xChild->getParent(), UNO_QUERY);
     Reference<XModel> xModel;
-    Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
-    Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY); // TODO: Implement functionality for Impress
 
-    if (xTextDoc.is()) {
-        SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Writer document");
-        xModel = xParent;
-    } else if (xPresDoc.is()) {
-        SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Impress document");
-        xModel = xParent;
-    } else {
+    if (!xParent.is())
+    {
         SAL_INFO_LEVEL(1, "starmath.imath", "Detected Starmath document");
         xModel = GetBaseModel();
+    }
+    else
+    {
+        Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
+        Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY); // TODO: Implement functionality for Impress
+
+        if (xTextDoc.is()) {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Writer document");
+            xModel = xParent;
+        } else if (xPresDoc.is()) {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Impress document");
+            xModel = xParent;
+        } else {
+            SAL_WARN("starmath.imath", "Unknown document type");
+        }
     }
 
     // Get access to the RDF graph that contains the document-specific options. Create one if it doesn't exist

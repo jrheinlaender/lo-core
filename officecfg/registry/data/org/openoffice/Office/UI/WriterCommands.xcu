@@ -4289,6 +4289,38 @@
           <value>.uno:iMathInsertCreate</value>
         </prop>
       </node>
+      <node oor:name=".uno:iMathInsertFunction" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Function</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertFunction</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertVector" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Vector</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertVector</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertMatrix" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Matrix</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertMatrix</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertUnit" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Function</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertUnit</value>
+        </prop>
+      </node>
     </node>
   </node>
 </oor:component-data>

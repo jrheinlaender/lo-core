@@ -428,6 +428,10 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
         }
         break;
     case FN_IMATH_INSERT_CREATE:
+    case FN_IMATH_INSERT_FUNCTION:
+    case FN_IMATH_INSERT_MATRIX:
+    case FN_IMATH_INSERT_VECTOR:
+    case FN_IMATH_INSERT_UNIT:
         {
             GetView().GetEditWin().StopQuickHelp();
             SvGlobalName aGlobalName( SO3_SM_CLASSID );
@@ -443,8 +447,36 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                 if ( xSet.is() )
                 {
                     xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_"))); // Prepare for user entry into iMath tab of the formula
-                    // Note: If the iFormula property is empty, orderXText does not include this formula and thus the previous formula is not set and starmath::document::Compile() exits
-                    xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@Einstein@ EQDEF E = m c^2")));
+
+                    switch( nSlot )
+                    {
+                        case FN_IMATH_INSERT_CREATE:
+                        {
+                            // Note: If the iFormula property is empty, orderXText does not include this formula and thus the previous formula is not set and starmath::document::Compile() exits
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@Einstein@ EQDEF E = m c^2")));
+                        }
+                        break;
+                        case FN_IMATH_INSERT_FUNCTION:
+                        {
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("FUNCTION {{none}, f, x}\n@func@ FUNCDEF f(x) = a + x")));
+                        }
+                        break;
+                        case FN_IMATH_INSERT_MATRIX:
+                        {
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@matrix@ MATRIXDEF M = left(MATRIX{ a # b # c ## d # e # f ## g# h# i }right)")));
+                        }
+                        break;
+                        case FN_IMATH_INSERT_VECTOR:
+                        {
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@vector@ VECTORDEF v = left(STACK{ a # b # c }right)")));
+                        }
+                        break;
+                        case FN_IMATH_INSERT_UNIT:
+                        {
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("UNITDEF { \"\", %mm = 10^{-3} %metre }")));
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -674,6 +706,10 @@ void SwTextShell::StateInsert( SfxItemSet &rSet )
 
             case FN_INSERT_SMA:
             case FN_IMATH_INSERT_CREATE:
+            case FN_IMATH_INSERT_FUNCTION:
+            case FN_IMATH_INSERT_MATRIX:
+            case FN_IMATH_INSERT_VECTOR:
+            case FN_IMATH_INSERT_UNIT:
                 if( !aMOpt.IsMath()
                     || eCreateMode == SfxObjectCreateMode::EMBEDDED
                     || bCursorInHidden

@@ -54,7 +54,7 @@ class SwUINumRuleItem;
 #define FN_SIDEBAR              (SID_SW_START + 2550)
 #define FN_HEADERFOOTER         (SID_SW_START + 2600)
 #define FN_PAGEBREAK            (SID_SW_START + 2610)
-#define FN_IMATH                (SID_SW_START + 9000)
+#define FN_IMATH                (SID_SW_START + 5000) // SID_SW_END 25999 see include/svl/solar.hrc
 
  /* More accurately, this range should be from FN_EXTRA2 to FN_PARAM2-1, but
  * FN_NUMBER_NEWSTART comes from FN_FORMAT2, and FN_PARAM_LINK_DISPLAY_NAME

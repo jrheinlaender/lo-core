@@ -446,29 +446,43 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                 uno::Reference < beans::XPropertySet > xSet( xObj->getComponent(), uno::UNO_QUERY );
                 if ( xSet.is() )
                 {
-                    xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_"))); // Prepare for user entry into iMath tab of the formula
+                    // Note: It is not possible to compile the formula and recalculate the document at this point, because the fly frame
+                    // does not appear to be positioned yet, so that it is not possible to discover the previous iFormula
+                    // TODO: This was true when the code was located in SwWrtShell::InsertOleObject() but is it true here?
+                    SAL_INFO_LEVEL(2, "sw.imath", "Setting formula text but delaying compile");
+                    xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_"))); // Does not trigger compile, because formula text is empty
+
+                    OUString formulaLabel = "@" + OUString::number(GetView().GetDocShell()->GetNextIFormulaNumber()) + "@";
+                    OUString aText;
+                    xSet->getPropertyValue("Formula") >>= aText; // SwWrtShell::InsertOleObject() puts the selected text into this property (see wrtsh1.cxx)
+                    if (aText.getLength() == 0) aText = "E = m c^2";
+                    xSet->setPropertyValue("Formula", uno::makeAny(OUString()));
 
                     switch( nSlot )
                     {
                         case FN_IMATH_INSERT_CREATE:
                         {
-                            // Note: If the iFormula property is empty, orderXText does not include this formula and thus the previous formula is not set and starmath::document::Compile() exits
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@Einstein@ EQDEF E = m c^2")));
+                            if (aText.indexOfAsciiL("=", 1) > 0)
+                                xSet->setPropertyValue("iFormula", uno::makeAny(formulaLabel + " EQDEF " + aText));
+                            else
+                                xSet->setPropertyValue("iFormula", uno::makeAny("EXDEF " + aText));
                         }
                         break;
                         case FN_IMATH_INSERT_FUNCTION:
                         {
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("FUNCTION {{none}, f, x}\n@func@ FUNCDEF f(x) = a + x")));
+                            auto eq_idx = aText.indexOfAsciiL("=", 1);
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("FUNCTION {{none}, f, x}\n" + formulaLabel + " FUNCDEF f(x) = " + (eq_idx == 0 ? aText : aText.copy(eq_idx + 1)))));
                         }
                         break;
+                        // Note: All the following discard any selected text that might have been replaced by the formula
                         case FN_IMATH_INSERT_MATRIX:
                         {
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@matrix@ MATRIXDEF M = left(MATRIX{ a # b # c ## d # e # f ## g# h# i }right)")));
+                            xSet->setPropertyValue("iFormula", uno::makeAny(formulaLabel + " MATRIXDEF M = left(MATRIX{ a # b # c ## d # e # f ## g# h# i }right)"));
                         }
                         break;
                         case FN_IMATH_INSERT_VECTOR:
                         {
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("@vector@ VECTORDEF v = left(STACK{ a # b # c }right)")));
+                            xSet->setPropertyValue("iFormula", uno::makeAny(formulaLabel + " VECTORDEF v = left(STACK{ a # b # c }right)"));
                         }
                         break;
                         case FN_IMATH_INSERT_UNIT:

@@ -913,6 +913,7 @@ class SwUINumRuleItem;
 #define SID_ATTR_PAGE_MARGIN            (FN_SIDEBAR + 11)
 
 #define FN_IMATH_INSERT_CREATE          (FN_IMATH + 0) /* Insert-create iFormula */
+#define FN_IMATH_INSERT_CONVERT         (FN_IMATH + 2) /* Insert-convert iFormula */
 #define FN_IMATH_INSERT_FUNCTION        (FN_IMATH + 3) /* Insert iMath function */
 #define FN_IMATH_INSERT_MATRIX          (FN_IMATH + 4) /* Insert iMath matrix */
 #define FN_IMATH_INSERT_VECTOR          (FN_IMATH + 5) /* Insert iMath vector */

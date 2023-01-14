@@ -3445,6 +3445,24 @@ SfxVoidItem iMathInsertCreate FN_IMATH_INSERT_CREATE
     GroupId = SfxGroupId::Insert;
 ]
 
+SfxVoidItem iMathInsertConvert FN_IMATH_INSERT_CONVERT
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+    Asynchron;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Format;
+]
+
 SfxVoidItem iMathInsertFunction FN_IMATH_INSERT_FUNCTION
 ()
 [

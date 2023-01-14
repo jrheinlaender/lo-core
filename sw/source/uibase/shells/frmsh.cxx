@@ -25,6 +25,7 @@
 #include <basic/sbstar.hxx>
 #include <svl/ptitem.hxx>
 #include <svl/stritem.hxx>
+#include <unotools/moduleoptions.hxx>
 #include <svl/intitem.hxx>
 #include <svl/eitem.hxx>
 #include <editeng/colritem.hxx>
@@ -74,6 +75,10 @@
 #include <grfatr.hxx>
 #include <fldmgr.hxx>
 #include <flyfrm.hxx>
+
+#include <svtools/embedhlp.hxx>
+#include <com/sun/star/beans/XPropertySet.hpp>
+#include <logging.hxx>
 
 using ::editeng::SvxBorderLine;
 using namespace ::com::sun::star;
@@ -716,6 +721,33 @@ void SwFrameShell::Execute(SfxRequest &rReq)
             }
         }
         break;
+        case FN_IMATH_INSERT_CONVERT:
+            {
+                svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+                if(xObj.is())
+                {
+                    SAL_INFO_LEVEL(2, "sw.imath", "Convert to iFormula");
+                    rSh.LaunchOLEObj();
+
+                    uno::Reference < beans::XPropertySet > xSet( xObj->getComponent(), uno::UNO_QUERY );
+                    if ( xSet.is() )
+                    {
+                        // Note: The PreviousIFormula property should have been set when the Math object was inserted
+                        OUString aText;
+                        xSet->getPropertyValue("PreviousIFormula") >>= aText;
+                        if (aText.getLength() == 0)
+                            xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_")));
+
+                        xSet->getPropertyValue("Formula") >>= aText;
+                        if (aText.indexOfAsciiL("=", 1) >= 0)
+                            xSet->setPropertyValue("iFormula", uno::makeAny("@" + OUString::number(GetView().GetDocShell()->GetNextIFormulaNumber()) + "@ EQDEF " + aText));
+                        else
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("EXDEF " + aText)));
+                    }
+                }
+            }
+        break;
         default:
             assert(!"wrong dispatcher");
             return;
@@ -1035,6 +1067,33 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
                      pSdrView->GetMarkedObjectCount() != 1 )
                 {
                     rSet.DisableItem( nWhich );
+                }
+            }
+            break;
+            case FN_IMATH_INSERT_CONVERT:
+            {
+                SvtModuleOptions aMOpt;
+                const SelectionType nType = rSh.GetSelectionType();
+
+                if (aMOpt.IsMath() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame()->GetFrame().IsInPlace())
+                {
+                    svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+                    if(xObj.is())
+                    {
+                        uno::Reference < beans::XPropertySet > xSet( xObj->getComponent(), uno::UNO_QUERY );
+                        if ( xSet.is() )
+                        {
+                            OUString aText;
+                            xSet->getPropertyValue("iFormula") >>= aText;
+                            if (aText.getLength() > 0)
+                                rSet.DisableItem(nWhich);
+                        }
+                    }
+                }
+                else
+                {
+                    rSet.DisableItem(nWhich);
                 }
             }
             break;

@@ -680,6 +680,7 @@
       <menu:menu menu:id=".uno:iMathInsertMenu">
         <menu:menupopup>
           <menu:menuitem menu:id=".uno:iMathInsertCreate"/>
+          <menu:menuitem menu:id=".uno:iMathInsertConvert"/>
           <menu:menuseparator/>
           <menu:menuitem menu:id=".uno:iMathInsertFunction"/>
           <menu:menuitem menu:id=".uno:iMathInsertVector"/>

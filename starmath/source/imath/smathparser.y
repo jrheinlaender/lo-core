@@ -103,8 +103,8 @@
 #ifdef INSIDE_SM
   autorenumberduplicate = officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::get();
 #else
-  Reference< XComponentContext> context = formula.GetContext();
-  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(context, OU("/de.gmx.rheinlaender.jan.imath.iMathOptionData/"));
+  Reference< XComponentContext> componentContext = formula.GetContext();
+  Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(componentContext, OU("/de.gmx.rheinlaender.jan.imath.iMathOptionData/"));
   Any Aautorenumberduplicate = xProperties->getHierarchicalPropertyValue(OU("Miscellaneous/O_Autorenumberduplicate"));
   Aautorenumberduplicate >>= autorenumberduplicate;
 #endif
@@ -593,9 +593,9 @@ input:   %empty
 	       yyla.location = location();
          Reference<XStorable> xStorable(formula.GetDocumentModel(), UNO_QUERY_THROW);
          OUString documentURL = xStorable->getLocation();
-         Reference< XComponentContext> context = formula.GetContext();
-         OUString result = makeURLFor(OUS8(*$4), documentURL, context);
-         std::string fpath = STR(makeSystemPathFor(result, context));
+         Reference< XComponentContext> componentContext = formula.GetContext();
+         OUString result = makeURLFor(OUS8(*$4), documentURL, componentContext);
+         std::string fpath = STR(makeSystemPathFor(result, componentContext));
 
 	       MSG_INFO(0,  "Trying to open " << fpath << endline);
          if (!smathlexer::begin_include(fpath)) {
@@ -1108,9 +1108,9 @@ statement: OPTIONS options {
 							throw syntax_error(@3, "File name, table name and cell reference must be a string");
            Reference<XStorable> xStorable(formula.GetDocumentModel(), UNO_QUERY_THROW);
            OUString documentURL = xStorable->getLocation();
-           Reference< XComponentContext> context = formula.GetContext();
-           OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, context); // Handle relative paths in the URL
-           setCalcCellRange(context, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string()), *$9);
+           Reference< XComponentContext> componentContext = formula.GetContext();
+           OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, componentContext); // Handle relative paths in the URL
+           setCalcCellRange(componentContext, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string()), *$9);
            formula.cacheable = false;
            delete ($3); delete($5); delete ($7); delete($9);
          }
@@ -1800,9 +1800,9 @@ ex:   SUBST '(' ex ',' eqlist ')' {
 				throw syntax_error(@7, "\nFile name, table name and cell reference must be a string");
       Reference<XStorable> xStorable(formula.GetDocumentModel(), UNO_QUERY_THROW);
       OUString documentURL = xStorable->getLocation();
-      Reference< XComponentContext> context = formula.GetContext();
-      OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, context); // Handle relative paths in the URL
-      $$ = new expression(calcCellRangeContent(context, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string())));
+      Reference< XComponentContext> componentContext = formula.GetContext();
+      OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(*$3).get_string()), documentURL, componentContext); // Handle relative paths in the URL
+      $$ = new expression(calcCellRangeContent(componentContext, calcURL, OUS8(ex_to<stringex>(*$5).get_string()), OUS8(ex_to<stringex>(*$7).get_string())));
       must_autoformat = true;
       delete($3); delete($5); delete($7);
     }

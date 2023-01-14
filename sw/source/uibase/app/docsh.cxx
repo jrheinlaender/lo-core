@@ -1388,9 +1388,6 @@ void SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& form
 {
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
 
-    // Extract required formula properties
-    OUString formulaText = getFormulaProperty(xFormulaComp, "iFormula");
-
     // TODO: This code duplicates code in RecalculateDependentIFormulas()
     auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
     if (it == m_IFormulaNames.end())

@@ -188,7 +188,7 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
 
         // Note: To enable logging, set compiler flags SAL_LOG_INFO and SAL_LOG_WARN in Library_sm.mk and
         // start the office with SAL_LOG="+INFO+WARN" instdir/program/soffice
-        SAL_INFO("starmath.imath", "Initialized imath within starmath");
+        SAL_INFO_LEVEL(-1, "starmath.imath", "Initialized imath within starmath");
     }
 
     SvxModifyControl::RegisterControl(SID_DOC_MODIFIED, this);

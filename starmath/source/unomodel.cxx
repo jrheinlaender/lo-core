@@ -788,6 +788,7 @@ void SmModel::_getPropertyValues( const PropertyMapEntry **ppEntries, Any *pValu
             break;
             case HANDLE_IFORMULA_PENDING_COMPILE:
                 *pValue <<= false; // This is required because there is no PropertyAttribute::WRITEONLY
+            break;
             case HANDLE_PREVIOUSIFORMULA:
                 *pValue <<= pDocSh->GetPreviousFormula();
             break;

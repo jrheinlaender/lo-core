@@ -21,7 +21,7 @@
 #include <sal/log.hxx>
 #include <officecfg/Office/iMath.hxx>
 
-#define SAL_INFO_LEVEL(level, section, output) SAL_INFO_IF(level <= 1 /*officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get()*/, section, output)
-#define SAL_WARN_LEVEL(level, section, output) SAL_WARN_IF(level <= 1 /*officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get()*/, section, output)
+#define SAL_INFO_LEVEL(level, section, output) SAL_INFO_IF(level <= officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get(), section, output)
+#define SAL_WARN_LEVEL(level, section, output) SAL_WARN_IF(level <= officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get(), section, output)
 
 #endif

@@ -135,7 +135,6 @@ namespace GiNaC {
 class iMathDoc;
 class documentObject;
 #define FORMULAOBJECT SmDocShell
-#define DOCUMENTOBJECT documentObject
 #include <imath/smathparser.hxx>
 
 #include <iostream>

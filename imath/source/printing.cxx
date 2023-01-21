@@ -19,14 +19,6 @@
 #include <sstream>
 #include <cmath>
 #include <cfloat>
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning (disable: 4099)
-#endif
-#include <cln/cln.h>
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 #ifdef INSIDE_SM
 #include <imath/printing.hxx>
 #include <imath/msgdriver.hxx>
@@ -867,7 +859,7 @@ std::string roundNumber(const std::string& number, const int pos, bool& overflow
   if (pos >= (int)number.size()) return number;
   if (pos <= 0) return "";
 
-  cln::cl_I rnumber(number.substr(0, pos).c_str());
+  numeric rnumber(number.substr(0, pos).c_str());
   if ((number.at(pos) - '0') >= 5)
     rnumber++;
   std::ostringstream str;
@@ -883,22 +875,22 @@ std::string roundNumber(const std::string& number, const int pos, bool& overflow
   return result;
 }
 
-void imathprint_cl_R(cln::cl_R num, const imathprint& c) {
+void imathprint_real(const numeric& num, const imathprint& c) {
   unsigned precision = (*c.poptions)[o_precision].value.uinteger;
   bool fixeddigits = (*c.poptions)[o_fixeddigits].value.boolean;
 
-  if (cln::instanceof(num, cln::cl_RA_ring)) { // integer or rational
-    if (cln::instanceof(num, cln::cl_I_ring)) {
-      c.s << cln::the<cln::cl_I>(num);
+  if (num.info(info_flags::rational)) { // integer or rational
+    if (num.info(info_flags::integer)) {
+      c.s << num;
       if (fixeddigits == false && precision > 0)
         c.s << "." << std::string(precision, '0'); // Add trailing zeros
     } else { // print rational as a fraction
       if (num < 0) c.s << "-";
       c.enter_fraction();
       c.s << "{{alignc ";
-      imathprint_cl_R(cln::abs(cln::numerator(cln::the<cln::cl_RA>(num))), c);
+      imathprint_real(abs(num.numer()), c);
       c.s << "} over {alignc ";
-      imathprint_cl_R(cln::denominator(cln::the<cln::cl_RA>(num)), c);
+      imathprint_real(num.denom(), c);
       c.s << "}}";
       c.exit_fraction();
     }
@@ -1002,44 +994,43 @@ void imathprint_cl_R(cln::cl_R num, const imathprint& c) {
 
     c.s << number;
   }
-} // imathprint_cl_R()
+} // imathprint_real()
 
 void imathprint_numeric(const numeric& n, const imathprint& c, unsigned level) {
   MSG_INFO(4, "imathprint_numeric()" << endline);
   (void)level;
-  const cln::cl_number value = n.to_cl_N();
-  const cln::cl_R r = cln::realpart(cln::the<cln::cl_N>(value));
-  const cln::cl_R i = cln::imagpart(cln::the<cln::cl_N>(value));
+  const numeric& r = ex_to<numeric>(n.real_part());
+  const numeric& i = ex_to<numeric>(n.imag_part());
 
-  if (cln::zerop(i)) { // case 1, real:  x  or  -x
-    imathprint_cl_R(r, c);
+  if (is_equal_int(i, 0, Digits)) { // case 1, real:  x  or  -x
+    imathprint_real(r, c);
   } else {
-    if (cln::zerop(r)) { // case 2, imaginary:  y*I  or  -y*I
-      if (i==1)
+    if (is_equal_int(r, 0, Digits)) { // case 2, imaginary:  y*I  or  -y*I
+      if (is_equal_int(i, 1, Digits))
         c.s << " i ";
       else {
-        if (i == -1)
+        if (is_equal_int(i, -1, Digits))
           c.s << " - i ";
         else {
-          imathprint_cl_R(i, c);
+          imathprint_real(i, c);
           c.s << " i ";
         }
       }
     } else { // case 3, complex:  x+y*I  or  x-y*I  or  -x+y*I  or  -x-y*I
-      imathprint_cl_R(r, c);
+      imathprint_real(r, c);
       if (i < 0) {
-        if (i == -1) {
+        if (is_equal_int(i, -1, Digits)) {
           c.s << " - i ";
         } else {
-          imathprint_cl_R(i, c);
+          imathprint_real(i, c);
           c.s << " i ";
         }
       } else {
-        if (i == 1) {
+        if (is_equal_int(i, 1, Digits)) {
           c.s << " + i ";
         } else {
           c.s << "+";
-          imathprint_cl_R(i, c);
+          imathprint_real(i, c);
           c.s << " i ";
         }
       }

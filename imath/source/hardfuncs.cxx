@@ -68,11 +68,8 @@ static ex round_eval(const ex &e, const ex &n) {
   // Testing for nonnegative is OK, since we expect the original number (before evalf()) to have been an integer
   if (!digits.info(info_flags::nonnegative))
     throw std::runtime_error("Number of digits to round to must be a positive integer");
-  // Note: Converting digits to an int limits the number of decimal places that can be rounded to 2^32
-  int idigits = std::lround(digits.to_double());
-  cln::cl_F m = 1.0;
-  if (idigits > 0)
-    m = cln::the<cln::cl_F>(cln::expt(cln::cl_float(10.0, cln::default_float_format), cln::the<cln::cl_I>(idigits)));
+  // Note: Converting digits to a long limits the number of decimal places that can be rounded to 2^64
+  cln::cl_F m = cln::the<cln::cl_F>(cln::expt(cln::cl_float(10.0, cln::default_float_format), cln::the<cln::cl_I>(digits.to_long())));
   return dynallocate<numeric>(truncate1(cln::the<cln::cl_R>(num.to_cl_N()) * m + csgn(num) * cln::cl_float(0.5, cln::default_float_format)) / m);
 }
 
@@ -101,10 +98,7 @@ static ex floor_eval(const ex &e, const ex &n) {
   if (!digits.info(info_flags::nonnegative))
     throw std::runtime_error("Number of digits to floor to must be a positive integer");
 
-  int idigits = std::lround(digits.to_double());
-  cln::cl_F m = 1.0;
-  if (idigits > 0)
-    m = cln::the<cln::cl_F>(cln::expt(cln::cl_float(10.0, cln::default_float_format), cln::the<cln::cl_I>(idigits)));
+  cln::cl_F m = cln::the<cln::cl_F>(cln::expt(cln::cl_float(10.0, cln::default_float_format), cln::the<cln::cl_I>(digits.to_long())));
   return dynallocate<numeric>(floor1(cln::the<cln::cl_R>(num.to_cl_N()) * m) / m);
 }
 
@@ -133,10 +127,7 @@ static ex ceil_eval(const ex &e, const ex &n) {
   // Testing for nonnegative is OK, since we expect the original number (before evalf()) to have been an integer
   if (!digits.info(info_flags::nonnegative))
     throw std::runtime_error("Number of digits to ceil to must be a positive integer");
-  int idigits = std::lround(digits.to_double());
-  cln::cl_F m = 1.0;
-  if (idigits > 0)
-    m = cln::the<cln::cl_F>(cln::expt(cln::cl_float(10.0, cln::default_float_format), cln::the<cln::cl_I>(idigits)));
+  cln::cl_F m = cln::the<cln::cl_F>(cln::expt(cln::cl_float(10.0, cln::default_float_format), cln::the<cln::cl_I>(digits.to_long())));
   return dynallocate<numeric>(ceiling1(cln::the<cln::cl_R>(num.to_cl_N()) * m) / m);
 }
 

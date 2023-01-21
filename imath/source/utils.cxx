@@ -19,14 +19,6 @@
 #include <algorithm>
 #include <stdexcept>
 #include <sstream>
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning (disable: 4099)
-#endif
-#include <cln/cln.h>
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 #ifdef INSIDE_SM
 #include <imath/utils.hxx>
 #include <imath/msgdriver.hxx>
@@ -112,7 +104,7 @@ bool is_negpower(const ex &p) {
 bool is_equal_int(const numeric &n, const int i, const unsigned digits) {
   MSG_INFO(5, "is_equal_int: " << n << " == " << i << " to " << digits << endline);
   if (!n.info(info_flags::real)) return false;
-  return cln::the<cln::cl_R>(abs(n - i).to_cl_N()) < cln::recip(cln::expt(cln::cl_float(10.0, cln::default_float_format), cln::cl_I(digits)));
+  return abs(n - i).to_double() < std::pow(10, -digits);
 }
 
 bool is_empty(const matrix& m) {
@@ -327,11 +319,11 @@ numeric get_val_from_ex(const ex &e) {
 } // get_val_from_ex()
 
 unsigned numeric_to_uint(const numeric &n) {
-  return cln::cl_I_to_uint(cln::floor1(cln::cl_F(n.to_double())));
+  return std::round(n.to_double());
 }
 
 int numeric_to_int(const numeric &n) {
-  return cln::cl_I_to_int(cln::floor1(cln::cl_F(n.to_double())));
+  return std::round(n.to_double());
 }
 
 // Helper function to convert to units that are numerics

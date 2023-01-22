@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <sstream>
+#include <cln/float.h>
 #ifdef INSIDE_SM
 #include <imath/utils.hxx>
 #include <imath/msgdriver.hxx>
@@ -68,6 +69,8 @@ namespace GiNaC {
     new((void*)&_exprPi) expression(Pi);
     new((void*)&_exprEulerNumber) expression(Euler_number);
     new((void*)&_exprI) expression(I);
+
+    GiNaC::Digits = 17;
   }
 }
 
@@ -863,3 +866,10 @@ std::string get_oper(const print_context &c, const unsigned o, const expression&
   }
 }
 
+bool get_inhibit_floating_point_underflow() {
+  return cln::cl_inhibit_floating_point_underflow;
+}
+
+void set_inhibit_floating_point_underflow(const bool val) {
+  cln::cl_inhibit_floating_point_underflow = val;
+}

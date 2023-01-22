@@ -207,8 +207,8 @@ public:
   virtual depType dependencyType() const { return depNone; }
   // Output the dependencies (ancestors and children) of this iFormula in graphviz dot format
   virtual std::string getGraphLabel() const;
-  std::set<GiNaC::ex, GiNaC::ex_is_less> getIn() const { return in; }
-  std::set<GiNaC::ex, GiNaC::ex_is_less> getOut() const { return out; }
+  std::set<GiNaC::expression, GiNaC::expr_is_less> getIn() const { return in; }
+  std::set<GiNaC::expression, GiNaC::expr_is_less> getOut() const { return out; }
 
 protected:
   /// the iFormula options specified globally for this line
@@ -227,7 +227,7 @@ protected:
   bool changed;
 
   /// Dependency tracking
-  std::set<GiNaC::ex, GiNaC::ex_is_less> in, out;
+  std::set<GiNaC::expression, GiNaC::expr_is_less> in, out;
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeComment : public iFormulaLine {

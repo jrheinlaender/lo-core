@@ -511,6 +511,9 @@ IMATH_DLLPUBLIC OUString replaceString(const OUString& str, const OUString& subs
 /// Split a string into a list of strings at a given boundary
 IMATH_DLLPUBLIC std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary);
 
+/// Convert a set of symbols and functions into a string of names
+IMATH_DLLPUBLIC OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols);
+
 /// Compare two version strings of the form M.m.b~x
 // Returns -1 if file version is smaller than program version
 // Returns +1 if file version is greater than program version

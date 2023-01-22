@@ -275,7 +275,7 @@ public:
     /// Check whether the document containing the formula (if it exists) can hold charts
     bool CheckHasChartsAndTables() const;
     /// Set the content of the given table cell to a string or double value
-    void setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::ex& value) const;
+    void setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::expression& value) const;
 
     /// Set an option on the formula (all lines of it) if its value is different from the global option
     void SetOption(const option_name oname, const option& value);

@@ -1,0 +1,66 @@
+--- include/cln/GV_integer.h
++++ include/cln/GV_integer.h
+@@ -13,6 +13,8 @@ namespace cln {
+ // A vector of integers is *not* just a normal vector of numbers (the vectorops
+ // support the maxbits() operation), but we treat can it like this nevertheless.
+ 
++extern cl_class& cl_class_gvector_integer();
++
+ template <>
+ struct cl_heap_GV<cl_I> : cl_heap {
+ 	cl_GV_inner<cl_I> v;
+--- include/cln/GV_number.h
++++ include/cln/GV_number.h
+@@ -8,6 +8,8 @@
+ 
+ namespace cln {
+ 
++extern cl_class& cl_class_gvector_number();
++
+ typedef cl_heap_GV<cl_number> cl_heap_GV_number;
+ 
+ struct cl_GV_number : public cl_GV<cl_number,cl_GV_any> {
+--- include/cln/SV_number.h
++++ include/cln/SV_number.h
+@@ -9,6 +9,8 @@
+ 
+ namespace cln {
+ 
++extern cl_class& cl_class_svector_number();
++
+ typedef cl_heap_SV<cl_number> cl_heap_SV_number;
+ 
+ struct cl_SV_number : public cl_SV<cl_number,cl_SV_any> {
+--- include/cln/SV_ringelt.h
++++ include/cln/SV_ringelt.h
+@@ -9,6 +9,8 @@
+ 
+ namespace cln {
+ 
++extern cl_class& cl_class_svector_ringelt();
++
+ typedef cl_heap_SV<_cl_ring_element> cl_heap_SV_ringelt;
+ 
+ struct cl_SV_ringelt : public cl_SV<_cl_ring_element,cl_SV_any> {
+--- include/cln/modinteger.h
++++ include/cln/modinteger.h
+@@ -24,6 +24,8 @@ namespace cln {
+ 
+ // Representation of a ring Z/mZ.
+ 
++extern cl_class cl_class_modint_ring;
++
+ class cl_heap_modint_ring;
+ 
+ class cl_modint_ring : public cl_ring {
+--- include/cln/univpoly.h
++++ include/cln/univpoly.h
+@@ -16,6 +16,8 @@ namespace cln {
+ // To protect against mixing elements of different polynomial rings, every
+ // polynomial carries its ring in itself.
+ 
++extern cl_class cl_class_univpoly_ring;
++
+ class cl_heap_univpoly_ring;
+ 
+ class cl_univpoly_ring : public cl_ring {

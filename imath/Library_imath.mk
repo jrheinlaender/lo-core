@@ -11,8 +11,6 @@ $(eval $(call gb_Library_Library,imath))
 
 #$(eval $(call gb_Library_set_precompiled_header,imath,imath/inc/pch/precompiled_imath))
 
-#$(eval $(call gb_Library_use_custom_headers,imath,imath/generated))
-
 $(eval $(call gb_Library_set_include,imath,\
     -I$(SRCDIR)/imath/inc \
     $$(INCLUDE) \

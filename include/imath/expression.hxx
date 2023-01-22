@@ -215,7 +215,10 @@ public:
 
 typedef std::vector<expression> exprvector;
 
+/* Function object for STL */
+struct expr_is_less {
+        bool operator() (const expression &lh, const expression &rh) const { return lh.compare(rh) < 0; }
+};
+
 }
 #endif
-
-

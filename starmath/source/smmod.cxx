@@ -144,7 +144,6 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
 
     // Check for existing iMath extension
     // TODO: Fix .deb package dependencies so that iMath gets uninstalled by the package manager
-    // TODO: If CLN and GiNaC are dynamically linked, the Office crashes before this code is ever reached (reason is duplicate initialization of some part of CLN or GiNaC)
     Reference<XComponentContext> xContext = comphelper::getProcessComponentContext();
     Any aExtMgr = xContext->getValueByName("/singletons/com.sun.star.deployment.ExtensionManager");
     Reference<css::deployment::XExtensionManager> extMgr;
@@ -181,8 +180,7 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
     }
 
     if (!iMathFound) {
-        // Init iMath compiler
-        GiNaC::Digits = 17;
+        // Init iMath compiler (sets Digits to 17)
         GiNaC::init_utils();
         GiNaC::imathprint::init();
 

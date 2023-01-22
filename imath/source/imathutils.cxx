@@ -160,11 +160,15 @@
 #include <imath/unit.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/stringex.hxx>
+#include <imath/func.hxx>
+#include <imath/funcmgr.hxx>
 #else
 #include "imathutils.hxx"
 #include "unit.hxx"
 #include "msgdriver.hxx"
 #include "stringex.hxx"
+#include "func.hxx"
+#include "funcmgr.hxx"
 #endif
 #include "iIterator.hxx"
 
@@ -2575,6 +2579,32 @@ bool hasEnclosingBrackets(const OUString& arg) {
   }
 
   return false;
+}
+
+OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols)
+{
+    OUString result;
+
+    for (const auto& e: symbols)
+    {
+        if (result.getLength() > 0)
+            result += ",";
+        if (GiNaC::is_a<GiNaC::symbol>(e))
+        {
+            // Note: Symbols may contain anything in their subscripts TODO This might possibly lead to symbol collisions
+            // Note: Using the symbol's internal serial number does not work because it is incremented every time a new instance of the class is created, that is, at every recalculation
+            OUString sname = OUS8(GiNaC::ex_to<GiNaC::symbol>(e).get_name());
+            result += sname.replace(' ', '_');
+        }
+        else if (GiNaC::is_a<GiNaC::func>(e))
+        {
+            const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
+            if (Functionmanager::is_hard_func(f.get_name())) continue; // Hard-coded functions cannot be influenced by a formula in the document
+            result += OUString("func") + OUString::number(f.get_serial());
+        }
+    }
+
+    return result;
 }
 
 int versionCompare(const OUString& file, const OUString& prog) {

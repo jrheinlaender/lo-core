@@ -100,14 +100,6 @@ using namespace ::com::sun::star::uno;
 #include <rtl/bootstrap.hxx>
 
 #include <smim.hrc>
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4099)
-#endif
-#include <cln/cln.h>
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 #include <com/sun/star/lang/XMultiComponentFactory.hpp>
 #include <com/sun/star/i18n/XLocaleData.hpp>
 #include <com/sun/star/util/CloseVetoException.hpp>
@@ -246,7 +238,7 @@ bool SmDocShell::CheckHasChartsAndTables() const
     return false;
 }
 
-void SmDocShell::setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::ex& value) const {
+void SmDocShell::setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::expression& value) const {
   Reference< XTextDocument > xDoc(GetDocumentModel(), UNO_QUERY_THROW); // This must be checked in the parser before calling the method
   Reference< XCell > xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
   setCellExpression(xCell, value);
@@ -615,32 +607,6 @@ OUString SmDocShell::ImInitializeCompiler() {
     return "";
 }
 
-OUString makeDependencyString(const std::set<GiNaC::ex, GiNaC::ex_is_less>& dependencySet)
-{
-    OUString result;
-
-    for (const auto& e: dependencySet)
-    {
-        if (result.getLength() > 0)
-            result += ",";
-        if (GiNaC::is_a<GiNaC::symbol>(e))
-        {
-            // Note: Symbols may contain anything in their subscripts TODO This might possibly lead to symbol collisions
-            // Note: Using the symbol's internal serial number does not work because it is incremented every time a new instance of the class is created, that is, at every recalculation
-            OUString sname = OUS8(GiNaC::ex_to<GiNaC::symbol>(e).get_name());
-            result += sname.replace(' ', '_');
-        }
-        else if (GiNaC::is_a<GiNaC::func>(e))
-        {
-            const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
-            if (Functionmanager::is_hard_func(f.get_name())) continue; // Hard-coded functions cannot be influenced by a formula in the document
-            result += OUString("func") + OUString::number(f.get_serial());
-        }
-    }
-
-    return result;
-}
-
 void SmDocShell::Compile()
 {
     if (maImText.equalsAscii("")) return; // empty iFormula
@@ -664,15 +630,15 @@ void SmDocShell::Compile()
     GiNaC::imathprint::decimalpoint = mDecimalSeparator;
     //setlocale(LC_NUMERIC, "C"); // Ensure printf() always uses decimal points! TODO Why is that important?
     // Inhibit floating point underflow exceptions?
-    cln::cl_inhibit_floating_point_underflow = (mpInitialOptions->at(o_underflow).value.boolean);
-    SAL_INFO_LEVEL(1, "starmath.imath", "Inhibit floating point underflow exception: " << (cln::cl_inhibit_floating_point_underflow ? "true" : "false"));
+    set_inhibit_floating_point_underflow(mpInitialOptions->at(o_underflow).value.boolean);
+    SAL_INFO_LEVEL(1, "starmath.imath", "Inhibit floating point underflow exception: " << (get_inhibit_floating_point_underflow() ? "true" : "false"));
     // Evaluate odd negative roots to the positive real value?
     GiNaC::expression::evalf_real_roots_flag = (mpInitialOptions->at(o_evalf_real_roots).value.boolean);
 
     // Save old outgoing dependencies
-    std::set<GiNaC::ex, GiNaC::ex_is_less> oldOutDep;
+    std::set<GiNaC::expression, GiNaC::expr_is_less> oldOutDep;
     for (const auto& l : lines) oldOutDep.merge(l->getOut());
-    SAL_INFO_LEVEL(1, "starmath.imath", "This formula had old outgoing dependencies for '" << makeDependencyString(oldOutDep) << "'");
+    SAL_INFO_LEVEL(1, "starmath.imath", "This formula had old outgoing dependencies for '" << makeSymbolString(oldOutDep) << "'");
 
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = std::make_shared<eqc>(*mpInitialCompiler); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
@@ -718,7 +684,7 @@ void SmDocShell::Compile()
 
             // Update dependencies
             // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
-            std::set<GiNaC::ex, GiNaC::ex_is_less> inDep, outDep;
+            std::set<GiNaC::expression, GiNaC::expr_is_less> inDep, outDep;
             for (const auto& l : lines)
             {
                 for (const auto& dep : l->getIn())
@@ -727,6 +693,8 @@ void SmDocShell::Compile()
                 outDep.merge(l->getOut());
             }
 
+            // Outgoing dependencies that have been removed will also influence the following formulas - thus they must be inserted again
+            // TODO: The way this is currently implemented means that outgoing dependencies will NEVER be removed at all!
             for (const auto& oldDep : oldOutDep) {
                 bool found = false;
                 if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
@@ -744,8 +712,8 @@ void SmDocShell::Compile()
                 }
             }
 
-            OUString inDepStr = makeDependencyString(inDep);
-            OUString outDepStr = makeDependencyString(outDep);
+            OUString inDepStr = makeSymbolString(inDep);
+            OUString outDepStr = makeSymbolString(outDep);
             SAL_INFO_LEVEL(1, "starmath.imath", "This formula depends on '" << inDepStr << "'");
             SAL_INFO_LEVEL(1, "starmath.imath", "This formula modifies '" << outDepStr << "'");
             SetIFormulaDependencyIn(inDepStr);

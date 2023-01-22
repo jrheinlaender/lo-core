@@ -32,7 +32,6 @@
   #include <stack>
   #include <sstream>
   #include <numeric>
-  #include <cln/cln.h>
   #include <com/sun/star/frame/XStorable.hpp>
 
 #ifdef INSIDE_SM
@@ -650,7 +649,7 @@ end:        '\n' {
                 current_options = line->getGlobalOptions();
 				line_options = nullptr;
 							// Reset internal options to global value
-							cln::cl_inhibit_floating_point_underflow = (current_options->at(o_underflow).value.boolean);
+							set_inhibit_floating_point_underflow(current_options->at(o_underflow).value.boolean);
 							MSG_INFO(3, "Inhibit floating point underflow exception: " << (current_options->at(o_underflow).value.boolean ? "true" : "false") << endline);
 							expression::evalf_real_roots_flag = (current_options->at(o_evalf_real_roots).value.boolean);
 							MSG_INFO(3, "Evaluate odd negative roots to the positive real value: " << (current_options->at(o_evalf_real_roots).value.boolean ? "true" : "false") << endline);
@@ -666,7 +665,7 @@ end:        '\n' {
                 current_options = line->getGlobalOptions();
 				line_options = nullptr;
 							// Reset internal options to global value
-							cln::cl_inhibit_floating_point_underflow = (current_options->at(o_underflow).value.boolean);
+							set_inhibit_floating_point_underflow(current_options->at(o_underflow).value.boolean);
 							MSG_INFO(3, "Inhibit floating point underflow exception: " << (current_options->at(o_underflow).value.boolean ? "true" : "false") << endline);
 							expression::evalf_real_roots_flag = (current_options->at(o_evalf_real_roots).value.boolean);
 							MSG_INFO(3, "Evaluate odd negative roots to the positive real value: " << (current_options->at(o_evalf_real_roots).value.boolean ? "true" : "false") << endline);
@@ -683,7 +682,7 @@ end:        '\n' {
                 current_options = line->getGlobalOptions();
 				line_options = nullptr;
 							// Reset internal options to global value
-							cln::cl_inhibit_floating_point_underflow = (current_options->at(o_underflow).value.boolean);
+							set_inhibit_floating_point_underflow(current_options->at(o_underflow).value.boolean);
 							MSG_INFO(3, "Inhibit floating point underflow exception: " << (current_options->at(o_underflow).value.boolean ? "true" : "false") << endline);
 							expression::evalf_real_roots_flag = (current_options->at(o_evalf_real_roots).value.boolean);
 							MSG_INFO(3, "Evaluate odd negative roots to the positive real value: " << (current_options->at(o_evalf_real_roots).value.boolean ? "true" : "false") << endline);
@@ -1440,7 +1439,7 @@ keyvalpair:   OPT_U '=' ex {
                   break;
                 case o_underflow:
                   $$ = new std::pair<option_name, option>($1, option($3));
-                  cln::cl_inhibit_floating_point_underflow = $3;
+                  set_inhibit_floating_point_underflow($3);
                   MSG_INFO(3, "Inhibit floating point underflow exception: " << ($3 ? "true" : "false") << endline);
                   break;
                 case o_evalf_real_roots:

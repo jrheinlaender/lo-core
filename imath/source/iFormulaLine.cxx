@@ -255,8 +255,8 @@ void iFormulaLine::addFormulaPart(const OUString& f) {
   _formulaParts.emplace_back(f);
 }
 
-std::set<ex, ex_is_less> collectSymbols(const expression& e) {
-  std::set<ex, ex_is_less> result;
+std::set<expression, expr_is_less> collectSymbols(const expression& e) {
+  std::set<expression, expr_is_less> result;
   for (const_preorder_iterator i = e.preorder_begin(); i != e.preorder_end(); ++i) {
       if (is_a<symbol>(*i))
         result.emplace(*i);
@@ -482,7 +482,7 @@ iFormulaNodeText::iFormulaNodeText(const GiNaC::unitvec&& unitConversions, std::
   for (const auto& p : _textlist) {
     std::shared_ptr<textItemExpression> item = std::dynamic_pointer_cast<textItemExpression>(p);
     if (item != nullptr) {
-      std::set<ex, ex_is_less> in1 = collectSymbols(item->getExpression());
+      auto in1 = collectSymbols(item->getExpression());
       in.insert(in1.begin(), in1.end());
     }
   }
@@ -719,7 +719,7 @@ iFormulaNodeEq::iFormulaNodeEq(
     out = {rhs};
   } else {
     in = collectSymbols(lhs);
-    std::set<ex, ex_is_less> in2 = collectSymbols(rhs);
+    auto in2 = collectSymbols(rhs);
     in.insert(in2.begin(), in2.end());
     // out = in; // But we should give priority to direct assignments to a single symbol
   }

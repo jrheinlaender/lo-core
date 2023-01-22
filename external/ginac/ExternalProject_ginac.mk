@@ -22,6 +22,9 @@ $(eval $(call gb_ExternalProject_register_targets,ginac,\
 ginac_CPPCLAGS=$(CPPFLAGS)
 
 # Note: Make install is required to get a clean include file directory
+# Note: It would be desirable to build GiNaC as a DLL on Windows. But this proves very difficult. Some notes:
+#       General: See notes in ExternalProject_cln.mk
+#       Configure: pkg-config does not recognize the DLL. Use CLN_CFLAGS="-I$(call gb_UnpackedTarball_get_dir,cln)/include/" CLN_LIBS="$(call gb_UnpackedTarball_get_dir,cln)/instdir/lib/libcln-6.dll"
 $(call gb_ExternalProject_get_state_target,ginac,build): $(call gb_ExternalProject_get_state_target,ginac,configure)
 	$(call gb_Trace_StartRange,ginac,EXTERNAL)
 	+$(call gb_ExternalProject_run,build,\
@@ -47,7 +50,9 @@ ifeq ($(COM),MSC)
 	)
 else
 	$(call gb_ExternalProject_run,configure,\
-		$(gb_RUN_CONFIGURE) ./configure --enable-shared --with-pic \
+		$(gb_RUN_CONFIGURE) ./configure \
+			--with-pic \
+			--enable-shared --disable-static \
 			PKG_CONFIG_PATH=$(call gb_UnpackedTarball_get_dir,cln) \
 			--prefix=$(call gb_UnpackedTarball_get_dir,ginac)/instdir \
 			$(if $(CROSS_COMPILING),--build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM))\

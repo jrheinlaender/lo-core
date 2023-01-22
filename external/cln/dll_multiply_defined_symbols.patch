@@ -1,0 +1,64 @@
+--- src/float/lfloat/cl_LF.h
++++ src/float/lfloat/cl_LF.h
+@@ -87,6 +87,7 @@ extern const cl_LF LF_LF_minus_LF (const cl_LF& x, const cl_LF& y);
+ 
+ // Use this macro if ALL of your cl_LF operations (+, -, *, /) in the
+ // rest of your file ALWAYS get two operands of the same precision.
++#ifndef _MSC_VER
+ #define ALL_cl_LF_OPERATIONS_SAME_PRECISION()  \
+ 									\
+ inline const cl_LF operator+ (const cl_LF& x, const cl_LF& y)		\
+@@ -98,6 +99,9 @@ inline const cl_LF operator- (const cl_LF& x, const cl_LF& y)		\
+ {									\
+ 	return LF_LF_minus_LF(x,y);					\
+ }
++#else
++#define ALL_cl_LF_OPERATIONS_SAME_PRECISION()
++#endif
+ 
+ // LF_to_I(x) wandelt ein Long-Float x, das eine ganze Zahl darstellt,
+ // in ein Integer um.
+--- src/integer/elem/cl_I_minusp.cc
++++ src/integer/elem/cl_I_minusp.cc
+@@ -15,7 +15,7 @@
+ 
+ namespace cln {
+ 
+-bool minusp (const cl_I& x)
++bool unused_minusp (const cl_I& x)
+ {
+ 	return inline_minusp(x);
+ }
+--- src/integer/elem/cl_I_zerop.cc
++++ src/integer/elem/cl_I_zerop.cc
+@@ -15,7 +15,7 @@
+ 
+ namespace cln {
+ 
+-bool zerop (const cl_I& x)
++bool unused_zerop (const cl_I& x)
+ {
+ 	return inline_zerop(x);
+ }
+--- src/rational/elem/cl_RA_minusp.cc
++++ src/rational/elem/cl_RA_minusp.cc
+@@ -15,7 +15,7 @@
+ 
+ namespace cln {
+ 
+-bool CL_FLATTEN minusp (const cl_RA& x)
++bool CL_FLATTEN unused_minusp (const cl_RA& x)
+ {
+ 	return minusp_inline(x);
+ }
+--- src/rational/elem/cl_RA_zerop.cc
++++ src/rational/elem/cl_RA_zerop.cc
+@@ -15,7 +15,7 @@
+ 
+ namespace cln {
+ 
+-bool zerop (const cl_RA& x)
++bool unused_zerop (const cl_RA& x)
+ {
+ 	return inline_zerop(x);
+ }

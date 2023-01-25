@@ -48,6 +48,18 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
     MSG_INFO(4, "Copying differential from " << other.e  << endline);
   }
 
+  differential::differential(const ex& e_)
+    : e(e_), partial(false), grade(_ex1), parent(_ex0), numerator(false)
+  {
+    MSG_INFO(3, "Constructing differential from " << e << endline);
+  }
+
+  differential::differential(const ex& e_, const bool partial_, const ex& grade_)
+    : e(e_), partial(partial_), grade(grade_), parent(_ex0), numerator(false)
+  {
+    MSG_INFO(3, "Constructing differential from " << e  << endline);
+  }
+
   differential::differential(const ex& e_, const bool partial_, const ex& grade_, const ex& parent_, const bool numerator_)
     : e(e_), partial(partial_), grade(grade_), parent(parent_), numerator(numerator_)
   {
@@ -352,7 +364,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
     // Ideally, this should never happen, since single differentials cannot be differentiated properly
     // Mainly, it is unclear what variable the denominator has for partial differentials
     // TODO: The current implementation does not take into account the chain rule
-    return expression(differential(e, partial, grade+1, parent, true)) / expression(differential(s, partial, 1, e)); // Increase the grade of the differential
+    return expression(differential(e, partial, grade+_ex1, parent, true)) / expression(differential(s, partial, _ex1, e, false)); // Increase the grade of the differential
   }
 
 int differential::get_ngrade() const {

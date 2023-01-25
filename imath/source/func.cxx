@@ -649,11 +649,11 @@ ex func::pderivative(unsigned diff_param) const {
   // We assume that no hardcoded functions are called with this method!
   if (definition.is_empty() || !(hints & FUNCHINT_DEFDIFF)) {
     if (seq.size() > diff_param)
-      result = dynallocate<exderivative>(dynallocate<differential>(*this, partial),
-                                         dynallocate<differential>(seq[diff_param], partial, 1, *this));
+      result = dynallocate<exderivative>(dynallocate<differential>(*this, partial, _ex1),
+                                         dynallocate<differential>(seq[diff_param], partial, _ex1, *this, false));
     else if (get_numargs() > diff_param)
-      result = dynallocate<exderivative>(dynallocate<differential>(*this, partial),
-                                         dynallocate<differential>(vars[diff_param], partial, 1, *this));
+      result = dynallocate<exderivative>(dynallocate<differential>(*this, partial, _ex1),
+                                         dynallocate<differential>(vars[diff_param], partial, _ex1, *this, false));
     else
       throw std::logic_error("The requested dependant variable does not exist in " + name + "()");
   } else {

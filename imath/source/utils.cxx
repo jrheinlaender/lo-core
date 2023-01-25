@@ -592,7 +592,7 @@ ex match_differential(sorted_differentials& dlist, const differential& d, const 
       MSG_INFO(2, "Remaining power of denominator: " << restpower << endline);
       if (restpower.is_equal(l.remaining_grade * l.diffpower)) {
         MSG_INFO(2, "Complete match" << endline);
-        l.denom *= dynallocate<differential>(diffvar, d.is_partial(), l.remaining_grade, diffarg);
+        l.denom *= dynallocate<differential>(diffvar, d.is_partial(), l.remaining_grade, diffarg,false);
         l.remaining_grade = _ex0;
         return _ex1;
       }
@@ -611,7 +611,7 @@ ex match_differential(sorted_differentials& dlist, const differential& d, const 
           remainder.diffpower = l.diffpower - g_quot;
           MSG_INFO(2, "Remaining numerator: " << pow(remainder.numer, remainder.diffpower) << endline);
 
-          l.denom *= dynallocate<differential>(diffvar, d.is_partial(), l.remaining_grade, diffarg);
+          l.denom *= dynallocate<differential>(diffvar, d.is_partial(), l.remaining_grade, diffarg, false);
           l.diffpower = g_quot;
           l.remaining_grade = _ex0;
           MSG_INFO(2, "Matched numerator: " << pow(l.numer/l.denom, l.diffpower) << endline);
@@ -632,12 +632,12 @@ ex match_differential(sorted_differentials& dlist, const differential& d, const 
 
       if (g >= numeric_to_int(ex_to<numeric>(l.remaining_grade))) {
         MSG_INFO(2, "Consuming all remaining " << l.remaining_grade << " grades of the numerator" << endline);
-        l.denom *= dynallocate<differential>(diffvar, d.is_partial(), l.remaining_grade, diffarg);
+        l.denom *= dynallocate<differential>(diffvar, d.is_partial(), l.remaining_grade, diffarg, false);
         restpower -= l.remaining_grade * l.diffpower; // This cannot be zero since that case was already handled!
         l.remaining_grade = _ex0;
       } else if (g > 0) {
         MSG_INFO(2, "Consuming " << g << " grades of the numerator" << endline);
-        l.denom *= dynallocate<differential>(diffvar, d.is_partial(), g, diffarg);
+        l.denom *= dynallocate<differential>(diffvar, d.is_partial(), g, diffarg, false);
         l.remaining_grade -= g;
         restpower -= g * l.diffpower; // This cannot be zero since that case was already handled!
       } // otherwise no match (0 < p_quot < 1)
@@ -699,7 +699,7 @@ ex match_differentials::operator()(const ex& e) {
           if (is_negpower(p)) {
             const differential& d = ex_to<differential>(get_basis(p));
             // Move all grades of negdiffs into the power, so that same differentials will be grouped into a single power
-            negdiffs *= dynallocate<power>(dynallocate<differential>(d.argument(), d.is_partial(), 1, d.get_parent()),
+            negdiffs *= dynallocate<power>(dynallocate<differential>(d.argument(), d.is_partial(), _ex1, d.get_parent(), false),
                                            d.get_grade() * _ex_1 * get_exp(p));
           } else {
             posdiffs *= m;

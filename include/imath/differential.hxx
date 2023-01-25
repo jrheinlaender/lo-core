@@ -43,7 +43,10 @@ public:
    * Construct a differential
    * @param e The expression that is to be differentiated
    */
-  differential(const ex& e_, const bool partial_ = false, const ex& grade_ = _ex1, const ex& parent_ = _ex0, const bool numerator_ = false);
+  //differential(const ex& e_, const bool partial_ = false, const ex& grade_ = _ex1, const ex& parent_ = _ex0, const bool numerator_ = false);
+  differential(const ex& e_);
+  differential(const ex& e_, const bool partial_, const ex& grade_);
+  differential(const ex& e_, const bool partial_, const ex& grade_, const ex& parent_, const bool numerator_);
   differential(const differential& other);
   differential& operator=(const differential& other);
 

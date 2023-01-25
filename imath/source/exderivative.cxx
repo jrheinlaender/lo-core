@@ -63,7 +63,7 @@ exderivative::exderivative(const differential& n, const ex& d) : numer(n), denom
   // Count grade of differentials in the denominator and build the denominator
   ex grade(_ex0);
   for (const auto& f : d_args) {
-    denom *= dynallocate<power>(dynallocate<differential>(f.first, numer.is_partial(), 1, numer.argument()), f.second);
+    denom *= dynallocate<power>(dynallocate<differential>(f.first, numer.is_partial(), _ex1, numer.argument(), false), f.second);
     grade += f.second;
   }
 
@@ -275,7 +275,7 @@ ex exderivative::pderivative(const ex& v) const {
   // TODO: Normalize denom, combine grades of same differentials !!!!!!!!!!
   return dynallocate<exderivative>(
     dynallocate<differential>(numer.argument(), numer.is_partial(), numer.get_grade() + 1),
-    denom * dynallocate<differential>(v, numer.is_partial(), 1, numer.argument()));
+    denom * dynallocate<differential>(v, numer.is_partial(), _ex1, numer.argument(), false));
 }
 
 ex exderivative::eval_diff() const {

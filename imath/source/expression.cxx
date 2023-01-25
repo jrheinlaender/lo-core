@@ -558,10 +558,10 @@ expression expression::diff(const expression &var, const expression& nth, bool t
   if (!nth.info(info_flags::nonnegint)) {
     // TODO: How to determine when to use partial?
     if (toplevel)
-      return expression(dynallocate<differential>(*this, false, nth, _ex0, true)) / expression(dynallocate<differential>(var, false, nth, *this));
+      return expression(dynallocate<differential>(*this, false, nth, _ex0, true)) / expression(dynallocate<differential>(var, false, nth, *this, false));
     else
       return dynallocate<exderivative>(dynallocate<differential>(*this, false, nth),
-                                       dynallocate<differential>(var, false, nth, *this));
+                                       dynallocate<differential>(var, false, nth, *this, false));
   }
 
   // Handle trivial cases

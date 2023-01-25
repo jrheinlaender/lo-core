@@ -77,8 +77,8 @@ expression Functionmanager::replace_function_by_func(const ex& e) {
         const auto& fr = Functionmanager::hard_functions.find(fname)->second;
         ex the_function = dynallocate<func>(fname, exprseq(f.begin(), f.end()), fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname);
         if (paridx > ex_to<func>(the_function).get_numargs()) throw std::runtime_error("Error: Differentiation to non-existent variable");
-        return dynallocate<exderivative>(dynallocate<differential>(the_function, false, 1),
-                                         dynallocate<differential>(f.op(paridx), false, 1, the_function));
+        return dynallocate<exderivative>(dynallocate<differential>(the_function, false, _ex1),
+                                         dynallocate<differential>(f.op(paridx), false, _ex1, the_function, false));
       } else if (is_a<function>(e)) {
         ex e_mapped = e.map(*this);
         if (!is_a<function>(e_mapped)) return e_mapped;

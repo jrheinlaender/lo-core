@@ -108,26 +108,7 @@ using namespace ::com::sun::star::uno;
 #include <imath/alignblock.hxx>
 #include <imath/funcmgr.hxx>
 #include <imath/imathutils.hxx>
-
-#ifdef _MSC_VER
-// Avoid including <imath/func.hxx> because MSVC makes trouble with the IMATH_DLLPUBLIC and inheritance from GiNaC::container
-#include <imath/option.hxx>
-namespace GiNaC {
-  class func : public exprseq {
-    public:
-    IMATH_DLLPUBLIC static void clearall();
-    IMATH_DLLPUBLIC inline const std::string& get_name() const;
-    IMATH_DLLPUBLIC unsigned get_serial() const;
-  };
-}
-#else
-#include <imath/func.hxx>
-#endif
-
-class iMathDoc;
-class documentObject;
-#define FORMULAOBJECT SmDocShell
-#include <imath/smathparser.hxx>
+#include <imath/imathparse.hxx>
 
 #include <iostream>
 
@@ -193,11 +174,6 @@ void SmDocShell::Notify(SfxBroadcaster&, const SfxHint& rHint)
     }
 }
 
-Reference<XComponentContext> SmDocShell::GetContext() const
-{
-    return comphelper::getProcessComponentContext();
-}
-
 Reference<XModel> SmDocShell::GetDocumentModel() const
 {
     Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
@@ -222,26 +198,6 @@ Reference<XModel> SmDocShell::GetDocumentModel() const
 
     SAL_INFO_LEVEL(1, "starmath.imath", "No parent document for formula");
     return GetModel();
-}
-
-bool SmDocShell::CheckHasChartsAndTables() const
-{
-    Reference<XModel> xModel = GetDocumentModel();
-    Reference<XTextDocument> xTextDoc(xModel, UNO_QUERY);
-    if (xTextDoc.is())
-        return true;
-
-    Reference<presentation::XPresentationSupplier> xPresDoc(xModel, UNO_QUERY);
-    if (xPresDoc.is())
-        return true;
-
-    return false;
-}
-
-void SmDocShell::setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::expression& value) const {
-  Reference< XTextDocument > xDoc(GetDocumentModel(), UNO_QUERY_THROW); // This must be checked in the parser before calling the method
-  Reference< XCell > xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
-  setCellExpression(xCell, value);
 }
 
 void SmDocShell::LoadSymbols()
@@ -463,7 +419,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return ""; // Already initialized
     SAL_INFO_LEVEL(1, "starmath.imath", "Preparing stand-alone formula or first formula in document");
-    Reference<XComponentContext> xContext(GetContext());
+    Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
 
     mpInitialOptions = std::make_shared<GiNaC::optionmap>();
     mpInitialCompiler = std::make_shared<eqc>();
@@ -531,68 +487,64 @@ OUString SmDocShell::ImInitializeCompiler() {
         // Read referenced files
         auto files = splitString(references, ' ');
         files.unique();
-        rawtext = OU("");
+        imath::parserParameters pParams;
+        pParams.xContext = comphelper::getProcessComponentContext();
+        pParams.xDocumentModel = GetDocumentModel();
+        pParams.rawtext = OU("");
+        pParams.copyPasteActive = false; // TODO: Check if LO still crashes when a formula is changed during a copy+paste action
+        pParams.lines = &mLines;
+        pParams.compiler = mpInitialCompiler;
+        pParams.global_options = mpInitialOptions;
+        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >();
 
         for (const auto& f : files) {
             if (f.getLength() > 2)
-                rawtext += OU("%%ii READFILE {\"") + shareFolder + f.copy(2) + OU(".imath") + OU("\"}\n");
+                pParams.rawtext += OU("%%ii READFILE {\"") + shareFolder + f.copy(2) + OU(".imath") + OU("\"}\n");
         }
 
-        if (!rawtext.equalsAscii("")) {
-            SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(rawtext));
-            OUString error = "";
-            imath::smathparser parser(*this, mpInitialCompiler, mpInitialOptions, error);
-            smathlexer::scan_begin(STR(rawtext));
-            int parse_result = parser.parse();
-            smathlexer::scan_end();
-            if (parse_result != 0) return "Recalculation error in referenced files\n" + error;
-            if (lines.size() > 0) mpInitialOptions = lines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
+        if (!pParams.rawtext.equalsAscii("")) {
+            SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(pParams.rawtext));
+            if (imath::parse(pParams) != 0) return "Recalculation error in referenced files\n" + pParams.errormessage;
+            if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
         }
 
         // units must be set AFTER units.imath is read, because the preferred units list might use user-defined units
         // Note that this will delete any preferred units declared in the previous include files (there shouldn't be any!)
-        OUString units = OUS8(*(*mpInitialOptions)[o_unitstr].value.str); // This was populated in initializeOptionmap()
-        (*mpInitialOptions)[o_units] = option(GiNaC::exvector()); // All keys are expected to exist in global_options
-        (*mpInitialOptions).at(o_unitstr).value.str->clear(); // Clear o_unitstr, because it will be populated again
+        OUString units = OUS8(*mpInitialOptions->at(o_unitstr).value.str); // This was populated in initializeOptionmap()
+        mpInitialOptions->emplace(o_units, option(GiNaC::exvector())); // All keys are expected to exist in global_options
+        mpInitialOptions->at(o_unitstr).value.str->clear(); // Clear o_unitstr, because it will be populated again
 
         if (units.getLength() > 0) {
             // Recreate the global units expression vector, since this cannot be stored in the registry
-            SAL_INFO_LEVEL(0, "starmath.imath", "Parsing default units\n" << STR(rawtext));
-            rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
-            OUString error = "";
-            imath::smathparser parser(*this, mpInitialCompiler, mpInitialOptions, error);
-            smathlexer::scan_begin(STR(rawtext));
-            int parse_result = parser.parse();
-            smathlexer::scan_end(); // Result is stored in mpInitialOptions map under the keys o_unit and o_unitstr
-            if (parse_result != 0) return "Recalculation error in global units\n" + error;
-            if (lines.size() > 0) mpInitialOptions = lines.back()->getGlobalOptions();
+            SAL_INFO_LEVEL(0, "starmath.imath", "Parsing default units\n" << STR(pParams.rawtext));
+            pParams.rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
+            pParams.errormessage = "";
+            // Result is stored in mpInitialOptions map under the keys o_unit and o_unitstr
+            if (imath::parse(pParams) != 0) return "Recalculation error in global units\n" + pParams.errormessage;
+            if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions();
         }
 
         // Read user include files
         // Note: READFILE converts include[1-3] to a system path if necessary
-        rawtext = OU("");
+        pParams.rawtext = OU("");
         if (!include1.equalsAscii("") && (std::find(files.begin(), files.end(), include1) == files.end())) {
-            rawtext = OU("%%ii READFILE {\"") + include1 + OU("\"}\n");
+            pParams.rawtext = OU("%%ii READFILE {\"") + include1 + OU("\"}\n");
             files.emplace_back(include1);
         }
         if (!include2.equalsAscii("") && (std::find(files.begin(), files.end(), include2) == files.end())) {
-            rawtext += OU("%%ii READFILE {\"") + include2 + OU("\"}\n");
+            pParams.rawtext += OU("%%ii READFILE {\"") + include2 + OU("\"}\n");
             files.emplace_back(include2);
         }
         if (!include3.equalsAscii("") && (std::find(files.begin(), files.end(), include3) == files.end())) {
-            rawtext += OU("%%ii READFILE {\"") + include3 + OU("\"}\n");
+            pParams.rawtext += OU("%%ii READFILE {\"") + include3 + OU("\"}\n");
             files.emplace_back(include3);
         }
 
-        if (!rawtext.equalsAscii("")) {
-            SAL_INFO_LEVEL(0, "starmath.imath", "Reading user include files\n" << STR(rawtext));
-            OUString error;
-            imath::smathparser parser(*this, mpInitialCompiler, mpInitialOptions, error);
-            smathlexer::scan_begin(STR(rawtext));
-            int parse_result = parser.parse();
-            smathlexer::scan_end();
-            if (parse_result != 0) return "Recalculation error in user include files\n" + error;
-            if (lines.size() > 0) mpInitialOptions = lines.back()->getGlobalOptions();
+        if (!pParams.rawtext.equalsAscii("")) {
+            SAL_INFO_LEVEL(0, "starmath.imath", "Reading user include files\n" << STR(pParams.rawtext));
+            pParams.errormessage = "";
+            if (imath::parse(pParams) != 0) return "Recalculation error in user include files\n" + pParams.errormessage;
+            if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions();
         }
     } catch (Exception &e) {
         // TODO: Show error message to user with parser location
@@ -637,7 +589,7 @@ void SmDocShell::Compile()
 
     // Save old outgoing dependencies
     std::set<GiNaC::expression, GiNaC::expr_is_less> oldOutDep;
-    for (const auto& l : lines) oldOutDep.merge(l->getOut());
+    for (const auto& l : mLines) oldOutDep.merge(l->getOut());
     SAL_INFO_LEVEL(1, "starmath.imath", "This formula had old outgoing dependencies for '" << makeSymbolString(oldOutDep) << "'");
 
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
@@ -645,38 +597,41 @@ void SmDocShell::Compile()
 
     // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all. Requires complete rework of exceptions in imath library
     try {
+        mLines.clear();
+
+        imath::parserParameters pParams;
+        pParams.xContext = comphelper::getProcessComponentContext();
+        pParams.xDocumentModel = GetDocumentModel();
+        pParams.rawtext = OU("");
+        pParams.copyPasteActive = false;
+        pParams.lines = &mLines;
+        pParams.compiler = mpCurrentCompiler;
+        pParams.global_options = mpInitialOptions; // mpInitialOptions are not modified by the parser, copy is taken when OPTIONS keyword is encountered
+        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >();
         // Add %%ii in front of every line
         // TODO: Change parser to make this unnecessary
         sal_Int32 idx = 0;
-        rawtext = OU("");
 
         do {
             OUString line = maImText.getToken(0, '\n', idx);
             if (line.getLength() > 0)
-                rawtext += "%%ii " + line + OU("\n");
+                pParams.rawtext += "%%ii " + line + OU("\n");
         } while (idx >= 0);
 
-        lines.clear();
-        error = "";
-        imath::smathparser parser(*this, mpCurrentCompiler, mpInitialOptions, error); // mpInitialOptions are not modified, copy is taken when OPTIONS keyword is encountered
-        smathlexer::scan_begin(STR(rawtext));
-        int parse_result = parser.parse();
-        smathlexer::scan_end();
+        if (imath::parse(pParams) != 0) {
+            pParams.errormessage = "Syntax error\n" + pParams.errormessage;
+            SAL_WARN_LEVEL(-1, "starmath.imath", pParams.errormessage);
+        } else if (mLines.size() > 0) {
+            mpCurrentOptions = mLines.back()->getGlobalOptions();
 
-        if (parse_result != 0) {
-            error = "Syntax error\n" + error;
-            SAL_WARN_LEVEL(-1, "starmat.imath", error);
-        } else if (lines.size() > 0) {
-            mpCurrentOptions = lines.back()->getGlobalOptions();
-
-            SAL_INFO_LEVEL(0, "starmath.imath", "Printing " << lines.size() << " lines");
-            for (const auto& i : lines)
+            SAL_INFO_LEVEL(0, "starmath.imath", "Printing " << mLines.size() << " lines");
+            for (const auto& i : mLines)
                 SAL_INFO_LEVEL(0, "starmath.imath", i->printFormula());
 
             addResultLines();
             OUString result;
 
-            for (const auto& i : lines)
+            for (const auto& i : mLines)
                 if (i->getSelectionType() == formulaTypeResult)
                     result += i->print() + OU("\n");
 
@@ -685,7 +640,7 @@ void SmDocShell::Compile()
             // Update dependencies
             // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
             std::set<GiNaC::expression, GiNaC::expr_is_less> inDep, outDep;
-            for (const auto& l : lines)
+            for (const auto& l : mLines)
             {
                 for (const auto& dep : l->getIn())
                     if (outDep.find(dep) == outDep.end()) // Avoid bogus incoming dependencies in multi-line formulas
@@ -728,8 +683,8 @@ void SmDocShell::Compile()
     }
 
     if (!error.isEmpty()) {
-        if (!lines.empty())
-            mpCurrentOptions = lines.back()->getGlobalOptions();
+        if (!mLines.empty())
+            mpCurrentOptions = mLines.back()->getGlobalOptions();
         else
             mpCurrentOptions = mpInitialOptions;
         // TODO: Show error in imath edit window, not in formula object
@@ -800,7 +755,7 @@ bool SmDocShell::align_makes_sense() const {
   bool have_operator = false;
   unsigned count = 0;
 
-  for (const auto& i : lines) {
+  for (const auto& i : mLines) {
     iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(i);
     if ((pExpr != nullptr) && !pExpr->getHide())
       count += pExpr->countLinesWithOperators(have_operator);
@@ -826,8 +781,7 @@ void SmDocShell::addResultLines() {
   OUString prev_lhs = OU(""); // LHS of previous equation, for chaining
   unsigned basefontheight = sal_Int16(SmRoundFraction(Sm100th_mmToPts(GetFormat().GetBaseSize().Height()))); // TODO: getFormulaUnsignedProperty(fModel, OU("BaseFontHeight"))
 
-  // Note: Using _cit here breaks debian trusty build on i = emplace(i, ...)
-  for (iFormulaLine_it i = lines.begin(); i != lines.end();) {
+  for (iFormulaLine_it i = mLines.begin(); i != mLines.end();) {
     SAL_INFO_LEVEL(3, "starmath.imath",  "Line type = " << (*i)->getSelectionType() << endline);
     // Echo iFormula text
     if ((*i)->getOption(o_echoformula).value.boolean == true) {
@@ -837,15 +791,15 @@ void SmDocShell::addResultLines() {
         rtext = replaceString(rtext, OU("\n%%ii+"), OU("\" newline\"%%ii+"));
         rtext = OU("\"") + rtext + OU("\" newline{}");
 
-        if (i != lines.begin()) {
+        if (i != mLines.begin()) {
           iFormulaLine_it prev_it = i;
           --prev_it;
-          if (prev_it != lines.begin()) --prev_it;
+          if (prev_it != mLines.begin()) --prev_it;
           if ((*prev_it)->getFormula().lastIndexOf(OU("\" newline{}")) < 0)
             rtext = OU("{} newline ") + rtext;
         }
 
-        i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(rtext));
+        i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(rtext));
         SAL_INFO_LEVEL(3, "starmath.imath", "Created echo line" << endline);
         ++i;
       }
@@ -886,37 +840,32 @@ void SmDocShell::addResultLines() {
     if (a.isEmpty()) { // Case 1.
       SAL_INFO_LEVEL(3, "starmath.imath", "Not aligning this line. There is " << (hasResult ? "a" : "no") << " textual result" << endline);
       if (hasResult) {
-        i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
+        i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
         ++i;
         resultText = OU("");
         hasResult = false;
       }
     } else if (a.isFinished()) { // Case 4.
       SAL_INFO_LEVEL(3, "starmath.imath", "Finishing alignblock with a result line" << endline);
-      i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(a.print()));
+      i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(a.print()));
       ++i;
       if (hasResult) {
         SAL_INFO_LEVEL(3, "starmath.imath", "... and inserting new result line" << endline);
-        i = lines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
+        i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
         ++i;
         resultText = OU("");
         hasResult = false;
       }
       a.clear();
-    } else if (i == lines.end()) { // Case 5.
+    } else if (i == mLines.end()) { // Case 5.
       SAL_INFO_LEVEL(3, "starmath.imath", "Reached last line, inserting alignblock in a result line" << endline);
       a.finish();
-      lines.emplace_back(std::make_shared<iFormulaNodeResult>(a.print()));
-      i = lines.end();
+      mLines.emplace_back(std::make_shared<iFormulaNodeResult>(a.print()));
+      i = mLines.end();
       a.clear();
     }
   }
 }
-
-void SmDocShell::SetOption(const option_name oname, const option& value) {
-  for (auto& i : lines)
-    i->setOption(oname, value);
-} // setOption()
 
 void SmDocShell::UpdateEditEngineDefaultFonts()
 {

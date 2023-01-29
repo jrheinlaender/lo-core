@@ -64,7 +64,6 @@ namespace smathlexer {
   void scan_end();
   bool begin_include(const std::string &fname);
   bool finish_include();
-  void begindiff();
 };
 
 /* Access to printer should happen through this class only
@@ -264,21 +263,8 @@ public:
 
 // iMath ==========================================================================================
 public:
-    // These methods define a common interface for iFormula (iMath extension) and document (starmath)
-    /// Access the context
-    css::uno::Reference<css::uno::XComponentContext> GetContext() const;
     /// Access the document model. Either starmath or writer or impress, depending on whether the formula is stand-alone or inside a document
     css::uno::Reference<css::frame::XModel> GetDocumentModel() const;
-    /// Insert the formula (again) after the given formula for an update.
-    // Note: Formula parts with labels can not be updated to avoid cyclic references
-    void insertUpdate(const OUString&, const OUString&) const { /* Not implemented */ }
-    /// Check whether the document containing the formula (if it exists) can hold charts
-    bool CheckHasChartsAndTables() const;
-    /// Set the content of the given table cell to a string or double value
-    void setTableCell(const OUString& tableName, const OUString& tableCellName, const GiNaC::expression& value) const;
-
-    /// Set an option on the formula (all lines of it) if its value is different from the global option
-    void SetOption(const option_name oname, const option& value);
 
     /// Set/Get for previous iFormula
     void SetPreviousFormula(const OUString& aName);
@@ -324,22 +310,8 @@ private:
     // TODO: Update on UI changes not implemented yet
     OUString ImInitializeCompiler();
 
-    /// Allow others to access the following private data. Required for compatibility with the iMath extension
-    friend class imath::smathparser;
-    /// The raw text split into lines
-    // Note: This cannot be called mLines as long as we require compatibility with the iMath extension
-    std::list<iFormulaLine_ptr> lines;
-    /// the raw formula text from the UI
-    // Note: This cannot be called mRawtext as long as we require compatibility with the iMath extension
-    OUString rawtext;
-    /// The compiled equations of the iFormula are cacheable (saving time on re-compilation)
-    // Note: This cannot be called mCacheable as long as we require compatibility with the iMath extension
-    bool cacheable;
-    /// The results of the last compilation (for cacheable iFormulas only)
-    // TODO: Caching is not implemented yet
-    // Note: This cannot be called mCachedResults as long as we require compatibility with the iMath extension
-    std::vector<std::pair<std::string, GiNaC::expression> > cached_results;
-
+    /// The parsed formula text split into lines
+    std::list<iFormulaLine_ptr> mLines;
     /// Add result lines to the list of iFormulaLines
     void addResultLines();
     /// Count the number of lines of a certain type

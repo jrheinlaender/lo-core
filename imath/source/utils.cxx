@@ -107,7 +107,7 @@ bool is_negpower(const ex &p) {
 bool is_equal_int(const numeric &n, const int i, const unsigned digits) {
   MSG_INFO(5, "is_equal_int: " << n << " == " << i << " to " << digits << endline);
   if (!n.info(info_flags::real)) return false;
-  return abs(n - i).to_double() < std::pow(10, -digits);
+  return abs(n - i).to_double() < std::pow(10, -1 * digits);
 }
 
 bool is_empty(const matrix& m) {

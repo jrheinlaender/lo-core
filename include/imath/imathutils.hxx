@@ -424,6 +424,9 @@ void orderPresentation(const Reference< XModel >& xModel, std::list< OUString >&
 /// Return the content of the given DDE text field
 IMATH_DLLPUBLIC OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUString& textFieldName);
 
+/// Check if the model supports charts and tables
+IMATH_DLLPUBLIC bool checkHasChartsAndTables(const Reference<XModel>& xModel);
+
 /// Return a cell of a Writer table
 IMATH_DLLPUBLIC Reference< XCell > getTableCell(const Reference< XTextDocument >& xDoc, const OUString& tableName, const OUString& tableCellName);
 
@@ -447,6 +450,9 @@ void setCalcCellRangeExpression(const Reference < XColumnRowRange >& xColumnRowR
 
 /// Set the given cell to the given value (if it is a string formula, the formula will be interpreted)
 IMATH_DLLPUBLIC void setCellExpression(const Reference< XCell >& xCell, const GiNaC::expression& value);
+
+/// Set the given cell of the document to the given value (xDocumentModel must implement XTextDocument)
+IMATH_DLLPUBLIC void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName, const OUString& tableCellName, const GiNaC::expression& value);
 
 /// Parse the content of a string (currently specific to text field content strings)
 IMATH_DLLPUBLIC GiNaC::expression getExpressionFromString(const OUString& s);

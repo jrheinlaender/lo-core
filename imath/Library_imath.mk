@@ -13,6 +13,7 @@ $(eval $(call gb_Library_Library,imath))
 
 $(eval $(call gb_Library_set_include,imath,\
     -I$(SRCDIR)/imath/inc \
+    -I$(WORKDIR)/YaccTarget/imath/source \
     $$(INCLUDE) \
 ))
 
@@ -38,6 +39,22 @@ $(eval $(call gb_Library_use_libraries,imath,\
         sal \
 ))
 
+$(eval $(call gb_Library_add_grammars,imath,\
+        imath/source/smathparser \
+))
+
+$(call gb_YaccTarget_get_target,imath/source/smathparser) : T_YACCFLAGS := -d -osmathparser.cxx
+
+$(eval $(call gb_Library_add_scanners,imath,\
+        imath/source/smathlexer \
+))
+
+$(call gb_LexTarget_get_scanner_target,imath/source/smathlexer) : T_LEXFLAGS := -o smathlexer.cxx
+
+$(eval $(call gb_Library_use_custom_headers,imath,\
+        officecfg/registry \
+))
+
 $(eval $(call gb_Library_use_sdk_api,imath))
 
 $(eval $(call gb_Library_add_exception_objects,imath,\
@@ -52,6 +69,7 @@ $(eval $(call gb_Library_add_exception_objects,imath,\
     imath/source/func \
     imath/source/funcmgr \
     imath/source/hardfuncs \
+    imath/source/imathparse \
     imath/source/imathutils \
     imath/source/iFormulaLine \
     imath/source/iIterator \

@@ -18,32 +18,19 @@
 
 %{
 #if defined INSIDE_SM
-  class SmDocShell;
-  class documentObject;
-  #define FORMULAOBJECT SmDocShell
-  #define DOCUMENTOBJECT documentObject
-  namespace imath { class smathparser; }
-  // Announce to Flex the prototype we want for lexing function. This must match the declaration of lex_param at the top of smathparser.yxx
-  # define YY_DECL imath::smathparser::token::yytokentype imathlex (imath::smathparser::semantic_type* yylval, \
-              imath::smathparser::location_type* yylloc, std::shared_ptr<eqc> compiler, \
-              unsigned include_level)
+  #include <imath/imathparse.hxx>
   // These includes are required for smathparser.hxx
   #include <imath/option.hxx>
   #include <imath/printing.hxx>
   #include <imath/imathutils.hxx>
-  #include <imath/iFormulaLine.hxx>
   #include <imath/unit.hxx>
   #include <imath/func.hxx>
   #include <imath/msgdriver.hxx>
-  #include <imath/eqc.hxx>
 #else
-  #include "iFormula.hxx"
-  #define FORMULAOBJECT iFormula
-  #define DOCUMENTOBJECT iMathDoc
+  #include "imathparse.hxx"
   #include "unit.hxx"
   #include "func.hxx"
   #include "msgdriver.hxx"
-  #include "eqc.hxx"
 #endif
 #include "smathparser.hxx"
 

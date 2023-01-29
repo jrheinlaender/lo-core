@@ -118,7 +118,7 @@ private:
   GiNaC::expression _expr;
 };
 
-class IMATH_DLLPUBLIC alignblock;
+class alignblock;
 
 /// Stores one text line of an iFormula with its type
 // Possible line formats:

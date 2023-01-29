@@ -141,6 +141,8 @@
 #include "com/sun/star/util/XCloseable.hpp"
 #include "com/sun/star/frame/XStorable.hpp"
 #include "com/sun/star/ucb/XFileIdentifierConverter.hpp"
+#include <com/sun/star/presentation/XPresentationSupplier.hpp>
+
 
 #include <cmath>
 #include <limits>
@@ -266,6 +268,8 @@ using com::sun::star::drawing::XShape;
 using com::sun::star::util::XCloseable;
 using com::sun::star::frame::XStorable;
 using com::sun::star::ucb::XFileIdentifierConverter;
+using com::sun::star::presentation::XPresentationSupplier;
+
 
 using namespace GiNaC;
 
@@ -659,9 +663,10 @@ void addDataSeries(const Reference < com::sun::star::chart2::XChartDocument >& c
 
 void forceDiagramUpdate(const Reference< XComponent >& xChart) {
 #ifdef INSIDE_SM
+  (void)xChart;
   // TODO Switching to INPLACE_ACTIVE throws an exception, find another way
   return;
-#endif
+#else
   // Hack: Force the diagram to recognize changed data points
   Reference < XEmbeddedObjectSupplier2 >xEOS2(xChart, UNO_QUERY);
   if (xEOS2.is()) {
@@ -684,6 +689,7 @@ void forceDiagramUpdate(const Reference< XComponent >& xChart) {
     if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::INPLACE_ACTIVE)
       xEmbObj->changeState( com::sun::star::embed::EmbedStates::RUNNING);
   }
+#endif
 }
 
 Reference < XComponent > insertChart(const Reference < XModel > &xModel, const Reference < XComponentContext > &xCC) {
@@ -2019,6 +2025,19 @@ OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUStr
   return OU("error");
 }
 
+bool checkHasChartsAndTables(const Reference<XModel>& xModel)
+{
+    Reference<XTextDocument> xTextDoc(xModel, UNO_QUERY);
+    if (xTextDoc.is())
+        return true;
+
+    Reference<XPresentationSupplier> xPresDoc(xModel, UNO_QUERY);
+    if (xPresDoc.is())
+        return true;
+
+    return false;
+}
+
 Reference< XCell > getTableCell(const Reference< XTextDocument >& xDoc, const OUString& tableName, const OUString& tableCellName) {
   Reference< XTextTablesSupplier > xTSupplier(xDoc, UNO_QUERY_THROW);
   Reference< XNameAccess > xTextTables = xTSupplier->getTextTables();
@@ -2088,6 +2107,13 @@ void setCellExpression(const Reference< XCell >& xCell, const expression& value)
       }
     }
   }
+}
+
+void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName, const OUString& tableCellName, const GiNaC::expression& value) {
+  // Note: LO6 crashes when a table cell is changed during a pasting operation
+  Reference< XTextDocument > xDoc(xDocumentModel, UNO_QUERY_THROW); // This must be checked before calling the method
+  Reference< XCell > xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
+  setCellExpression(xCell, value);
 }
 
 expression calcCellRangeContent(const Reference<XComponentContext>& xContext, const OUString& calcURL, const OUString& sheetName, const OUString& cellRange) {

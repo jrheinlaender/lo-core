@@ -27,14 +27,6 @@ possible to request variable values from eqc, which will be derived from the reg
 #include <iostream>
 #include <string>
 #include <stdexcept>
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning (disable: 4099 4100 4661 4996)
-#endif
-#include <ginac/ginac.h>
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 #include "equation.hxx"
 #include "extsymbol.hxx"
 #include "utils.hxx"

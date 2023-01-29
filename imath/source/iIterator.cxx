@@ -83,8 +83,8 @@ iIterator::iIterator(const Reference< XModel >& xModel, const OUString& classid)
 }
 
 bool iIterator::next() {
-  MSG_INFO(0, "iIterator::next() for " << type << ", currentObject=" << numCurrentObject << endline);
   ++numCurrentObject;
+  MSG_INFO(0, "iIterator::next() for " << type << ", currentObject=" << numCurrentObject << endline);
 
   if (type == "TextDocument") {
     return (numCurrentObject < numObjects);

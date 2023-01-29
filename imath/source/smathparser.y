@@ -176,7 +176,7 @@ const std::string locationstr(const imath::location& loc) {
   return parsestr;
 } // locationstr()
 
-const ex calcvalue(std::shared_ptr<eqc> compiler, const std::string& whatval, const ex& expr, const lst &assignments) {
+const ex calcvalue(const std::string& whatval, const ex& expr, const lst &assignments) {
   extsymbol var;
   if (!is_a<extsymbol>(expr)) {
     var = ex_to<extsymbol>(compiler->getsym(VALSYM));
@@ -213,11 +213,11 @@ const ex calcvalue(std::shared_ptr<eqc> compiler, const std::string& whatval, co
 
 // Search value for each element separately
 // It is assumed that expr really is a matrix
-expression calcvalueofmatrix(std::shared_ptr<eqc> compiler, const std::string& whatval, const ex& expr, const lst &assignments) {
+expression calcvalueofmatrix(const std::string& whatval, const ex& expr, const lst &assignments) {
   matrix result = ex_to<matrix>(expr);
   for (unsigned r = 0; r < result.rows(); ++r)
     for (unsigned c = 0; c < result.cols(); ++c)
-      result(r,c) = calcvalue(compiler, whatval, result(r,c), assignments);
+      result(r,c) = calcvalue(whatval, result(r,c), assignments);
 
   return result;
 }
@@ -266,7 +266,7 @@ matrix check_vector(const ex& e, const imath::location& pos) {
   return result;
 }
 
-bool check_anyvector(const ex& e, std::shared_ptr<eqc> compiler) {
+bool check_anyvector(const ex& e) {
   if (is_a<symbol>(e)) {
     const symbol& s = ex_to<symbol>(e);
     return compiler->getsymprop(s.get_name()) == p_vector;
@@ -306,7 +306,7 @@ option getLineOption(const option_name& o) {
     return current_options->at(o);
 }
 
-std::string check_label(const std::shared_ptr<eqc>& compiler, const std::string& label, const imath::location& loc) {
+std::string check_label(const std::string& label, const imath::location& loc) {
   std::string nslabel = compiler->label_ns(label);
   if (compiler->is_label(nslabel)) {
     if (!autorenumberduplicate) throw imath::smathparser::syntax_error(loc, "Duplicate label: " + nslabel);
@@ -318,7 +318,7 @@ std::string check_label(const std::shared_ptr<eqc>& compiler, const std::string&
   return nslabel;
 }
 
-GiNaC::unitvec unitConversions(const std::shared_ptr<eqc>& compiler) {
+GiNaC::unitvec unitConversions() {
   // Create a combined list with all global and local units. Local units have precedence, so they must come last
   // Note: create_conversions() only works properly if ALL units are processed in one go!
   MSG_INFO(2, "unitConversions()" << endline);
@@ -547,14 +547,14 @@ input:   %empty
        } comment end
        | input options TEXT usertext { // User-defined text after %%ii {options} TEXT
           std::vector<OUString> formulaParts = {OUS8(rawtext.substr(@4.begin.column-1, @4.end.column-@4.begin.column))}; // not GETARG because it trims the string
-          params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(params.compiler), current_options, std::move(*$2), std::move(formulaParts), std::move(*$4)));
+          params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(), current_options, std::move(*$2), std::move(formulaParts), std::move(*$4)));
           line = params.lines->back();
 		  line_options = nullptr;
           delete($2); delete($4);
        } comment end
        | input usertext { // user-defined text on a line by itself. The end removes 3 shift/reduce conflicts
           std::vector<OUString> formulaParts = {GETARG(@2)};
-          params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(params.compiler), current_options, optionmap(), std::move(formulaParts), std::move(*$2)));
+          params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(), current_options, optionmap(), std::move(formulaParts), std::move(*$2)));
           line = params.lines->back();
 		  line_options = nullptr;
           delete($2);
@@ -1119,7 +1119,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@4)};
           params.lines->push_back(std::make_shared<iFormulaNodeEx>(
-            unitConversions(params.compiler), current_options, std::move(*$1),
+            unitConversions(), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
             *$4, $3));
           line = params.lines->back();
@@ -1134,7 +1134,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5)};
           params.lines->push_back(std::make_shared<iFormulaNodeEx>(
-            unitConversions(params.compiler), current_options, std::move(*$2),
+            unitConversions(), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(params.compiler->exlabel_ns(*$1)),
             *$5, $4));
           line = params.lines->back();
@@ -1153,7 +1153,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           if (include_level == 0) {
             std::vector<OUString> formulaParts = {GETARG(@5)};
             params.lines->push_back(std::make_shared<iFormulaNodeEx>(
-              unitConversions(params.compiler), current_options, std::move(*$2),
+              unitConversions(), current_options, std::move(*$2),
               std::move(formulaParts), OUS8(label),
               *$5, $4));
             line = params.lines->back();
@@ -1174,9 +1174,9 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           std::vector<OUString> formulaParts = {GETARG(@3)};
 
           params.lines->push_back(std::make_shared<iFormulaNodePrintval>(
-            unitConversions(params.compiler), current_options, std::move(*$1),
+            unitConversions(), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
-            (is_a<matrix>(*$3) ? calcvalueofmatrix(params.compiler, type, *$3, lst()) : calcvalue(params.compiler, type, *$3, lst())), false,
+            (is_a<matrix>(*$3) ? calcvalueofmatrix(type, *$3, lst()) : calcvalue(type, *$3, lst())), false,
             *$3,
             algebraic, false
           ));
@@ -1195,9 +1195,9 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           std::vector<OUString> formulaParts = {OU("{"), GETARG(@4), OU(","), GETARG(@6), OU("}")};
 
           params.lines->push_back(std::make_shared<iFormulaNodePrintval>(
-            unitConversions(params.compiler), current_options, std::move(*$1),
+            unitConversions(), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
-            (is_a<matrix>(*$4) ? calcvalueofmatrix(params.compiler, type, *$4, *$6) : calcvalue(params.compiler, type, *$4, *$6)), false,
+            (is_a<matrix>(*$4) ? calcvalueofmatrix(type, *$4, *$6) : calcvalue(type, *$4, *$6)), false,
             *$4,
             algebraic, true
           ));
@@ -1212,12 +1212,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
 			| options EXPLAINVAL asterisk ex {
 				if (include_level == 0) {
           // What is the value of the expression?
-          expression value = (is_a<matrix>(*$4) ? calcvalueofmatrix(params.compiler, "VAL", *$4, lst()) : calcvalue(params.compiler, "VAL", *$4, lst()));
+          expression value = (is_a<matrix>(*$4) ? calcvalueofmatrix("VAL", *$4, lst()) : calcvalue("VAL", *$4, lst()));
           expression definition = (is_a<symbol>(*$4) ? ex_to<relational>(params.compiler->get_assignment(ex_to<symbol>(*$4))).rhs() : *$4);
           std::vector<OUString> formulaParts = {GETARG(@4)};
 
           params.lines->push_back(std::make_shared<iFormulaNodeExplainval>(
-            unitConversions(params.compiler), current_options, std::move(*$1),
+            unitConversions(), current_options, std::move(*$1),
             std::move(formulaParts), OU(""),
             value, $3,
             *$4, definition,
@@ -1235,11 +1235,11 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
 				delete($1); delete($4);
 			}
       |	LABEL options EQDEF asterisk eq {
-        std::string nslabel = check_label(params.compiler, *$1, @1);
+        std::string nslabel = check_label(*$1, @1);
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5)};
           params.lines->push_back(std::make_shared<iFormulaNodeEq>(
-            unitConversions(params.compiler), current_options, std::move(*$2),
+            unitConversions(), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *$5, $4));
           line = params.lines->back();
@@ -1254,11 +1254,11 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         delete($1); delete($2);
       }
       | LABEL options CONSTDEF asterisk eq {
-        std::string nslabel = check_label(params.compiler, *$1, @1);
+        std::string nslabel = check_label(*$1, @1);
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5)};
           params.lines->push_back(std::make_shared<iFormulaNodeConst>(
-            unitConversions(params.compiler), current_options, std::move(*$2),
+            unitConversions(), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *$5, $4));
           line = params.lines->back();
@@ -1279,12 +1279,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
 					throw syntax_error(@10, "\nRecursive function definition");
         params.compiler->define_function(*$5, *$10); // TODO: Should we check the arguments in $7 ?
         expression* result = new expression(dynallocate<equation>(f, *$10, relational::equal, _expr0));
-        std::string nslabel = check_label(params.compiler, *$1, @1);
+        std::string nslabel = check_label(*$1, @1);
 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
           params.lines->push_back(std::make_shared<iFormulaNodeFuncdef>(
-            unitConversions(params.compiler), current_options, std::move(*$2),
+            unitConversions(), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *result, $4));
           line = params.lines->back();
@@ -1306,12 +1306,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
 					throw syntax_error(@10, "\nRecursive function definition");
         params.compiler->define_function(*$5, *$10); // TODO: Should we check the arguments in $7 ?
         expression* result = new expression(dynallocate<equation>(f, *$10, relational::equal, _expr0));
-        std::string nslabel = check_label(params.compiler, *$1, @1);
+        std::string nslabel = check_label(*$1, @1);
 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
           params.lines->push_back(std::make_shared<iFormulaNodeFuncdef>(
-            unitConversions(params.compiler), current_options, std::move(*$2),
+            unitConversions(), current_options, std::move(*$2),
             std::move(formulaParts),OUS8(nslabel),
             *result, $4));
           line = params.lines->back();
@@ -1328,12 +1328,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
       }
       | LABEL options VECTORDEF asterisk vsymbol '=' ex {
         expression* result = new expression(dynallocate<equation>(*$5, *$7, relational::equal, _expr0));
-        std::string nslabel = check_label(params.compiler, *$1, @1);
+        std::string nslabel = check_label(*$1, @1);
 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), OU("="), GETARG(@7)};
           params.lines->push_back(std::make_shared<iFormulaNodeVectordef>(
-            unitConversions(params.compiler), current_options, std::move(*$2),
+            unitConversions(), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             *result, $4));
           line = params.lines->back();
@@ -1347,12 +1347,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
       }
       | LABEL options MATRIXDEF asterisk msymbol '=' ex {
         equation& result = dynallocate<equation>(*$5, *$7, relational::equal, _expr0);
-        std::string nslabel = check_label(params.compiler, *$1, @1);
+        std::string nslabel = check_label(*$1, @1);
 
         if (include_level == 0) {
           std::vector<OUString> formulaParts = {GETARG(@5), OU("="), GETARG(@7)};
           params.lines->push_back(std::make_shared<iFormulaNodeMatrixdef>(
-            unitConversions(params.compiler), current_options, std::move(*$2),
+            unitConversions(), current_options, std::move(*$2),
             std::move(formulaParts), OUS8(nslabel),
             expression(result), $4));
           line = params.lines->back();
@@ -1642,8 +1642,8 @@ eq:   ex '=' ex             { $$ = new expression(dynallocate<equation>(*$1, *$3
       const equation& eq = ex_to<equation>(*$3);
       ex lhs = eq.lhs();
       if (!is_a<symbol>(lhs))
-        lhs = calcvalue(params.compiler, *$1, lhs, lst());
-      $$ = new expression(dynallocate<equation>(lhs, calcvalue(params.compiler, *$1, eq.rhs(), lst()), eq.getop(), eq.getmod()));
+        lhs = calcvalue(*$1, lhs, lst());
+      $$ = new expression(dynallocate<equation>(lhs, calcvalue(*$1, eq.rhs(), lst()), eq.getop(), eq.getmod()));
       must_autoformat = true;
       delete($1); delete($3);
     }
@@ -1651,8 +1651,8 @@ eq:   ex '=' ex             { $$ = new expression(dynallocate<equation>(*$1, *$3
       const equation& eq = ex_to<equation>(*$3);
       ex lhs = eq.lhs();
       if (!is_a<symbol>(lhs))
-        lhs = calcvalue(params.compiler, *$1, lhs, *$5);
-      $$ = new expression(dynallocate<equation>(lhs, calcvalue(params.compiler, *$1, eq.rhs(), *$5), eq.getop(), eq.getmod()));
+        lhs = calcvalue(*$1, lhs, *$5);
+      $$ = new expression(dynallocate<equation>(lhs, calcvalue(*$1, eq.rhs(), *$5), eq.getop(), eq.getmod()));
       must_autoformat = true;
       delete($1); delete($3); delete($5);
     }
@@ -2023,7 +2023,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       $$ = new expression((*$1 * *$3).evalm()); delete ($1); delete ($3);
     }
     | ex TIMES ex  {
-      if (check_anyvector(*$1, params.compiler) && check_anyvector(*$3, params.compiler))
+      if (check_anyvector(*$1) && check_anyvector(*$3))
         $$ = new expression(Functionmanager::create_hard("vecprod", exprseq{*$1, *$3}));
       else
         $$ = new expression((*$1 * *$3).evalm());
@@ -2046,18 +2046,18 @@ ex:   SUBST '(' ex ',' eqlist ')' {
 		}
     | VALUE '(' ex ')' { // Calculate the value of this expression
       if (is_a<matrix>(*$3))
-        $$ = new expression(calcvalueofmatrix(params.compiler, *$1, *$3, lst()));
+        $$ = new expression(calcvalueofmatrix(*$1, *$3, lst()));
       else
-        $$ = new expression(calcvalue(params.compiler, *$1, *$3, lst()));
+        $$ = new expression(calcvalue(*$1, *$3, lst()));
 
       must_autoformat = true;
       delete($1); delete($3);
     }
     | VALUEWITH '(' ex ',' eqlist ')' { // Find the value of this expression using an optional list of assignments to find it
       if (is_a<matrix>(*$3))
-        $$ = new expression(calcvalueofmatrix(params.compiler, *$1, *$3, *$5));
+        $$ = new expression(calcvalueofmatrix(*$1, *$3, *$5));
       else
-        $$ = new expression(calcvalue(params.compiler, *$1, *$3, *$5));
+        $$ = new expression(calcvalue(*$1, *$3, *$5));
 
       must_autoformat = true;
       delete($1); delete($3); delete($5);

@@ -18,8 +18,8 @@ $(eval $(call gb_Library_set_precompiled_header,sm,starmath/inc/pch/precompiled_
 $(eval $(call gb_Library_set_include,sm,\
         -I$(SRCDIR)/starmath/inc \
         -I$(SRCDIR)/starmath/inc/mathml \
+        -I$(WORKDIR)/YaccTarget/imath/source \
         -I$(WORKDIR)/SdiTarget/starmath/sdi \
-        -I$(WORKDIR)/YaccTarget/starmath/source \
         $$(INCLUDE) \
 ))
 
@@ -70,18 +70,6 @@ $(eval $(call gb_Library_use_libraries,sm,\
         vcl \
         xo \
 ))
-
-$(eval $(call gb_Library_add_grammars,sm,\
-        starmath/source/imath/smathparser \
-))
-
-$(call gb_YaccTarget_get_target,starmath/source/imath/smathparser) : T_YACCFLAGS := -d -osmathparser.cxx
-
-$(eval $(call gb_Library_add_scanners,sm,\
-	starmath/source/imath/smathlexer \
-))
-
-$(call gb_LexTarget_get_scanner_target,starmath/source/imath/smathlexer) : T_LEXFLAGS := -o smathlexer.cxx
 
 $(eval $(call gb_Library_add_exception_objects,sm,\
         starmath/source/ElementsDockingWindow \

@@ -896,7 +896,7 @@ void imathprint_real(const numeric& num, const imathprint& c) {
     }
   } else { // print float
     std::ostringstream numstream;
-    numstream << num; // Use standard printing routine of CLN
+    numstream << num; // Use standard printing routine of numeric
     std::string number = numstream.str();
     MSG_INFO(4, "Original number=" << number << endline);
 
@@ -904,12 +904,14 @@ void imathprint_real(const numeric& num, const imathprint& c) {
     bool negative = (number[0] == '-');
     if (negative) number.erase(0,1);
     if (number[0] == '0') number.erase(0,1); // Remove leading zero
-    std::size_t epos = number.find("L"); // CLN exponent marker (is always present) TODO: Force a single marker (cl_LF), but how?
-    if (epos == std::string::npos) epos = number.find("d");
-    if (epos == std::string::npos) epos = number.find("f");
-    if (epos == std::string::npos) epos = number.find("s");
-    int exponent = std::stoi(number.substr(epos+1));
-    number.erase(epos);
+    std::size_t epos = number.find("E"); // numeric.cpp: print_real_number() forces CLN exponent marker to 'E'
+    int exponent;
+    if (epos == std::string::npos) {
+      exponent = 0;
+    } else {
+      exponent = std::stoi(number.substr(epos+1));
+      number.erase(epos);
+    }
     std::size_t ppos = number.find(".");
     if (ppos != std::string::npos) {
       number.erase(ppos, 1);
@@ -999,8 +1001,8 @@ void imathprint_real(const numeric& num, const imathprint& c) {
 void imathprint_numeric(const numeric& n, const imathprint& c, unsigned level) {
   MSG_INFO(4, "imathprint_numeric()" << endline);
   (void)level;
-  const numeric& r = ex_to<numeric>(n.real_part());
-  const numeric& i = ex_to<numeric>(n.imag_part());
+  numeric r = ex_to<numeric>(n.real_part());
+  numeric i = ex_to<numeric>(n.imag_part());
 
   if (is_equal_int(i, 0, Digits)) { // case 1, real:  x  or  -x
     imathprint_real(r, c);

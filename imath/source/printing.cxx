@@ -19,6 +19,15 @@
 #include <sstream>
 #include <cmath>
 #include <cfloat>
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4099 4100 4996)
+#endif
+#include <ginac/mul.h>
+#include <ginac/operators.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #ifdef INSIDE_SM
 #include <imath/printing.hxx>
 #include <imath/msgdriver.hxx>

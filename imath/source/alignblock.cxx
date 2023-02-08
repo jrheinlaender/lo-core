@@ -16,6 +16,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <ginac/relational.h>
 #ifdef INSIDE_SM
 #include <imath/alignblock.hxx>
 #include <imath/msgdriver.hxx>

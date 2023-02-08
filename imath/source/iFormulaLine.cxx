@@ -18,6 +18,7 @@
 
 #include <sstream>
 #include <regex>
+#include <ginac/operators.h>
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
 #include <imath/alignblock.hxx>

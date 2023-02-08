@@ -26,6 +26,10 @@
 #include <set>
 #include <string>
 #include <stdexcept>
+#include <ginac/constant.h>
+#include <ginac/power.h>
+#include <ginac/lst.h>
+#include <ginac/matrix.h>
 #ifndef _MSC_VER
   #include <backward/hash_fun.h>
 #endif

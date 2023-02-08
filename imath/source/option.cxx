@@ -17,6 +17,15 @@
 
 #include <sstream>
 #include <cmath>
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning (disable: 4099 4100 4661 4996)
+#endif
+#include <ginac/structure.h>
+#include <ginac/relational.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #ifdef INSIDE_SM
 #include <imath/option.hxx>
 #include <imath/msgdriver.hxx>

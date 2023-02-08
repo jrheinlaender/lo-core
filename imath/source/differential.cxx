@@ -16,6 +16,9 @@
  ***************************************************************************/
 
 #include <cmath>
+#include <ginac/operators.h>
+#include <ginac/relational.h>
+#include <ginac/symbol.h>
 #ifdef INSIDE_SM
 #include <imath/differential.hxx>
 #include <imath/printing.hxx>

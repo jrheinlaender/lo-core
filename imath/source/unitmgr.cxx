@@ -15,6 +15,16 @@
  *                                                                         *
  ***************************************************************************/
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4099 4100 4996)
+#endif
+#include <ginac/mul.h>
+#include <ginac/operators.h>
+#include <ginac/relational.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
 #include <imath/utils.hxx>

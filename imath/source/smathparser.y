@@ -33,6 +33,16 @@
   #include <sstream>
   #include <numeric>
   #include <com/sun/star/frame/XStorable.hpp>
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4099 4100 4996)
+#endif
+  #include <ginac/normal.h>
+  #include <ginac/operators.h>
+  #include <ginac/pseries.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #ifdef INSIDE_SM
   #include <imath/imathparse.hxx>

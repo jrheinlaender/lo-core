@@ -15,6 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <ginac/relational.h>
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
 #include <imath/settingsmanager.hxx>

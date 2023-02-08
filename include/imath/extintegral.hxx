@@ -19,6 +19,7 @@
 #define EXTINTEGRAL_H
 
 #include <typeinfo>
+#include <ginac/integral.h>
 #include "printing.hxx"
 
 namespace GiNaC {

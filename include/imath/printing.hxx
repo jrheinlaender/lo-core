@@ -34,7 +34,14 @@ x^{(3+4i)} looks ugly. Therefore another approach to bracketing is implemented i
 #pragma warning(push)
 #pragma warning (disable: 4099 4100 4661 4996)
 #endif
-#include <ginac/ginac.h>
+#include <ginac/add.h>
+#include <ginac/constant.h>
+#include <ginac/function.h>
+#include <ginac/matrix.h>
+#include <ginac/mul.h>
+#include <ginac/ncmul.h>
+#include <ginac/power.h>
+#include <ginac/hash_map.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif

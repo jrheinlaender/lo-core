@@ -4289,6 +4289,14 @@
           <value>.uno:iMathInsertCreate</value>
         </prop>
       </node>
+      <node oor:name=".uno:iMathInsertExternal" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iFormula (external editor)</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertExternal</value>
+        </prop>
+      </node>
       <node oor:name=".uno:iMathInsertFunction" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">Function</value>
@@ -4319,6 +4327,176 @@
         </prop>
         <prop oor:name="TargetURL" oor:type="xs:string">
           <value>.uno:iMathInsertUnit</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertChart" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Chart</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertChart</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertChartSeries" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Chart series</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertChartSeries</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathInsertSetOptions" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Set options</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertSetOptions</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditMenu" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Edit</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditEdit" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iFormula</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditEdit</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditExternal" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iFormula (external editor)</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditExternal</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditMerge" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Merge</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditMerge</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditHide" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Hide</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditHide</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditShow" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Show</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditShow</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditDelete" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Delete</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditDelete</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditClearEquation" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Clear</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditClearEquation</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathEditClearAll" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Clear all</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathEditClearAll</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathFormat" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Format</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathFormat</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathRenumber" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Renumber</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathRenumber</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathVarInfo" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Variable list</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathVarInfo</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathDependency" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Dependencies</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathDependency</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathSettings" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Settings</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathSettings</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathReferences" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">References</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathReferences</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathHelpMenu" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Help</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathWiki" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iMath Help Online (Wiki)</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>_self</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathFirstSteps" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">First steps</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>_self</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathWebsite" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iMath Website</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>_self</value>
         </prop>
       </node>
     </node>

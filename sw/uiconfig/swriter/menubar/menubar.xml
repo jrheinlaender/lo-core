@@ -680,14 +680,53 @@
       <menu:menu menu:id=".uno:iMathInsertMenu">
         <menu:menupopup>
           <menu:menuitem menu:id=".uno:iMathInsertCreate"/>
+          <menu:menuitem menu:id=".uno:iMathInsertExternal"/>
           <menu:menuitem menu:id=".uno:iMathInsertConvert"/>
           <menu:menuseparator/>
           <menu:menuitem menu:id=".uno:iMathInsertFunction"/>
           <menu:menuitem menu:id=".uno:iMathInsertVector"/>
           <menu:menuitem menu:id=".uno:iMathInsertMatrix"/>
           <menu:menuitem menu:id=".uno:iMathInsertUnit"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathInsertChart"/>
+          <menu:menuitem menu:id=".uno:iMathInsertChartSeries"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathInsertSetOptions"/>
         </menu:menupopup>
       </menu:menu>
+      <menu:menu menu:id=".uno:iMathEditMenu">
+        <menu:menupopup>
+          <menu:menuitem menu:id=".uno:iMathEditEdit"/>
+          <menu:menuitem menu:id=".uno:iMathEditExternal"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathEditMerge"/>
+          <menu:menuitem menu:id=".uno:iMathEditHide"/>
+          <menu:menuitem menu:id=".uno:iMathEditShow"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathEditDelete"/>
+          <menu:menuitem menu:id=".uno:iMathEditClearEquation"/>
+          <menu:menuitem menu:id=".uno:iMathEditClearAll"/>
+        </menu:menupopup>
+      </menu:menu>
+      <menu:menuitem menu:id=".uno:iMathFormat"/>
+      <menu:menuseparator/>
+      <menu:menuitem menu:id=".uno:iMathRenumber"/>
+      <menu:menuseparator/>
+      <menu:menuitem menu:id=".uno:iMathVarInfo"/>
+      <menu:menuitem menu:id=".uno:iMathDependency"/>
+      <menu:menuitem menu:id=".uno:iMathSettings"/>
+      <menu:menuitem menu:id=".uno:iMathReferences"/>
+      <menu:menuseparator/>
+      <menu:menu menu:id=".uno:iMathHelpMenu">
+        <menu:menupopup>
+          <menu:menuitem menu:id=".uno:iMathWiki"/>
+          <menu:menuitem menu:id=".uno:iMathFirstSteps"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathWebsite"/>
+        </menu:menupopup>
+      </menu:menu>
+    </menu:menupopup>
+  </menu:menu>
   <menu:menu menu:id=".uno:FormatFormMenu">
     <menu:menupopup>
       <menu:menuitem menu:id=".uno:SwitchControlDesignMode"/>

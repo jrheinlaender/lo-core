@@ -16,7 +16,9 @@
  ***************************************************************************/
 
 #include <sstream>
-
+#include <ginac/fderivative.h>
+#include <ginac/operators.h>
+#include <ginac/symbol.h>
 #ifdef INSIDE_SM
 #include <imath/func.hxx>
 #include <imath/funcmgr.hxx>

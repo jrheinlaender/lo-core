@@ -16,6 +16,16 @@
  ***************************************************************************/
 
 #include <sstream>
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4099 4100 4996)
+#endif
+#include <ginac/operators.h>
+#include <ginac/symbol.h>
+#include <ginac/inifcns.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #ifdef INSIDE_SM
 #include <imath/equation.hxx>
 #include <imath/unit.hxx>

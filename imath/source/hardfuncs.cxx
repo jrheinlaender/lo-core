@@ -26,6 +26,9 @@
 #pragma warning(pop)
 #endif
 
+#include <ginac/operators.h>
+#include <ginac/relational.h>
+#include <ginac/symbol.h>
 #ifdef INSIDE_SM
 #include <imath/expression.hxx>
 #include <imath/func.hxx>

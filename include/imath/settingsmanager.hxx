@@ -25,7 +25,6 @@
 #include "imathutils.hxx"
 #endif
 #include "iFormulaLine.hxx"
-#include <ginac/ginac.h>
 
 class IMATH_DLLPUBLIC Settingsmanager {
 public:

@@ -23,7 +23,7 @@
  * @short Define hard-coded functions for eqc
  */
 
-#include <ginac/ginac.h>
+#include <ginac/function.h>
 
 namespace GiNaC {
 

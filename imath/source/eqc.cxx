@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <cmath>
+#include <ginac/operators.h>
 #ifdef INSIDE_SM
 #include <imath/eqc.hxx>
 #include <imath/printing.hxx>

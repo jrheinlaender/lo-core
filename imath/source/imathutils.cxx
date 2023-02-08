@@ -157,6 +157,8 @@
 #include <unistd.h>
 #endif
 
+#include <ginac/operators.h>
+#include <ginac/relational.h>
 #ifdef INSIDE_SM
 #include <imath/imathutils.hxx>
 #include <imath/unit.hxx>

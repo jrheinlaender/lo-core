@@ -15,6 +15,9 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <ginac/operators.h>
+#include <ginac/relational.h>
+#include <ginac/symbol.h>
 #ifdef INSIDE_SM
 #include <imath/func.hxx>
 #include <imath/funcmgr.hxx>

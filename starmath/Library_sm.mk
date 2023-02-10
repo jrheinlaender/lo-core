@@ -15,13 +15,23 @@ $(eval $(call gb_Library_set_componentfile,sm,starmath/util/sm,services))
 
 $(eval $(call gb_Library_set_precompiled_header,sm,starmath/inc/pch/precompiled_sm))
 
+ifneq ($(COM), MSC)
 $(eval $(call gb_Library_set_include,sm,\
         -I$(SRCDIR)/starmath/inc \
         -I$(SRCDIR)/starmath/inc/mathml \
-        -I$(WORKDIR)/YaccTarget/imath/source \
         -I$(WORKDIR)/SdiTarget/starmath/sdi \
         $$(INCLUDE) \
 ))
+else
+$(eval $(call gb_Library_set_include,sm,\
+	-I$(SRCDIR)/starmath/inc \
+	-I$(SRCDIR)/starmath/inc/mathml \
+	-I$(WORKDIR)/SdiTarget/starmath/sdi \
+	-I$(call gb_UnpackedTarball_get_dir,ginac)/instdir/include \
+	-I$(call gb_UnpackedTarball_get_dir,cln)/include \
+	$$(INCLUDE) \
+))
+endif
 
 $(eval $(call gb_Library_add_defs,sm,\
 	-DSM_DLLIMPLEMENTATION \
@@ -37,6 +47,12 @@ $(eval $(call gb_Library_use_externals,sm, \
     boost_headers \
     icu_headers \
 ))
+ifneq ($(COM),MSC)
+$(eval $(call gb_Library_use_externals,sm, \
+    cln \
+    ginac \
+))
+endif
 
 $(eval $(call gb_Library_use_custom_headers,sm,\
 	officecfg/registry \

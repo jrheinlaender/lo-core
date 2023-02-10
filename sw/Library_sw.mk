@@ -25,6 +25,7 @@ $(eval $(call gb_Library_set_componentfile,sw,sw/util/sw,services))
 
 $(eval $(call gb_Library_set_precompiled_header,sw,sw/inc/pch/precompiled_sw))
 
+ifneq ($(COM), MSC)
 $(eval $(call gb_Library_set_include,sw,\
     -I$(SRCDIR)/sw/source/core/inc \
     -I$(SRCDIR)/sw/source/filter/inc \
@@ -33,6 +34,18 @@ $(eval $(call gb_Library_set_include,sw,\
     -I$(WORKDIR)/SdiTarget/sw/sdi \
     $$(INCLUDE) \
 ))
+else
+$(eval $(call gb_Library_set_include,sw,\
+    -I$(SRCDIR)/sw/source/core/inc \
+    -I$(SRCDIR)/sw/source/filter/inc \
+    -I$(SRCDIR)/sw/source/uibase/inc \
+    -I$(SRCDIR)/sw/inc \
+    -I$(WORKDIR)/SdiTarget/sw/sdi \
+    -I$(call gb_UnpackedTarball_get_dir,ginac)/instdir/include \
+    -I$(call gb_UnpackedTarball_get_dir,cln)/include \
+    $$(INCLUDE) \
+))
+endif
 
 $(eval $(call gb_Library_use_custom_headers,sw,\
 	officecfg/registry \
@@ -101,6 +114,12 @@ $(eval $(call gb_Library_use_externals,sw,\
 	icu_headers \
 	libxml2 \
 ))
+ifneq ($(COM),MSC)
+$(eval $(call gb_Library_use_externals,sw, \
+    cln \
+    ginac \
+))
+endif
 
 ifneq ($(ENABLE_WASM_STRIP_ACCESSIBILITY),TRUE)
 $(eval $(call gb_Library_add_exception_objects,sw,\

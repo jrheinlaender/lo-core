@@ -27,12 +27,20 @@ ginac_CPPCLAGS=$(CPPFLAGS)
 #       Configure: pkg-config does not recognize the DLL. Use CLN_CFLAGS="-I$(call gb_UnpackedTarball_get_dir,cln)/include/" CLN_LIBS="$(call gb_UnpackedTarball_get_dir,cln)/instdir/lib/libcln-6.dll"
 $(call gb_ExternalProject_get_state_target,ginac,build): $(call gb_ExternalProject_get_state_target,ginac,configure)
 	$(call gb_Trace_StartRange,ginac,EXTERNAL)
+ifneq ($(COM),MSC)
 	+$(call gb_ExternalProject_run,build,\
 	cd ginac && $(MAKE) install \
 	)
+else
+	+$(call gb_ExternalProject_run,build,\
+	cd ginac && $(MAKE) install && \
+	dlltool --export-all-symbols -z $(call gb_UnpackedTarball_get_dir,ginac)/instdir/libginac.def $(call gb_UnpackedTarball_get_dir,ginac)/ginac/*.obj \
+	)
+endif
 	$(call gb_Trace_EndRange,ginac,EXTERNAL)
 
 # Note: The setting of CPPFLAGS and CXXFLAGS is ignored by the ginac configure script?
+# TODO: Handle linker warning LNK4102: export of deleting destructor 'public: virtual void * __ptr64 __cdecl GiNaC::spinidx::`scalar deleting destructor'(unsigned int) __ptr64'; image may not run correctly
 $(call gb_ExternalProject_get_state_target,ginac,configure):
 	$(call gb_Trace_StartRange,ginac,EXTERNAL)
 ifeq ($(COM),MSC)

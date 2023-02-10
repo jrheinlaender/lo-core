@@ -42,8 +42,6 @@
 #include <com/sun/star/deployment/XPackage.hpp>
 #include <com/sun/star/uno/DeploymentException.hpp>
 
-#include <ginac/ginac.h>
-
 #include <logging.hxx>
 #include <imath/msgdriver.hxx> // TODO: Only required to set debug level for imath library
 #include <imath/utils.hxx>

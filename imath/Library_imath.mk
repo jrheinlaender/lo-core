@@ -27,6 +27,12 @@ $(eval $(call gb_Library_add_defs,imath,\
 	-DSAL_LOG_WARN=1 \
 ))
 
+ifeq ($(COM), MSC)
+$(eval $(call gb_Library_add_ldflags,imath,\
+	/DEF:$(call gb_UnpackedTarball_get_dir,ginac)/instdir/libginac.def \
+))
+endif
+
 $(eval $(call gb_Library_use_externals,imath,\
 	cln \
 	ginac \

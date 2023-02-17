@@ -78,7 +78,10 @@
 
 #include <svtools/embedhlp.hxx>
 #include <com/sun/star/beans/XPropertySet.hpp>
+
+#include <comphelper/classids.hxx>
 #include <logging.hxx>
+#include <imath/imathutils.hxx>
 
 using ::editeng::SvxBorderLine;
 using namespace ::com::sun::star;
@@ -748,6 +751,49 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                 }
             }
         break;
+        case FN_IMATH_INSERT_CHARTSERIES:
+            {
+                svt::EmbeddedObjectRef& xChartObj = rSh.GetOLEObject();
+
+                if (xChartObj.is())
+                {
+                    Reference< chart2::XChartDocument > xChartDocument( xChartObj->getComponent(), uno::UNO_QUERY );
+
+                    if (xChartDocument.is())
+                    {
+                        OUString chartName = rSh.GetFlyName();
+                        Reference < XChartDataArray > xChartDataArray(xChartDocument->getDataProvider(), UNO_QUERY);
+
+                        if (xChartDataArray.is())
+                        {
+                            sal_uInt32 series = xChartDataArray->getData()[0].getLength() + 1; // Index of data series, including X values. 1, 4, 7, 10, ...  Index of description series: 3, 6, 9, ...
+                            SAL_INFO_LEVEL(2, "sw.imath", "Add series " << (series + 1) << " to chart " << chartName);
+
+                            GetView().GetEditWin().StopQuickHelp(); // Note: Copied from FN_INSERT_SMA
+                            rSh.EnterStdMode(); // This removes the selection and prepares for inserting a new object
+                            SvGlobalName aGlobalName( SO3_SM_CLASSID );
+                            rSh.InsertObject( svt::EmbeddedObjectRef(), &aGlobalName, SID_INSERT_OBJECT );
+                            rSh.LaunchOLEObj();
+                            svt::EmbeddedObjectRef& xFormulaObj = rSh.GetOLEObject();
+
+                            if (xFormulaObj.is())
+                            {
+                                uno::Reference < beans::XPropertySet > xSet( xFormulaObj->getComponent(), uno::UNO_QUERY );
+                                if ( xSet.is() )
+                                {
+                                    rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
+                                    xSet->setPropertyValue("Formula", uno::makeAny(OUString()));
+                                    xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=0.04 x^3, 1, " + OUString::number(series+1) + ", \"Series 2\"}"))); // triggers compile, sets chart data
+
+                                    setSeriesDescription(xChartDocument, "Series 2", series); // Note: By default, chart legend is not displayed thus series description remains invisible
+                                    setSeriesProperties(xChartDocument, series);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        break;
         default:
             assert(!"wrong dispatcher");
             return;
@@ -1077,9 +1123,10 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
 
                 if (aMOpt.IsMath() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame()->GetFrame().IsInPlace())
                 {
+                    // Note: Charts also pass the test above (!)
                     svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
 
-                    if(xObj.is())
+                    if(xObj.is() && !xObj.IsChart())
                     {
                         uno::Reference < beans::XPropertySet > xSet( xObj->getComponent(), uno::UNO_QUERY );
                         if ( xSet.is() )
@@ -1094,6 +1141,25 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
                 else
                 {
                     rSet.DisableItem(nWhich);
+                }
+            }
+            break;
+            case FN_IMATH_INSERT_CHARTSERIES:
+            {
+                SvtModuleOptions aMOpt;
+                const SelectionType nType = rSh.GetSelectionType();
+
+                if (!(aMOpt.IsChart() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame()->GetFrame().IsInPlace()))
+                {
+                    rSet.DisableItem(nWhich);
+                } else {
+                    // Double-check, because Math formulas also pass the test above (!)
+                    svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+                    if(!xObj.is() || !xObj.IsChart())
+                    {
+                        rSet.DisableItem(nWhich);
+                    }
                 }
             }
             break;

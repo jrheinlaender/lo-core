@@ -188,17 +188,6 @@ SwOleShell::SwOleShell(SwView &_rView) :
                     OUString previousIFormula;
                     fPS->getPropertyValue("PreviousIFormula") >>= previousIFormula;
                     SAL_INFO_LEVEL(1, "sw.imath", "Previous iFormula is '" << previousIFormula << "'");
-
-                    if (previousIFormula.equalsAscii("_IMATH_UNDEFINED_"))
-                    {
-                        // When inserting a formula via undo no (new) SwOleShell appears to be created. A complete recalculate is triggered elsewhere to insert the new formula in the iFormulaNames list
-                        // When inserting a new formula object, a complete recalculate is triggered elsewhere to insert the new formula in the iFormulaNames list
-                        // TODO: So is this code ever reached?
-                        fPS->setPropertyValue("IsScaleAllBrackets", makeAny(true)); // WRRRRRRRRRRRONG PLACE !!!!!!!!!
-                        SAL_INFO_LEVEL(1, "sw.imath", "New math object, triggering compile");
-                        GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks();
-                        // Note: The immediately following formula is recompiled by UpdatePreviousIFormulaLinks() because the PreviousIFormula property changes
-                    }
                 }
             }
         }

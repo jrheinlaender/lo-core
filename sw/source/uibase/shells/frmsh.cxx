@@ -740,7 +740,7 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                         OUString aText;
                         xSet->getPropertyValue("PreviousIFormula") >>= aText;
                         if (aText.getLength() == 0)
-                            xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_")));
+                            rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is still empty
 
                         xSet->getPropertyValue("Formula") >>= aText;
                         if (aText.indexOfAsciiL("=", 1) >= 0)

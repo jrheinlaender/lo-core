@@ -448,11 +448,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                 uno::Reference < beans::XPropertySet > xSet( xObj->getComponent(), uno::UNO_QUERY );
                 if ( xSet.is() )
                 {
-                    // Note: It is not possible to compile the formula and recalculate the document at this point, because the fly frame
-                    // does not appear to be positioned yet, so that it is not possible to discover the previous iFormula
-                    // TODO: This was true when the code was located in SwWrtShell::InsertOleObject() but is it true here?
-                    SAL_INFO_LEVEL(2, "sw.imath", "Setting formula text but delaying compile");
-                    xSet->setPropertyValue("PreviousIFormula", uno::makeAny(OUString("_IMATH_UNDEFINED_"))); // Does not trigger compile, because formula text is empty
+                    rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text ist empty. Setting the iFormula property will trigger compilation
 
                     OUString formulaLabel = "@" + OUString::number(GetView().GetDocShell()->GetNextIFormulaNumber()) + "@";
                     OUString aText;

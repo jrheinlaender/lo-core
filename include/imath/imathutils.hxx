@@ -246,8 +246,8 @@ void copyProperties(const Reference<XComponent>& source, const Reference<XCompon
 Reference<XComponent> insertFormula(const Reference<XModel>& xModel);
 
 /// insert a chart and return it's model
-Reference<XComponent> insertChart(const Reference<XModel>& xModel,
-                                  const Reference<XComponentContext>& xCC);
+IMATH_DLLPUBLIC Reference<XComponent> insertChart(const Reference<XModel>& xModel,
+                                                  const Reference<XComponentContext>& xCC);
 
 /// Get chart properties
 Reference<XPropertySet> getChartTitleProperties(const Reference<XChartDocument>& chart);
@@ -266,9 +266,15 @@ void setDiagramAxesTitleProperties(
     const Sequence<Sequence<Sequence<Reference<XPropertySet>>>>& props);
 
 /// Set series line properties
-void setSeriesProperties(const Reference<XComponent>& xChart, const sal_uInt16 series = 1,
-                         const sal_uInt16 pointsize = 50, const sal_uInt16 linewidth = 50,
-                         const sal_uInt32 linecolor = 0);
+IMATH_DLLPUBLIC void setSeriesProperties(const Reference<XComponent>& xChart,
+                                         const sal_uInt16 series = 1,
+                                         const sal_uInt16 pointsize = 50,
+                                         const sal_uInt16 linewidth = 50,
+                                         const sal_uInt32 linecolor = 0);
+IMATH_DLLPUBLIC void
+setSeriesProperties(const Reference<com::sun::star::chart2::XChartDocument>& cDoc,
+                    const sal_uInt16 series = 1, const sal_uInt16 pointsize = 50,
+                    const sal_uInt16 linewidth = 50, const sal_uInt32 linecolor = 0);
 
 /// Get the chart data
 Sequence<Sequence<double>> getChartData(const Reference<XComponent>& xChart);
@@ -278,13 +284,17 @@ Reference<XChartDataArray>
 getChartDataArray(const Reference<com::sun::star::chart2::XChartDocument>& cDoc);
 
 /// Set a series description
-void setSeriesDescription(const Reference<XComponent>& xChart, const OUString& desc, const int idx);
-IMATH_DLLPUBLIC void setSeriesDescription(const Reference<XModel>& xModel, const OUString& cName,
-                                          const OUString& desc, const int idx);
+IMATH_DLLPUBLIC void setSeriesDescription(const Reference<XComponent>& xChart, const OUString& desc,
+                                          const int idx);
+void setSeriesDescription(const Reference<XModel>& xModel, const OUString& cName,
+                          const OUString& desc, const int idx);
+IMATH_DLLPUBLIC void
+setSeriesDescription(const Reference<com::sun::star::chart2::XChartDocument>& cDoc,
+                     const OUString& desc, const int idx);
 
 /// Set an axis title
-void setTitles(const Reference<XComponent>& xChart, const OUString& main, const OUString& xAxis,
-               const OUString& yAxis);
+IMATH_DLLPUBLIC void setTitles(const Reference<XComponent>& xChart, const OUString& main,
+                               const OUString& xAxis, const OUString& yAxis);
 
 /// Set the data for a chart series, or add a series
 IMATH_DLLPUBLIC void setChartData(const Reference<XModel>& xModel, const OUString& cName,
@@ -537,7 +547,9 @@ IMATH_DLLPUBLIC void setCellExpression(const Reference<XCell>& xCell,
                                        const GiNaC::expression& value);
 
 /// Set the given cell of the document to the given value (xDocumentModel must implement XTextDocument)
-IMATH_DLLPUBLIC void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName, const OUString& tableCellName, const GiNaC::expression& value);
+IMATH_DLLPUBLIC void setTableCell(const Reference<XModel>& xDocumentModel,
+                                  const OUString& tableName, const OUString& tableCellName,
+                                  const GiNaC::expression& value);
 
 /// Parse the content of a string (currently specific to text field content strings)
 IMATH_DLLPUBLIC GiNaC::expression getExpressionFromString(const OUString& s);
@@ -611,7 +623,8 @@ IMATH_DLLPUBLIC OUString replaceString(const OUString& str, const OUString& subs
 IMATH_DLLPUBLIC std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary);
 
 /// Convert a set of symbols and functions into a string of names
-IMATH_DLLPUBLIC OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols);
+IMATH_DLLPUBLIC OUString
+makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols);
 
 /// Compare two version strings of the form M.m.b~x
 // Returns -1 if file version is smaller than program version

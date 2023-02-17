@@ -98,6 +98,7 @@
 using namespace ::com::sun::star;
 
 #include <logging.hxx>
+#include <imath/imathutils.hxx>
 
 SFX_IMPL_INTERFACE(SwTextShell, SwBaseShell)
 
@@ -439,6 +440,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
     case FN_IMATH_INSERT_MATRIX:
     case FN_IMATH_INSERT_VECTOR:
     case FN_IMATH_INSERT_UNIT:
+    case FN_IMATH_INSERT_CHART:
         {
             GetView().GetEditWin().StopQuickHelp();
             SvGlobalName aGlobalName( SO3_SM_CLASSID );
@@ -495,6 +497,19 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                         case FN_IMATH_INSERT_UNIT:
                         {
                             xSet->setPropertyValue("iFormula", uno::makeAny(OUString("UNITDEF { \"\", %mm = 10^{-3} %metre }")));
+                        }
+                        break;
+                        case FN_IMATH_INSERT_CHART:
+                        {
+                            // TODO: Use SwInsertChart
+                            // TODO: Chart remains blank until user double-clicks on it
+                            // TODO: Editing the chart's iFormula (now or later) is not reflected in the chart, because imathutils - forceDiagramUpdate() does not work
+                            uno::Reference< lang::XComponent > xChart = insertChart(GetView().GetDocShell()->GetModel(), comphelper::getProcessComponentContext());
+                            uno::Reference< container::XNamed > xNamed(xChart, UNO_QUERY_THROW);
+                            setTitles(xChart, "Chart name", "x units", "y units");
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CHART {\"" + xNamed->getName() + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}")));
+                            setSeriesDescription(xChart, "Series 1", 1); // Note: By default, chart legend is not displayed thus series description remains invisible
+                            setSeriesProperties(xChart, sal_uInt16(1));
                         }
                         break;
                     }
@@ -730,6 +745,7 @@ void SwTextShell::StateInsert( SfxItemSet &rSet )
             case FN_IMATH_INSERT_MATRIX:
             case FN_IMATH_INSERT_VECTOR:
             case FN_IMATH_INSERT_UNIT:
+            case FN_IMATH_INSERT_CHART:
                 if (!SvtModuleOptions().IsMathInstalled() // Rebase note: Was !aMOpt.IsMath()
                     || eCreateMode == SfxObjectCreateMode::EMBEDDED
                     || bCursorInHidden

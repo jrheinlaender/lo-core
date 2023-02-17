@@ -761,9 +761,8 @@ Reference < XComponent > insertChart(const Reference < XModel > &xModel, const R
   return xChart;
 } // insertChart()
 
-void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16 series,
+void setSeriesProperties(const Reference < com::sun::star::chart::XChartDocument >& cDoc, const sal_uInt16 series,
       const sal_uInt16 pointsize, const sal_uInt16 linewidth, const sal_uInt32 linecolor) {
-  Reference < com::sun::star::chart::XChartDocument > cDoc(extractModel(xChart), UNO_QUERY_THROW);
   Reference < XDiagram > xyDiagram = cDoc->getDiagram();
   Reference < XPropertySet > xyProps;
   try {
@@ -778,6 +777,16 @@ void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16
   xyProps->setPropertyValue(OU("LineWidth"), makeAny(linewidth));
   xyProps->setPropertyValue(OU("LineColor"), makeAny(linecolor));
 } // setSeriesProperties()
+void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16 series,
+      const sal_uInt16 pointsize, const sal_uInt16 linewidth, const sal_uInt32 linecolor) {
+  Reference < com::sun::star::chart::XChartDocument > chartDoc(extractModel(xChart), UNO_QUERY_THROW);
+  setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
+}
+void setSeriesProperties(const Reference < com::sun::star::chart2::XChartDocument >& cDoc, const sal_uInt16 series,
+      const sal_uInt16 pointsize, const sal_uInt16 linewidth, const sal_uInt32 linecolor) {
+    Reference < com::sun::star::chart::XChartDocument > chartDoc(cDoc, UNO_QUERY_THROW);
+  setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
+}
 
 double forceDouble(const expression& val, const double not_a_number) {
   if (is_a<numeric>(val))
@@ -868,7 +877,7 @@ Reference < XChartDataArray > getChartDataArray(const Reference < com::sun::star
   return (Reference < XChartDataArray >(cDoc->getDataProvider(), UNO_QUERY_THROW));
 } // getChartDataArray()
 
-void setSeriesDescription(Reference < com::sun::star::chart2::XChartDocument >& cDoc, const OUString& desc, const int idx) {
+void setSeriesDescription(const Reference < com::sun::star::chart2::XChartDocument >& cDoc, const OUString& desc, const int idx) {
   Reference < XChartDataArray > cDataArray(cDoc->getDataProvider(), UNO_QUERY_THROW);
   Sequence< OUString > descriptions = cDataArray->getColumnDescriptions();
   auto pDescriptions = descriptions.getArray();

@@ -231,7 +231,7 @@ void copyProperties(const Reference< XComponent >& source, const Reference< XCom
 Reference < XComponent > insertFormula(const Reference < XModel > &xModel);
 
 /// insert a chart and return it's model
-Reference < XComponent > insertChart(const Reference < XModel > &xModel, const Reference < XComponentContext > &xCC);
+IMATH_DLLPUBLIC Reference < XComponent > insertChart(const Reference < XModel > &xModel, const Reference < XComponentContext > &xCC);
 
 /// Get chart properties
 Reference< XPropertySet > getChartTitleProperties(const Reference< XChartDocument >& chart);
@@ -243,7 +243,9 @@ void setDiagramAxesProperties(Reference< com::sun::star::chart2::XDiagram >& dia
 void setDiagramAxesTitleProperties(Reference< com::sun::star::chart2::XDiagram >& diagram, const Sequence< Sequence< Sequence< Reference < XPropertySet > > > >& props);
 
 /// Set series line properties
-void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16 series = 1,
+IMATH_DLLPUBLIC void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16 series = 1,
+  const sal_uInt16 pointsize = 50, const sal_uInt16 linewidth = 50, const sal_uInt32 linecolor = 0);
+IMATH_DLLPUBLIC void setSeriesProperties(const Reference< com::sun::star::chart2::XChartDocument >&cDoc, const sal_uInt16 series = 1,
   const sal_uInt16 pointsize = 50, const sal_uInt16 linewidth = 50, const sal_uInt32 linecolor = 0);
 
 /// Get the chart data
@@ -253,11 +255,12 @@ Sequence< Sequence<double> > getChartData(const Reference< XComponent >& xChart)
 Reference < XChartDataArray > getChartDataArray(const Reference < com::sun::star::chart2::XChartDocument >& cDoc);
 
 /// Set a series description
-void setSeriesDescription(const Reference< XComponent >& xChart, const OUString& desc, const int idx);
-IMATH_DLLPUBLIC void setSeriesDescription(const Reference< XModel >& xModel, const OUString& cName, const OUString& desc, const int idx);
+IMATH_DLLPUBLIC void setSeriesDescription(const Reference< XComponent >& xChart, const OUString& desc, const int idx);
+void setSeriesDescription(const Reference< XModel >& xModel, const OUString& cName, const OUString& desc, const int idx);
+IMATH_DLLPUBLIC void setSeriesDescription(const Reference< com::sun::star::chart2::XChartDocument >& cDoc, const OUString& desc, const int idx);
 
 /// Set an axis title
-void setTitles(const Reference< XComponent >& xChart, const OUString& main, const OUString& xAxis, const OUString& yAxis);
+IMATH_DLLPUBLIC void setTitles(const Reference< XComponent >& xChart, const OUString& main, const OUString& xAxis, const OUString& yAxis);
 
 /// Set the data for a chart series, or add a series
 IMATH_DLLPUBLIC void setChartData(const Reference < XModel >& xModel, const OUString& cName, const GiNaC::matrix& yval, const unsigned iseries);

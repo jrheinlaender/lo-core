@@ -1298,6 +1298,11 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     , mpInitialCompiler(nullptr)
     , mpCurrentOptions(nullptr)
     , mpCurrentCompiler(nullptr)
+    , maImTypeFirstLine("")
+    , maImTypeLastLine("")
+    , mImHidden(false)
+    , maImExprFirstLhs("")
+    , maImExprLastLhs("")
 {
     ImStaticInitialization();
     SAL_INFO_LEVEL(0, "starmath.imath", "SmDocShell::SmDocShell with iMath version=" << mnImSyntaxVersion);

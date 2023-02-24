@@ -4297,6 +4297,14 @@
           <value>.uno:iMathInsertExternal</value>
         </prop>
       </node>
+      <node oor:name=".uno:iMathInsertConvert" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Convert to iFormula</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathInsertConvert</value>
+        </prop>
+      </node>
       <node oor:name=".uno:iMathInsertFunction" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">Function</value>
@@ -4356,14 +4364,6 @@
       <node oor:name=".uno:iMathEditMenu" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">Edit</value>
-        </prop>
-      </node>
-      <node oor:name=".uno:iMathEditEdit" oor:op="replace">
-        <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">iFormula</value>
-        </prop>
-        <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>.uno:iMathEditEdit</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathEditExternal" oor:op="replace">

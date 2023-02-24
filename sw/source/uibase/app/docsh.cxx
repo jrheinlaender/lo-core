@@ -1318,7 +1318,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
         it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
         if (it == m_IFormulaNames.end())
         {
-            SAL_INFO_LEVEL(1, "sw.imath", "Error, new formula object was not inserted into list of iFormula names");
+            SAL_WARN("sw.imath", "Error, new formula object was not inserted into list of iFormula names");
             return;
         }
     }

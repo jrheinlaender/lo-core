@@ -372,7 +372,6 @@ interface BaseText
         StateMethod = StateInsert ;
         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
     ]
-    SID_INSERT_FLOATINGFRAME // status()
     FN_IMATH_INSERT_FUNCTION // status(final|play)
     [
         ExecMethod = ExecInsert ;
@@ -408,6 +407,12 @@ interface BaseText
         ExecMethod = ExecInsert ;
         StateMethod = StateInsert ;
         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+    ]
+    SID_INSERT_FLOATINGFRAME // status()
+    [
+        ExecMethod = ExecInsert ;
+        StateMethod = StateInsert ;
+        //DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
     ]
     SID_INSERT_OBJECT  // status(final|play)
     [

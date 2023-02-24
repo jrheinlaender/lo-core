@@ -1182,7 +1182,7 @@ void SwDocShell::SetView(SwView* pVw)
         m_pWrtShell = nullptr;
 }
 
-OUString getFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName)
+template<typename T> T getFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName)
 {
     if ( xFormulaComp.is() )
     {
@@ -1193,14 +1193,14 @@ OUString getFormulaProperty(const Reference< XComponent >& xFormulaComp, const O
             if ( xFormulaProps.is() )
             {
                 uno::Any aText = xFormulaProps->getPropertyValue(propertyName);
-                OUString result;
+                T result();
                 aText >>= result;
                 return result;
             }
         }
     }
 
-    return "";
+    return T();
 }
 
 void setFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUString& propertyName, const uno::Any& value)
@@ -1251,7 +1251,7 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
             setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
 
             // Note: Empty iFormulas are ignored in the chain of previous equations, for efficiency reasons
-            if (getFormulaProperty(xFormulaComp, "iFormula").getLength() > 0)
+            if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
                 previousFormulaName = fn;
         }
     }
@@ -1298,7 +1298,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
 
     // Extract required formula properties
-    OUString formulaText = getFormulaProperty(xFormulaComp, "iFormula");
+    OUString formulaText = getFormulaProperty<OUString>(xFormulaComp, "iFormula");
 
     if (formulaText.getLength() == 0)
     {
@@ -1325,7 +1325,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
     else
     {
         // Check if any formulas depend on this formula
-        OUString modifiedSymbols = getFormulaProperty(xFormulaComp, "iFormulaDependencyOut");
+        OUString modifiedSymbols = getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut");
         if (modifiedSymbols.getLength() == 0)
         {
             SAL_INFO_LEVEL(1, "sw.imath", "No symbols are modified by this formula, recalculation is not required");
@@ -1340,7 +1340,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
     while (it != m_IFormulaNames.end())
     {
         xFormulaComp = getObjectByName(GetModel(), *it);
-        if (getFormulaProperty(xFormulaComp, "iFormula").getLength() > 0)
+        if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
         {
             SAL_INFO_LEVEL(1, "sw.imath", "Triggering compile on " << *it);
             // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
@@ -1419,11 +1419,11 @@ void SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& form
     while (it != m_IFormulaNames.end())
     {
         xFormulaComp = getObjectByName(GetModel(), *it);
-        if (getFormulaProperty(xFormulaComp, "iFormula").getLength() > 0)
+        if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
         {
             if (!foundDependency)
             {
-                OUString formulaDependencies = getFormulaProperty(xFormulaComp, "iFormulaDependencyIn");
+                OUString formulaDependencies = getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyIn");
                 for (const auto& s: dependencySet)
                 {
                     if (formulaDependencies.indexOf(s) > 0)
@@ -1458,7 +1458,7 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
 
     SAL_INFO_LEVEL(1, "sw.imath", "Removing iFormula " << formulaName);
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), *formulaIterator);
-    OUString previousName = getFormulaProperty(xFormulaComp, "PreviousIFormula");
+    OUString previousName = getFormulaProperty<OUString>(xFormulaComp, "PreviousIFormula");
     setFormulaProperty(xFormulaComp, "iFormula", uno::makeAny(OUString("_imath_formula_deletion_"))); // This will remove the IFormulaClosePreventer instance, after this xFormulaComp may become invalid at any time!
     std::list< OUString >::iterator next_it = m_IFormulaNames.end();
 
@@ -1472,7 +1472,9 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
         xFormulaComp = getObjectByName(GetModel(), *next_it);
         setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousName));
         SAL_INFO_LEVEL(1, "sw.imath", "Updating previous formula of " << *next_it << " to '" << previousName << "'");
-        RecalculateDependentIFormulasAfterDeletion(*next_it, getFormulaProperty(xFormulaComp, "iFormulaDependencyOut")); // Note: next_it has already been compiled because the previous iFormula was changed
+        RecalculateDependentIFormulasAfterDeletion(*next_it, getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut")); // Note: next_it has already been compiled because the previous iFormula was changed
+    }
+}
 
 void SwDocShell::MergeIFormula(const OUString& formulaName)
 {

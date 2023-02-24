@@ -441,6 +441,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
     case FN_IMATH_INSERT_VECTOR:
     case FN_IMATH_INSERT_UNIT:
     case FN_IMATH_INSERT_CHART:
+    case FN_IMATH_INSERT_SETOPTIONS:
         {
             GetView().GetEditWin().StopQuickHelp();
             SvGlobalName aGlobalName( SO3_SM_CLASSID );
@@ -506,6 +507,16 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                             xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CHART {\"" + xNamed->getName() + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}")));
                             setSeriesDescription(xChart, "Series 1", 1); // Note: By default, chart legend is not displayed thus series description remains invisible
                             setSeriesProperties(xChart, sal_uInt16(1));
+                        }
+                        break;
+                        case FN_IMATH_INSERT_SETOPTIONS:
+                        {
+                            OUString aPrevFormula;
+                            xSet->getPropertyValue("PreviousIFormula") >>= aPrevFormula;
+                            if (aPrevFormula.getLength() == 0)
+                                void(); // TODO: Error "Please use document options from the iMath menu to change the options at the beginning of the document"
+                            else
+                                xSet->setPropertyValue("iFormula", uno::makeAny(OUString("OPTIONS { units = {%metre}; precision = 4}")));
                         }
                         break;
                     }
@@ -742,7 +753,8 @@ void SwTextShell::StateInsert( SfxItemSet &rSet )
             case FN_IMATH_INSERT_VECTOR:
             case FN_IMATH_INSERT_UNIT:
             case FN_IMATH_INSERT_CHART:
-                if (!SvtModuleOptions().IsMathInstalled() // Rebase note: Was !aMOpt.IsMath()
+            case FN_IMATH_INSERT_SETOPTIONS:
+                if( !SvtModuleOptions().IsMathInstalled() // Rebase note: Was !aMOpt.IsMath()
                     || eCreateMode == SfxObjectCreateMode::EMBEDDED
                     || bCursorInHidden
                     || rSh.CursorInsideInputField() )

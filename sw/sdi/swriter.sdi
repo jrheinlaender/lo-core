@@ -3571,6 +3571,24 @@ SfxVoidItem iMathInsertChartSeries FN_IMATH_INSERT_CHARTSERIES
     GroupId = SfxGroupId::Insert;
 ]
 
+SfxVoidItem iMathInsertSetOptions FN_IMATH_INSERT_SETOPTIONS
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+    Asynchron;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Insert;
+]
+
 SfxVoidItem InsertPagebreak FN_INSERT_PAGEBREAK
 ()
 [

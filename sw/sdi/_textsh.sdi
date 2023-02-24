@@ -403,6 +403,12 @@ interface BaseText
         StateMethod = StateInsert ;
         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
     ]
+    FN_IMATH_INSERT_SETOPTIONS // status(final|play)
+    [
+        ExecMethod = ExecInsert ;
+        StateMethod = StateInsert ;
+        DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+    ]
     SID_INSERT_OBJECT  // status(final|play)
     [
         ExecMethod = ExecInsert ;

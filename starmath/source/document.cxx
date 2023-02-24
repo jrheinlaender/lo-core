@@ -637,6 +637,58 @@ void SmDocShell::Compile()
 
             SetText(result);
 
+            // Update properties
+            // Note: This must happen after print() because the displayedLhs is created in the iFormulaLine::display() method
+            maImTypeFirstLine = "";
+            maImTypeLastLine = "";
+            mImHidden = true;
+            maImExprFirstLhs = "";
+            maImExprLastLhs = "";
+
+            for (const auto& l : mLines)
+            {
+                if (l->getSelectionType() == formulaTypeEquation)
+                {
+                    maImTypeFirstLine = "equation";
+                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
+                    maImExprFirstLhs = expr->getDisplayedLhs();
+                    break;
+                }
+                else if (l->getSelectionType() == formulaTypeExpression)
+                {
+                    maImTypeFirstLine = "expression";
+                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
+                    maImExprFirstLhs = expr->getDisplayedLhs();
+                    break;
+                }
+            }
+
+            for (auto line = mLines.rbegin(); line != mLines.rend(); ++line)
+            {
+                if ((*line)->getSelectionType() == formulaTypeEquation)
+                {
+                    maImTypeLastLine = "equation";
+                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*line);
+                    maImExprLastLhs = expr->getDisplayedLhs();
+                    break;
+                }
+                else if ((*line)->getSelectionType() == formulaTypeExpression)
+                {
+                    maImTypeLastLine = "expression";
+                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*line);
+                    maImExprLastLhs = expr->getDisplayedLhs();
+                    break;
+                }
+            }
+
+            for (const auto& l : mLines)
+            {
+                iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
+
+                if (expr != nullptr && !expr->getHide())
+                    mImHidden = false; // If one line is not hidden, the whole formula counts as not hidden
+            }
+
             // Update dependencies
             // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
             std::set<GiNaC::expression, GiNaC::expr_is_less> inDep, outDep;

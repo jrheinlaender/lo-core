@@ -234,7 +234,12 @@ enum SmModelPropertyHandles
     HANDLE_BASELINE,
     HANDLE_INTEROP_GRAB_BAG,
     HANDLE_STARMATH_VERSION,
-    HANDLE_IMATH_VERSION
+    HANDLE_IMATH_VERSION,
+    HANDLE_IMATH_TYPEFIRSTLINE,
+    HANDLE_IMATH_TYPELASTLINE,
+    HANDLE_IMATH_ISHIDDEN,
+    HANDLE_IMATH_EXPRFIRSTLHS,
+    HANDLE_IMATH_EXPRLASTLHS
 };
 
 }
@@ -323,6 +328,12 @@ static const rtl::Reference<PropertySetInfo> & lcl_createModelPropertyInfo ()
         { u"InteropGrabBag"_ustr                   , HANDLE_INTEROP_GRAB_BAG                   ,  cppu::UnoType<uno::Sequence< beans::PropertyValue >>::get(),           PROPERTY_NONE,  0                     },
         { u"SyntaxVersion"_ustr                    , HANDLE_STARMATH_VERSION                   ,  ::cppu::UnoType<sal_Int16>::get(),                             PROPERTY_NONE,  0                     },
         { u"ImSyntaxVersion"_ustr                  , HANDLE_IMATH_VERSION                      ,  ::cppu::UnoType<sal_Int32>::get(),                             PROPERTY_NONE,  0                     },
+        // These are for internal iMath usage
+        { u("ImTypeFirstLine"_ustr                 , HANDLE_IMATH_TYPEFIRSTLINE                ,  ::cppu::UnoType<OUString>::get(),                                      PropertyAttribute::READONLY,  0       },
+        { u("ImTypeLastLine"_ustr                  , HANDLE_IMATH_TYPELASTLINE                 ,  ::cppu::UnoType<OUString>::get(),                                      PropertyAttribute::READONLY,  0       },
+        { u("ImIsHidden"_ustr                      , HANDLE_IMATH_ISHIDDEN                     ,  ::cppu::UnoType<bool>::get(),                                          PROPERTY_NONE,  0                     },
+        { u("ImExpressionFirstLhs"_ustr            , HANDLE_IMATH_EXPRFIRSTLHS                 ,  ::cppu::UnoType<OUString>::get(),                                      PropertyAttribute::READONLY,  0       },
+        { u("ImExpressionLastLhs"_ustr             , HANDLE_IMATH_EXPRLASTLHS                  ,  ::cppu::UnoType<OUString>::get(),                                      PropertyAttribute::READONLY,  0       },
     };
     static const rtl::Reference<PropertySetInfo> PROPS_INFO = new PropertySetInfo ( aModelPropertyInfoMap );
     return PROPS_INFO;
@@ -718,6 +729,9 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
             case HANDLE_IMATH_VERSION:
                 pDocSh->SetImSyntaxVersion(pValues->get<sal_uInt32>());
                 break;
+            case HANDLE_IMATH_ISHIDDEN:
+                pDocSh->SetImHidden(pValues->get<bool>());
+                break;
         }
     }
 
@@ -1002,6 +1016,21 @@ void SmModel::_getPropertyValues( const PropertyMapEntry **ppEntries, Any *pValu
                 break;
             case HANDLE_IMATH_VERSION:
                 *pValue <<= pDocSh->GetImSyntaxVersion();
+                break;
+            case HANDLE_IMATH_TYPEFIRSTLINE:
+                *pValue <<= pDocSh->GetImTypeFirstLine();
+                break;
+            case HANDLE_IMATH_TYPELASTLINE:
+                *pValue <<= pDocSh->GetImTypeLastLine();
+                break;
+            case HANDLE_IMATH_ISHIDDEN:
+                *pValue <<= pDocSh->GetImHidden();
+                break;
+            case HANDLE_IMATH_EXPRFIRSTLHS:
+                *pValue <<= pDocSh->GetImExprFirstLhs();
+                break;
+            case HANDLE_IMATH_EXPRLASTLHS:
+                *pValue <<= pDocSh->GetImExprLastLhs();
                 break;
         }
     }

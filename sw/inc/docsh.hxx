@@ -353,6 +353,9 @@ public:
     /// Remove the formula and trigger a recalculation of all dependent formulas
     void RemoveIFormula(const OUString& formulaName);
 
+    /// Merge the formula with the previous iFormula, keeping the previous formula's OLE object
+    void MergeIFormula(const OUString& formulaName);
+
 protected:
     class LockAllViewsGuard_Impl final : public LockAllViewsGuard
     {

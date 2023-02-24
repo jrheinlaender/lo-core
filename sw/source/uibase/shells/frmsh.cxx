@@ -751,6 +751,14 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                 }
             }
         break;
+        case FN_IMATH_EDIT_MERGE:
+            {
+                svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+                if(xObj.is())
+                    rSh.GetDoc()->GetDocShell()->MergeIFormula(rSh.GetFlyName());
+            }
+        break;
         case FN_IMATH_INSERT_CHARTSERIES:
             {
                 svt::EmbeddedObjectRef& xChartObj = rSh.GetOLEObject();
@@ -1117,6 +1125,7 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
             }
             break;
             case FN_IMATH_INSERT_CONVERT:
+            case FN_IMATH_EDIT_MERGE:
             {
                 SvtModuleOptions aMOpt;
                 const SelectionType nType = rSh.GetSelectionType();
@@ -1133,8 +1142,23 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
                         {
                             OUString aText;
                             xSet->getPropertyValue("iFormula") >>= aText;
-                            if (aText.getLength() > 0)
-                                rSet.DisableItem(nWhich);
+                            bool isMathOnly = aText.getLength() == 0;
+
+                            switch (nWhich)
+                            {
+                                case FN_IMATH_INSERT_CONVERT:
+                                    // Requires a math formula to be selected that is no iFormula
+                                    if (!isMathOnly)
+                                        rSet.DisableItem(nWhich);
+                                break;
+                                case FN_IMATH_EDIT_MERGE:
+                                    // Requires a math formula to be selected that is an iFormula
+                                    if (isMathOnly)
+                                        rSet.DisableItem(nWhich);
+                                break;
+                                default:
+                                    rSet.DisableItem(nWhich);
+                            }
                         }
                     }
                 }

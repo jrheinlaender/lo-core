@@ -272,7 +272,7 @@ IMATH_DLLPUBLIC void setChartData(const Reference < XModel >& xModel, const OUSt
 void forceDiagramUpdate(const Reference< XComponent >& xChart);
 
 /// remove a formula
-void deleteFormula(const Reference < XModel > &xModel, const Reference < XComponent >& iFormula);
+IMATH_DLLPUBLIC void deleteFormula(const Reference < XModel > &xModel, const Reference < XComponent >& iFormula);
 
 /*
 /// get the input formulas of the user (selected original formula and operand entered into the editfield)
@@ -286,7 +286,7 @@ Reference < XComponent > getObjectByName(const Reference< XIndexAccess > &xDrawP
 Reference < XComponent > getObjectByName(const Reference < XNameAccess > &embeddedObjects, const OUString &objectName);
 
 /// Get intermediate text between two formulas
-OUString getInterText(const Reference<XTextContent>& f1, const Reference<XTextContent>& f2);
+IMATH_DLLPUBLIC OUString getInterText(const Reference<XTextContent>& f1, const Reference<XTextContent>& f2);
 
 /// Get registry access to a certain node path
 IMATH_DLLPUBLIC Reference< XHierarchicalPropertySet > getRegistryAccess(const Reference< XComponentContext >& mxCC, const OUString& nodepath);

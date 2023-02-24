@@ -1473,7 +1473,67 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
         setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousName));
         SAL_INFO_LEVEL(1, "sw.imath", "Updating previous formula of " << *next_it << " to '" << previousName << "'");
         RecalculateDependentIFormulasAfterDeletion(*next_it, getFormulaProperty(xFormulaComp, "iFormulaDependencyOut")); // Note: next_it has already been compiled because the previous iFormula was changed
+
+void SwDocShell::MergeIFormula(const OUString& formulaName)
+{
+    SAL_INFO_LEVEL(1, "sw.imath", "SwDocShell::MergeIFormula '" << formulaName << "'");
+
+    // Find formula
+    Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
+    if (!xFormulaComp.is()) return;
+
+    // Find previous formula
+    OUString previousFormulaName = getFormulaProperty<OUString>(xFormulaComp, "PreviousIFormula");
+    if (previousFormulaName.getLength() == 0) return;
+    Reference< XComponent > xPreviousFormulaComp = getObjectByName(GetModel(), previousFormulaName);
+    if (!xPreviousFormulaComp.is()) return;
+
+    // Save formula's properties
+    OUString formulaText = getFormulaProperty<OUString>(xFormulaComp, "iFormula");
+
+    // Find text to interject between the two formulas
+    OUString interText = "\nTEXT newline\n";
+
+    if (!getFormulaProperty<bool>(xPreviousFormulaComp, "ImIsHidden"))
+    {
+        OUString prevLast = getFormulaProperty<OUString>(xPreviousFormulaComp, "ImTypeLastLine");
+        OUString thisFirst = getFormulaProperty<OUString>(xFormulaComp, "ImTypeFirstLine");
+        SAL_INFO_LEVEL(2, "sw.imath", "Found " << prevLast << " followed by " << thisFirst);
+
+        if (prevLast == "equation" && thisFirst == "expression")
+        {
+            interText = OU("\nTEXT =\n");
+        }
+        else if (prevLast == "equation" && thisFirst == "equation")
+        {
+            if (getFormulaProperty<OUString>(xPreviousFormulaComp, "ImExpressionLastLhs") == getFormulaProperty<OUString>(xPreviousFormulaComp, "ImExpressionFirstLhs"))
+            {
+                // Check intermediate text
+                interText = getInterText(Reference< XTextContent >(xPreviousFormulaComp, UNO_QUERY_THROW), Reference< XTextContent >(xFormulaComp, UNO_QUERY_THROW));
+
+                if (interText.indexOfAsciiL("\n", 1) < 0 && interText.trim().getLength() == 0)
+                    interText = OU("\n");
+            }
+        }
+        else if (prevLast == "expression" && thisFirst == "expression")
+        {
+            interText = getInterText(Reference< XTextContent >(xPreviousFormulaComp, UNO_QUERY_THROW), Reference< XTextContent >(xFormulaComp, UNO_QUERY_THROW));
+
+            if (interText.indexOfAsciiL("\n", 1) < 0 && interText.trim().getLength() == 0)
+                interText = OU("\nTEXT =\n");
+        }
+        else
+        {
+            interText = OU("\n");
+        }
     }
+
+    // Delete formula
+    RemoveIFormula(formulaName); // TODO Avoid recompiling in this step
+    deleteFormula(GetModel(), xFormulaComp); // TODO Use writer-internal methods (if they exist)
+
+    // Update previous formula
+    setFormulaProperty(xPreviousFormulaComp, "iFormula", uno::makeAny(getFormulaProperty<OUString>(xPreviousFormulaComp, "iFormula") + interText + formulaText));
 }
 
 // a Transfer is cancelled (is called from SFX)

@@ -921,6 +921,8 @@ class SwUINumRuleItem;
 #define FN_IMATH_INSERT_CHART           (FN_IMATH + 7) /* Insert chart */
 #define FN_IMATH_INSERT_CHARTSERIES     (FN_IMATH + 8) /* Insert chart series */
 #define FN_IMATH_INSERT_SETOPTIONS      (FN_IMATH + 9) /* Insert iMath set option */
+#define FN_IMATH_EDIT_MERGE             (FN_IMATH + 10) /* Edit iMath merge formulas */
+
 
 //Member IDs for Fill / SetVariable of items
 #define         MID_STYLE       0xe0

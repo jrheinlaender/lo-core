@@ -208,6 +208,14 @@ public:
     void            SetSmSyntaxVersion(sal_Int16 nSmSyntaxVersion);
     void            SetImSyntaxVersion(sal_Int32 nImSyntaxVersion);
 
+    // iMath internal properties
+    OUString        GetImTypeFirstLine() const { return maImTypeFirstLine; }
+    OUString        GetImTypeLastLine() const { return maImTypeLastLine; }
+    bool            GetImHidden() const { return mImHidden; }
+    void            SetImHidden(const bool& h) { mImHidden = h; }
+    OUString        GetImExprFirstLhs() const { return maImExprFirstLhs; }
+    OUString        GetImExprLastLhs() const { return maImExprLastLhs; }
+
     void            Compile(); // run iCompiler on the maImText
 
     const std::set< OUString > &    GetUsedSymbols() const  { return maUsedSymbols; }
@@ -317,7 +325,7 @@ private:
     /// Count the number of lines of a certain type
     bool align_makes_sense() const;
 
-    // Initialize members once for the lifetime of the class
+    /// Initialize members once for the lifetime of the class
     static void ImStaticInitialization();
 
     /// Internal iMath is blocked because an iMath extension is still installed
@@ -331,6 +339,18 @@ private:
     //       and also gives headaches about persisting the mpCurrentCompiler
     css::uno::Reference< css::util::XCloseListener > m_xIFormulaClosePreventer;
     void PreventFormulaClose(const bool prevent);
+
+    /// Internal properties for communicating with parent documents
+    /// Type of the first line in the (multiline) formula: equation, expression, other
+    OUString maImTypeFirstLine;
+    /// Type of the last line in the (multiline) formula: equation, expression, other
+    OUString maImTypeLastLine;
+    /// True if the iFormula (all lines of it) is hidden, i.e. no text is displayed
+    bool mImHidden;
+    /// Left-hand side of the first line of the formula that contains an expression or equation (for merging formulas)
+    OUString maImExprFirstLhs;
+    /// Left-hand side of the last line of the formula that contains an expression or equation (for merging formulas)
+    OUString maImExprLastLhs;
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

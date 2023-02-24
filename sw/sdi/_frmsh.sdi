@@ -373,6 +373,12 @@ interface BaseTextFrame
         StateMethod = GetState ;
         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
     ]
+    FN_IMATH_EDIT_MERGE // status(final|play)
+    [
+        ExecMethod = Execute ;
+        StateMethod = GetState ;
+        DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+    ]
 
 // Query functions for ImageMaps
 

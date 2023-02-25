@@ -212,7 +212,7 @@ public:
     OUString        GetImTypeFirstLine() const { return maImTypeFirstLine; }
     OUString        GetImTypeLastLine() const { return maImTypeLastLine; }
     bool            GetImHidden() const { return mImHidden; }
-    void            SetImHidden(const bool& h) { mImHidden = h; }
+    void            SetImHidden(const bool h);
     OUString        GetImExprFirstLhs() const { return maImExprFirstLhs; }
     OUString        GetImExprLastLhs() const { return maImExprLastLhs; }
 

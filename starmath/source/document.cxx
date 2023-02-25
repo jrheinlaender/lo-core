@@ -747,6 +747,44 @@ void SmDocShell::Compile()
     SAL_INFO_LEVEL(0, "starmath.imath", "Recalculation finished" << endline);
 }
 
+void SmDocShell::SetImHidden(const bool h)
+{
+    if (mImHidden == h) return;
+
+    OUString oldImText = maImText;
+    maImText = OU("");
+    //unsigned basefontheight = getFormulaProperty<unsigned>(extractModel(obj), OU("BaseFontHeight"));
+
+    for (auto& l : mLines)
+    {
+        iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
+
+        if (expr != nullptr && expr->getHide() != h)
+            expr->setHide(h);
+
+        if (l->getSelectionType() == formulaTypeResult) continue;
+
+        //i->setBasefontHeight(basefontheight);
+        OUString lineText = l->print();
+
+        if (maImText.getLength() > 0)
+            maImText += "\n";
+        maImText += lineText.copy(4).trim(); // Drop leading %%ii
+    }
+
+    SAL_INFO_LEVEL(2, "starmath.imath", "Rebuilt ImText: '" << maImText << "'");
+
+    if (!maImText.equals(oldImText))
+    {
+        if (h)
+            SetText("");
+        else
+            Compile();
+    }
+
+    mImHidden = h;
+}
+
 void SmDocShell::ArrangeFormula()
 {
     if (mbFormulaArranged)

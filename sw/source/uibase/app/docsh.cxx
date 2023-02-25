@@ -1538,6 +1538,19 @@ void SwDocShell::MergeIFormula(const OUString& formulaName)
     setFormulaProperty(xPreviousFormulaComp, "iFormula", uno::makeAny(getFormulaProperty<OUString>(xPreviousFormulaComp, "iFormula") + interText + formulaText));
 }
 
+void SwDocShell::HideIFormula(const OUString& formulaName, const bool hide)
+{
+    SAL_INFO_LEVEL(1, "sw.imath", "SwDocShell::HideIFormula '" << formulaName << "'");
+
+    // Find formula
+    Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
+    if (!xFormulaComp.is()) return;
+
+    if (getFormulaProperty<bool>(xFormulaComp, "ImIsHidden") == hide) return;
+
+    setFormulaProperty(xFormulaComp, "ImIsHidden", uno::makeAny(hide));
+}
+
 // a Transfer is cancelled (is called from SFX)
 void SwDocShell::CancelTransfers()
 {

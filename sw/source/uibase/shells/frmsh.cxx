@@ -802,6 +802,22 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                 }
             }
         break;
+        case FN_IMATH_EDIT_HIDE:
+            {
+            svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+                if(xObj.is())
+                    rSh.GetDoc()->GetDocShell()->HideIFormula(rSh.GetFlyName(), true);
+            }
+        break;
+        case FN_IMATH_EDIT_SHOW:
+            {
+            svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+                if(xObj.is())
+                    rSh.GetDoc()->GetDocShell()->HideIFormula(rSh.GetFlyName(), false);
+            }
+        break;
         default:
             assert(!"wrong dispatcher");
             return;
@@ -1126,6 +1142,8 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
             break;
             case FN_IMATH_INSERT_CONVERT:
             case FN_IMATH_EDIT_MERGE:
+            case FN_IMATH_EDIT_HIDE:
+            case FN_IMATH_EDIT_SHOW:
             {
                 SvtModuleOptions aMOpt;
                 const SelectionType nType = rSh.GetSelectionType();
@@ -1152,6 +1170,8 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
                                         rSet.DisableItem(nWhich);
                                 break;
                                 case FN_IMATH_EDIT_MERGE:
+                                case FN_IMATH_EDIT_HIDE:
+                                case FN_IMATH_EDIT_SHOW:
                                     // Requires a math formula to be selected that is an iFormula
                                     if (isMathOnly)
                                         rSet.DisableItem(nWhich);

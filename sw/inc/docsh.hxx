@@ -356,6 +356,9 @@ public:
     /// Merge the formula with the previous iFormula, keeping the previous formula's OLE object
     void MergeIFormula(const OUString& formulaName);
 
+    /// Hide/Show the formula
+    void HideIFormula(const OUString& formulaName, const bool hide);
+
 protected:
     class LockAllViewsGuard_Impl final : public LockAllViewsGuard
     {

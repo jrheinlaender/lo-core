@@ -3606,6 +3606,40 @@ SfxVoidItem iMathEditMerge FN_IMATH_EDIT_MERGE
     GroupId = SfxGroupId::Edit;
 ]
 
+SfxVoidItem iMathEditHide FN_IMATH_EDIT_HIDE
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = TRUE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Edit;
+]
+
+SfxVoidItem iMathEditShow FN_IMATH_EDIT_SHOW
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = TRUE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Edit;
+]
+
 SfxVoidItem InsertPagebreak FN_INSERT_PAGEBREAK
 ()
 [

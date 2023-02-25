@@ -922,6 +922,8 @@ class SwUINumRuleItem;
 #define FN_IMATH_INSERT_CHARTSERIES     (FN_IMATH + 8) /* Insert chart series */
 #define FN_IMATH_INSERT_SETOPTIONS      (FN_IMATH + 9) /* Insert iMath set option */
 #define FN_IMATH_EDIT_MERGE             (FN_IMATH + 10) /* Edit iMath merge formulas */
+#define FN_IMATH_EDIT_HIDE              (FN_IMATH + 11) /* Edit iMath hide formula */
+#define FN_IMATH_EDIT_SHOW              (FN_IMATH + 12) /* Edit iMath show formula */
 
 
 //Member IDs for Fill / SetVariable of items

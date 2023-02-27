@@ -171,9 +171,17 @@ SwOleShell::SwOleShell(SwView &_rView) :
                 // Note: Sequence when inserting a formula from clipboard
                 // Constructor - Activate - user removes focus - Deactivate
                 SAL_INFO_LEVEL(1, "sw.imath", "Pasted math object, triggering compile");
-                GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks();
-                // Note: The immediately following formula is recompiled by UpdatePreviousIFormulaLinks() because the PreviousIFormula property changes
+                GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // TODO It would be sufficient to update the links of this and the immediately following formula
                 formulaComponent = Reference < lang::XComponent >(xObj->getComponent(), UNO_QUERY); // try again (we must extract the formula text into mIFormulaText)
+                if ( formulaComponent.is() )
+                {
+                    Reference < beans::XPropertySet > xFormulaProps(formulaComponent, uno::UNO_QUERY );
+                    if ( xFormulaProps.is() )
+                    {
+                        xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::makeAny(OUString("compile")));
+                    }
+                }
+                GetShell().GetDoc()->GetDocShell()->RecalculateDependentIFormulas(mIFormulaName);
             }
 
             if (formulaComponent.is())

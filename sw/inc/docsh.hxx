@@ -346,9 +346,8 @@ public:
     void UpdatePreviousIFormulaLinks();
 
     /// Recalculate formulas that depend on the given formula
-    void RecalculateDependentIFormulas(const OUString& formulaName);
-    /// Recalculate all dependent iFormulas after deletion of an iFormula. The search for dependencies starts at the given formula
-    void RecalculateDependentIFormulasAfterDeletion(const OUString& formulaName, const OUString& dependencies);
+    // The dependencies may be overridden (useful for the case of formula deletion)
+    void RecalculateDependentIFormulas(const OUString& formulaName, const OUString& useDependencies = "");
 
     /// Remove the formula and trigger a recalculation of all dependent formulas
     void RemoveIFormula(const OUString& formulaName);

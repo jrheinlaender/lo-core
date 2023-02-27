@@ -43,7 +43,9 @@
 #include <svx/svdobj.hxx>
 #include <docsh.hxx>
 
+#include <com/sun/star/beans/XPropertySet.hpp>
 #include <logging.hxx>
+#include <imath/imathutils.hxx>
 
 SwUndoFlyBase::SwUndoFlyBase( SwFrameFormat* pFormat, SwUndoId nUndoId )
     : SwUndo(nUndoId, pFormat->GetDoc())
@@ -53,7 +55,7 @@ SwUndoFlyBase::SwUndoFlyBase( SwFrameFormat* pFormat, SwUndoId nUndoId )
     , m_nRndId(RndStdIds::FLY_AT_PARA)
     , m_bDelFormat(false)
 {
-    SAL_INFO_LEVEL(1, "sw.imath", "SwUndoFlyBase::SwUndoFlyBase");
+    SAL_INFO_LEVEL(3, "sw.imath", "SwUndoFlyBase::SwUndoFlyBase");
 }
 
 SwUndoFlyBase::~SwUndoFlyBase()
@@ -214,6 +216,20 @@ void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
     m_bDelFormat =  false;
 
     SAL_INFO_LEVEL(1, "sw.imath", OUString("Fly frame inserted from undo: ") << m_pFrameFormat->GetName());
+    uno::Reference< lang::XComponent > xFormulaComp = getObjectByName(pDoc->GetDocShell()->GetModel(), m_pFrameFormat->GetName());
+    if ( xFormulaComp.is() )
+    {
+        uno::Reference< frame::XModel > xFormulaModel = extractModel(xFormulaComp);
+        if ( xFormulaModel.is() )
+        {
+            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
+            if ( xFormulaProps.is() )
+            {
+                xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::makeAny(OUString("compile")));
+            }
+        }
+    }
+
     pDoc->GetDocShell()->RecalculateDependentIFormulas(m_pFrameFormat->GetName());
 }
 

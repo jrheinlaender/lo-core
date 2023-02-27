@@ -1263,10 +1263,22 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
 // the load of document being finished.
 void SwDocShell::LoadingFinished()
 {
-    // Update iFormulas to avoid problems if document was edited with non-iMath version
-    // Also this triggers the necessary initial Compile() of the formulas
-    // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
+    SAL_INFO_LEVEL(1, "sw.imath", "SwDocShell::LoadingFinished()");
+
+    // Update iFormulas to avoid problems if document was edited with non-iMath Office
     UpdatePreviousIFormulaLinks();
+
+    // Trigger the necessary initial Compile() of the formulas
+    // TODO Implement progress bar
+    for (const auto& fn : m_IFormulaNames)
+    {
+        SAL_INFO_LEVEL(1, "sw.imath", "Compiling formula '" << fn << "'");
+        Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fn);
+
+        if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
+            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+        // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
+    }
 
     // #i38810#
     // Original fix fails after integration of cws xmlsec11:
@@ -1293,7 +1305,7 @@ void SwDocShell::LoadingFinished()
     }
 }
 
-void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
+void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, const OUString& useDependencies)
 {
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
 
@@ -1307,14 +1319,17 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
         return;
     }
 
-    SAL_INFO_LEVEL(1, "sw.imath", "Recalculating formulas that depend on '" << formulaName << "'");
+    if (useDependencies.getLength() == 0)
+        SAL_INFO_LEVEL(1, "sw.imath", "Recalculating formulas that depend on '" << formulaName << "'");
+    else
+        SAL_INFO_LEVEL(1, "sw.imath", "Recalculating formulas from '" << formulaName << "' that depend on '" << useDependencies << "'");
 
     auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
     if (it == m_IFormulaNames.end())
     {
         // New iFormula, probably inserted by Copy+Paste operation, this case is not caught by SwOleShell::SwOleShell because the XComponent does not appear to exist (yet)
         SAL_INFO_LEVEL(1, "sw.imath", "Formula is not contained in list, updating list");
-        UpdatePreviousIFormulaLinks(); // TODO: orderXText would be sufficient here, links are updated (again) further down in this method
+        UpdatePreviousIFormulaLinks();
         it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
         if (it == m_IFormulaNames.end())
         {
@@ -1325,17 +1340,19 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
     else
     {
         // Check if any formulas depend on this formula
-        OUString modifiedSymbols = getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut");
+        OUString modifiedSymbols = (useDependencies.getLength() == 0)
+            ? getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut")
+            : useDependencies;
+
         if (modifiedSymbols.getLength() == 0)
         {
-            SAL_INFO_LEVEL(1, "sw.imath", "No symbols are modified by this formula, recalculation is not required");
+            SAL_INFO_LEVEL(1, "sw.imath", "No symbols are modified, recalculation is not required");
             return;
         }
     }
 
     OUString previousFormulaName = *it;
-    ++it; // Skip this formula, it has already been compiled
-    // TODO: Possibly the next formula has also been compiled, if the previousIFormula property was changed
+    ++it; // Skip this formula, it was compiled already (at text change or previous iFormula link change)
 
     while (it != m_IFormulaNames.end())
     {
@@ -1345,7 +1362,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
             SAL_INFO_LEVEL(1, "sw.imath", "Triggering compile on " << *it);
             // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
             setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
-            setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));
+            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
             previousFormulaName = *it;
         }
 
@@ -1381,72 +1398,6 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
         ++it;
     }
 
-    return;
-}
-
-void SwDocShell::RecalculateDependentIFormulasAfterDeletion(const OUString& formulaName, const OUString& dependencies)
-{
-    Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
-
-    // TODO: This code duplicates code in RecalculateDependentIFormulas()
-    auto it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
-    if (it == m_IFormulaNames.end())
-    {
-        // New iFormula, probably inserted by Copy+Paste operation, this case is not caught by SwOleShell::SwOleShell because the XComponent does not appear to exist (yet)
-        SAL_INFO_LEVEL(1, "sw.imath", "Formula is not contained in list, updating list");
-        UpdatePreviousIFormulaLinks(); // TODO: orderXText would be sufficient here, links are updated (again) further down in this method
-        it = std::find(m_IFormulaNames.begin(), m_IFormulaNames.end(), formulaName);
-        if (it == m_IFormulaNames.end())
-        {
-            SAL_INFO_LEVEL(1, "sw.imath", "Error, new formula object was not inserted into list of iFormula names");
-            return;
-        }
-    }
-
-    OUString previousFormulaName = *it;
-    ++it; // Skip this formula, it has already been compiled
-    bool foundDependency = false;
-    std::set<OUString> dependencySet;
-    sal_Int32 idx = 0;
-    do
-    {
-        OUString token = dependencies.getToken(0, ',', idx);
-        if (token.getLength() > 0)
-            dependencySet.insert(token);
-    }
-    while (idx >= 0);
-
-    while (it != m_IFormulaNames.end())
-    {
-        xFormulaComp = getObjectByName(GetModel(), *it);
-        if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
-        {
-            if (!foundDependency)
-            {
-                OUString formulaDependencies = getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyIn");
-                for (const auto& s: dependencySet)
-                {
-                    if (formulaDependencies.indexOf(s) > 0)
-                    {
-                        foundDependency = true;
-                        break;
-                    }
-                }
-            }
-
-            if (foundDependency)
-            {
-                // Compile all following iFormulas once a dependency was found, because we have a linear chain of mpInitialCompiler/mpCurrentCompiler in starmath objects that may not be broken
-                SAL_INFO_LEVEL(1, "sw.imath", "Triggering compile on " << *it);
-                // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
-                setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
-                setFormulaProperty(xFormulaComp, "iFormulaPendingCompile", uno::makeAny(true));
-                previousFormulaName = *it;
-            }
-        }
-
-        ++it;
-    }
 
     return;
 }
@@ -1459,7 +1410,9 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
     SAL_INFO_LEVEL(1, "sw.imath", "Removing iFormula " << formulaName);
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), *formulaIterator);
     OUString previousName = getFormulaProperty<OUString>(xFormulaComp, "PreviousIFormula");
-    setFormulaProperty(xFormulaComp, "iFormula", uno::makeAny(OUString("_imath_formula_deletion_"))); // This will remove the IFormulaClosePreventer instance, after this xFormulaComp may become invalid at any time!
+    OUString removedDependencies = getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut");
+    setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("delete"))); // This will remove the IFormulaClosePreventer instance, after this xFormulaComp may become invalid at any time!
+
     std::list< OUString >::iterator next_it = m_IFormulaNames.end();
 
     while (formulaIterator != m_IFormulaNames.end()) {
@@ -1472,7 +1425,8 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
         xFormulaComp = getObjectByName(GetModel(), *next_it);
         setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousName));
         SAL_INFO_LEVEL(1, "sw.imath", "Updating previous formula of " << *next_it << " to '" << previousName << "'");
-        RecalculateDependentIFormulasAfterDeletion(*next_it, getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut")); // Note: next_it has already been compiled because the previous iFormula was changed
+        setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile"))); // Trigger compile
+        RecalculateDependentIFormulas(*next_it, removedDependencies);
     }
 }
 

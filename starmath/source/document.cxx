@@ -306,28 +306,18 @@ void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
     maImText = rBuffer;
 
     // Ensure that this formula will not be cleaned out of the OLE cache
-    if (maImText.equalsAscii("_imath_formula_deletion_"))
-    {
-        PreventFormulaClose(false); // TODO Is there a better way to pass the information from sw/uibase/app/docsh.xx: SwDocShell::RemoveIFormula() ?
-        maImText = "";
-    }
-    else
-    {
-        PreventFormulaClose(true);
-        if (doCompile && maImText.getLength() > 0)
-            Compile();
-    }
+    PreventFormulaClose(true);
+
+    if (doCompile && maImText.getLength() > 0)
+        Compile();
 }
 
 void SmDocShell::SetPreviousFormula(const OUString& aName)
 {
-    // Force Compile() only if the formula has never been compiled yet
-    if (mPreviousFormula == aName && mpCurrentCompiler != nullptr && mpCurrentOptions != nullptr)
+    if (mPreviousFormula == aName)
         return;
 
     mPreviousFormula = aName;
-
-    Compile();
 }
 
 void SmDocShell::SetFormat(SmFormat const & rFormat)

@@ -215,6 +215,7 @@ public:
     void            SetImHidden(const bool h);
     OUString        GetImExprFirstLhs() const { return maImExprFirstLhs; }
     OUString        GetImExprLastLhs() const { return maImExprLastLhs; }
+    Sequence<OUString> GetImLabels() const { return mImLabels; }
 
     void            Compile(); // run iCompiler on the maImText
 
@@ -351,6 +352,8 @@ private:
     OUString maImExprFirstLhs;
     /// Left-hand side of the last line of the formula that contains an expression or equation (for merging formulas)
     OUString maImExprLastLhs;
+    /// List of all equation labels in this formula
+    Sequence<OUString> mImLabels;
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

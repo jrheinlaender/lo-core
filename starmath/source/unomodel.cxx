@@ -474,7 +474,7 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
             {
                 OUString aName;
                 *pValues >>= aName;
-                SAL_INFO_LEVEL(1, "starmath.imath", "Setting previous formula name to " << aName);
+                SAL_INFO_LEVEL(3, "starmath.imath", "Setting previous formula name to " << aName);
                 pDocSh->SetPreviousFormula(aName);
             }
             break;
@@ -482,7 +482,7 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
             {
                 OUString aDep;
                 *pValues >>= aDep;
-                SAL_INFO_LEVEL(2, "starmath.imath", "Setting ingoing dependencies to " << aDep);
+                SAL_INFO_LEVEL(3, "starmath.imath", "Setting ingoing dependencies to " << aDep);
                 pDocSh->SetIFormulaDependencyIn(aDep);
             }
             break;
@@ -490,7 +490,7 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
             {
                 OUString aDep;
                 *pValues >>= aDep;
-                SAL_INFO("starmath.imath", "Setting outgoing dependencies to " << aDep);
+                SAL_INFO_LEVEL(3, "starmath.imath", "Setting outgoing dependencies to " << aDep);
                 pDocSh->SetIFormulaDependencyOut(aDep);
             }
             break;

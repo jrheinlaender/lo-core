@@ -818,6 +818,55 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                     rSh.GetDoc()->GetDocShell()->HideIFormula(rSh.GetFlyName(), false);
             }
         break;
+        case FN_IMATH_INSERT_CLEAR:
+            {
+                svt::EmbeddedObjectRef& xSelectedFormula = rSh.GetOLEObject();
+
+                if(xSelectedFormula.is())
+                {
+                    OUString selectedFormulaName = rSh.GetFlyFrameFormat()->GetName();
+                    SAL_INFO_LEVEL(2, "sw.imath", "Clear iFormula " << selectedFormulaName);
+
+                    uno::Reference < beans::XPropertySet > xSelectedProperties ( xSelectedFormula->getComponent(), uno::UNO_QUERY );
+                    if ( xSelectedProperties.is() )
+                    {
+                        OUString aText;
+                        xSelectedProperties->getPropertyValue("iFormula") >>= aText;
+                        Sequence<OUString> labels;
+                        xSelectedProperties->getPropertyValue("ImLabels") >>= labels;
+                        OUString labelList;
+
+                        for (int l = 0; l < labels.getLength(); ++l)
+                        {
+                            if (labelList.getLength() > 0)
+                                labelList += ";";
+                            labelList += OUString("@") + labels.getArray()[l] + "@";
+                        }
+
+                        GetView().GetEditWin().StopQuickHelp(); // Note: Copied from FN_INSERT_SMA
+                        rSh.EnterStdMode(); // This removes the selection and prepares for inserting a new object
+                        SvGlobalName aGlobalName( SO3_SM_CLASSID );
+                        rSh.InsertObject( svt::EmbeddedObjectRef(), &aGlobalName, SID_INSERT_OBJECT );
+                        svt::EmbeddedObjectRef& xNewFormula = rSh.GetOLEObject();
+
+                        if (xNewFormula.is())
+                        {
+                            uno::Reference < beans::XPropertySet > xNewProperties( xNewFormula->getComponent(), uno::UNO_QUERY );
+                            if ( xNewProperties.is() )
+                            {
+                                rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
+                                xNewProperties->setPropertyValue("Formula", uno::makeAny(OUString()));
+                                xNewProperties->setPropertyValue("iFormula", uno::makeAny(OUString("DELETE {") + labelList + "}")); // triggers compile
+                                // Both of these are required to close the in-place editor
+                                rSh.FinishOLEObj();
+                                rSh.EnterStdMode();
+                                rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas(selectedFormulaName);
+                            }
+                        }
+                    }
+                }
+            }
+        break;
         default:
             assert(!"wrong dispatcher");
             return;
@@ -1144,6 +1193,7 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
             case FN_IMATH_EDIT_MERGE:
             case FN_IMATH_EDIT_HIDE:
             case FN_IMATH_EDIT_SHOW:
+            case FN_IMATH_INSERT_CLEAR:
             {
                 SvtModuleOptions aMOpt;
                 const SelectionType nType = rSh.GetSelectionType();
@@ -1172,6 +1222,7 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
                                 case FN_IMATH_EDIT_MERGE:
                                 case FN_IMATH_EDIT_HIDE:
                                 case FN_IMATH_EDIT_SHOW:
+                                case FN_IMATH_INSERT_CLEAR:
                                     // Requires a math formula to be selected that is an iFormula
                                     if (isMathOnly)
                                         rSet.DisableItem(nWhich);

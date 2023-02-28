@@ -702,9 +702,8 @@
           <menu:menuitem menu:id=".uno:iMathEditHide"/>
           <menu:menuitem menu:id=".uno:iMathEditShow"/>
           <menu:menuseparator/>
-          <menu:menuitem menu:id=".uno:iMathEditDelete"/>
-          <menu:menuitem menu:id=".uno:iMathEditClearEquation"/>
-          <menu:menuitem menu:id=".uno:iMathEditClearAll"/>
+          <menu:menuitem menu:id=".uno:iMathInsertClearEquation"/>
+          <menu:menuitem menu:id=".uno:iMathInsertClearAll"/>
         </menu:menupopup>
       </menu:menu>
       <menu:menuitem menu:id=".uno:iMathFormat"/>

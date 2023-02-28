@@ -435,6 +435,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
     case FN_IMATH_INSERT_UNIT:
     case FN_IMATH_INSERT_CHART:
     case FN_IMATH_INSERT_SETOPTIONS:
+    case FN_IMATH_INSERT_CLEARALL:
         {
             GetView().GetEditWin().StopQuickHelp();
             SvGlobalName aGlobalName( SO3_SM_CLASSID );
@@ -449,7 +450,8 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                 uno::Reference < beans::XPropertySet > xSet( xObj->getComponent(), uno::UNO_QUERY );
                 if ( xSet.is() )
                 {
-                    rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text ist empty. Setting the iFormula property will trigger compilation
+                    rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks();
+                    // Note: Recalculation of the dependent iFormulas will happen when the user removes the focus from the newly inserted OLE object
 
                     OUString formulaLabel = "@" + OUString::number(GetView().GetDocShell()->GetNextIFormulaNumber()) + "@";
                     OUString aText;
@@ -510,6 +512,15 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                                 void(); // TODO: Error "Please use document options from the iMath menu to change the options at the beginning of the document"
                             else
                                 xSet->setPropertyValue("iFormula", uno::makeAny(OUString("OPTIONS { units = {%metre}; precision = 4}")));
+                        }
+                        break;
+                        case FN_IMATH_INSERT_CLEARALL:
+                        {
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CLEAREQUATIONS")));
+                            OUString flyName = rSh.GetFlyFrameFormat()->GetName();
+                            rSh.FinishOLEObj(); // This does NOT trigger RecalculateDependentIFormulas()
+                            rSh.EnterStdMode();
+                            rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas(flyName);
                         }
                         break;
                     }
@@ -748,6 +759,7 @@ void SwTextShell::StateInsert( SfxItemSet &rSet )
             case FN_IMATH_INSERT_UNIT:
             case FN_IMATH_INSERT_CHART:
             case FN_IMATH_INSERT_SETOPTIONS:
+            case FN_IMATH_INSERT_CLEARALL:
                 if( !aMOpt.IsMath()
                     || eCreateMode == SfxObjectCreateMode::EMBEDDED
                     || bCursorInHidden

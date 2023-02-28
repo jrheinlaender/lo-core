@@ -1368,6 +1368,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
 
         /*
          * TODO: This does not work yet, because there is a linear chain of mpInitialCompiler/mpCurrentCompiler in starmath objects, so we cannot skip any of them
+         * If this is implemented, the dependency string "all formulas" for statements must be handled
         // Add modified symbols of previous formula
         sal_Int32 idx = 0;
         do

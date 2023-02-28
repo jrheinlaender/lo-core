@@ -4406,20 +4406,20 @@
           <value>.uno:iMathEditDelete</value>
         </prop>
       </node>
-      <node oor:name=".uno:iMathEditClearEquation" oor:op="replace">
+      <node oor:name=".uno:iMathInsertClearEquation" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">Clear</value>
         </prop>
         <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>.uno:iMathEditClearEquation</value>
+          <value>.uno:iMathInsertClearEquation</value>
         </prop>
       </node>
-      <node oor:name=".uno:iMathEditClearAll" oor:op="replace">
+      <node oor:name=".uno:iMathInsertClearAll" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">Clear all</value>
         </prop>
         <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>.uno:iMathEditClearAll</value>
+          <value>.uno:iMathInsertClearAll</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathFormat" oor:op="replace">

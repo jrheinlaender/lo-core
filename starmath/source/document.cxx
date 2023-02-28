@@ -634,6 +634,7 @@ void SmDocShell::Compile()
             mImHidden = true;
             maImExprFirstLhs = "";
             maImExprLastLhs = "";
+            std::vector<OUString> tempLabels; // Sequence does not appear to support appending of elements
 
             for (const auto& l : mLines)
             {
@@ -642,6 +643,7 @@ void SmDocShell::Compile()
                     maImTypeFirstLine = "equation";
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
                     maImExprFirstLhs = expr->getDisplayedLhs();
+                    tempLabels.push_back(expr->getLabel());
                     break;
                 }
                 else if (l->getSelectionType() == formulaTypeExpression)
@@ -649,9 +651,16 @@ void SmDocShell::Compile()
                     maImTypeFirstLine = "expression";
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
                     maImExprFirstLhs = expr->getDisplayedLhs();
+                    if (expr->getLabel().getLength() > 0)
+                        tempLabels.push_back(expr->getLabel());
                     break;
                 }
             }
+
+            mImLabels = Sequence<OUString>(tempLabels.size());
+
+            for (size_t l = 0; l < tempLabels.size(); ++l)
+                mImLabels.getArray()[l] = tempLabels[l];
 
             for (auto line = mLines.rbegin(); line != mLines.rend(); ++line)
             {
@@ -682,35 +691,48 @@ void SmDocShell::Compile()
             // Update dependencies
             // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
             std::set<GiNaC::expression, GiNaC::expr_is_less> inDep, outDep;
+            OUString inDepStr, outDepStr;
+
             for (const auto& l : mLines)
             {
+                if (l->dependencyType() == depRecalc)
+                {
+                    inDepStr = "all formulas";
+                    outDepStr = "all formulas";
+                    break;
+                }
+
                 for (const auto& dep : l->getIn())
                     if (outDep.find(dep) == outDep.end()) // Avoid bogus incoming dependencies in multi-line formulas
                         inDep.insert(dep);
                 outDep.merge(l->getOut());
             }
 
-            // Outgoing dependencies that have been removed will also influence the following formulas - thus they must be inserted again
-            // TODO: The way this is currently implemented means that outgoing dependencies will NEVER be removed at all!
-            for (const auto& oldDep : oldOutDep) {
-                bool found = false;
-                if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
+            if (outDepStr.getLength() == 0)
+            {
+                // Outgoing dependencies that have been removed will also influence the following formulas - thus they must be inserted again
+                // TODO: The way this is currently implemented means that outgoing dependencies will NEVER be removed at all!
+                for (const auto& oldDep : oldOutDep) {
+                    bool found = false;
+                    if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
 
-                for (const auto& dep : outDep) {
-                    if (GiNaC::is_a<GiNaC::symbol>(dep) && GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() == GiNaC::ex_to<GiNaC::symbol>(dep).get_name()) {
-                        found = true;
-                        break;
+                    for (const auto& dep : outDep) {
+                        if (GiNaC::is_a<GiNaC::symbol>(dep) && GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() == GiNaC::ex_to<GiNaC::symbol>(dep).get_name()) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        SAL_INFO_LEVEL(1, "starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
+                        outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
                     }
                 }
 
-                if (!found) {
-                    SAL_INFO_LEVEL(1, "starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
-                    outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
-                }
+                inDepStr = makeSymbolString(inDep);
+                outDepStr = makeSymbolString(outDep);
             }
 
-            OUString inDepStr = makeSymbolString(inDep);
-            OUString outDepStr = makeSymbolString(outDep);
             SAL_INFO_LEVEL(1, "starmath.imath", "This formula depends on '" << inDepStr << "'");
             SAL_INFO_LEVEL(1, "starmath.imath", "This formula modifies '" << outDepStr << "'");
             SetIFormulaDependencyIn(inDepStr);

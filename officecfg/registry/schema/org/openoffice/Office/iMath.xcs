@@ -245,40 +245,5 @@
         <value>false</value>
       </prop>
     </group>
-    <group oor:name="InternalCommunication">
-      <info>
-        <desc>iMath internal properties for communication between objects.</desc>
-      </info>
-      <prop oor:name="ImTypeFirstLine" oor:type="xs:string">
-        <info>
-          <desc>Type of the first line in the (multiline) formula</desc>
-        </info>
-        <value></value>
-      </prop>
-      <prop oor:name="ImTypeLastLine" oor:type="xs:string">
-        <info>
-          <desc>Type of the last line in the (multiline) formula</desc>
-        </info>
-        <value></value>
-      </prop>
-      <prop oor:name="ImIsHidden" oor:type="xs:boolean" oor:nillable="false">
-        <info>
-          <desc>True if the iFormula (all lines of it) is hidden</desc>
-        </info>
-        <value>false</value>
-      </prop>
-      <prop oor:name="ImExpressionFirstLhs" oor:type="xs:string">
-        <info>
-          <desc>Left-hand side of the first line of the formula that contains an expression or equation</desc>
-        </info>
-        <value></value>
-      </prop>
-      <prop oor:name="ImExpressionLastLhs" oor:type="xs:string">
-        <info>
-          <desc>Left-hand side of the last line of the formula that contains an expression or equation</desc>
-        </info>
-        <value></value>
-      </prop>
-  </group>
   </component>
 </oor:component-schema>

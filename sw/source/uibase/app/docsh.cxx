@@ -1193,7 +1193,8 @@ template<typename T> T getFormulaProperty(const Reference< XComponent >& xFormul
             if ( xFormulaProps.is() )
             {
                 uno::Any aText = xFormulaProps->getPropertyValue(propertyName);
-                T result();
+
+                T result = T();
                 aText >>= result;
                 return result;
             }
@@ -1243,16 +1244,14 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
 
         for (const auto& fn : m_IFormulaNames)
         {
-            SAL_INFO_LEVEL(1, "sw.imath", "Processing formula '" << fn << "'");
+            SAL_INFO_LEVEL(1, "sw.imath", "Updating formula '" << fn << "'");
             Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fn);
 
-            // Note: Setting this property to a new value will trigger compilation of the formula
-            // Note: But formulas depending on this formula will not be recompiled!
             setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
 
-            // Note: Empty iFormulas are ignored in the chain of previous equations, for efficiency reasons
-            if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
-                previousFormulaName = fn;
+            // Note: Empty iFormulas are included in the chain of previous equations, because when a new iFormula is inserted it starts off as an empty formula
+            // The links are updated first, then the formula text is set and compiled. See textsh.cxx FN_IMATH_INSERT_CREATE etc.
+            previousFormulaName = fn;
         }
     }
 }
@@ -1484,13 +1483,17 @@ void SwDocShell::MergeIFormula(const OUString& formulaName)
             interText = OU("\n");
         }
     }
-
-    // Delete formula
-    RemoveIFormula(formulaName); // TODO Avoid recompiling in this step
-    deleteFormula(GetModel(), xFormulaComp); // TODO Use writer-internal methods (if they exist)
+    else
+    {
+        interText = OU("\n");
+    }
 
     // Update previous formula
     setFormulaProperty(xPreviousFormulaComp, "iFormula", uno::makeAny(getFormulaProperty<OUString>(xPreviousFormulaComp, "iFormula") + interText + formulaText));
+
+    // Delete formula
+    RemoveIFormula(formulaName);
+    deleteFormula(GetModel(), xFormulaComp); // TODO Use writer-internal methods (if they exist)
 }
 
 void SwDocShell::HideIFormula(const OUString& formulaName, const bool hide)

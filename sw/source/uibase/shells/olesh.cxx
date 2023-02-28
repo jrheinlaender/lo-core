@@ -96,11 +96,12 @@ void SwOleShell::Activate(bool bMDI)
         SAL_INFO_LEVEL(1, "sw.imath", "SwOleShell::Activate() found formula text\n'" << newFormulaText << "'");
 
         // Note: Activate() is called AFTER the user has finished editing
-        if (mIFormulaText.equals(newFormulaText))
-            SAL_INFO_LEVEL(1, "sw.imath", "Formula text is unchanged");
-
         mFormulaTextChanged = !mIFormulaText.equals(newFormulaText);
-        mIFormulaText = newFormulaText;
+
+        if (!mFormulaTextChanged)
+            SAL_INFO_LEVEL(1, "sw.imath", "Formula text is unchanged");
+        else
+            mIFormulaText = newFormulaText;
     }
 }
 
@@ -186,15 +187,15 @@ SwOleShell::SwOleShell(SwView &_rView) :
 
             if (formulaComponent.is())
             {
-                Reference < beans::XPropertySet > fPS(formulaComponent, UNO_QUERY);
-                if (fPS.is())
+                Reference < beans::XPropertySet > xFormulaProps(formulaComponent, UNO_QUERY);
+                if (xFormulaProps.is())
                 {
-                    fPS->getPropertyValue("iFormula") >>= mIFormulaText;
+                    xFormulaProps->getPropertyValue("iFormula") >>= mIFormulaText;
                     mIFormulaText = mIFormulaText.trim();
                     SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object old text set to\n'" << mIFormulaText << "'");
 
                     OUString previousIFormula;
-                    fPS->getPropertyValue("PreviousIFormula") >>= previousIFormula;
+                    xFormulaProps->getPropertyValue("PreviousIFormula") >>= previousIFormula;
                     SAL_INFO_LEVEL(1, "sw.imath", "Previous iFormula is '" << previousIFormula << "'");
                 }
             }

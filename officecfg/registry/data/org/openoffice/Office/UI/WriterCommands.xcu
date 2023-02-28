@@ -4398,14 +4398,6 @@
           <value>.uno:iMathEditShow</value>
         </prop>
       </node>
-      <node oor:name=".uno:iMathEditDelete" oor:op="replace">
-        <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Delete</value>
-        </prop>
-        <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>.uno:iMathEditDelete</value>
-        </prop>
-      </node>
       <node oor:name=".uno:iMathInsertClearEquation" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">Clear</value>

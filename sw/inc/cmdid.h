@@ -924,6 +924,8 @@ class SwUINumRuleItem;
 #define FN_IMATH_EDIT_MERGE             (FN_IMATH + 10) /* Edit iMath merge formulas */
 #define FN_IMATH_EDIT_HIDE              (FN_IMATH + 11) /* Edit iMath hide formula */
 #define FN_IMATH_EDIT_SHOW              (FN_IMATH + 12) /* Edit iMath show formula */
+#define FN_IMATH_INSERT_CLEAR           (FN_IMATH + 13) /* Insert iMath clear formula */
+#define FN_IMATH_INSERT_CLEARALL        (FN_IMATH + 14) /* Insert iMath clear all formulas */
 
 
 //Member IDs for Fill / SetVariable of items

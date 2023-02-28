@@ -751,14 +751,6 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                 }
             }
         break;
-        case FN_IMATH_EDIT_MERGE:
-            {
-                svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
-
-                if(xObj.is())
-                    rSh.GetDoc()->GetDocShell()->MergeIFormula(rSh.GetFlyName());
-            }
-        break;
         case FN_IMATH_INSERT_CHARTSERIES:
             {
                 svt::EmbeddedObjectRef& xChartObj = rSh.GetOLEObject();
@@ -778,6 +770,7 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                             SAL_INFO_LEVEL(2, "sw.imath", "Add series " << (series + 1) << " to chart " << chartName);
 
                             GetView().GetEditWin().StopQuickHelp(); // Note: Copied from FN_INSERT_SMA
+                            rSh.FinishOLEObj();
                             rSh.EnterStdMode(); // This removes the selection and prepares for inserting a new object
                             SvGlobalName aGlobalName( SO3_SM_CLASSID );
                             rSh.InsertObject( svt::EmbeddedObjectRef(), &aGlobalName, SID_INSERT_OBJECT );
@@ -800,6 +793,14 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                         }
                     }
                 }
+            }
+        break;
+        case FN_IMATH_EDIT_MERGE:
+            {
+                svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
+
+                if(xObj.is())
+                    rSh.GetDoc()->GetDocShell()->MergeIFormula(rSh.GetFlyName());
             }
         break;
         case FN_IMATH_EDIT_HIDE:

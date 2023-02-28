@@ -3589,6 +3589,42 @@ SfxVoidItem iMathInsertSetOptions FN_IMATH_INSERT_SETOPTIONS
     GroupId = SfxGroupId::Insert;
 ]
 
+SfxVoidItem iMathInsertClearEquation FN_IMATH_INSERT_CLEAR
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+    Asynchron;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Insert;
+]
+
+SfxVoidItem iMathInsertClearAll FN_IMATH_INSERT_CLEARALL
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+    Asynchron;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Insert;
+]
+
 SfxVoidItem iMathEditMerge FN_IMATH_EDIT_MERGE
 ()
 [

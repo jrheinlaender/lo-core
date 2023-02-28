@@ -285,6 +285,12 @@ public:
     OUString GetIFormulaDependencyIn() const  { return mIFormulaDependencyIn; }
     OUString GetIFormulaDependencyOut() const  { return mIFormulaDependencyOut; }
 
+    /// Prevent the document from being closed
+    // Note: By default, the OLE cache is set to 20 objects in /org.openoffice.Office.Common/Cache/Writer/OLE_Objects
+    //       If a office document has more formulas, older ones will be closed. This is bad for performance
+    //       and also gives headaches about persisting the mpCurrentCompiler
+    void PreventFormulaClose(const bool prevent);
+
 private:
     /// Name of the previous iFormula (OLE mode), empty if the formula is stand-alone or the first formula in a document
     OUString mPreviousFormula;
@@ -335,11 +341,7 @@ private:
     static std::string mDecimalSeparator;
 
     /// Prevent the document from being closed
-    // Note: By default, the OLE cache is set to 20 objects in /org.openoffice.Office.Common/Cache/Writer/OLE_Objects
-    //       If a office document has more formulas, older ones will be closed. This is bad for performance
-    //       and also gives headaches about persisting the mpCurrentCompiler
     css::uno::Reference< css::util::XCloseListener > m_xIFormulaClosePreventer;
-    void PreventFormulaClose(const bool prevent);
 
     /// Internal properties for communicating with parent documents
     /// Type of the first line in the (multiline) formula: equation, expression, other

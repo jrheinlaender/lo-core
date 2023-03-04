@@ -105,6 +105,7 @@
 
 #include <comphelper/processfactory.hxx>
 
+#include <unicode/regex.h>
 #include <logging.hxx>
 #include <imath/imathutils.hxx>
 
@@ -1507,6 +1508,62 @@ void SwDocShell::HideIFormula(const OUString& formulaName, const bool hide)
     if (getFormulaProperty<bool>(xFormulaComp, "ImIsHidden") == hide) return;
 
     setFormulaProperty(xFormulaComp, "ImIsHidden", uno::makeAny(hide));
+}
+
+void SwDocShell::RenumberIFormulas()
+{
+    // TODO Create a status indicator
+    SAL_INFO_LEVEL(2, "sw.imath", "Renumbering formulas");
+    m_nextIFormulaNumber = 1;
+
+    std::map<icu::UnicodeString, OUString> mapping;
+
+    for (const auto& i : m_IFormulaNames)
+    {
+        // get the formula
+        Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), i);
+        if (!xFormulaComp.is()) continue;
+
+        icu::UnicodeString formulaText = getFormulaProperty<OUString>(xFormulaComp, "iFormula").getStr();
+        if (formulaText.length() == 0) continue;
+
+        OUString result = OU("");
+        UErrorCode status = U_ZERO_ERROR;
+        icu::RegexMatcher labelRegex("@[0-9]+(_[0-9]+)*@", formulaText, 0, status);
+        int pos = 0;
+
+        while (labelRegex.find())
+        {
+            icu::UnicodeString l = labelRegex.group(status).tempSubString(1, labelRegex.group(status).length() - 2);
+            OUString newlabel;
+
+            if (mapping.find(l) != mapping.end())
+            {
+                // found a label inside an equation that was used previously
+                newlabel = mapping.at(l);
+            }
+            else
+            {
+                // Note: duplicate equation labels will remain duplicate
+                newlabel = OUString::number(m_nextIFormulaNumber++);
+                mapping[l] = newlabel;
+            }
+
+            SAL_INFO_LEVEL(2, "sw.imath", "Found label '" << OUString(l.getTerminatedBuffer()) << "' at position " << labelRegex.start(status) << ", replacing with '" << newlabel << "'");
+            result += OUString(formulaText.tempSubString(pos, labelRegex.start(status) - pos).getTerminatedBuffer()) + "@" + newlabel + "@";
+            pos = labelRegex.end(status);
+        }
+
+        result += OUString(formulaText.tempSubString(pos).getTerminatedBuffer());
+        SAL_INFO_LEVEL(2,  "sw.imath", "iFormula with replacements: '" << result << "'");
+
+        if (!result.equals(getFormulaProperty<OUString>(xFormulaComp, "iFormula")))
+            setFormulaProperty(xFormulaComp, "iFormula", uno::makeAny(result));
+        else
+            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile"))); // We must always compile, to update the chain of eqc objects
+    }
+
+    SAL_INFO_LEVEL(2, "sw.imath", "Finished renumbering formulas");
 }
 
 // a Transfer is cancelled (is called from SFX)

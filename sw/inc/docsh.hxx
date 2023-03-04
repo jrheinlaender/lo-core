@@ -358,6 +358,9 @@ public:
     /// Hide/Show the formula
     void HideIFormula(const OUString& formulaName, const bool hide);
 
+    /// Make alle formula labels of the type @<integer>@ consecutive
+    void RenumberIFormulas();
+
 protected:
     class LockAllViewsGuard_Impl final : public LockAllViewsGuard
     {

@@ -274,6 +274,8 @@ class SFX2_DLLPUBLIC SfxDocumentInfoDialog final : public SfxTabDialogController
 public:
     SfxDocumentInfoDialog(weld::Window* pParent, const SfxItemSet&);
     void AddFontTabPage();
+    void AddIMathTabPage();
+    void AddIMathReferencesTabPage();
 };
 
 class CustomPropertiesDateField

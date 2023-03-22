@@ -77,6 +77,8 @@
 #include <sfx2/viewsh.hxx>
 
 #include <documentfontsdialog.hxx>
+#include <documentimathdialog.hxx>
+#include <documentimathreferencesdialog.hxx>
 #include <dinfdlg.hrc>
 #include <sfx2/strings.hrc>
 #include <strings.hxx>
@@ -1360,6 +1362,16 @@ void SfxDocumentInfoDialog::AddFontTabPage()
 {
     AddTabPage(u"font"_ustr, TabResId(RID_TAB_FONT.aLabel),
                SfxDocumentFontsPage::Create, RID_L + RID_TAB_FONT.sIconName);
+}
+
+void SfxDocumentInfoDialog::AddIMathTabPage()
+{
+    AddTabPage("imath", SfxResId(STR_IMATH_TABPAGE), SfxDocumentIMathPage::Create);
+}
+
+void SfxDocumentInfoDialog::AddIMathReferencesTabPage()
+{
+    AddTabPage("imathreferences", SfxResId(STR_IMATH_REFERENCES_TABPAGE), SfxDocumentIMathReferencesPage::Create);
 }
 
 // class CustomPropertiesYesNoButton -------------------------------------

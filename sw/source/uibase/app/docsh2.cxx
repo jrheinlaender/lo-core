@@ -147,6 +147,8 @@ std::shared_ptr<SfxDocumentInfoDialog> SwDocShell::CreateDocumentInfoDialog(weld
             SwAbstractDialogFactory* pFact = SwAbstractDialogFactory::Create();
             xDlg->AddFontTabPage();
             xDlg->AddTabPage(u"writerstats"_ustr, SwResId(STR_DOC_STAT), pFact->GetTabPageCreatorFunc(RID_SW_TP_DOC_STAT));
+            xDlg->AddIMathTabPage();
+            xDlg->AddIMathReferencesTabPage();
         }
     }
     return xDlg;

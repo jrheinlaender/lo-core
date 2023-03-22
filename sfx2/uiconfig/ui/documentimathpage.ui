@@ -1,0 +1,682 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.38.2 -->
+<interface domain="sfx">
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkAdjustment" id="adjustmentNegative">
+    <property name="upper">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustmentPositive">
+    <property name="upper">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustmentPrecision">
+    <property name="upper">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustmentTextsize">
+    <property name="upper">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <!-- n-columns=1 n-rows=6 -->
+  <object class="GtkGrid" id="DocumentIMathPage">
+    <property name="visible">True</property>
+    <property name="can-focus">False</property>
+    <property name="border-width">12</property>
+    <property name="row-spacing">6</property>
+    <property name="column-spacing">12</property>
+    <child>
+      <object class="GtkFrame" id="appearanceFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_autochain">
+                <property name="label" translatable="yes" context="documentimathpage|autochain">Automatically _chain iFormula lines with identical left-hand side</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_autoformat">
+                <property name="label" translatable="yes" context="documentimathpage|autoformat">Automatically _format all iFormulas</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_autoalign">
+                <property name="label" translatable="yes" context="documentimathpage|autoalign">Automatically _align multi-line iFormulas</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_autofraction">
+                <property name="label" translatable="yes" context="documentimathpage|autofraction">Automatically _diminish the text size in cascaded fractions</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkLabel" id="labelTextsize">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">25</property>
+                    <property name="label" translatable="yes" context="documentimathpage|mintextsize">_Minimum fraction text size</property>
+                    <property name="use-underline">True</property>
+                    <property name="mnemonic-widget">formatting_i_minimumtextsize</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="formatting_i_minimumtextsize">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="margin-start">5</property>
+                    <property name="width-chars">2</property>
+                    <property name="progress-pulse-step">1</property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustmentTextsize</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_point_unit">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">5</property>
+                    <property name="label">pt</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_autotextmode">
+                <property name="label" translatable="yes" context="documentimathpage|autotextmode">Automatically set the _text mode flag on iFormulas that are not on a line by themselves</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">5</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="appearanceLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathpage|appearanceLabel">Appearance</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+            <accessibility>
+              <relation type="label-for" target="appearanceFrame"/>
+            </accessibility>
+          </object>
+        </child>
+        <accessibility>
+          <relation type="labelled-by" target="appearanceLabel"/>
+        </accessibility>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="informationFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel" id="informationContent">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="documentimathpage|information">This document does not contain any iFormulas yet. Create an iFormula to view the properties here.</property>
+                <property name="wrap">True</property>
+                <accessibility>
+                  <relation type="label-for" target="informationFrame"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_showlabels">
+                <property name="label" translatable="yes" context="documentimathpage|showlabels">Show _labels</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="miscellaneous_o_echoformula">
+                <property name="label" translatable="yes" context="documentimathpage|echoformula">_Echo formulas</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="informationTitle">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathpage|informationTitle">Information</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+          </object>
+        </child>
+        <accessibility>
+          <relation type="labelled-by" target="informationContent"/>
+        </accessibility>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">5</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="formulaFontFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkComboBoxText" id="formatting_txt_formulafont">
+            <property name="visible">True</property>
+            <property name="sensitive">False</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="hexpand">True</property>
+            <property name="has-entry">True</property>
+            <child internal-child="entry">
+              <object class="GtkEntry">
+                <property name="can-focus">True</property>
+                <property name="margin-start">15</property>
+                <property name="activates-default">True</property>
+                <property name="truncate-multiline">True</property>
+              </object>
+            </child>
+            <child internal-child="accessible">
+              <object class="AtkObject" id="formatting_txt_formulafont-atkobject">
+                <property name="AtkObject::accessible-description" translatable="yes" context="extended_tip | font2">Enter or select the name of the replacement font.</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathpage|formulafont">Formula font</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="unitsFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkEntry" id="formatting_txt_preferredunits">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="text" translatable="yes" context="documentimathpage|preferredunits">Enter units ...</property>
+                <accessibility>
+                  <relation type="labelled-by" target="unitsLabel"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_suppress_units">
+                <property name="label" translatable="yes" context="documentimathpage|suppressunits">_Suppress units</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">5</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="unitsLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathpage|unitsLabel">Units</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+            <accessibility>
+              <relation type="label-for" target="formatting_txt_preferredunits"/>
+            </accessibility>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="numbersFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkLabel" id="labelPrecision">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">25</property>
+                    <property name="label" translatable="yes" context="documentimathpage|precision">_Precision</property>
+                    <property name="use-underline">True</property>
+                    <property name="mnemonic-widget">formatting_i_precision</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="formatting_i_precision">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="margin-start">5</property>
+                    <property name="width-chars">2</property>
+                    <property name="text">0</property>
+                    <property name="progress-pulse-step">1</property>
+                    <property name="placeholder-text">5 pt</property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustmentPrecision</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_fixedpoint">
+                <property name="label" translatable="yes" context="documentimathpage|fixedpoint">_Fixed point notation</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkLabel" id="labelPositive">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">25</property>
+                    <property name="label" translatable="yes" context="documentimathpage|minpositiveexp">Minimum  _positive  exponent</property>
+                    <property name="use-underline">True</property>
+                    <property name="mnemonic-widget">formatting_i_highsclimit</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="formatting_i_highsclimit">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="margin-start">5</property>
+                    <property name="width-chars">2</property>
+                    <property name="text">0</property>
+                    <property name="progress-pulse-step">1</property>
+                    <property name="placeholder-text">5 pt</property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustmentPositive</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkLabel" id="labelNegative">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">25</property>
+                    <property name="label" translatable="yes" context="documentimathpage|maxnegativeexp">Maximum _negative exponent</property>
+                    <property name="use-underline">True</property>
+                    <property name="mnemonic-widget">formatting_i_lowsclimit</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="formatting_i_lowsclimit">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="margin-start">5</property>
+                    <property name="width-chars">2</property>
+                    <property name="text">0</property>
+                    <property name="progress-pulse-step">1</property>
+                    <property name="placeholder-text">5 pt</property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustmentNegative</property>
+                    <property name="numeric">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">4</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="numbersLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathpage|numbersLabel">Numbers</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+            <accessibility>
+              <relation type="label-for" target="numbersFrame"/>
+            </accessibility>
+          </object>
+        </child>
+        <accessibility>
+          <relation type="labelled-by" target="numbersLabel"/>
+        </accessibility>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">3</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="calculationFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkCheckButton" id="formatting_o_implicitmul">
+                <property name="label" translatable="yes" context="documentimathpage|implicitmul">Allow _implicit multiplication</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="internal_o_underflow">
+                <property name="label" translatable="yes" context="documentimathpage|underflow">Inhibit _underflow exceptions</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="internal_o_evalf_real_roots">
+                <property name="label" translatable="yes" context="documentimathpage|realroots">Evaluate to _real roots</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="calculationLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathpage|calculationLabel">Calculation</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+            <accessibility>
+              <relation type="label-for" target="calculationFrame"/>
+            </accessibility>
+          </object>
+        </child>
+        <accessibility>
+          <relation type="labelled-by" target="appearanceLabel"/>
+          <relation type="labelled-by" target="calculationLabel"/>
+        </accessibility>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">4</property>
+      </packing>
+    </child>
+    <child internal-child="accessible">
+      <object class="AtkObject" id="DocumentIMathPage-atkobject">
+        <property name="AtkObject::accessible-description" translatable="yes" context="documentimathpage|extended_tip|DocumentIMathPage">Settings for iFormulas.</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkListStore" id="liststore_formulafont"/>
+</interface>

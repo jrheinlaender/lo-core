@@ -456,8 +456,9 @@ OUString SmDocShell::ImInitializeCompiler() {
     OUString references = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_references"), OU("Includes/txt_References"));
     SAL_INFO_LEVEL(1, "starmath.imath", "Found references '" << references << "'");
     OUString include1 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include1"));
-    OUString include2 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include2"));
-    OUString include3 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include3"));
+    OUString include2 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include2"), OU("Includes/txt_Include2"));
+    OUString include3 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include3"), OU("Includes/txt_Include3"));
+    SAL_INFO_LEVEL(1, "starmath.imath", "Found user references '" << include1 << "', '" << include2 << "', '" << include3 << "'");
 
     // Formatting
     // TODO: This will copy all the options from the registry into the local document graph, which is not what we want for multi-formula documents in Writer or Presentation

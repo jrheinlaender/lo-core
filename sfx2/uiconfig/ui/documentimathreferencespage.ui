@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.38.2 -->
+<interface domain="sfx">
+  <requires lib="gtk+" version="3.20"/>
+  <!-- n-columns=1 n-rows=5 -->
+  <object class="GtkGrid" id="DocumentIMathReferencesPage">
+    <property name="visible">True</property>
+    <property name="can-focus">False</property>
+    <property name="border-width">12</property>
+    <property name="row-spacing">6</property>
+    <property name="column-spacing">12</property>
+    <child>
+      <object class="GtkFrame" id="generalFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkCheckButton" id="00init">
+                <property name="label" translatable="yes" context="documentimathreferencespage|init.imath">_Math basics (init.imath) - do not disable</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="99substitutions">
+                <property name="label" translatable="yes" context="documentimathreferencespage|substitutions.imath">Formula _library (substitutions.imath)</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="01units">
+                <property name="label" translatable="yes" context="documentimathreferencespage|units.imath">Deprecated _units (units.imath) - use only for legacy documents</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="generalLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathreferencespage|generalLabel">General references</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+            <accessibility>
+              <relation type="label-for" target="generalFrame"/>
+            </accessibility>
+          </object>
+        </child>
+        <accessibility>
+          <relation type="labelled-by" target="generalLabel"/>
+        </accessibility>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="unitsFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <!-- n-columns=2 n-rows=4 -->
+          <object class="GtkGrid">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <child>
+              <object class="GtkCheckButton" id="02siunits">
+                <property name="label" translatable="yes" context="documentimathreferencespage|siunits">_SI units</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="08siprefixes">
+                <property name="label" translatable="yes" context="documentimathreferencespage|siprefixes">SI _prefixes</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="04engunits">
+                <property name="label" translatable="yes" context="documentimathreferencespage|engunits">_Engineering units (SI)</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="06impunits">
+                <property name="label" translatable="yes" context="documentimathreferencespage|impunits">_Imperial units</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="03siunits_abbrev">
+                <property name="label" translatable="yes" context="documentimathreferencespage|siunits_abbrev">Abbreviations of SI units</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="09siprefixes_abbrev">
+                <property name="label" translatable="yes" context="documentimathreferencespage|siprefixes_abbrev">Abbreviations of SI prefixes</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="05engunits_abbrev">
+                <property name="label" translatable="yes" context="documentimathreferencespage|engunits_abbrev">Abbreviations of engineering units</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="07impunits_abbrev">
+                <property name="label" translatable="yes" context="documentimathreferencespage|impunits_abbrev">Abbreviations of imperial units</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">start</property>
+                <property name="use-underline">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">3</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="unitsLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathreferencespage|units">Units references</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="userdefinedFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <!-- n-columns=2 n-rows=3 -->
+          <object class="GtkGrid">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <child>
+              <object class="GtkEntry" id="txt_reference1">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="hexpand">True</property>
+                <property name="placeholder-text" translatable="yes" context="documentimathreferencespage|selectfile">Select file...</property>
+                <property name="input-purpose">url</property>
+                <accessibility>
+                  <relation type="labelled-by" target="btn_reference1"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="txt_reference2">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="placeholder-text" translatable="yes" context="documentimathreferencespage|selectfile">Select file...</property>
+                <property name="input-purpose">url</property>
+                <accessibility>
+                  <relation type="labelled-by" target="btn_reference2"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="txt_reference3">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="placeholder-text" translatable="yes" context="documentimathreferencespage|selectfile">Select file...</property>
+                <property name="input-purpose">url</property>
+                <accessibility>
+                  <relation type="labelled-by" target="btn_reference3"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="btn_reference1">
+                <property name="label">...</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <accessibility>
+                  <relation type="label-for" target="txt_reference1"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="btn_reference2">
+                <property name="label">...</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <accessibility>
+                  <relation type="label-for" target="txt_reference2"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="btn_reference3">
+                <property name="label">...</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <accessibility>
+                  <relation type="label-for" target="txt_reference3"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="userdefinedLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathreferencespage|userdefinedLabel">User-defined references</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="masterdocFrame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <child>
+              <object class="GtkEntry" id="txt_masterdoc">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="hexpand">True</property>
+                <property name="placeholder-text" translatable="yes" context="documentimathreferencespage|selectfile">Select file...</property>
+                <property name="input-purpose">url</property>
+                <accessibility>
+                  <relation type="labelled-by" target="btn_masterdoc"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="btn_masterdoc">
+                <property name="label">...</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <accessibility>
+                  <relation type="label-for" target="txt_masterdoc"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="masterdocLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathreferencespage|masterdocLabel">Master document</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+            <accessibility>
+              <relation type="label-for" target="masterdocFrame"/>
+            </accessibility>
+          </object>
+        </child>
+        <accessibility>
+          <relation type="labelled-by" target="generalLabel"/>
+          <relation type="labelled-by" target="masterdocLabel"/>
+        </accessibility>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">3</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkFrame" id="informationFrame">
+        <property name="can-focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="label-xalign">0</property>
+        <property name="shadow-type">none</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">12</property>
+            <property name="margin-top">6</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel" id="informationContent">
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="documentimathreferencespage|information">This document does not contain any iFormulas yet. Create an iFormula to view the properties here.</property>
+                <property name="wrap">True</property>
+                <accessibility>
+                  <relation type="label-for" target="informationFrame"/>
+                </accessibility>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="informationTitle">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes" context="documentimathreferencespage|informationTitle">Information</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+          </object>
+        </child>
+        <accessibility>
+          <relation type="labelled-by" target="informationContent"/>
+        </accessibility>
+      </object>
+      <packing>
+        <property name="left-attach">0</property>
+        <property name="top-attach">4</property>
+      </packing>
+    </child>
+    <child internal-child="accessible">
+      <object class="AtkObject" id="DocumentIMathReferencesPage-atkobject">
+        <property name="AtkObject::accessible-description" translatable="yes" context="documentimathreferencespage|extended_tip|DocumentIMathReferencesPage">References for iFormulas.</property>
+      </object>
+    </child>
+  </object>
+</interface>

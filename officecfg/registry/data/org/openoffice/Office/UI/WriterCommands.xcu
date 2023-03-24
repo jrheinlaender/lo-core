@@ -4278,7 +4278,7 @@
       </node>
       <node oor:name=".uno:iMathInsertMenu" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Insert</value>
+          <value xml:lang="en-US">iFormula</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathInsertCreate" oor:op="replace">
@@ -4363,7 +4363,7 @@
       </node>
       <node oor:name=".uno:iMathEditMenu" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Edit</value>
+          <value xml:lang="en-US">iFormula</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathEditExternal" oor:op="replace">
@@ -4414,17 +4414,9 @@
           <value>.uno:iMathInsertClearAll</value>
         </prop>
       </node>
-      <node oor:name=".uno:iMathFormat" oor:op="replace">
-        <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Format</value>
-        </prop>
-        <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>.uno:iMathFormat</value>
-        </prop>
-      </node>
       <node oor:name=".uno:iMathRenumber" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Renumber</value>
+          <value xml:lang="en-US">Renumber iFormulas</value>
         </prop>
         <prop oor:name="TargetURL" oor:type="xs:string">
           <value>.uno:iMathRenumber</value>
@@ -4446,25 +4438,9 @@
           <value>.uno:iMathDependency</value>
         </prop>
       </node>
-      <node oor:name=".uno:iMathSettings" oor:op="replace">
-        <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Settings</value>
-        </prop>
-        <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>.uno:iMathSettings</value>
-        </prop>
-      </node>
-      <node oor:name=".uno:iMathReferences" oor:op="replace">
-        <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">References</value>
-        </prop>
-        <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>.uno:iMathReferences</value>
-        </prop>
-      </node>
       <node oor:name=".uno:iMathHelpMenu" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Help</value>
+          <value xml:lang="en-US">iMath Help</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathWiki" oor:op="replace">

@@ -4447,8 +4447,8 @@
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">iMath Help Online (Wiki)</value>
         </prop>
-        <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>_self</value>
+        <prop oor:name="Properties" oor:type="xs:int">
+          <value>1</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathFirstSteps" oor:op="replace">
@@ -4463,8 +4463,16 @@
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">iMath Website</value>
         </prop>
-        <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>_self</value>
+        <prop oor:name="Properties" oor:type="xs:int">
+          <value>1</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathFonts" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iMath font download</value>
+        </prop>
+        <prop oor:name="Properties" oor:type="xs:int">
+          <value>1</value>
         </prop>
       </node>
     </node>

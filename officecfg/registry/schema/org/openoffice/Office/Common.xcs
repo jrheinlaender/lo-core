@@ -1840,6 +1840,21 @@
           <desc>Specifies the URL used with the UNO command QuestionAnswers (SID_Q_AND_A).</desc>
         </info>
       </prop>
+      <prop oor:name="iMathWiki_URL" oor:type="xs:string" oor:nillable="false">
+        <info>
+          <desc>Specifies the URL used for the iMath wiki.</desc>
+        </info>
+      </prop>
+      <prop oor:name="iMathWebsite_URL" oor:type="xs:string" oor:nillable="false">
+        <info>
+          <desc>Specifies the URL used for the iMath help website.</desc>
+        </info>
+      </prop>
+      <prop oor:name="iMathFonts_URL" oor:type="xs:string" oor:nillable="false">
+        <info>
+          <desc>Specifies the URL used for the iMath fonts download.</desc>
+        </info>
+      </prop>
       <prop oor:name="DocumentationURL" oor:type="xs:string" oor:nillable="false">
         <info>
           <desc>Specifies the URL used with the UNO command Documentation (SID_DOCUMENTATION).</desc>

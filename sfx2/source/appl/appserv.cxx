@@ -526,6 +526,21 @@ void SfxApplication::MiscExec_Impl( SfxRequest& rReq )
             sfx2::openUriExternally(sURL, false, rReq.GetFrameWeld());
             break;
         }
+        case SID_IMATH_WIKI:
+        {
+            sfx2::openUriExternally(officecfg::Office::Common::Menus::iMathWiki_URL::get(), false, rReq.GetFrameWeld());
+            break;
+        }
+        case SID_IMATH_WEBSITE:
+        {
+            sfx2::openUriExternally(officecfg::Office::Common::Menus::iMathWebsite_URL::get(), false, rReq.GetFrameWeld());
+            break;
+        }
+        case SID_IMATH_FONTS:
+        {
+            sfx2::openUriExternally(officecfg::Office::Common::Menus::iMathFonts_URL::get(), false, rReq.GetFrameWeld());
+            break;
+        }
         case SID_DOCUMENTATION:
         {
             // Open documentation page based on locales

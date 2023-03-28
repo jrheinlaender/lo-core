@@ -876,6 +876,8 @@
           <menu:menuitem menu:id=".uno:iMathFirstSteps"/>
           <menu:menuseparator/>
           <menu:menuitem menu:id=".uno:iMathWebsite"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathFonts"/>
         </menu:menupopup>
       </menu:menu>
       <menu:menuitem menu:id=".uno:SendFeedback"/>

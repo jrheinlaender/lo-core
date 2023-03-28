@@ -5068,6 +5068,51 @@ SfxVoidItem QuestionAnswers SID_Q_AND_A
     MenuConfig = TRUE,
     GroupId = SfxGroupId::Application;
 ]
+SfxVoidItem iMathWiki SID_IMATH_WIKI
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = TRUE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    GroupId = SfxGroupId::Application;
+]
+SfxVoidItem iMathWebsite SID_IMATH_WEBSITE
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = TRUE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    GroupId = SfxGroupId::Application;
+]
+SfxVoidItem iMathFonts SID_IMATH_FONTS
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = TRUE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    GroupId = SfxGroupId::Application;
+]
 SfxVoidItem Documentation SID_DOCUMENTATION
 ()
 [

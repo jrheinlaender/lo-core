@@ -122,6 +122,8 @@ class SvxZoomItem;
 #define SID_IMATH_WIKI                      (SID_SFX_START + 440)
 #define SID_IMATH_WEBSITE                   (SID_SFX_START + 441)
 #define SID_IMATH_FONTS                     (SID_SFX_START + 442)
+#define SID_IMATH_LOADEXAMPLE               (SID_SFX_START + 443)
+#define SID_IMATH_EXAMPLENAME               (SID_SFX_START + 444)
 
 #define SID_SHOW_LICENSE                    (SID_SFX_START + 1683)
 #define SID_SHOW_CREDITS                    (SID_SFX_START + 1711)

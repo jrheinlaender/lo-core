@@ -5113,6 +5113,24 @@ SfxVoidItem iMathFonts SID_IMATH_FONTS
     MenuConfig = TRUE,
     GroupId = SfxGroupId::Application;
 ]
+SfxVoidItem iMathLoadExample SID_IMATH_LOADEXAMPLE
+(SfxStringItem iMathExampleName SID_IMATH_EXAMPLENAME)
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = TRUE,
+    Toggle = FALSE,
+    Container = TRUE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+    Asynchron;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Application;
+]
+
 SfxVoidItem Documentation SID_DOCUMENTATION
 ()
 [

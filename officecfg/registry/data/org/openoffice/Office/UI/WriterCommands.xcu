@@ -4443,6 +4443,14 @@
           <value xml:lang="en-US">iMath Help</value>
         </prop>
       </node>
+      <node oor:name=".uno:iMathTour" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Introduction to iMath</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathLoadExample?iMathExampleName:string=iMath-tour.odt</value>
+        </prop>
+      </node>
       <node oor:name=".uno:iMathWiki" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">iMath Help Online (Wiki)</value>
@@ -4451,12 +4459,49 @@
           <value>1</value>
         </prop>
       </node>
-      <node oor:name=".uno:iMathFirstSteps" oor:op="replace">
+      <node oor:name=".uno:iMathExamplesMenu" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">First steps</value>
+          <value xml:lang="en-US">iMath Help</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathExampleAnalysis" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iMath capabilities in analysis</value>
         </prop>
         <prop oor:name="TargetURL" oor:type="xs:string">
-          <value>_self</value>
+          <value>.uno:iMathLoadExample?iMathExampleName:string=Analysis.odt</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathExamplePartialDifferentiation" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iMath capabilities in partial differentiation</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathLoadExample?iMathExampleName:string=PartialDifferentiation.odt</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathExampleSymbolicIntegration" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iMath capabilities in symbolic integration</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathLoadExample?iMathExampleName:string=SymbolicIntegration.odt</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathExampleLaminarBLE" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">The laminar boundary layer equations</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathLoadExample?iMathExampleName:string=Laminar-boundary-layer-equations.odt</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathExampleOperators" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Overview of iMath operators</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathLoadExample?iMathExampleName:string=Operators.odt</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathWebsite" oor:op="replace">

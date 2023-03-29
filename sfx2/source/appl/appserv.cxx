@@ -109,6 +109,8 @@
 
 #include "getbasctlfunction.hxx"
 
+#include <config_folders.h>
+
 using namespace ::com::sun::star;
 using namespace ::com::sun::star::beans;
 using namespace ::com::sun::star::uno;
@@ -539,6 +541,43 @@ void SfxApplication::MiscExec_Impl( SfxRequest& rReq )
         case SID_IMATH_FONTS:
         {
             sfx2::openUriExternally(officecfg::Office::Common::Menus::iMathFonts_URL::get(), false, rReq.GetFrameWeld());
+            break;
+        }
+        case SID_IMATH_LOADEXAMPLE:
+        {
+            const SfxStringItem* pExampleName = rReq.GetArg<SfxStringItem>(SID_IMATH_EXAMPLENAME);
+
+            if (pExampleName)
+            {
+                // Path to iMath example files
+                OUString exampleFileURL;
+                // TODO Fix build system to include share/imath into the Windows msi files
+                //OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/imath/references/");
+                OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/calc/");
+                rtl::Bootstrap::expandMacros(shareURL);
+                exampleFileURL = shareURL + pExampleName->GetValue();
+
+                Reference< XComponentContext > xContext = comphelper::getProcessComponentContext();
+                Reference< XDesktop > xDesktop(xContext->getServiceManager()->createInstanceWithContext("com.sun.star.frame.Desktop", xContext), UNO_QUERY_THROW);
+
+                try
+                {
+                    Sequence< PropertyValue > args(2);
+                    auto pArgs = args.getArray();
+                    PropertyValue hidden;
+                    hidden.Name = "Hidden";
+                    hidden.Value = makeAny(false);
+                    pArgs[0] = hidden;
+                    PropertyValue ro;
+                    ro.Name = "ReadOnly";
+                    ro.Value = makeAny(false);
+                    pArgs[1] = ro;
+
+                    Reference< XComponentLoader > xComponentLoader(xDesktop, UNO_QUERY_THROW);
+                    xComponentLoader->loadComponentFromURL(exampleFileURL, "_default", 0, args);
+                }
+                catch (Exception&) { }
+            }
             break;
         }
         case SID_DOCUMENTATION:

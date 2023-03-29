@@ -872,8 +872,17 @@
       <menu:menuitem menu:id=".uno:QuestionAnswers"/>
       <menu:menu menu:id=".uno:iMathHelpMenu">
         <menu:menupopup>
+          <menu:menuitem menu:id=".uno:iMathTour"/>
           <menu:menuitem menu:id=".uno:iMathWiki"/>
-          <menu:menuitem menu:id=".uno:iMathFirstSteps"/>
+          <menu:menu menu:id=".uno:iMathExamplesMenu">
+            <menu:menupopup>
+              <menu:menuitem menu:id=".uno:iMathExampleAnalysis"/>
+              <menu:menuitem menu:id=".uno:iMathExamplePartialDifferentiation"/>
+              <menu:menuitem menu:id=".uno:iMathExampleSymbolicIntegration"/>
+              <menu:menuitem menu:id=".uno:iMathExampleLaminarBLE"/>
+              <menu:menuitem menu:id=".uno:iMathExampleOperators"/>
+            </menu:menupopup>
+          </menu:menu>
           <menu:menuseparator/>
           <menu:menuitem menu:id=".uno:iMathWebsite"/>
           <menu:menuseparator/>

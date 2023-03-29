@@ -21,5 +21,11 @@ $(eval $(call gb_Package_add_files,sm_res_imath,$(LIBO_SHARE_FOLDER)/imath/refer
 	references/impunits.imath \
 	references/impunits_abbrev.imath \
 	references/substitutions.imath \
+	examples/iMath-tour.odt \
+	examples/Analysis.odt \
+	examples/PartialDifferentiation.odt \
+	examples/SymbolicIntegration.odt \
+	examples/Laminar-boundary-layer-equations.odt \
+	examples/Operators.odt \
 ))
 # vim: set noet sw=4 ts=4:

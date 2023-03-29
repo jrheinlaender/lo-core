@@ -24,6 +24,12 @@ $(eval $(call gb_Package_add_files,sc_res_xml,$(LIBO_SHARE_FOLDER)/calc,\
         ../../../starmath/res/imath/references/impunits.imath \
         ../../../starmath/res/imath/references/impunits_abbrev.imath \
         ../../../starmath/res/imath/references/substitutions.imath \
+        ../../../starmath/res/imath/examples/iMath-tour.odt \
+        ../../../starmath/res/imath/examples/Analysis.odt \
+        ../../../starmath/res/imath/examples/PartialDifferentiation.odt \
+        ../../../starmath/res/imath/examples/SymbolicIntegration.odt \
+        ../../../starmath/res/imath/examples/Laminar-boundary-layer-equations.odt \
+        ../../../starmath/res/imath/examples/Operators.odt \
 ))
 
 # vim: set noet sw=4 ts=4:

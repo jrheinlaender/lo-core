@@ -174,7 +174,10 @@ void SmDocShell::Notify(SfxBroadcaster&, const SfxHint& rHint)
 
 Reference<XModel> SmDocShell::GetDocumentModel() const
 {
-    Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
+    Reference<container::XChild> xModel(GetModel(), UNO_QUERY);
+    if (!xModel.is())
+        return GetModel();
+
     Reference<XModel> xParent(xModel->getParent(), UNO_QUERY);
 
     if (xParent.is())
@@ -452,8 +455,10 @@ OUString SmDocShell::ImInitializeCompiler() {
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
 
     // Check for stand-alone formula or part of Text / Presentation
-    Reference<container::XChild> xChild(GetModel(), UNO_QUERY_THROW);
-    Reference<XModel> xParent(xChild->getParent(), UNO_QUERY);
+    Reference<container::XChild> xChild(GetModel(), UNO_QUERY);
+    Reference<XModel> xParent;
+    if (xChild.is())
+        xParent = Reference<XModel>(xChild->getParent(), UNO_QUERY);
     Reference<XModel> xModel;
 
     if (!xParent.is())
@@ -943,8 +948,10 @@ void SmDocShell::addResultLines() {
     if ((*i)->isDisplayable()) {
       if ((*i)->getSelectionType() == formulaTypeChart) {
         // A valid xModel is only required for the CHART statement
-        Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
-        Reference<XModel> xParent(xModel->getParent(), UNO_QUERY_THROW);
+        Reference<container::XChild> xModel(GetModel(), UNO_QUERY);
+        Reference<XModel> xParent;
+        if (xModel.is())
+            xParent = Reference<XModel>(xModel->getParent(), UNO_QUERY);
         Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
         if (xTextDoc.is()) {
             (*i)->display(xParent, resultText, prev_lhs, a, do_not_align); // For stand-alone formulas ignore CHART statement // TODO Implement for charts in presentations

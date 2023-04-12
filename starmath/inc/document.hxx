@@ -285,6 +285,10 @@ public:
     OUString GetIFormulaDependencyIn() const  { return mIFormulaDependencyIn; }
     OUString GetIFormulaDependencyOut() const  { return mIFormulaDependencyOut; }
 
+    /// Set/Get the master document URL
+    void SetIFormulaMasterDocument(const OUString& aUrl) { mIFormulaMasterDocument = aUrl; }
+    OUString GetIFormulaMasterDocument() const { return mIFormulaMasterDocument; }
+
     /// Prevent the document from being closed
     // Note: By default, the OLE cache is set to 20 objects in /org.openoffice.Office.Common/Cache/Writer/OLE_Objects
     //       If a office document has more formulas, older ones will be closed. This is bad for performance
@@ -298,6 +302,8 @@ private:
     OUString mIFormulaDependencyIn;
     /// Names of variables and functions which this formula creates or modifies
     OUString mIFormulaDependencyOut;
+    /// URL of the master document (if any)
+    OUString mIFormulaMasterDocument;
 
     /**
      * Initial options for this formula.

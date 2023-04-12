@@ -575,13 +575,15 @@ void updateStatement(const Reference<XComponentContext>& mxCC, const Reference<X
                      const OUString& value);
 
 /// Check if the graph contains a statement
-bool hasStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                  const Reference<XNamedGraph>& xGraph, const OUString& predicate);
+IMATH_DLLPUBLIC bool hasStatement(const Reference<XComponentContext>& mxCC,
+                                  const Reference<XModel>& xModel,
+                                  const Reference<XNamedGraph>& xGraph, const OUString& predicate);
 
 /// Retrieve the value of a statement from the graph
-OUString getStatementString(const Reference<XComponentContext>& mxCC,
-                            const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
-                            const OUString& predicate);
+IMATH_DLLPUBLIC OUString getStatementString(const Reference<XComponentContext>& mxCC,
+                                            const Reference<XModel>& xModel,
+                                            const Reference<XNamedGraph>& xGraph,
+                                            const OUString& predicate);
 sal_Bool getStatementBool(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
                           const Reference<XNamedGraph>& xGraph, const OUString& predicate);
 sal_uInt32 getStatementPosInt(const Reference<XComponentContext>& mxCC,

@@ -2847,118 +2847,19 @@ Reference<XColumnRowRange> getCalcCellRange(const Reference<XSpreadsheetDocument
     }
 }
 
-expression getCalcRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange)
-{
-    if (xColumnRowRange.is())
-    {
-        Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
-        Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
-        Reference<XTableRows> xRows = xColumnRowRange->getRows();
-
-        unsigned rows = xRows->getCount();
-        unsigned cols = xCols->getCount();
-        MSG_INFO(2,
-                 "Found cell range with " << rows << " rows and " << cols << " coumns" << endline);
-
-        if ((rows == 1) && (cols == 1))
-        {
-            Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
-            return getCellExpression(xCell);
-        }
-        else
-        {
-            matrix m(rows, cols);
-
-            for (unsigned r = 0; r < rows; ++r)
-            {
-                for (unsigned c = 0; c < cols; ++c)
-                {
-                    Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
-                    m(r, c) = getCellExpression(xCell);
-                }
-            }
-            return m;
-        }
-    }
-    return dynallocate<stringex>("Error: Non-existant calc cell range or internal error");
-}
-
-void setCalcCellRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange,
-                                const expression& value)
-{
-    if (xColumnRowRange.is())
-    {
-        Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
-        Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
-        Reference<XTableRows> xRows = xColumnRowRange->getRows();
-
-        unsigned rows = xRows->getCount();
-        unsigned cols = xCols->getCount();
-        MSG_INFO(2,
-                 "Found cell range with " << rows << " rows and " << cols << " coumns" << endline);
-
-        if (is_a<matrix>(value))
-        {
-            const matrix& m = ex_to<matrix>(value);
-            unsigned mrows = m.rows();
-            unsigned mcols = m.cols();
-
-            if ((rows != mrows) || (cols != mcols))
-                throw std::runtime_error(
-                    "Cell range dimensions do not match vector/matrix dimensions");
-
-            for (unsigned r = 0; r < rows; ++r)
-            {
-                for (unsigned c = 0; c < cols; ++c)
-                {
-                    Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
-                    setCellExpression(xCell, m(r, c));
-                }
-            }
-        }
-        else if ((rows == 1) && (cols == 1))
-        {
-            Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
-            setCellExpression(xCell, value);
-        }
-        else
-        {
-            throw std::runtime_error("Cell range dimensions do not match scalar");
-        }
-    }
-}
-
 expression parseNumber(const std::string& s)
 {
-    std::istringstream text(s);
-    int inumber;
-    double dnumber;
-    bool success;
-    size_t cpos;
+    std::string::size_type delim;
+    std::string ss = s;
 
-    if ((cpos = s.find(",")) != std::string::npos)
-    {
-        std::string rs = s;
-        std::istringstream text2(rs.replace(cpos, 1, "."));
-        text2 >> dnumber;
-        success = text2.rdstate() == std::ios::goodbit;
-    }
-    else
-    {
-        text >> dnumber; // Note: this cuts off number at decimal "," separator
-        success = text.rdstate() == std::ios::goodbit;
-    }
+    while ((delim = ss.find(",")) != std::string::npos)
+        ss.replace(delim, 1, ".");
 
-    if (success)
+    try
     {
-        text >> inumber; // This will always work: decimal places are cut off
-
-        if ((double)inumber != dnumber)
-            return expression(dnumber);
-        else
-            return expression(inumber); // Preserve integers if possible
+        return dynallocate<numeric>(ss.c_str());
     }
-    else
+    catch (std::exception&)
     {
         return dynallocate<stringex>(s);
     }
@@ -2995,420 +2896,468 @@ expression getExpressionFromString(const OUString& s)
                 return dynallocate<stringex>(tf);
         }
 
-        matrix m((unsigned)strmatrix.size(), (unsigned)colnum);
-        unsigned irow = 0;
-        for (std::vector<std::vector<std::string>>::const_iterator r = strmatrix.begin();
-             r != strmatrix.end(); ++r, ++irow)
+        if (success)
         {
-            unsigned icol = 0;
-            for (std::vector<std::string>::const_iterator e = r->begin(); e != r->end();
-                 ++e, ++icol)
+            text >> inumber; // This will always work: decimal places are cut off
+
+            if ((double)inumber != dnumber)
+                return expression(dnumber);
+            else
+                return expression(inumber); // Preserve integers if possible
+        }
+        else
+        {
+            return dynallocate<stringex>(s);
+        }
+    }
+
+    expression getExpressionFromString(const OUString& s)
+    {
+        std::string tf = STR(s);
+
+        if ((tf.find("\n") != std::string::npos) || (tf.find("\t") != std::string::npos))
+        {
+            // String represents a matrix. Split rows at line breaks and columns at tabs
+            std::istringstream mtext(tf);
+            std::string row;
+            std::vector<std::string> rows;
+            while (std::getline(mtext, row, '\n'))
+                rows.emplace_back(row);
+
+            std::vector<std::vector<std::string>> strmatrix;
+            size_t colnum = 0;
+
+            for (const auto& r : rows)
             {
-                m(irow, icol) = parseNumber(*e);
+                std::istringstream rtext(r);
+                std::string col;
+                strmatrix.emplace_back();
+                std::vector<std::string>& cols = strmatrix.back();
+                while (std::getline(rtext, col, '\t'))
+                    cols.emplace_back(col);
+
+                size_t oldcolnum = colnum;
+                colnum = cols.size();
+                if ((oldcolnum != 0) && (oldcolnum != colnum)) // Column number mismatch
+                    return dynallocate<stringex>(tf);
             }
+
+            matrix m((unsigned)strmatrix.size(), (unsigned)colnum);
+            unsigned irow = 0;
+            for (std::vector<std::vector<std::string>>::const_iterator r = strmatrix.begin();
+                 r != strmatrix.end(); ++r, ++irow)
+            {
+                unsigned icol = 0;
+                for (std::vector<std::string>::const_iterator e = r->begin(); e != r->end();
+                     ++e, ++icol)
+                {
+                    m(irow, icol) = parseNumber(*e);
+                }
+            }
+
+            return m;
+        }
+        else
+        {
+            return parseNumber(tf);
+        }
+    }
+
+    Reference<XNamedGraph> createGraph(const Reference<XComponentContext>& mxCC,
+                                       const Reference<XModel>& xModel)
+    {
+        Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
+        Reference<XURI> xType
+            = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
+        Sequence<Reference<XURI>> types(1);
+        types.getArray()[0] = xType;
+
+        try
+        {
+            Reference<XURI> xGraphName = xDMA->addMetadataFile(OU("imathoptions.rdf"), types);
+            return xDMA->getRDFRepository()->getGraph(xGraphName);
+        }
+        catch (ElementExistException e)
+        { // filename exists?
         }
 
-        return m;
+        throw std::runtime_error("Internal error: RDF graph already exists");
     }
-    else
+
+    Reference<XNamedGraph> getGraph(const Reference<XComponentContext>& mxCC,
+                                    const Reference<XModel>& xModel)
     {
-        return parseNumber(tf);
+        Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
+        Reference<XURI> xType
+            = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
+        Sequence<Reference<XURI>> graphNames = xDMA->getMetadataGraphsWithType(xType);
+        Reference<XNamedGraph> result;
+
+        if (graphNames.getLength() > 0)
+        {
+            // There should only be one single graph
+            result = xDMA->getRDFRepository()->getGraph(graphNames[0]);
+        }
+
+        return result;
     }
-}
 
-Reference<XNamedGraph> createGraph(const Reference<XComponentContext>& mxCC,
-                                   const Reference<XModel>& xModel)
-{
-    Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
-    Reference<XURI> xType
-        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
-    Sequence<Reference<XURI>> types(1);
-    types.getArray()[0] = xType;
-
-    try
+    void addStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                      const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                      const OUString& value)
     {
-        Reference<XURI> xGraphName = xDMA->addMetadataFile(OU("imathoptions.rdf"), types);
-        return xDMA->getRDFRepository()->getGraph(xGraphName);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+        Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+        Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+        Reference<XURI> xPredicate
+            = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+        Reference<XLiteral> xLit = Literal::create(mxCC, value);
+        Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
+#else
+        Reference<XLiteral> xObj = Literal::create(mxCC, value);
+#endif
+        xGraph->addStatement(docURI, xPredicate, xObj);
     }
-    catch (ElementExistException e)
-    { // filename exists?
-    }
 
-    throw std::runtime_error("Internal error: RDF graph already exists");
-}
-
-Reference<XNamedGraph> getGraph(const Reference<XComponentContext>& mxCC,
-                                const Reference<XModel>& xModel)
-{
-    Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
-    Reference<XURI> xType
-        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
-    Sequence<Reference<XURI>> graphNames = xDMA->getMetadataGraphsWithType(xType);
-    Reference<XNamedGraph> result;
-
-    if (graphNames.getLength() > 0)
+    void updateStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                         const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                         const OUString& value)
     {
-        // There should only be one single graph
-        result = xDMA->getRDFRepository()->getGraph(graphNames[0]);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+        Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+        Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+        Reference<XURI> xPredicate
+            = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+        Reference<XLiteral> xLit = Literal::create(mxCC, value);
+        Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
+#else
+        Reference<XLiteral> xObj = Literal::create(mxCC, value);
+#endif
+        xGraph->removeStatements(docURI, xPredicate, NULL);
+        xGraph->addStatement(docURI, xPredicate, xObj);
     }
 
-    return result;
-}
-
-void addStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                  const Reference<XNamedGraph>& xGraph, const OUString& predicate,
-                  const OUString& value)
-{
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-    Reference<XURI> xPredicate
-        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-    Reference<XLiteral> xLit = Literal::create(mxCC, value);
-    Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
-#else
-    Reference<XLiteral> xObj = Literal::create(mxCC, value);
-#endif
-    xGraph->addStatement(docURI, xPredicate, xObj);
-}
-
-void updateStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                     const Reference<XNamedGraph>& xGraph, const OUString& predicate,
-                     const OUString& value)
-{
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-    Reference<XURI> xPredicate
-        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-    Reference<XLiteral> xLit = Literal::create(mxCC, value);
-    Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
-#else
-    Reference<XLiteral> xObj = Literal::create(mxCC, value);
-#endif
-    xGraph->removeStatements(docURI, xPredicate, NULL);
-    xGraph->addStatement(docURI, xPredicate, xObj);
-}
-
-bool hasStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                  const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-{
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-    Reference<XURI> xPredicate
-        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-    Reference<XEnumeration> xResult = xGraph->getStatements(
-        docURI, xPredicate, NULL); // All statements must have this document as subject
-
-    return xResult->hasMoreElements();
-}
-
-OUString getStatementString(const Reference<XComponentContext>& mxCC,
-                            const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
-                            const OUString& predicate)
-{
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-    Reference<XURI> xPredicate
-        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-    Reference<XEnumeration> xResult = xGraph->getStatements(
-        docURI, xPredicate, NULL); // All statements must have this document as subject
-
-    if (xResult->hasMoreElements())
+    bool hasStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                      const Reference<XNamedGraph>& xGraph, const OUString& predicate)
     {
-        Any element = xResult->nextElement();
-        Statement stmt;
-        element >>= stmt;
-        Reference<XLiteral> object(stmt.Object, UNO_QUERY_THROW);
-        return object->getValue();
-    }
-    else
-    {
-        return OU("");
-    }
-}
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+        Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+        Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+        Reference<XURI> xPredicate
+            = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+        Reference<XEnumeration> xResult = xGraph->getStatements(
+            docURI, xPredicate, NULL); // All statements must have this document as subject
 
-sal_Bool getStatementBool(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                          const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-{
-    return getStatementString(mxCC, xModel, xGraph, predicate) == OU("true");
-}
-sal_uInt32 getStatementPosInt(const Reference<XComponentContext>& mxCC,
+        return xResult->hasMoreElements();
+    }
+
+    OUString getStatementString(const Reference<XComponentContext>& mxCC,
+                                const Reference<XModel>& xModel,
+                                const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+    {
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+        Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+        Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+        Reference<XURI> xPredicate
+            = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+        Reference<XEnumeration> xResult = xGraph->getStatements(
+            docURI, xPredicate, NULL); // All statements must have this document as subject
+
+        if (xResult->hasMoreElements())
+        {
+            Any element = xResult->nextElement();
+            Statement stmt;
+            element >>= stmt;
+            Reference<XLiteral> object(stmt.Object, UNO_QUERY_THROW);
+            return object->getValue();
+        }
+        else
+        {
+            return OU("");
+        }
+    }
+
+    sal_Bool getStatementBool(const Reference<XComponentContext>& mxCC,
                               const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
                               const OUString& predicate)
-{
-    return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
-}
-sal_Int32 getStatementInt(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                          const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-{
-    return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
-}
-
-void removeStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                     const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-{
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-    Reference<XURI> xPredicate
-        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-    xGraph->removeStatements(docURI, xPredicate, NULL);
-}
-
-OUString getPackageLocation(const Reference<XComponentContext>& mxContext, const OUString& id)
-{
-    Reference<XPackageInformationProvider> xInfoProvider(
-        com::sun::star::deployment::PackageInformationProvider::get(mxContext));
-    return xInfoProvider->getPackageLocation(id);
-}
-
-std::string trimstring(const std::string& s)
-{
-    std::string result = s;
-
-    size_t endpos = result.find_last_not_of(" \t");
-    if (std::string::npos != endpos)
-        result = result.substr(0, endpos + 1);
-
-    size_t startpos = result.find_first_not_of(" \t");
-    if (std::string::npos != startpos)
-        result = result.substr(startpos);
-
-    return result;
-}
-
-OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl)
-{
-    int idx = 0;
-    int lastidx = 0;
-    OUString result(OU(""));
-
-    while (idx < str.getLength())
     {
-        lastidx = idx;
-        idx = str.indexOf(substr, lastidx);
-        if (idx < 0)
-        {
-            return result + str.copy(lastidx);
-        }
-        else
-        {
-            result = result + str.copy(lastidx, idx - lastidx) + repl;
-            idx = idx + substr.getLength();
-        }
+        return getStatementString(mxCC, xModel, xGraph, predicate) == OU("true");
+    }
+    sal_uInt32 getStatementPosInt(const Reference<XComponentContext>& mxCC,
+                                  const Reference<XModel>& xModel,
+                                  const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+    {
+        return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
+    }
+    sal_Int32 getStatementInt(const Reference<XComponentContext>& mxCC,
+                              const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                              const OUString& predicate)
+    {
+        return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
     }
 
-    return result; // This is never reached, but pacifies the compiler
-}
-
-std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary)
-{
-    std::list<OUString> result;
-    sal_Int32 idx = 0;
-
-    do
+    void removeStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                         const Reference<XNamedGraph>& xGraph, const OUString& predicate)
     {
-        OUString token = str.getToken(0, boundary, idx);
-        if (token.getLength() > 0)
-            result.emplace_back(token);
-    } while (idx >= 0);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+        Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+        Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+        Reference<XURI> xPredicate
+            = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+        xGraph->removeStatements(docURI, xPredicate, NULL);
+    }
 
-    return result;
-}
-
-OUString getLocaleName(const Reference<XComponentContext>& mxCC)
-{
-    Reference<XHierarchicalPropertySet> xProperties
-        = getRegistryAccess(mxCC, OU("/org.openoffice.Setup/L10N"));
-    Any aLocale = xProperties->getHierarchicalPropertyValue(OU("ooLocale")); // UI language
-    OUString ooLocale;
-    aLocale >>= ooLocale;
-    aLocale = xProperties->getHierarchicalPropertyValue(
-        OU("ooSetupSystemLocale")); // Locale set by user (might be empty)
-    OUString ooSSLocale;
-    aLocale >>= ooSSLocale;
-    return (ooSSLocale == OU("") ? ooLocale : ooSSLocale);
-    // Note: There is also "DecimalSeparatorAsLocale" with the following description in Setup.xcs:
-    //      Indicates that the decimal separator (dot or commma) is used as appropriate for the selected locale instead of the one related to the default keyboard layout
-} // getLocaleName()
-
-bool hasEnclosingBrackets(const OUString& arg)
-{
-    if (arg.matchAsciiL("(", 1, 0) && arg.endsWithAsciiL(")", 1))
+    OUString getPackageLocation(const Reference<XComponentContext>& mxContext, const OUString& id)
     {
-        if (arg.getLength() == 3)
-            return true; // single letter or digit
+        Reference<XPackageInformationProvider> xInfoProvider(
+            com::sun::star::deployment::PackageInformationProvider::get(mxContext));
+        return xInfoProvider->getPackageLocation(id);
+    }
 
-        // Check for enclosing brackets at start and end of string
-        int blevel = 1; // bracket level
-        int startpos = 1;
-        int bopenpos = arg.indexOfAsciiL("(", 1, startpos); // Could be -1 (not found)
-        int bclosepos = arg.indexOfAsciiL(")", 1, startpos); // Could be -1 (not found)
-        int bpos;
-        if (bopenpos < 0)
-            bpos = bclosepos;
-        else if (bclosepos < 0)
-            bpos = bopenpos;
-        else
-            bpos = std::min(bopenpos, bclosepos);
-        bool hasBrackets = false;
+    std::string trimstring(const std::string& s)
+    {
+        std::string result = s;
 
-        while (bpos > 0)
+        size_t endpos = result.find_last_not_of(" \t");
+        if (std::string::npos != endpos)
+            result = result.substr(0, endpos + 1);
+
+        size_t startpos = result.find_first_not_of(" \t");
+        if (std::string::npos != startpos)
+            result = result.substr(startpos);
+
+        return result;
+    }
+
+    OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl)
+    {
+        int idx = 0;
+        int lastidx = 0;
+        OUString result(OU(""));
+
+        while (idx < str.getLength())
         {
-            if (bpos == bopenpos)
-                blevel++;
-            else
-                blevel--;
-            if (blevel == 0)
+            lastidx = idx;
+            idx = str.indexOf(substr, lastidx);
+            if (idx < 0)
             {
-                hasBrackets
-                    = (bpos
-                       == arg.getLength()
-                              - 1); // Bracket level zero and closing bracket is last character of string
-                break;
+                return result + str.copy(lastidx);
             }
-            startpos = bpos + 1;
-            bopenpos = arg.indexOfAsciiL("(", 1, startpos);
-            bclosepos = arg.indexOfAsciiL(")", 1, startpos);
+            else
+            {
+                result = result + str.copy(lastidx, idx - lastidx) + repl;
+                idx = idx + substr.getLength();
+            }
+        }
+
+        return result; // This is never reached, but pacifies the compiler
+    }
+
+    std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary)
+    {
+        std::list<OUString> result;
+        sal_Int32 idx = 0;
+
+        do
+        {
+            OUString token = str.getToken(0, boundary, idx);
+            if (token.getLength() > 0)
+                result.emplace_back(token);
+        } while (idx >= 0);
+
+        return result;
+    }
+
+    OUString getLocaleName(const Reference<XComponentContext>& mxCC)
+    {
+        Reference<XHierarchicalPropertySet> xProperties
+            = getRegistryAccess(mxCC, OU("/org.openoffice.Setup/L10N"));
+        Any aLocale = xProperties->getHierarchicalPropertyValue(OU("ooLocale")); // UI language
+        OUString ooLocale;
+        aLocale >>= ooLocale;
+        aLocale = xProperties->getHierarchicalPropertyValue(
+            OU("ooSetupSystemLocale")); // Locale set by user (might be empty)
+        OUString ooSSLocale;
+        aLocale >>= ooSSLocale;
+        return (ooSSLocale == OU("") ? ooLocale : ooSSLocale);
+        // Note: There is also "DecimalSeparatorAsLocale" with the following description in Setup.xcs:
+        //      Indicates that the decimal separator (dot or commma) is used as appropriate for the selected locale instead of the one related to the default keyboard layout
+    } // getLocaleName()
+
+    bool hasEnclosingBrackets(const OUString& arg)
+    {
+        if (arg.matchAsciiL("(", 1, 0) && arg.endsWithAsciiL(")", 1))
+        {
+            if (arg.getLength() == 3)
+                return true; // single letter or digit
+
+            // Check for enclosing brackets at start and end of string
+            int blevel = 1; // bracket level
+            int startpos = 1;
+            int bopenpos = arg.indexOfAsciiL("(", 1, startpos); // Could be -1 (not found)
+            int bclosepos = arg.indexOfAsciiL(")", 1, startpos); // Could be -1 (not found)
+            int bpos;
             if (bopenpos < 0)
                 bpos = bclosepos;
             else if (bclosepos < 0)
                 bpos = bopenpos;
             else
                 bpos = std::min(bopenpos, bclosepos);
+            bool hasBrackets = false;
+
+            while (bpos > 0)
+            {
+                if (bpos == bopenpos)
+                    blevel++;
+                else
+                    blevel--;
+                if (blevel == 0)
+                {
+                    hasBrackets
+                        = (bpos
+                           == arg.getLength()
+                                  - 1); // Bracket level zero and closing bracket is last character of string
+                    break;
+                }
+                startpos = bpos + 1;
+                bopenpos = arg.indexOfAsciiL("(", 1, startpos);
+                bclosepos = arg.indexOfAsciiL(")", 1, startpos);
+                if (bopenpos < 0)
+                    bpos = bclosepos;
+                else if (bclosepos < 0)
+                    bpos = bopenpos;
+                else
+                    bpos = std::min(bopenpos, bclosepos);
+            }
+
+            return hasBrackets;
         }
 
-        return hasBrackets;
-    }
-
-    return false;
-}
-
-OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols)
-{
-    OUString result;
-
-    for (const auto& e : symbols)
-    {
-        if (result.getLength() > 0)
-            result += ",";
-        if (GiNaC::is_a<GiNaC::symbol>(e))
-        {
-            // Note: Symbols may contain anything in their subscripts TODO This might possibly lead to symbol collisions
-            // Note: Using the symbol's internal serial number does not work because it is incremented every time a new instance of the class is created, that is, at every recalculation
-            OUString sname = OUS8(GiNaC::ex_to<GiNaC::symbol>(e).get_name());
-            result += sname.replace(' ', '_');
-        }
-        else if (GiNaC::is_a<GiNaC::func>(e))
-        {
-            const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
-            if (Functionmanager::is_hard_func(f.get_name()))
-                continue; // Hard-coded functions cannot be influenced by a formula in the document
-            result += OUString("func") + OUString::number(f.get_serial());
-        }
-    }
-
-    return result;
-}
-
-int versionCompare(const OUString& file, const OUString& prog)
-{
-    MSG_INFO(0, "Comparing file version " << STR(file) << " with program version " << STR(prog)
-                                          << endline);
-    if (file.equals(prog))
-        return 0; // Catch most frequent case
-
-    std::list<OUString> fileParts = splitString(file, '.');
-    std::list<OUString> progParts = splitString(prog, '.');
-    auto fp = fileParts.begin();
-    auto pp = progParts.begin();
-
-    for (; fp != fileParts.end(), pp != progParts.end(); ++fp, ++pp)
-    {
-        sal_Int32 num_file = fp->toInt32();
-        sal_Int32 num_prog = fp->toInt32();
-
-        if (num_file < num_prog)
-            return -1;
-        else if (num_file > num_prog)
-            return +1;
-    }
-
-    int rem_file_idx = file.indexOf('~');
-    int rem_prog_idx = prog.indexOf('~');
-
-    if (rem_file_idx > 0 && rem_prog_idx > 0)
-    {
-        OUString rem_file = file.copy(rem_file_idx);
-        OUString rem_prog = prog.copy(rem_prog_idx);
-
-        if (rem_file < rem_prog)
-            return -1;
-        else if (rem_file < rem_prog)
-            return +1;
-    }
-
-    return 0;
-}
-
-std::string getTempPath()
-{
-#ifdef _MSC_VER
-    // This file will usually be located in <User>/AppData/Local/Temp
-    TCHAR lpTempPathBuffer[MAX_PATH];
-    DWORD dwRetVal = GetTempPath(MAX_PATH, lpTempPathBuffer);
-    if ((dwRetVal <= MAX_PATH) && (dwRetVal != 0))
-        return std::string(lpTempPathBuffer) + "\\";
-    else
-        return "";
-#else
-    return "/tmp/";
-#endif
-}
-
-bool runProgram(const std::string& program, const std::string& argument)
-{
-    if (!system(NULL))
         return false;
-    if (program.find(" ") != std::string::npos)
-    {
-        // Safety check on file names with spaces, otherwise we might execute a program with parameters e.g. "format C:"
-        std::ifstream ifile;
-        ifile.open("program");
-        if (!ifile)
-            return false; // File does not exist
-        ifile.close();
     }
+
+    OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols)
+    {
+        OUString result;
+
+        for (const auto& e : symbols)
+        {
+            if (result.getLength() > 0)
+                result += ",";
+            if (GiNaC::is_a<GiNaC::symbol>(e))
+            {
+                // Note: Symbols may contain anything in their subscripts TODO This might possibly lead to symbol collisions
+                // Note: Using the symbol's internal serial number does not work because it is incremented every time a new instance of the class is created, that is, at every recalculation
+                OUString sname = OUS8(GiNaC::ex_to<GiNaC::symbol>(e).get_name());
+                result += sname.replace(' ', '_');
+            }
+            else if (GiNaC::is_a<GiNaC::func>(e))
+            {
+                const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
+                if (Functionmanager::is_hard_func(f.get_name()))
+                    continue; // Hard-coded functions cannot be influenced by a formula in the document
+                result += OUString("func") + OUString::number(f.get_serial());
+            }
+        }
+
+        return result;
+    }
+
+    int versionCompare(const OUString& file, const OUString& prog)
+    {
+        MSG_INFO(0, "Comparing file version " << STR(file) << " with program version " << STR(prog)
+                                              << endline);
+        if (file.equals(prog))
+            return 0; // Catch most frequent case
+
+        std::list<OUString> fileParts = splitString(file, '.');
+        std::list<OUString> progParts = splitString(prog, '.');
+        auto fp = fileParts.begin();
+        auto pp = progParts.begin();
+
+        for (; fp != fileParts.end(), pp != progParts.end(); ++fp, ++pp)
+        {
+            sal_Int32 num_file = fp->toInt32();
+            sal_Int32 num_prog = fp->toInt32();
+
+            if (num_file < num_prog)
+                return -1;
+            else if (num_file > num_prog)
+                return +1;
+        }
+
+        int rem_file_idx = file.indexOf('~');
+        int rem_prog_idx = prog.indexOf('~');
+
+        if (rem_file_idx > 0 && rem_prog_idx > 0)
+        {
+            OUString rem_file = file.copy(rem_file_idx);
+            OUString rem_prog = prog.copy(rem_prog_idx);
+
+            if (rem_file < rem_prog)
+                return -1;
+            else if (rem_file < rem_prog)
+                return +1;
+        }
+
+        return 0;
+    }
+
+    std::string getTempPath()
+    {
+#ifdef _MSC_VER
+        // This file will usually be located in <User>/AppData/Local/Temp
+        TCHAR lpTempPathBuffer[MAX_PATH];
+        DWORD dwRetVal = GetTempPath(MAX_PATH, lpTempPathBuffer);
+        if ((dwRetVal <= MAX_PATH) && (dwRetVal != 0))
+            return std::string(lpTempPathBuffer) + "\\";
+        else
+            return "";
+#else
+        return "/tmp/";
+#endif
+    }
+
+    bool runProgram(const std::string& program, const std::string& argument)
+    {
+        if (!system(NULL))
+            return false;
+        if (program.find(" ") != std::string::npos)
+        {
+            // Safety check on file names with spaces, otherwise we might execute a program with parameters e.g. "format C:"
+            std::ifstream ifile;
+            ifile.open("program");
+            if (!ifile)
+                return false; // File does not exist
+            ifile.close();
+        }
 #ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
 #endif
-    if (system(std::string(program + " " + argument).c_str()) != 0)
-        return false;
+        if (system(std::string(program + " " + argument).c_str()) != 0)
+            return false;
 #ifndef _MSC_VER
 #pragma GCC diagnostic pop
 #endif
-    return true;
-}
+        return true;
+    }

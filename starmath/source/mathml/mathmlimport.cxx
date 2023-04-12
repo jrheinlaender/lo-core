@@ -460,7 +460,7 @@ void SmXMLImport::endDocument()
 
             sal_uInt32 programVersion = SM_MOD()->GetConfig()->GetDefaultImSyntaxVersion();
 
-            if (mnImSyntaxVersion < 20301 && aText.getLength() > 4 && aImText == "") {
+            if (mnImSyntaxVersion < 20301 && aImText == "") {
                 // Legacy document created with iMath extension
                 SAL_INFO_LEVEL(2, "starmath.imath", "Migrating legacy iMath extension document\n" << aText);
                 sal_Int32 lineIdx = 0;
@@ -480,13 +480,13 @@ void SmXMLImport::endDocument()
 
                 mnImSyntaxVersion = programVersion;
                 SAL_INFO_LEVEL(3, "starmath.imath", "Result\n'" << aImText << "'");
-            } else if (mnImSyntaxVersion < programVersion) {
+            } else if (mnImSyntaxVersion < programVersion && aImText.getLength() > 0) {
                 // Document has older version than program
                 SAL_INFO_LEVEL(2, "starmath.imath", "Migrating document from version " << mnImSyntaxVersion << " to version " <<  programVersion);
                 //TODO: updateFromTo(mnImSyntaxVersion, programVersion);
 
                 mnImSyntaxVersion = programVersion;
-            } else if (mnImSyntaxVersion > programVersion) {
+            } else if (mnImSyntaxVersion > programVersion  && aImText.getLength() > 0) {
                 // Document has newer version than program
                 // TODO: This is untested
                 std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(nullptr, VclMessageType::Error, VclButtonsType::Ok, SmResId(RID_STR_IMATHVERSIONTOOLOW)));

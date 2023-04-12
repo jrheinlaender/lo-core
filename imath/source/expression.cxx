@@ -378,7 +378,7 @@ expression expression::csubs(const exmap &m, unsigned options) const {
 }
 
 expression expression::csubs(const unitvec &v, unsigned options) const {
-  MSG_INFO(1, "Substituting consecutively unitvec in " << ex(*this) << endline);
+  MSG_INFO(2, "Substituting consecutively unitvec in " << ex(*this) << endline);
   expression result = *this;
 
   for (const auto& i : v) {
@@ -391,13 +391,13 @@ expression expression::csubs(const unitvec &v, unsigned options) const {
       options |= subs_options::pattern_is_not_product;
 
     result = result.subs(m, options);
-    MSG_INFO(1, "Substituted " << m << ", result: " << ex(result) << endline);
+    MSG_INFO(2, "Substituted " << m << ", result: " << ex(result) << endline);
   }
   return result;
 }
 
 expression expression::csubs(const ex &e, unsigned options) const {
-  MSG_INFO(1, "Substituting consecutively in " << ex(*this) << ":" << endline);
+  MSG_INFO(2, "Substituting consecutively in " << ex(*this) << ":" << endline);
 
   if (e.info(info_flags::relation_equal)) {
     return subs(e);
@@ -415,7 +415,7 @@ expression expression::csubs(const ex &e, unsigned options) const {
         options |= subs_options::pattern_is_not_product;
 
       result = result.subs(m, options);
-      MSG_INFO(1, "Substituted " << m << ", result: " << ex(result) << endline);
+      MSG_INFO(2, "Substituted " << m << ", result: " << ex(result) << endline);
     }
     return result;
   } else

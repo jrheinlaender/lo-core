@@ -2324,32 +2324,17 @@ void setCalcCellRangeExpression(const Reference < XColumnRowRange >& xColumnRowR
 }
 
 expression parseNumber(const std::string& s) {
-  std::istringstream text(s);
-  int inumber;
-  double dnumber;
-  bool success;
-  size_t cpos;
+    std::string::size_type delim;
+    std::string ss = s;
 
-  if ((cpos = s.find(",")) != std::string::npos) {
-    std::string rs = s;
-    std::istringstream text2(rs.replace(cpos, 1, "."));
-    text2 >> dnumber;
-    success = text2.rdstate() == std::ios::goodbit;
-  } else {
-    text >> dnumber; // Note: this cuts off number at decimal "," separator
-    success = text.rdstate() == std::ios::goodbit;
-  }
+    while ((delim = ss.find(","))!=std::string::npos)
+        ss.replace(delim,1,".");
 
-  if (success) {
-    text >> inumber; // This will always work: decimal places are cut off
-
-    if ((double)inumber != dnumber)
-      return expression(dnumber);
-    else
-      return expression(inumber); // Preserve integers if possible
-  } else {
-  return dynallocate<stringex>(s);
-  }
+    try {
+        return dynallocate<numeric>(ss.c_str());
+    } catch (std::exception&) {
+        return dynallocate<stringex>(s);
+    }
 }
 
 expression getExpressionFromString(const OUString& s) {

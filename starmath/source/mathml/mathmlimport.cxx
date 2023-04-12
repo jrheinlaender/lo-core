@@ -483,7 +483,7 @@ void SmXMLImport::endDocument()
                 } while (lineIdx >= 0);
 
                 mnImSyntaxVersion = programVersion;
-                SAL_INFO_LEVEL(2, "starmath.imath", "Result\n'" << aImText << "'");
+                SAL_INFO_LEVEL(3, "starmath.imath", "Result\n'" << aImText << "'");
             }
             else if (mnImSyntaxVersion < programVersion)
             {

@@ -589,8 +589,6 @@ OUString SmDocShell::ImInitializeCompiler() {
 
 void SmDocShell::Compile()
 {
-    if (maImText.equalsAscii("")) return; // empty iFormula
-
     if (mImBlocked) {
         SAL_WARN_LEVEL(-1, "starmath.imath", "iMath cannot be used because an iMath extension is still installed");
         return;
@@ -602,6 +600,14 @@ void SmDocShell::Compile()
         // TODO: Publish it somewhere
         SAL_WARN_LEVEL(-1, "starmath.imath", error);
         return;
+    }
+
+    if (maImText.equalsAscii(""))
+    {
+        SAL_INFO_LEVEL(1, "starmath.imath", "Empty formula, aborting compile");
+        mpCurrentCompiler = mpInitialCompiler;
+        mpCurrentOptions = mpInitialOptions;
+        return; // empty Math formula
     }
 
     // Important settings for the compiler. Note: Initialization must do without them, since no mpInitialOptions are available before initialization...

@@ -1477,7 +1477,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
         {
             if (dependencies.indexOf(s) >= 0)
             {
-                SAL_INFO_LEVEL(1, "starmath.imath", "Recalculating " << *it << " because it depends on " << s);
+                SAL_INFO_LEVEL(1, "sw.imath", "Recalculating " << *it << " because it depends on " << s);
                 setFormulaProperty(xFormulaComp, "iFormula", getFormulaProperty(xFormulaComp, "iFormula") + " ");
                 break;
             }

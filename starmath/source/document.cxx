@@ -110,8 +110,6 @@ using namespace ::com::sun::star::uno;
 #include <imath/imathutils.hxx>
 #include <imath/imathparse.hxx>
 
-#include <iostream>
-
 namespace
 {
     // Taken from embeddedobject TODO Is there a way to use that code directly instead of duplicating it?
@@ -278,7 +276,7 @@ void SmDocShell::PreventFormulaClose(const bool prevent)
     {
         if (!m_xIFormulaClosePreventer.is())
         {
-            SAL_INFO_LEVEL(1, "starmath.imath", "Adding new close preventer to SmDocShell");
+            SAL_INFO_LEVEL(2, "starmath.imath", "Adding new close preventer to SmDocShell");
             m_xIFormulaClosePreventer = new IFormulaClosePreventer;
             xCloseBroadcaster->addCloseListener(m_xIFormulaClosePreventer);
         }
@@ -288,18 +286,18 @@ void SmDocShell::PreventFormulaClose(const bool prevent)
         if (m_xIFormulaClosePreventer.is()) {
             xCloseBroadcaster->removeCloseListener(m_xIFormulaClosePreventer);
             m_xIFormulaClosePreventer.clear();
-            SAL_INFO_LEVEL(1, "starmath.imath", "Removed close preventer from SmDocShell");
+            SAL_INFO_LEVEL(2, "starmath.imath", "Removed close preventer from SmDocShell");
         }
         else
         {
-            SAL_INFO_LEVEL(1, "starmath.imath", "Not removing close preventer from SmDocShell because none exists");
+            SAL_INFO_LEVEL(2, "starmath.imath", "Not removing close preventer from SmDocShell because none exists");
         }
     }
 }
 
 void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 {
-    SAL_INFO_LEVEL(1, "starmath.imath", "SetImText\n'" << rBuffer << "'");
+    SAL_INFO_LEVEL(2, "starmath.imath", "SetImText\n'" << rBuffer << "'");
     if (rBuffer == maImText)
         return;
 
@@ -409,7 +407,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         }
 
         if (!xParent.is())
-            return "Parent document with previous formula could not be found;
+            return "Parent document with previous formula could not be found";
 
         Reference < XComponent > xPreviousFormulaComponent = getObjectByName(xParent, mPreviousFormula);
         if (xPreviousFormulaComponent.is()) {
@@ -497,8 +495,6 @@ OUString SmDocShell::ImInitializeCompiler() {
     SAL_INFO_LEVEL(1, "starmath.imath", "Found user references '" << include1 << "', '" << include2 << "', '" << include3 << "'");
 
     // Formatting
-    // TODO: This will copy all the options from the registry into the local document graph, which is not what we want for multi-formula documents in Writer or Presentation
-    // Note: We could mis-use the master document flag to avoid the copying
      Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, false);
 
     // Path to iMath's own include files (references)
@@ -589,8 +585,6 @@ OUString SmDocShell::ImInitializeCompiler() {
 void SmDocShell::Compile()
 {
     if (maImText.equalsAscii("")) return; // empty iFormula
-
-    if (mPreviousFormula.equalsAscii("_IMATH_UNDEFINED_")) return; // Partly-initialized formula (see SwWrtShell::InsertOleObject())
 
     if (mImBlocked) {
         SAL_WARN_LEVEL(-1, "starmath.imath", "iMath cannot be used because an iMath extension is still installed");
@@ -1349,6 +1343,7 @@ void SmDocShell::ImStaticInitialization() {
 
     // Find decimal separator character from the Office locale and store it for iMath compilation
     // TODO: Re-initialize if the locale is changed?
+    // TODO: utl::ConfigManager::getUILocale()
     Reference<lang::XMultiComponentFactory> xMCF = xContext->getServiceManager();
     OUString ooLocale = getLocaleName(xContext);
     Reference<i18n::XLocaleData> xld(xMCF->createInstanceWithContext(OU("com.sun.star.i18n.LocaleData"), xContext), UNO_QUERY_THROW);
@@ -1424,7 +1419,7 @@ SmDocShell::~SmDocShell()
     mpPrinter.disposeAndClear();
 
     mathml::SmMlIteratorFree(m_pMlElementTree);
-    SAL_INFO_LEVEL(1, "starmath.imath", "Destroyed SmDocShell");
+    SAL_INFO_LEVEL(3, "starmath.imath", "Destroyed SmDocShell"); // Note: ~SmDocShell() is only called after the IFormulaClosePreventer has been removed
 }
 
 bool SmDocShell::ConvertFrom(SfxMedium &rMedium)

@@ -371,12 +371,48 @@ OUString SmDocShell::ImInitializeCompiler() {
     if (mPreviousFormula.getLength() > 0) {
         // Find previous iFormula from parent document. If this fails, a error message is returned
         SAL_INFO_LEVEL(1, "starmath.imath", "Previous formula is " << mPreviousFormula);
+        Reference<XModel> xParent;
 
-        Reference<container::XChild> xModel(GetModel(), UNO_QUERY_THROW);
-        Reference<XModel> xParent(xModel->getParent(), UNO_QUERY_THROW);
+        // Find master document if there is one
+        if (mIFormulaMasterDocument.getLength() > 0)
+        {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Searching for master document '" << mIFormulaMasterDocument << "'");
+            // Note: We assume that the parent document has already loaded the master document
+            Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
+            Reference<XDesktop> xDesktop(xContext->getServiceManager()->createInstanceWithContext("com.sun.star.frame.Desktop", xContext), UNO_QUERY_THROW);
+            Reference<container::XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
+            Reference<container::XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
+
+            while (xDocsEnum->hasMoreElements()) {
+                Any docModel = xDocsEnum->nextElement();
+                docModel >>= xParent;
+                if (!xParent.is()) continue;
+
+                Reference<XStorable> xDocumentStorable(xParent, UNO_QUERY);
+                if (!xDocumentStorable.is()) continue;
+
+                SAL_INFO_LEVEL(1, "starmath.imath", "Checking for master document: '" << xDocumentStorable->getLocation() << "'");
+                if (xDocumentStorable->getLocation() == mIFormulaMasterDocument)
+                {
+                    SAL_INFO_LEVEL(1, "starmath.imath", "Found master document");
+                    break;
+                }
+            }
+        }
+
+        if (!xParent.is())
+        {
+            SAL_INFO_LEVEL(2, "starmath.imath", "Searching for parent document");
+            Reference<container::XChild> xModel(GetModel(), UNO_QUERY);
+            if (xModel.is())
+                xParent = Reference<XModel>(xModel->getParent(), UNO_QUERY);
+        }
+
+        if (!xParent.is())
+            return "Parent document with previous formula could not be found;
+
         Reference < XComponent > xPreviousFormulaComponent = getObjectByName(xParent, mPreviousFormula);
-
-         if (xPreviousFormulaComponent.is()) {
+        if (xPreviousFormulaComponent.is()) {
             Reference< XModel > xPreviousFormula = extractModel(xPreviousFormulaComponent);
 
             SmModel* pPreviousModel = comphelper::getFromUnoTunnel<SmModel>(xPreviousFormula);
@@ -1345,6 +1381,7 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     , mPreviousFormula("")
     , mIFormulaDependencyIn("")
     , mIFormulaDependencyOut("")
+    , mIFormulaMasterDocument("")
     , mpInitialOptions(nullptr)
     , mpInitialCompiler(nullptr)
     , mpCurrentOptions(nullptr)

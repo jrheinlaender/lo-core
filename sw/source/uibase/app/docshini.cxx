@@ -80,6 +80,8 @@
 #include <memory>
 
 #include <officecfg/Office/Common.hxx>
+#include <imath/imathutils.hxx>
+#include <logging.hxx>
 
 using namespace ::com::sun::star::i18n;
 using namespace ::com::sun::star::lang;
@@ -370,6 +372,35 @@ SwDocShell::~SwDocShell()
         SwChartDataProvider *pPCD = m_xDoc->getIDocumentChartDataProviderAccess().GetChartDataProvider();
         if (pPCD)
             pPCD->dispose();
+    }
+
+    // Close master document
+    if (m_xMasterDocument.is() && !m_masterDocumentWasLoaded)
+    {
+        SAL_INFO_LEVEL(1, "sw.imath", "Closing master document");
+        Reference<util::XCloseable> xClose(m_xMasterDocument, UNO_QUERY_THROW);
+        xClose->close(true);
+        m_xMasterDocument.clear();
+        SAL_INFO_LEVEL(1, "sw.imath", "Master document closed");
+    }
+
+    // Ensure that all iFormula OLE objects can be removed
+    SAL_INFO_LEVEL(1, "sw.imath", "Preparing removal of iFormula OLE objects");
+    for (const auto& formulaName : m_IFormulaNames)
+    {
+        uno::Reference< lang::XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
+        if ( xFormulaComp.is() )
+        {
+            Reference< XModel > xFormulaModel = extractModel(xFormulaComp);
+            if ( xFormulaModel.is() )
+            {
+                uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
+                if ( xFormulaProps.is() )
+                {
+                    xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::makeAny(OUString("delete")));
+                }
+            }
+        }
     }
 
     RemoveLink();

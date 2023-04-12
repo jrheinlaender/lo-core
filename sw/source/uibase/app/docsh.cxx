@@ -95,6 +95,7 @@
 #include <com/sun/star/uri/UriReferenceFactory.hpp>
 #include <com/sun/star/uri/VndSunStarPkgUrlReferenceFactory.hpp>
 #include <com/sun/star/frame/XStorable.hpp>
+#include <com/sun/star/frame/XComponentLoader.hpp>
 #include <ooo/vba/XSinkCaller.hpp>
 
 #include <unotextrange.hxx>
@@ -1265,6 +1266,77 @@ void SwDocShell::LoadingFinished()
 {
     SAL_INFO_LEVEL(1, "sw.imath", "SwDocShell::LoadingFinished()");
 
+    // Load master document if defined
+    // TODO See sw/source/core/doc/rdfhelper.cxx
+    Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
+    Reference<XNamedGraph> xGraph = getGraph(xContext, GetModel());
+
+    if (xGraph.is() && hasStatement(xContext, GetModel(), xGraph, OU("masterdocument")))
+    {
+        OUString masterDocURL = getStatementString(xContext, GetModel(), xGraph, OU("masterdocument"));
+
+        if (masterDocURL.getLength() > 0)
+        {
+            Reference<XStorable> xDocumentStorable(GetModel(), UNO_QUERY_THROW);
+            OUString documentURL = xDocumentStorable->getLocation();
+            masterDocURL = makeURLFor(masterDocURL, documentURL, xContext); // Handle relative URL. TODO Use GetModel()->getArgs() PropertyValue 'DocumentBaseURL' ?
+            SAL_INFO_LEVEL(1, "sw.imath", "Master document URL is '" << masterDocURL << "'");
+            // TODO Show some kind of progress message to the user
+
+            // Check if the user has already opened the master document
+            Reference< XDesktop > xDesktop(xContext->getServiceManager()->createInstanceWithContext("com.sun.star.frame.Desktop", xContext), UNO_QUERY_THROW);
+            Reference< XEnumerationAccess > xLoadedDocsEnumAccess = xDesktop->getComponents();
+            Reference< XEnumeration > xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
+
+            while (xDocsEnum->hasMoreElements()) {
+                Any docModel = xDocsEnum->nextElement();
+                docModel >>= m_xMasterDocument;
+                xDocumentStorable = Reference<XStorable>(m_xMasterDocument, UNO_QUERY);
+                if (!xDocumentStorable.is())
+                    continue;
+
+                SAL_INFO_LEVEL(1, "sw.imath", "Checking for master document: '" << xDocumentStorable->getLocation() << "'");
+                if (m_xMasterDocument.is() && (xDocumentStorable->getLocation() == masterDocURL))
+                {
+                    m_masterDocumentWasLoaded = true;
+                    SAL_INFO_LEVEL(1, "sw.imath", "Found master document");
+                    break;
+                }
+            }
+
+            if (!m_xMasterDocument.is())
+            {
+                try
+                {
+                    Sequence< PropertyValue > args(2);
+                    auto pArgs = args.getArray();
+                    PropertyValue hidden;
+                    hidden.Name = "Hidden";
+                    hidden.Value = makeAny(true);
+                    pArgs[0] = hidden;
+                    PropertyValue ro;
+                    ro.Name = "ReadOnly";
+                    ro.Value = makeAny(true);
+                    pArgs[1] = ro;
+
+                    Reference< XComponentLoader > xComponentLoader(xDesktop, UNO_QUERY_THROW);
+                    m_xMasterDocument = Reference< XModel >(xComponentLoader->loadComponentFromURL(masterDocURL, "_default", 0, args), UNO_QUERY);
+                    m_masterDocumentWasLoaded = false;
+                    SAL_INFO_LEVEL(1, "sw.imath", "Loaded master document '" << masterDocURL << "'");
+                }
+                catch (Exception&) { }
+            }
+
+            if (!m_xMasterDocument.is())
+            {
+                SAL_WARN_LEVEL(1, "sw.imath", "Failed to load master document '" << masterDocURL << "'. Continuing without");
+                // TODO: Inform the user with a message dialog
+            }
+
+            // Note: If the master document is outdated, it will be updated automatically, even if it is loaded read-only. Of course the changes will be lost when the document is closed
+        }
+    }
+
     // Update iFormulas to avoid problems if document was edited with non-iMath Office
     UpdatePreviousIFormulaLinks();
 
@@ -1275,8 +1347,27 @@ void SwDocShell::LoadingFinished()
         SAL_INFO_LEVEL(1, "sw.imath", "Compiling formula '" << fn << "'");
         Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fn);
 
-        if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
-            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+        // Set previous iFormula from the master document for the first formula in this document
+        if (fn == *m_IFormulaNames.begin() && m_xMasterDocument.is())
+        {
+            SwXTextDocument* pMasterDocument = comphelper::getFromUnoTunnel<SwXTextDocument>(m_xMasterDocument);
+            Reference<XStorable> xStorable(m_xMasterDocument, UNO_QUERY);
+
+            if (pMasterDocument != nullptr && xStorable.is())
+            {
+                setFormulaProperty(xFormulaComp, "iFormulaMasterDocument", uno::makeAny(xStorable->getLocation()));
+                SwDocShell* pMasterDocumentShell = static_cast<SwDocShell*>(pMasterDocument->GetObjectShell());
+
+                if (!pMasterDocumentShell->m_IFormulaNames.empty())
+                {
+                    setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(pMasterDocumentShell->m_IFormulaNames.back()));
+                    SAL_INFO_LEVEL(2, "sw.imath", "Set previous formula '" << pMasterDocumentShell->m_IFormulaNames.back() << "' in master document '" << xStorable->getLocation() << "'");
+                }
+            }
+        }
+
+        setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+        // TODO: Do we need to give time for the compilation?
         // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
     }
 
@@ -1515,6 +1606,18 @@ void SwDocShell::RenumberIFormulas()
     // TODO Create a status indicator
     SAL_INFO_LEVEL(2, "sw.imath", "Renumbering formulas");
     m_nextIFormulaNumber = 1;
+
+    // Handle master document
+    if (m_xMasterDocument.is())
+    {
+        SwXTextDocument* pMasterDocument = comphelper::getFromUnoTunnel<SwXTextDocument>(m_xMasterDocument);
+
+        if (pMasterDocument != nullptr)
+        {
+            SwDocShell* pMasterDocumentShell = static_cast<SwDocShell*>(pMasterDocument->GetObjectShell());
+            m_nextIFormulaNumber = pMasterDocumentShell->m_nextIFormulaNumber + 1;
+        }
+    }
 
     std::map<icu::UnicodeString, OUString> mapping;
 

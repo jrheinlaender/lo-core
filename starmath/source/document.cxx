@@ -303,15 +303,15 @@ void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 
     maImText = rBuffer;
 
-    // Ensure that this formula will not be cleaned out of the OLE cache
-    PreventFormulaClose(true);
-
     if (doCompile && maImText.getLength() > 0)
         Compile();
 }
 
 void SmDocShell::SetPreviousFormula(const OUString& aName)
 {
+    // Ensure that this formula will not be cleaned out of the OLE cache
+    PreventFormulaClose(true); // This must happen as soon as possible, to avoid the formula dying in the middle of Compile()
+
     if (mPreviousFormula == aName)
         return;
 

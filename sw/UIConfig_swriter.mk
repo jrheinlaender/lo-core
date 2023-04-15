@@ -94,6 +94,7 @@ $(eval $(call gb_UIConfig_add_toolbarfiles,modules/swriter,\
 	sw/uiconfig/swriter/toolbar/textstylebar \
 	sw/uiconfig/swriter/toolbar/toolbar \
 	sw/uiconfig/swriter/toolbar/viewerbar \
+	sw/uiconfig/swriter/toolbar/imathbar \
 ))
 
 $(eval $(call gb_UIConfig_add_uifiles,modules/swriter,\

@@ -293,6 +293,7 @@ modules/swriter/toolbar/frameobjectbar.xml
 modules/swriter/toolbar/fullscreenbar.xml
 modules/swriter/toolbar/graffilterbar.xml
 modules/swriter/toolbar/graphicobjectbar.xml
+modules/swriter/toolbar/imathbar.xml
 modules/swriter/toolbar/insertbar.xml
 modules/swriter/toolbar/mediaobjectbar.xml
 modules/swriter/toolbar/navigationobjectbar.xml

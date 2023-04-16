@@ -220,6 +220,7 @@ $(eval $(call gb_UIConfig_add_uifiles,modules/swriter,\
 	sw/uiconfig/swriter/ui/optredlinepage \
 	sw/uiconfig/swriter/ui/opttablepage \
 	sw/uiconfig/swriter/ui/opttestpage \
+	sw/uiconfig/swriter/ui/optimathpage \
 	sw/uiconfig/swriter/ui/outlinebutton \
 	sw/uiconfig/swriter/ui/outlinenumbering \
 	sw/uiconfig/swriter/ui/outlinenumberingpage \

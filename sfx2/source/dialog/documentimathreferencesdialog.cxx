@@ -96,7 +96,7 @@ IMPL_LINK(SfxDocumentIMathReferencesPage, UserRefHdl_Impl, weld::Button&, rButto
     for (const auto& r : m_userreferencesEntries)
         if (r->get_text().getLength() > 0)
         {
-            osl::FileBase::getFileURLFromSystemPath(m_masterdocumentEntry->get_text(), sFolder);
+            osl::FileBase::getFileURLFromSystemPath(m_userreferencesEntries.at(0)->get_text(), sFolder);
             break;
         }
     if (!sFolder.isEmpty())

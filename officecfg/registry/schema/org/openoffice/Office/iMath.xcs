@@ -26,25 +26,25 @@
       <info>
         <desc>Names of include files (references).</desc>
       </info>
-      <prop oor:name="txt_Include1" oor:type="xs:string">
+      <prop oor:name="txt_Include1" oor:type="xs:string" oor:nillable="false">
         <info>
           <desc>Name of a user-defined include file (1)</desc>
         </info>
         <value></value>
       </prop>
-      <prop oor:name="txt_Include2" oor:type="xs:string">
+      <prop oor:name="txt_Include2" oor:type="xs:string" oor:nillable="false">
         <info>
           <desc>Name of a user-defined include file (2)</desc>
         </info>
         <value></value>
       </prop>
-      <prop oor:name="txt_Include3" oor:type="xs:string">
+      <prop oor:name="txt_Include3" oor:type="xs:string" oor:nillable="false">
         <info>
           <desc>Name of a user-defined include file (3)</desc>
         </info>
         <value></value>
       </prop>
-      <prop oor:name="txt_References" oor:type="xs:string">
+      <prop oor:name="txt_References" oor:type="xs:string" oor:nillable="false">
         <info>
           <desc>Default include files</desc>
         </info>
@@ -138,7 +138,7 @@
         </info>
         <value>false</value>
       </prop>
-      <prop oor:name="txt_FormulaFont" oor:type="xs:string">
+      <prop oor:name="txt_FormulaFont" oor:type="xs:string" oor:nillable="false">
         <info>
           <desc>Name of the default formula font</desc>
         </info>
@@ -174,7 +174,7 @@
         </info>
         <value>4</value>
       </prop>
-      <prop oor:name="txt_PreferredUnits" oor:type="xs:string">
+      <prop oor:name="txt_PreferredUnits" oor:type="xs:string" oor:nillable="false">
         <info>
           <desc>Default units</desc>
         </info>

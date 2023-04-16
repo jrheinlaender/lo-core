@@ -136,9 +136,8 @@ SmModule::SmModule(SfxObjectFactory* pObjFact)
     SetName("StarMath");
 
     // Get debuglevel from registry
-    sal_Int32 debuglevel = officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get();
-    msg::info().setlevel(debuglevel);
-    SAL_INFO_LEVEL(-1, "starmath.imath", "Set debug level to " << debuglevel);
+    msg::info().setlevel(officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get());
+    SAL_INFO_LEVEL(-1, "starmath.imath", "Set debug level to " << officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get());
 
     // Check for existing iMath extension
     // TODO: Fix .deb package dependencies so that iMath gets uninstalled by the package manager

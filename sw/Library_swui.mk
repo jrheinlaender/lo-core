@@ -47,6 +47,15 @@ $(eval $(call gb_Library_use_api,swui,\
 	oovbaapi \
 ))
 
+$(eval $(call gb_Library_add_defs,swui,\
+    -DINSIDE_SM \
+    -DOO_IS_AOO=0 \
+    -DOO_MAJOR_VERSION=$(LIBO_VERSION_MAJOR) \
+    -DOO_MINOR_VERSION=$(LIBO_VERSION_MINOR) \
+    -DSAL_LOG_INFO=1 \
+    -DSAL_LOG_WARN=1 \
+))
+
 ifneq ($(SYSTEM_LIBXML),)
 $(eval $(call gb_Library_add_cxxflags,swui,\
 	$(LIBXML_CFLAGS) \
@@ -63,6 +72,7 @@ $(eval $(call gb_Library_use_libraries,swui,\
     editeng \
     i18nlangtag \
     i18nutil \
+    imath \
     msfilter \
     sal \
     salhelper \
@@ -82,6 +92,13 @@ $(eval $(call gb_Library_use_libraries,swui,\
     drawinglayer \
     lng \
 ))
+
+ifneq ($(COM),MSC)
+$(eval $(call gb_Library_use_externals,swui, \
+    cln \
+    ginac \
+))
+endif
 
 $(eval $(call gb_Library_add_exception_objects,swui,\
     sw/source/ui/chrdlg/break \

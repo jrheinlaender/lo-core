@@ -170,9 +170,8 @@ SwModule::SwModule( SfxObjectFactory* pWebFact,
     }
 
     msg::init();
-    sal_Int32 debuglevel = officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get();
-    msg::info().setlevel(debuglevel);
-    SAL_INFO_LEVEL(-1, "sw.imath", "Set debug level to " << debuglevel);
+    msg::info().setlevel(officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get());
+    SAL_INFO_LEVEL(-1, "sw.imath", "Set debug level to " << officecfg::Office::iMath::Miscellaneous::I_Debuglevel::get());
 }
 
 OUString SwResId(TranslateId aId)

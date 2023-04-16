@@ -83,7 +83,8 @@ const std::pair<TranslateId, sal_uInt16> SID_SW_EDITOPTIONS_RES[] =
     { NC_("SID_SW_EDITOPTIONS_RES", "Comparison"), RID_SW_TP_COMPARISON_OPT  },
     { NC_("SID_SW_EDITOPTIONS_RES", "Compatibility"), RID_SW_TP_OPTCOMPATIBILITY_PAGE     },
     { NC_("SID_SW_EDITOPTIONS_RES", "AutoCaption"), RID_SW_TP_OPTCAPTION_PAGE  },
-    { NC_("SID_SW_EDITOPTIONS_RES", "Mail Merge Email"), RID_SW_TP_MAILCONFIG }
+    { NC_("SID_SW_EDITOPTIONS_RES", "Mail Merge Email"), RID_SW_TP_MAILCONFIG },
+    { NC_("SID_SW_EDITOPTIONS_RES", "iMath"), RID_SW_TP_OPTIMATH_PAGE }
 };
 
 const std::pair<TranslateId, sal_uInt16> SID_SW_ONLINEOPTIONS_RES[] =

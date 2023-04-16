@@ -343,6 +343,7 @@ constexpr OptionsMapping_Impl OptionsMap_Impl[]
     { u"Writer"_ustr,             u"Compatibility"_ustr,        RID_SW_TP_OPTCOMPATIBILITY_PAGE },
     { u"Writer"_ustr,             u"AutoCaption"_ustr,          RID_SW_TP_OPTCAPTION_PAGE },
     { u"Writer"_ustr,             u"MailMerge"_ustr,            RID_SW_TP_MAILCONFIG },
+    { u"Writer"_ustr,             "iMath",                      RID_SW_TP_OPTIMATH_PAGE },
     { u"WriterWeb"_ustr,          u""_ustr,                SID_SW_ONLINEOPTIONS },
     { u"WriterWeb"_ustr,          u"View"_ustr,                 RID_SW_TP_HTML_CONTENT_OPT },
     { u"WriterWeb"_ustr,          u"FormattingAids"_ustr,       RID_SW_TP_HTML_OPTSHDWCRSR },

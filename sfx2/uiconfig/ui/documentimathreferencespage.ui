@@ -442,6 +442,7 @@
     </child>
     <child>
       <object class="GtkFrame" id="informationFrame">
+        <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="hexpand">True</property>
         <property name="label-xalign">0</property>
@@ -455,6 +456,7 @@
             <property name="orientation">vertical</property>
             <child>
               <object class="GtkLabel" id="informationContent">
+                <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes" context="documentimathreferencespage|information">This document does not contain any iFormulas yet. Create an iFormula to view the properties here.</property>
                 <property name="wrap">True</property>

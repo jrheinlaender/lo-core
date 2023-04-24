@@ -89,7 +89,6 @@ getDocumentGraph(const uno::Reference<uno::XComponentContext>& xContext,
         xGraph = xDMA->getRDFRepository()->getGraph(graphNames[0]);
     }
 
-    bool hasStatements = false;
     if (xGraph.is())
     {
         if (!strict)

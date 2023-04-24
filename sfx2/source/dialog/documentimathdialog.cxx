@@ -85,7 +85,6 @@ uno::Reference<rdf::XNamedGraph> getDocumentGraph(const uno::Reference< uno::XCo
         xGraph = xDMA->getRDFRepository()->getGraph(graphNames[0]);
     }
 
-    bool hasStatements = false;
     if (xGraph.is())
     {
         if (!strict)

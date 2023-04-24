@@ -781,10 +781,10 @@ void SmDocShell::Compile()
             SetIFormulaDependencyOut(outDepStr);
         }
     } catch (Exception &e) {
-        error = "Compilation error\n" + e.Message;
+        error = "\"Compilation error\n" + e.Message + "\"";
         SAL_WARN_LEVEL(-1, "starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
     } catch (std::exception &e) {
-        error = OU("Compilation error\n") + OUS8(e.what());
+        error = OU("\"Compilation error\n") + OUS8(e.what())  + "\"";
         SAL_WARN_LEVEL(-1, "starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
     }
 
@@ -794,7 +794,7 @@ void SmDocShell::Compile()
         else
             mpCurrentOptions = mpInitialOptions;
         // TODO: Show error in imath edit window, not in formula object
-        SetText(replaceString(error, "\n", "\nnewline\n"));
+        SetText(replaceString(error, "\n", "\"\nnewline\n\""));
     }
 
     //setlocale(LC_NUMERIC, ""); // Reset to system locale

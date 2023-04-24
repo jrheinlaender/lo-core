@@ -121,6 +121,19 @@
       <menu:menuitem menu:id=".uno:SearchDialog" menu:style="text"/>
       <menu:menuitem menu:id=".uno:GotoPage" menu:style="text"/>
       <menu:menuseparator/>
+      <menu:menu menu:id=".uno:iMathEditMenu">
+        <menu:menupopup>
+          <!--menu:menuitem menu:id=".uno:iMathEditExternal"/>
+          <menu:menuseparator/-->
+          <menu:menuitem menu:id=".uno:iMathEditMerge"/>
+          <menu:menuitem menu:id=".uno:iMathEditHide"/>
+          <menu:menuitem menu:id=".uno:iMathEditShow"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathInsertClearEquation"/>
+          <menu:menuitem menu:id=".uno:iMathInsertClearAll"/>
+        </menu:menupopup>
+      </menu:menu>
+      <menu:menuseparator/>
       <menu:menu menu:id=".uno:ChangesMenu">
         <menu:menupopup>
           <menu:menuitem menu:id=".uno:TrackChanges" menu:style="text"/>
@@ -286,6 +299,23 @@
           <menu:menuitem menu:id=".uno:StarShapes"/>
           <menu:menuitem menu:id=".uno:CalloutShapes"/>
           <menu:menuitem menu:id=".uno:FlowChartShapes"/>
+        </menu:menupopup>
+      </menu:menu>
+      <menu:menu menu:id=".uno:iMathInsertMenu">
+        <menu:menupopup>
+          <menu:menuitem menu:id=".uno:iMathInsertCreate"/>
+          <!--menu:menuitem menu:id=".uno:iMathInsertExternal"/-->
+          <menu:menuitem menu:id=".uno:iMathInsertConvert"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathInsertFunction"/>
+          <menu:menuitem menu:id=".uno:iMathInsertVector"/>
+          <menu:menuitem menu:id=".uno:iMathInsertMatrix"/>
+          <menu:menuitem menu:id=".uno:iMathInsertUnit"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathInsertChart"/>
+          <menu:menuitem menu:id=".uno:iMathInsertChartSeries"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathInsertSetOptions"/>
         </menu:menupopup>
       </menu:menu>
       <menu:menuseparator/>
@@ -499,6 +529,7 @@
           <menu:menuitem menu:id=".uno:FrameDialog"/>
         </menu:menupopup>
       </menu:menu>
+      <menu:menuitem menu:id=".uno:iMathRenumber"/>
       <menu:menuitem menu:id=".uno:NameGroup" menu:style="text"/>
       <menu:menuitem menu:id=".uno:ObjectTitleDescription" menu:style="text"/>
       <menu:menuseparator/>
@@ -793,6 +824,25 @@
       <menu:menuitem menu:id=".uno:CommandPopup"/>
       <menu:menuseparator/>
       <menu:menuitem menu:id=".uno:QuestionAnswers"/>
+      <menu:menu menu:id=".uno:iMathHelpMenu">
+        <menu:menupopup>
+          <menu:menuitem menu:id=".uno:iMathTour"/>
+          <menu:menuitem menu:id=".uno:iMathWiki"/>
+          <menu:menu menu:id=".uno:iMathExamplesMenu">
+            <menu:menupopup>
+              <menu:menuitem menu:id=".uno:iMathExampleAnalysis"/>
+              <menu:menuitem menu:id=".uno:iMathExamplePartialDifferentiation"/>
+              <menu:menuitem menu:id=".uno:iMathExampleSymbolicIntegration"/>
+              <menu:menuitem menu:id=".uno:iMathExampleLaminarBLE"/>
+              <menu:menuitem menu:id=".uno:iMathExampleOperators"/>
+            </menu:menupopup>
+          </menu:menu>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathWebsite"/>
+          <menu:menuseparator/>
+          <menu:menuitem menu:id=".uno:iMathFonts"/>
+        </menu:menupopup>
+      </menu:menu>
       <menu:menuitem menu:id=".uno:SendFeedback"/>
       <menu:menuseparator/>
       <menu:menuitem menu:id=".uno:SafeMode"/>

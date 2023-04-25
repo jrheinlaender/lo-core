@@ -16,7 +16,7 @@ $(eval $(call gb_ExternalPackage_add_file,ginac,$(LIBO_LIB_FOLDER)/libginac.dyli
 else ifeq ($(OS),WNT)
 # do nothing
 else ifeq ($(DISABLE_DYNLOADING),)
-$(eval $(call gb_ExternalPackage_add_file,ginac,$(LIBO_LIB_FOLDER)/libginac.so.11,ginac/.libs/libginac.so.11.1.3))
+$(eval $(call gb_ExternalPackage_add_file,ginac,$(LIBO_LIB_FOLDER)/libginac.so.11,ginac/.libs/libginac.so.11.1.5))
 endif
 
 # vim: set noet sw=4 ts=4:

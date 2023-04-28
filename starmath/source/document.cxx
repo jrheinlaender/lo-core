@@ -509,13 +509,13 @@ OUString SmDocShell::ImInitializeCompiler() {
     OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/calc/");
     rtl::Bootstrap::expandMacros(shareURL);
     osl::FileBase::getSystemPathFromFileURL(shareURL, shareFolder);
+    imath::parserParameters pParams;
 
     // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all
     try {
         // Read referenced files
         auto files = splitString(references, ' ');
         files.unique();
-        imath::parserParameters pParams;
         pParams.xContext = comphelper::getProcessComponentContext();
         pParams.xDocumentModel = GetDocumentModel();
         pParams.rawtext = OU("");
@@ -523,7 +523,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         pParams.lines = &mLines;
         pParams.compiler = mpInitialCompiler;
         pParams.global_options = mpInitialOptions;
-        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >();
+        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >(); // TODO: Cached results are not used currently
 
         for (const auto& f : files) {
             if (f.getLength() > 2)
@@ -532,7 +532,11 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         if (!pParams.rawtext.equalsAscii("")) {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(pParams.rawtext));
-            if (imath::parse(pParams) != 0) return "Recalculation error in referenced files\n" + pParams.errormessage;
+            if (imath::parse(pParams) != 0)
+            {
+                delete pParams.cached_results;
+                return "Recalculation error in referenced files\n" + pParams.errormessage;
+            }
             if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
         }
 
@@ -548,7 +552,10 @@ OUString SmDocShell::ImInitializeCompiler() {
             pParams.rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
             pParams.errormessage = "";
             // Result is stored in mpInitialOptions map under the keys o_unit and o_unitstr
-            if (imath::parse(pParams) != 0) return "Recalculation error in global units\n" + pParams.errormessage;
+            if (imath::parse(pParams) != 0){
+                delete pParams.cached_results;
+                return "Recalculation error in global units\n" + pParams.errormessage;
+            }
             if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions();
         }
 
@@ -571,16 +578,24 @@ OUString SmDocShell::ImInitializeCompiler() {
         if (!pParams.rawtext.equalsAscii("")) {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading user include files\n" << STR(pParams.rawtext));
             pParams.errormessage = "";
-            if (imath::parse(pParams) != 0) return "Recalculation error in user include files\n" + pParams.errormessage;
+            if (imath::parse(pParams) != 0)
+            {
+                delete pParams.cached_results;
+                return "Recalculation error in user include files\n" + pParams.errormessage;
+            }
             if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions();
         }
+
+        delete pParams.cached_results;
     } catch (Exception &e) {
         // TODO: Show error message to user with parser location
         SAL_WARN_LEVEL(-1, "starmath.imath", "Exception thrown while recalculating iMath include files\n" << e.Message);
+        delete pParams.cached_results;
         return "Recalculation error in iMath include files\n" + e.Message;
     } catch (std::exception &e) {
         // TODO: Show error message to user with parser location
         SAL_WARN_LEVEL(-1, "starmath.imath", "std::exception thrown while recalculating iMath include files\n" << OUS8(e.what()));
+        delete pParams.cached_results;
         return "Recalculation error in iMath include files\n" + OUS8(e.what());
     }
 
@@ -626,12 +641,12 @@ void SmDocShell::Compile()
 
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = std::make_shared<eqc>(*mpInitialCompiler); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
+    imath::parserParameters pParams;
 
     // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all. Requires complete rework of exceptions in imath library
     try {
         mLines.clear();
 
-        imath::parserParameters pParams;
         pParams.xContext = comphelper::getProcessComponentContext();
         pParams.xDocumentModel = GetDocumentModel();
         pParams.rawtext = OU("");
@@ -639,7 +654,8 @@ void SmDocShell::Compile()
         pParams.lines = &mLines;
         pParams.compiler = mpCurrentCompiler;
         pParams.global_options = mpInitialOptions; // mpInitialOptions are not modified by the parser, copy is taken when OPTIONS keyword is encountered
-        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >();
+        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >(); // TODO: Cached results not used yet
+
         // Add %%ii in front of every line
         // TODO: Change parser to make this unnecessary
         sal_Int32 idx = 0;
@@ -780,11 +796,15 @@ void SmDocShell::Compile()
             SetIFormulaDependencyIn(inDepStr);
             SetIFormulaDependencyOut(outDepStr);
         }
+
+        delete pParams.cached_results;
     } catch (Exception &e) {
         error = "\"Compilation error\n" + e.Message + "\"";
+        delete pParams.cached_results;
         SAL_WARN_LEVEL(-1, "starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
     } catch (std::exception &e) {
         error = OU("\"Compilation error\n") + OUS8(e.what())  + "\"";
+        delete pParams.cached_results;
         SAL_WARN_LEVEL(-1, "starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
     }
 

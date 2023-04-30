@@ -692,6 +692,8 @@ void SmDocShell::Compile()
             mImHidden = true;
             maImExprFirstLhs = "";
             maImExprLastLhs = "";
+            std::shared_ptr<iFormulaLine> firstLine; // First expression or equation (of multi-line formula)
+            std::shared_ptr<iFormulaLine> lastLine; // Last expression or equation  (of multi-line formula)
             std::vector<OUString> tempLabels; // Sequence does not appear to support appending of elements
 
             for (const auto& l : mLines)
@@ -702,15 +704,17 @@ void SmDocShell::Compile()
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
                     maImExprFirstLhs = expr->getDisplayedLhs();
                     tempLabels.push_back(expr->getLabel());
+                    firstLine = l;
                     break;
                 }
-                else if (l->getSelectionType() == formulaTypeExpression)
+                else if (l->getSelectionType() == formulaTypeExpression  || l->getSelectionType() == formulaTypeConstant)
                 {
                     maImTypeFirstLine = "expression";
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
                     maImExprFirstLhs = expr->getDisplayedLhs();
                     if (expr->getLabel().getLength() > 0)
                         tempLabels.push_back(expr->getLabel());
+                    firstLine = l;
                     break;
                 }
             }
@@ -727,13 +731,15 @@ void SmDocShell::Compile()
                     maImTypeLastLine = "equation";
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*line);
                     maImExprLastLhs = expr->getDisplayedLhs();
+                    lastLine = *line;
                     break;
                 }
-                else if ((*line)->getSelectionType() == formulaTypeExpression)
+                else if ((*line)->getSelectionType() == formulaTypeExpression || (*line)->getSelectionType() == formulaTypeConstant)
                 {
                     maImTypeLastLine = "expression";
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*line);
                     maImExprLastLhs = expr->getDisplayedLhs();
+                    lastLine = *line;
                     break;
                 }
             }
@@ -745,6 +751,17 @@ void SmDocShell::Compile()
                 if (expr != nullptr && !expr->getHide())
                     mImHidden = false; // If one line is not hidden, the whole formula counts as not hidden
             }
+
+            // Set text mode if wished for and applicable
+            if (lastLine != nullptr && lastLine->getOption(o_autotextmode).value.boolean)
+                SetIFormulaPendingAction("checktextmode");
+            /* Note: This works but has no effect
+             * SmDocShell *pDocSh = static_cast < SmDocShell * > (GetObjectShell());
+             * SmFormat aFormat = pDocSh->GetFormat();
+             * aFormat.SetTextmode(true); //checkTextmodeFormula(XTextContent)));
+             * pDocSh->SetFormat( aFormat );
+             * pDocSh->SetVisArea( tools::Rectangle( Point(0, 0), pDocSh->GetSize() ) );
+             */
 
             // Update dependencies
             // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
@@ -1410,6 +1427,7 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     , mIFormulaDependencyIn("")
     , mIFormulaDependencyOut("")
     , mIFormulaMasterDocument("")
+    , mIFormulaPendingAction("")
     , mpInitialOptions(nullptr)
     , mpInitialCompiler(nullptr)
     , mpCurrentOptions(nullptr)

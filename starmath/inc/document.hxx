@@ -289,6 +289,10 @@ public:
     void SetIFormulaMasterDocument(const OUString& aUrl) { mIFormulaMasterDocument = aUrl; }
     OUString GetIFormulaMasterDocument() const { return mIFormulaMasterDocument; }
 
+    /// Set the pending action. TODO: mis-used for communication with parent documents
+    void SetIFormulaPendingAction(const OUString& aAction) { mIFormulaPendingAction = aAction; }
+    OUString GetIFormulaPendingAction() const { return mIFormulaPendingAction; }
+
     /// Prevent the document from being closed
     // Note: By default, the OLE cache is set to 20 objects in /org.openoffice.Office.Common/Cache/Writer/OLE_Objects
     //       If a office document has more formulas, older ones will be closed. This is bad for performance
@@ -304,6 +308,8 @@ private:
     OUString mIFormulaDependencyOut;
     /// URL of the master document (if any)
     OUString mIFormulaMasterDocument;
+    /// Pending action
+    OUString mIFormulaPendingAction;
 
     /**
      * Initial options for this formula.

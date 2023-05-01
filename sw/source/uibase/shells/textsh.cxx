@@ -459,6 +459,14 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                     if (aText.getLength() == 0) aText = "E = m c^2";
                     xSet->setPropertyValue("Formula", uno::makeAny(OUString()));
 
+                    // Set margins to zero TODO XPropertySet cannot be accessed here, instead we do it in docsh.cxx at every recalculation
+                    /*uno::Reference < beans::XPropertySet > xEmbeddedSet( xObj.GetObject(), uno::UNO_QUERY );
+                    if (xEmbeddedSet.is())
+                    {
+                        xEmbeddedSet->setPropertyValue("LeftMargin", uno::makeAny(sal_Int16(0)));
+                        xEmbeddedSet->setPropertyValue("RightMargin", uno::makeAny(sal_Int16(0)));
+                    }*/
+
                     switch( nSlot )
                     {
                         case FN_IMATH_INSERT_CREATE:

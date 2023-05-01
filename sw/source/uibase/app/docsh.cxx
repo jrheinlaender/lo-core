@@ -1223,6 +1223,48 @@ void setFormulaProperty(const Reference< XComponent >& xFormulaComp, const OUStr
     }
 }
 
+void updateFormatting(const Reference< XComponent >& xFormulaComp)
+{
+    if (getFormulaProperty<OUString>(xFormulaComp, "iFormulaPendingAction") == "checktextmode") // TODO There must be a better way to communicate with the starmath object
+    {
+        Reference< XTextContent > xTextContent(xFormulaComp, UNO_QUERY);
+        if (xTextContent.is())
+        {
+            bool textExistsInParagraph = false;
+            Reference< XText > xDocumentText = xTextContent->getAnchor()->getText();
+            Reference< text::XParagraphCursor > xCursor(xDocumentText->createTextCursorByRange(xTextContent->getAnchor()->getEnd()), UNO_QUERY_THROW);
+
+            // Look for non-whitespace to the left and right of the anchor point, inside the paragraph where the anchor point is
+            xCursor->gotoStartOfParagraph(true);
+            if (xCursor->getString().trim().getLength() > 0)
+            {
+                textExistsInParagraph = true; // Text exists before the formula
+            }
+            else
+            {
+                xCursor->gotoEndOfParagraph (true);
+                textExistsInParagraph = (xCursor->getString().trim().getLength() > 0);
+            }
+
+            if (textExistsInParagraph)
+                setFormulaProperty(xFormulaComp, "IsTextMode", uno::makeAny(textExistsInParagraph));
+            SAL_INFO_LEVEL(2, "sw.imath", "Set text mode to " << (getFormulaProperty<bool>(xFormulaComp, "IsTextMode") ? "true" : "false"));
+        }
+    }
+
+    // TODO Should happen in textsh.cxx at insertion of a new iFormula object, but has no effect there
+    Reference< XTextContent > xTextContent(xFormulaComp, UNO_QUERY);
+    if (xTextContent.is())
+    {
+        Reference < XPropertySet > xPropertySet (xTextContent, UNO_QUERY);
+        if (xPropertySet.is())
+        {
+            xPropertySet->setPropertyValue(OU("LeftMargin"), uno::makeAny(sal_Int16(0)));
+            xPropertySet->setPropertyValue(OU("RightMargin"), uno::makeAny(sal_Int16(0)));
+        }
+    }
+}
+
 void SwDocShell::UpdatePreviousIFormulaLinks()
 {
     SAL_INFO_LEVEL(1, "sw.imath", "SwDocShell::UpdatePreviousIFormulaLinks()");
@@ -1371,32 +1413,7 @@ void SwDocShell::LoadingFinished()
         // TODO: Do we need to give time for the compilation?
         // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
 
-        if (getFormulaProperty<OUString>(xFormulaComp, "iFormulaPendingAction") == "checktextmode") // TODO There must be a better way to communicate with the starmath object
-        {
-            Reference< XTextContent > xTextContent(xFormulaComp, UNO_QUERY);
-            if (xTextContent.is())
-            {
-                bool textExistsInParagraph = false;
-                Reference< XText > xDocumentText = xTextContent->getAnchor()->getText();
-                Reference< text::XParagraphCursor > xCursor(xDocumentText->createTextCursorByRange(xTextContent->getAnchor()->getEnd()), UNO_QUERY_THROW);
-
-                // Look for non-whitespace to the left and right of the anchor point, inside the paragraph where the anchor point is
-                xCursor->gotoStartOfParagraph(true);
-                if (xCursor->getString().trim().getLength() > 0)
-                {
-                    textExistsInParagraph = true; // Text exists before the formula
-                }
-                else
-                {
-                    xCursor->gotoEndOfParagraph (true);
-                    textExistsInParagraph = (xCursor->getString().trim().getLength() > 0);
-                }
-
-                if (textExistsInParagraph)
-                    setFormulaProperty(xFormulaComp, "IsTextMode", uno::makeAny(textExistsInParagraph));
-                SAL_INFO_LEVEL(2, "sw.imath", "Set text mode to " << (getFormulaProperty<bool>(xFormulaComp, "IsTextMode") ? "true" : "false"));
-            }
-        }
+        updateFormatting(xFormulaComp);
     }
 
     // #i38810#
@@ -1482,6 +1499,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
             // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
             setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
             setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+            updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
             previousFormulaName = *it;
         }
 

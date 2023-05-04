@@ -182,9 +182,9 @@ std::string ex_get_name(const ex& e) {
   else if (is_a<symbol>(e)) {
     std::string name = ex_to<symbol>(e).get_name();
     if (name[0] == '%')
-      return std::string("011") + name; // greek letters etc. // TODO: Sort by greek alphabet...
+      return std::string("013") + name; // greek letters etc. // TODO: Sort by greek alphabet...
     else
-      return std::string("010") + name;
+      return std::string("012") + name;
   } else if (is_a<constant>(e)) {
     std::ostringstream name;
     name << ex_to<constant>(e);
@@ -739,13 +739,17 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
     ex negdiffs = denom.get_differentials();
     ex posderiv = numer.get_derivatives();
     ex negderiv = denom.get_derivatives();
+    ex posinteg = numer.get_integrals();
+    ex neginteg = denom.get_integrals();
     bool has_diffs = (!(posdiffs.is_equal(_ex1) && negdiffs.is_equal(_ex1) && posderiv.is_equal(_ex1) && negderiv.is_equal(_ex1)));
     numer.clear_diffs();
     numer.clear_derivatives();
+    numer.clear_integrals();
     denom.clear_diffs();
     denom.clear_derivatives();
+    denom.clear_integrals();
 
-    // Print everything except the differentials
+    // Print everything except the differentials and integrals
     if (!denom.is_trivial()) {
       c.enter_fraction();
       c.s << "{{alignc ";
@@ -760,6 +764,20 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
       print_smath_mul(numer, c, opnum, turn_around == 1);
       if (!numer.get_adds().is_equal(_ex1) && has_diffs)
         c.s << ")";
+    }
+
+    // Print integrals
+    if (!neginteg.is_equal(_ex1)) {
+      c.enter_fraction();
+      c.s << "{{alignc ";
+      print_smath_ops(posinteg, " ", c, false, opnum);
+      c.s << "} over {alignc ";
+      print_smath_ops(neginteg, " ", c, false, opnum);
+      c.s << "}}";
+      c.exit_fraction();
+    } else if (!posinteg.is_equal(_ex1)) {
+      c.s << " ";
+      print_smath_ops(posinteg, " ", c, false, opnum);
     }
 
     // Print derivatives
@@ -1103,12 +1121,18 @@ void imathprint_power(const power& p, const imathprint& c, unsigned level) {
   if (is_a<func>(basis) && (ex_to<func>(basis).is_trig() || ex_to<func>(basis).is_pure())) {
     ex_to<func>(basis).print_imath(c, expon);
   } else {
-    bool bracket = is_a<expairseq>(basis) || is_a<func>(basis) || is_a<power>(basis) || is_a<exderivative>(basis) ||
-      (is_a<differential>(basis) &&
-        (ex_to<differential>(basis).is_numerator() || !ex_to<differential>(basis).get_grade().is_equal(_ex1))) ||
-      (is_a<numeric>(basis) && basis.info(info_flags::negative));
+    bool bracket = false;
+    if (is_a<func>(basis))
+        bracket = !ex_to<func>(basis).is_nobracket();
+    else if (is_a<differential>(basis) && (ex_to<differential>(basis).is_numerator() || !ex_to<differential>(basis).get_grade().is_equal(_ex1)))
+      bracket = true;
+    else if (is_a<expairseq>(basis) || is_a<power>(basis) || is_a<exderivative>(basis) || (is_a<numeric>(basis) && basis.info(info_flags::negative)))
+      bracket = true;
+
     if (bracket) c.s << "(";
+    if (is_a<func>(basis)) c.s << "{"; // Required for abs otherwise starmath displays the power inside the function
     basis.print(c);
+    if (is_a<func>(basis)) c.s << "}";
     if (bracket) c.s << ")";
 
     c.s << "^{";

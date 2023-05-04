@@ -142,7 +142,8 @@ BLANK     [ \t]
 SUBSCRIPT _\{[^}]*\}|_({ULETTER}|{DIGIT})+
 SUBPSCRIPT {BLANK}+([lcr]su[bp])(\{[^}]*\}|{BLANK}+{NAME}|{BLANK}+{DIGIT}+)
 SUBSUPERSCRIPT {SUBSCRIPT}{SUBPSCRIPT}*|{SUBPSCRIPT}
-IDENTIFIER \%?{NAME}{SUBSUPERSCRIPT}*
+DASH '|'|\xfe32
+IDENTIFIER \%?{NAME}{DASH}*{SUBSUPERSCRIPT}*
 
 ATTRIBUTE acute|grave|check|breve|circle|vec|tilde|hat|bar|dot|widevec|widetilde|widehat|ddot|overline|underline|overstrike|dddot|bold|ital|font\ sans|font\ serif|font\ fixed|color\ black|color\ blue|color\ green|color\ red|color\ cyan|color\ magenta|color\ yellow|color\ teal|color\ silver|color\ gray|color\ maroon|color\ purple|color\ lime|color\ olive|color\ navy|color\ aqua|color\ fuchsia|phantom
 
@@ -867,7 +868,7 @@ BEGIN(INITIAL);
          last_token = token::ATTRIBUTE;
          // don't return the attribute because it must be concatenated with the identifier
        }
-<II>{IDENTIFIER}|nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\}|{IDENTIFIER}::{IDENTIFIER}|{IDENTIFIER}::nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\}|::{IDENTIFIER}|::nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\} {
+<II>{IDENTIFIER}|nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\}|{IDENTIFIER}::{IDENTIFIER}|{IDENTIFIER}::nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\}|::{IDENTIFIER}|::nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\}|{IDENTIFIER}::\{{ATTRIBUTE}{BLANK}+{IDENTIFIER}\} {
          // Note: f \rhs{"prev"} does not mean f * rhs{"prev"}, but f(\rhs{"prev"})
          CHECK_IMPLICIT_MUL(token::IDENTIFIER)
          if (checkresult) return (token::IMPMUL);

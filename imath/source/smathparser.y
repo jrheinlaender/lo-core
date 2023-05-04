@@ -798,7 +798,9 @@ statement: OPTIONS options {
            // CLEAREQUATIONS won't remove it then
            // Must register function first because the iFormulaNodeStmFunction needs it
            std::string fname = ex_to<symbol>(*$5).get_name();
-           params.compiler->register_function(fname, {*$7}, $3);
+           size_t pos = fname.find_last_of("::");
+           std::string printname = (pos == std::string::npos ? fname : fname.substr(pos+1));
+           params.compiler->register_function(fname, {*$7}, $3, printname);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
              params.lines->push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), params.compiler->create_function(fname)));
@@ -810,7 +812,9 @@ statement: OPTIONS options {
          }
          | FUNCTION '{' funchints ',' gsymbol ',' exvec '}' {
            std::string fname = ex_to<symbol>(*$5).get_name();
-           params.compiler->register_function(fname, *$7, $3);
+           size_t pos = fname.find_last_of("::");
+           std::string printname = (pos == std::string::npos ? fname : fname.substr(pos+1));
+           params.compiler->register_function(fname, *$7, $3, printname);
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
              params.lines->push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), params.compiler->create_function(fname)));

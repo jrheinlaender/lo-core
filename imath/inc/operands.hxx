@@ -236,6 +236,7 @@ public:
   /// Remove all elements of a certain type
   inline void clear_diffs() { differentials = type; }
   inline void clear_derivatives() { derivatives = type; }
+  inline void clear_integrals() { integrals = type; }
   inline void clear_symbols() { symbols = type; }
   inline void clear_constants() { constants = type; }
   inline void clear_units() { units = type; }

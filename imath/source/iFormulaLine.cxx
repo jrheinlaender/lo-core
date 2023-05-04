@@ -211,17 +211,20 @@ void iFormulaLine::force_autoformat(const bool value) {
 
 sal_Bool iFormulaLine::autoformat_required() const {
   // Preserving the original formatting of the iFormula is not possible if
-  // 1. the user specified the option "autoformat = true"
+  // 1. the user specified the option "autoformat = true|false"
   // 2. the parser determined that autoformatting is required, and set the option "forceautoformat = true"
-  // 3. the user set at least one local formatting options Then we assume that he does not want his formatting
- //     preserved since that would defeat the purpose of setting local formatting options
+  // 3. the user set at least one local formatting option that requires autoformatting
   if ((hasOption(o_eqraw)) && (options.size() == 1))
     return !options.at(o_eqraw).value.boolean; // Obey user specification
 
   if (hasOption(o_forceautoformat) && options.at(o_forceautoformat).value.boolean == true)
     return true; // Parser has forced automatic formatting
 
-  return (!getOption(o_eqraw).value.boolean || ((options.find(o_autotextmode) == options.end()) && (options.size() > 0)));
+  for (const auto& o : options)
+      if (o.first != o_autotextmode && o.first != o_echoformula && o.first != o_showlabels)
+          return true;
+
+  return (!getOption(o_eqraw).value.boolean);
 }
 
 std::string iFormulaLine::getGraphLabel() const {
@@ -558,9 +561,13 @@ void iFormulaNodeEx::display(const Reference< XModel >& xModel,
   if (_hide) return;
 
   // Is raw formatting possible?
-  displayedLhs = (autoformat_required()) ?
+  OUString what = (autoformat_required()) ?
                     printEx(_expr) : // autoformat
                     printFormula(); // preserve user formatting changing decimal separator according to locale
+  displayedLhs = what;
+
+  if (getOption(o_showlabels).value.boolean)
+    what = OU("\"(") + _label + OU(")\"~") + what;
 
   // Should the expression/equation be added to the alignblock?
   bool autoalign = (getOption(o_eqalign).value.align == both);
@@ -568,10 +575,10 @@ void iFormulaNodeEx::display(const Reference< XModel >& xModel,
 
   if (autoalign && !block_alignment) { // add to alignment block
     // The alignl implicitly assumes that expressions always appear on the right hand side of an operator
-    alignedText.addTextItem(textItemString(OU("{alignl ") + displayedLhs + OU("}")), *this);
+    alignedText.addTextItem(textItemString(OU("{alignl ") + what + OU("}")), *this);
   } else {
     alignedText.finish();
-    unalignedText = displayedLhs;
+    unalignedText = what;
   }
 }
 
@@ -741,14 +748,14 @@ void iFormulaNodeEq::display(const Reference< XModel >& xModel,
                     printEx(_expr) : // autoformat
                     printFormula(); // preserve user formatting changing decimal separator according to locale
 
-  // TODO: This breaks automatic chaining since labels are always different
-  if (getOption(o_showlabels).value.boolean)
-      what = OU("(") + _label + OU(")~") + what;
 
   const equation& eq = ex_to<equation>(_expr);
   OUString oper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim();
   int alignpos = what.toAsciiUpperCase().indexOf(oper); // TODO: This is error-prone, better get operator position from parser
   displayedLhs = what.copy(0, alignpos).trim();
+
+  if (getOption(o_showlabels).value.boolean)
+      what = OU("\"(") + _label + OU(")\"~") + what;
 
   // Should the expression/equation be added to the alignblock?
   if ((getOption(o_eqalign).value.align == both) && !block_alignment) { // add to alignment block

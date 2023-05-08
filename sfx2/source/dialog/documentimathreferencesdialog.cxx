@@ -112,7 +112,8 @@ IMPL_LINK(SfxDocumentIMathReferencesPage, UserRefHdl_Impl, weld::Button&, rButto
     for (const auto& r : m_userreferencesEntries)
         if (r->get_text().getLength() > 0)
         {
-            osl::FileBase::getFileURLFromSystemPath(m_userreferencesEntries.at(0)->get_text(), sFolder);
+            osl::FileBase::getFileURLFromSystemPath(m_userreferencesEntries.at(0)->get_text(),
+                                                    sFolder);
             break;
         }
     if (!sFolder.isEmpty())
@@ -127,7 +128,7 @@ IMPL_LINK(SfxDocumentIMathReferencesPage, UserRefHdl_Impl, weld::Button&, rButto
             OString entryName = rButton.get_buildable_name();
             unsigned entryNumber = entryName.copy(entryName.getLength() - 1).toUInt64();
 
-            if (entryNumber >= 0 && entryNumber < 3)
+            if (entryNumber < 3)
                 m_userreferencesEntries.at(entryNumber)->set_text(sFile);
         }
         else
@@ -145,7 +146,7 @@ IMPL_LINK_NOARG(SfxDocumentIMathReferencesPage, MasterDocHdl_Impl, weld::Button&
 {
     sfx2::FileDialogHelper aDlg(ui::dialogs::TemplateDescription::FILEOPEN_SIMPLE,
                                 FileDialogFlags::NONE, SfxResId(STR_IMATH_MASTERDOC_HEADLINE),
-                                "odt", OUString(), uno::Sequence<OUString>(), nullptr);
+                                "odm", OUString(), uno::Sequence<OUString>(), nullptr);
     aDlg.SetTitle(SfxResId(STR_IMATH_MASTERDOC_TITLE));
 
     OUString sFolder;

@@ -383,6 +383,7 @@ OUString SmDocShell::ImInitializeCompiler() {
             Reference<XDesktop> xDesktop(xContext->getServiceManager()->createInstanceWithContext("com.sun.star.frame.Desktop", xContext), UNO_QUERY_THROW);
             Reference<container::XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
             Reference<container::XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
+            bool foundMasterDocument = false;
 
             while (xDocsEnum->hasMoreElements()) {
                 Any docModel = xDocsEnum->nextElement();
@@ -396,9 +397,13 @@ OUString SmDocShell::ImInitializeCompiler() {
                 if (xDocumentStorable->getLocation() == mIFormulaMasterDocument)
                 {
                     SAL_INFO_LEVEL(1, "starmath.imath", "Found master document");
+                    foundMasterDocument = true;
                     break;
                 }
             }
+
+            if (!foundMasterDocument)
+                return OUString("Master document ") + mIFormulaMasterDocument + " could not be found";
         }
 
         if (!xParent.is())
@@ -424,7 +429,6 @@ OUString SmDocShell::ImInitializeCompiler() {
                 mpInitialOptions = pPreviousDocShell->mpCurrentOptions;
                 if (mpInitialCompiler != nullptr && mpInitialOptions != nullptr) {
                     SAL_INFO_LEVEL(1, "starmath.imath", "Set initial compiler and options from previous formula");
-                    return "";
                 } else {
                     if (mpInitialCompiler == nullptr)
                         if (mpInitialOptions == nullptr)
@@ -442,16 +446,8 @@ OUString SmDocShell::ImInitializeCompiler() {
         }
     }
 
-    // Stand-alone formula document or first formula in document
-    // TODO: Handle case when ImInitialize() is called after options were changed through the UI
-    if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr) return ""; // Already initialized
-    SAL_INFO_LEVEL(1, "starmath.imath", "Preparing stand-alone formula or first formula in document");
-    Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
-
-    mpInitialOptions = std::make_shared<GiNaC::optionmap>();
-    mpInitialCompiler = std::make_shared<eqc>();
-
     // Get access to the registry that contains the global options
+    Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
 
     // Check for stand-alone formula or part of Text / Presentation
@@ -486,6 +482,24 @@ OUString SmDocShell::ImInitializeCompiler() {
     Reference<XNamedGraph> xGraph = getGraph(xContext, xModel);
     if (!xGraph.is()) xGraph = createGraph(xContext, xModel);
 
+    // TODO: Handle case when ImInitialize() is called after options were changed through the UI
+    if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr)
+    {
+        if (mIFormulaMasterDocument.getLength() > 0)
+        {
+            // TODO Implement additional includes specified in the subdocument
+            Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, true);
+        }
+
+        return "";
+    }
+
+    // Stand-alone formula document or first formula in document
+    SAL_INFO_LEVEL(1, "starmath.imath", "Preparing stand-alone formula or first formula in document");
+
+    mpInitialOptions = std::make_shared<GiNaC::optionmap>();
+    mpInitialCompiler = std::make_shared<eqc>();
+
     // Get/Set document-specific options
     // 1. If the document contains document-specific options in an RDF graph, these are used
     // 2. Otherwise, the values from the registry are used and also copied to the RDF graph
@@ -500,7 +514,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     SAL_INFO_LEVEL(1, "starmath.imath", "Found user references '" << include1 << "', '" << include2 << "', '" << include3 << "'");
 
     // Formatting
-     Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, false);
+    Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, false);
 
     // Path to iMath's own include files (references)
     OUString shareFolder;

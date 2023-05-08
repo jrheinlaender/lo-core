@@ -1289,7 +1289,7 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
 
         for (const auto& fn : m_IFormulaNames)
         {
-            SAL_INFO_LEVEL(1, "sw.imath", "Updating formula '" << fn << "'");
+            SAL_INFO_LEVEL(1, "sw.imath", "Updating formula '" << fn << "', previous formula is '" << previousFormulaName << "'");
             Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fn);
 
             setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
@@ -1487,6 +1487,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
         }
     }
 
+    updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
     OUString previousFormulaName = *it;
     ++it; // Skip this formula, it was compiled already (at text change or previous iFormula link change)
 

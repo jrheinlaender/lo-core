@@ -1265,6 +1265,22 @@ void updateFormatting(const Reference< XComponent >& xFormulaComp)
     }
 }
 
+void SwDocShell::CheckIFormulaNumber(const Reference< XComponent > xFormulaComp)
+{
+    OUString formula = getFormulaProperty<OUString>(xFormulaComp, "iFormula");
+    auto bpos = formula.indexOf("@");
+    if (bpos < 0) return;
+
+    auto epos = formula.indexOf("@", bpos + 1);
+    if (epos < 0) return;
+
+    unsigned label = formula.copy(bpos + 1, epos).toInt32() + 1;
+    if (label > m_nextIFormulaNumber)
+        m_nextIFormulaNumber = label;
+
+    SAL_INFO_LEVEL(2, "sw.imath", "Set next iFormula number to " << label);
+}
+
 void SwDocShell::UpdatePreviousIFormulaLinks()
 {
     SAL_INFO_LEVEL(1, "sw.imath", "SwDocShell::UpdatePreviousIFormulaLinks()");
@@ -1413,6 +1429,7 @@ void SwDocShell::LoadingFinished()
         // TODO: Do we need to give time for the compilation?
         // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
 
+        CheckIFormulaNumber(xFormulaComp);
         updateFormatting(xFormulaComp);
     }
 
@@ -1523,6 +1540,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
             // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
             setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
             setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+            CheckIFormulaNumber(xFormulaComp);
             updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
             previousFormulaName = *it;
         }

@@ -345,6 +345,8 @@ public:
      */
     /// Retrieve the next available iFormula equation number
     unsigned GetNextIFormulaNumber() { return m_nextIFormulaNumber++; }
+    /// Check if the formula has a higher number than the current number
+    void CheckIFormulaNumber(const css::uno::Reference< css::lang::XComponent > xFormulaComp);
 
     /// Update the information about the previous iFormula
     void UpdatePreviousIFormulaLinks();

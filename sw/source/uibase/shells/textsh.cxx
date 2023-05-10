@@ -95,6 +95,13 @@ using namespace ::com::sun::star;
 
 #include <logging.hxx>
 #include <imath/imathutils.hxx>
+#include <com/sun/star/lang/XMultiServiceFactory.hpp>
+#include "com/sun/star/chart/ChartDataRowSource.hpp"
+#include "com/sun/star/chart/XDiagram.hpp"
+#include "com/sun/star/chart2/XChartTypeContainer.hpp"
+#include "com/sun/star/chart2/XCoordinateSystemContainer.hpp"
+#include "com/sun/star/chart2/XDataSeriesContainer.hpp"
+#include "com/sun/star/chart2/data/XDataSink.hpp"
 
 SFX_IMPL_INTERFACE(SwTextShell, SwBaseShell)
 
@@ -433,7 +440,6 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
     case FN_IMATH_INSERT_MATRIX:
     case FN_IMATH_INSERT_VECTOR:
     case FN_IMATH_INSERT_UNIT:
-    case FN_IMATH_INSERT_CHART:
     case FN_IMATH_INSERT_SETOPTIONS:
     case FN_IMATH_INSERT_CLEARALL:
         {
@@ -499,19 +505,6 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                             xSet->setPropertyValue("iFormula", uno::makeAny(OUString("UNITDEF { \"\", %mm = 10^{-3} %metre }")));
                         }
                         break;
-                        case FN_IMATH_INSERT_CHART:
-                        {
-                            // TODO: Use SwInsertChart
-                            // TODO: Chart remains blank until user double-clicks on it
-                            // TODO: Editing the chart's iFormula (now or later) is not reflected in the chart, because imathutils - forceDiagramUpdate() does not work
-                            uno::Reference< lang::XComponent > xChart = insertChart(GetView().GetDocShell()->GetModel(), comphelper::getProcessComponentContext());
-                            uno::Reference< container::XNamed > xNamed(xChart, UNO_QUERY_THROW);
-                            setTitles(xChart, "Chart name", "x units", "y units");
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CHART {\"" + xNamed->getName() + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}")));
-                            setSeriesDescription(xChart, "Series 1", 1); // Note: By default, chart legend is not displayed thus series description remains invisible
-                            setSeriesProperties(xChart, sal_uInt16(1));
-                        }
-                        break;
                         case FN_IMATH_INSERT_SETOPTIONS:
                         {
                             OUString aPrevFormula;
@@ -531,6 +524,117 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                             rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas(flyName);
                         }
                         break;
+                    }
+                }
+            }
+        }
+        break;
+    case FN_IMATH_INSERT_CHART:
+        {
+            SvtModuleOptions aMOpt;
+            if ( !aMOpt.IsChart() )
+                break;
+            if(rReq.IsAPI())
+                break;
+
+            SvGlobalName aGlobalName( SO3_SCH_CLASSID );
+            rSh.InsertObject( svt::EmbeddedObjectRef(), &aGlobalName);
+            rSh.LaunchOLEObj();
+            svt::EmbeddedObjectRef& xChartObj = rSh.GetOLEObject();
+
+            if (xChartObj.is())
+            {
+                Reference < chart::XChartDocument > cDoc(xChartObj->getComponent(), UNO_QUERY);
+
+                if (cDoc.is())
+                {
+                    std::cout << "cDoc is" << std::endl;
+                    Reference < lang::XMultiServiceFactory > cDocMSF(cDoc, UNO_QUERY_THROW);
+
+                    // Make sure that we have a clear interpretation of where data series are
+                    Reference < XPropertySet > cDocProps (cDoc, UNO_QUERY_THROW);
+                    cDocProps->setPropertyValue("DataRowSource", makeAny(chart::ChartDataRowSource_ROWS));
+
+                    // Create a new XYDiagram
+                    Reference < chart::XDiagram > xyDiagram(cDocMSF->createInstance("com.sun.star.chart.XYDiagram"), UNO_QUERY_THROW);
+                    cDoc->setDiagram(xyDiagram);
+
+                    // Create two new sequences based on the two first default sequences, setting the roles correctly for an XYDiagram
+                    Reference < chart2::XChartDocument > chart(cDoc, UNO_QUERY_THROW);
+                    chart->createInternalDataProvider(true);
+                    Reference< chart2::data::XDataProvider > dataProvider = chart->getDataProvider();
+                    Reference< chart2::data::XDataSequence > seqDataX = dataProvider->createDataSequenceByRangeRepresentation("0");
+                    Reference < XPropertySet > seqProps (seqDataX, UNO_QUERY_THROW);
+                    seqProps->setPropertyValue("Role", makeAny(OUString("values-x")));
+                    Reference< chart2::data::XDataSequence > seqLabelX = dataProvider->createDataSequenceByRangeRepresentation("label 0");
+                    Reference< chart2::data::XDataSequence > seqDataY = dataProvider->createDataSequenceByRangeRepresentation("1");
+                    seqProps = Reference< XPropertySet >(seqDataY, UNO_QUERY_THROW);
+                    seqProps->setPropertyValue("Role", makeAny(OUString("values-y")));
+                    Reference< chart2::data::XDataSequence > seqLabelY = dataProvider->createDataSequenceByRangeRepresentation("label 1");
+
+                    // Get write access to the chart series
+                    Reference< ::com::sun::star::chart2::XDiagram > diagram = chart->getFirstDiagram();
+                    Reference< chart2::XCoordinateSystemContainer > xCoordCnt(diagram, UNO_QUERY_THROW);
+                    Reference< chart2::XChartTypeContainer > xChartTypeCnt(xCoordCnt->getCoordinateSystems()[0], UNO_QUERY_THROW);
+                    Reference< chart2::XDataSeriesContainer > chartType(xChartTypeCnt->getChartTypes()[0], UNO_QUERY_THROW);
+
+                    // Create two sequences
+                    Reference< XComponentContext > xContext = comphelper::getProcessComponentContext();
+                    Reference< lang::XMultiComponentFactory > xServiceManager(xContext->getServiceManager()); // get the service manager (the document service factory cannot create a LabeledDataSequence!)
+                    Sequence< Reference< chart2::data::XLabeledDataSequence > > sequences(2);
+                    auto pSequences = sequences.getArray();
+                    pSequences[0] = Reference< chart2::data::XLabeledDataSequence > (xServiceManager->createInstanceWithContext("com.sun.star.chart2.data.LabeledDataSequence", xContext), UNO_QUERY_THROW);
+                    pSequences[1] = Reference< chart2::data::XLabeledDataSequence > (xServiceManager->createInstanceWithContext("com.sun.star.chart2.data.LabeledDataSequence", xContext), UNO_QUERY_THROW);
+                    sequences[0]->setValues(seqDataX);
+                    sequences[0]->setLabel(seqLabelX);
+                    sequences[1]->setValues(seqDataY);
+                    sequences[1]->setLabel(seqLabelY);
+
+                    // Set the data sequences into the chart
+                    Reference< chart2::data::XDataSink > XYSink(xServiceManager->createInstanceWithContext("com.sun.star.chart2.DataSeries", xContext), UNO_QUERY_THROW);
+                    XYSink->setData(sequences);
+                    Sequence< Reference< chart2::XDataSeries > > XYSeries(1);
+                    XYSeries.getArray()[0] = Reference< chart2::XDataSeries > (XYSink, UNO_QUERY_THROW);
+                    chartType->setDataSeries(XYSeries);
+
+                    // Fill in some data
+                    Sequence< double > emptyRow(2);
+                    auto pEmptyRow = emptyRow.getArray();
+                    pEmptyRow[0] = 10;
+                    pEmptyRow[1] = 10;
+                    Sequence< Sequence<double> > emptyData(1);
+                    emptyData.getArray()[0] = emptyRow;
+                    Reference < chart::XChartDataArray > cDataArray(chart->getDataProvider(), UNO_QUERY_THROW);
+                    cDataArray->setData(emptyData);
+
+                    Reference< XPropertySet > dProperties(xyDiagram, UNO_QUERY_THROW);
+                    dProperties->setPropertyValue("SplineType", makeAny(sal_uInt32(1)));
+
+                    // Set chart title
+                    cDocProps->setPropertyValue("HasMainTitle", makeAny(true));
+                    Reference < XPropertySet > cTProperties(cDoc->getTitle(), UNO_QUERY_THROW);
+                    cTProperties->setPropertyValue("String", makeAny(OUString("Title")));
+
+                    // Insert iFormula to fill the chart with data
+                    OUString chartName = rSh.GetFlyName();
+                    GetView().GetEditWin().StopQuickHelp();
+                    rSh.FinishOLEObj();
+                    rSh.EnterStdMode(); // This removes the selection and prepares for inserting a new object
+
+                    aGlobalName = SvGlobalName( SO3_SM_CLASSID );
+                    rSh.InsertObject( svt::EmbeddedObjectRef(), &aGlobalName);
+                    rSh.LaunchOLEObj();
+                    svt::EmbeddedObjectRef& xFormulaObj = rSh.GetOLEObject();
+
+                    if (xFormulaObj.is())
+                    {
+                        uno::Reference < beans::XPropertySet > xSet( xFormulaObj->getComponent(), uno::UNO_QUERY );
+                        if ( xSet.is() )
+                        {
+                            rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
+                            xSet->setPropertyValue("Formula", uno::makeAny(OUString()));
+                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}"))); // triggers compile, sets chart data
+                        }
                     }
                 }
             }

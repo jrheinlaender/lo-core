@@ -26,4 +26,6 @@
  <toolbar:toolbarseparator/>
  <toolbar:toolbaritem xlink:href=".uno:iMathInsertClearEquation"/>
  <toolbar:toolbaritem xlink:href=".uno:iMathInsertClearAll"/>
+ <toolbar:toolbarseparator/>
+ <toolbar:toolbaritem xlink:href=".uno:iMathRecalculate"/>
 </toolbar:toolbar>

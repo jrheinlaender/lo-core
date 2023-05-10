@@ -4441,12 +4441,28 @@
           <value>1</value>
         </prop>
       </node>
+      <node oor:name=".uno:iMathFormatMenu" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">iFormula</value>
+        </prop>
+      </node>
       <node oor:name=".uno:iMathRenumber" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">Renumber iFormulas</value>
+          <value xml:lang="en-US">Renumber</value>
         </prop>
         <prop oor:name="TargetURL" oor:type="xs:string">
           <value>.uno:iMathRenumber</value>
+        </prop>
+      </node>
+      <node oor:name=".uno:iMathRecalculate" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">Recalculate</value>
+        </prop>
+        <prop oor:name="TargetURL" oor:type="xs:string">
+          <value>.uno:iMathRecalculate</value>
+        </prop>
+        <prop oor:name="Properties" oor:type="xs:int">
+          <value>1</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathVarInfo" oor:op="replace">

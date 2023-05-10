@@ -1443,6 +1443,29 @@ void SwDocShell::LoadingFinished()
 
 void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, const OUString& useDependencies)
 {
+    if (formulaName.getLength() == 0)
+    {
+        // Forced recalculation of all formulas
+        OUString previousFormulaName = "";
+
+        for (const auto& fName : m_IFormulaNames)
+        {
+            Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fName);
+            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
+            previousFormulaName = fName;
+
+            if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
+            {
+                SAL_INFO_LEVEL(1, "sw.imath", "Triggering compile on " << fName);
+                setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+                CheckIFormulaNumber(xFormulaComp);
+                updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
+            }
+        }
+
+        return;
+    }
+
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), formulaName);
 
     // Extract required formula properties

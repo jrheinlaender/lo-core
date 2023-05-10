@@ -539,6 +539,9 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
     case FN_IMATH_RENUMBER:
         rSh.GetDoc()->GetDocShell()->RenumberIFormulas();
         break;
+    case FN_IMATH_RECALCULATE:
+        rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas("");
+        break;
 
     case FN_INSERT_TABLE:
         InsertTable( rReq );

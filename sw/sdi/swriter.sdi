@@ -3643,6 +3643,24 @@ SfxVoidItem iMathRenumber FN_IMATH_RENUMBER
     GroupId = SfxGroupId::Format;
 ]
 
+SfxVoidItem iMathRecalculate FN_IMATH_RECALCULATE
+()
+[
+    AutoUpdate = FALSE,
+    FastCall = FALSE,
+    ReadOnlyDoc = FALSE,
+    Toggle = FALSE,
+    Container = FALSE,
+    RecordAbsolute = FALSE,
+    RecordPerSet;
+    Asynchron;
+
+    AccelConfig = TRUE,
+    MenuConfig = TRUE,
+    ToolBoxConfig = TRUE,
+    GroupId = SfxGroupId::Format;
+]
+
 SfxVoidItem iMathEditMerge FN_IMATH_EDIT_MERGE
 ()
 [

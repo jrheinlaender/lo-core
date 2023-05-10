@@ -927,6 +927,7 @@ class SwUINumRuleItem;
 #define FN_IMATH_INSERT_CLEAR           (FN_IMATH + 13) /* Insert iMath clear formula */
 #define FN_IMATH_INSERT_CLEARALL        (FN_IMATH + 14) /* Insert iMath clear all formulas */
 #define FN_IMATH_RENUMBER               (FN_IMATH + 15) /* iMath renumber formulas */
+#define FN_IMATH_RECALCULATE            (FN_IMATH + 16) /* iMath recalculate formulas */
 
 
 //Member IDs for Fill / SetVariable of items

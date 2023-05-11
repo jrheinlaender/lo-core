@@ -252,7 +252,7 @@ bool SfxDocumentIMathReferencesPage::FillItemSet( SfxItemSet* )
 
                 updateStatement(xContext, xModel, xGraph, "masterdocument", masterdoc);
 
-                // TODO The document should be recalculated from the beginning if something was changed
+                // TODO The document should be recalculated from the beginning if something was changed: SmDocShell::ImInitializeCompiler()
             }
         }
         catch( uno::Exception& )

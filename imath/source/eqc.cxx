@@ -725,6 +725,13 @@ bool is_internal(const std::string& varname) {
     return (std::string(s, 0, 4) == "lib:");
   } // eqc::is_lib()
 
+  bool eqc::is_external_ns(const std::string &s) const {
+    auto pos = s.find("::");
+    if (pos == std::string::npos) return false;
+
+    return (s.substr(0, pos) != current_namespace);
+  }
+
   bool eqc::is_func(const std::string &fname) const {
     return funcmgr->is_a_func(fname);
   }
@@ -1183,7 +1190,7 @@ bool is_internal(const std::string& varname) {
     other_equations.clear();
     previous_it = equations.end();
     for (eqrec_it it_eqr = equations.begin(); it_eqr != equations.end(); ) {
-      if (!is_lib(it_eqr->first)) {
+      if (!is_lib(it_eqr->first) && !is_external_ns(it_eqr->first)) {
         MSG_INFO(3,  "Deleting equation " << it_eqr->first
             << ": " << it_eqr->second.eq << endline);
         it_eqr= equations.erase(it_eqr);

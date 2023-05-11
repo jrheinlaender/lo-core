@@ -270,6 +270,9 @@ public:
   /// Check whether the string is the label of a library equation
   bool is_lib(const std::string &s) const;
 
+  /// Check whether the string contains the namespace separator (::) and the namespace is not the current namespace
+  bool is_external_ns(const std::string &s) const;
+
   /// Check whether the string is the name of a function
   bool is_func(const std::string &fname) const;
 

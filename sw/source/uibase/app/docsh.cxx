@@ -1515,6 +1515,8 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     }
     else
     {
+        /*
+         * This check is disabled for now because dependency tracking is still very imperfect
         // Check if any formulas depend on this formula
         OUString modifiedSymbols = (useDependencies.getLength() == 0)
             ? getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut")
@@ -1525,6 +1527,7 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
             SAL_INFO_LEVEL(1, "sw.imath", "No symbols are modified, recalculation is not required");
             return;
         }
+        */
     }
 
     updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
@@ -1534,15 +1537,16 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     while (it != m_IFormulaNames.end())
     {
         xFormulaComp = getObjectByName(GetModel(), *it);
+        // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
+        setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
+        previousFormulaName = *it;
+
         if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
         {
             SAL_INFO_LEVEL(1, "sw.imath", "Triggering compile on " << *it);
-            // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
-            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
             setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
             CheckIFormulaNumber(xFormulaComp);
             updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
-            previousFormulaName = *it;
         }
 
         /*

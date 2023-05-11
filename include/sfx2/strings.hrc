@@ -231,7 +231,7 @@
 #define STR_IMATH_USRREF_TITLE                  NC_("STR_IMATH_USRREF_TITLE", "iMath User-defined References")
 #define STR_IMATH_USRREF_HEADLINE               NC_("STR_IMATH_USRREF_HEADLINE", "iMath files (*.imath)")
 #define STR_IMATH_MASTERDOC_TITLE               NC_("STR_IMATH_MASTERDOC_TITLE", "Master document")
-#define STR_IMATH_MASTERDOC_HEADLINE            NC_("STR_IMATH_MASTERDOC_HEADLINE", "Writer files (*.odt)")
+#define STR_IMATH_MASTERDOC_HEADLINE            NC_("STR_IMATH_MASTERDOC_HEADLINE", "Master document files (*.odm)")
 #define STR_IMATH_CANNOTCONVERTURL_ERR          NC_("STR_IMATH_CANNOTCONVERTURL_ERR", "The URL <%1> cannot be converted to a filesystem path.")
 
 #define STR_VIEWVERSIONCOMMENT                  NC_("STR_VIEWVERSIONCOMMENT", "View Version Comment")

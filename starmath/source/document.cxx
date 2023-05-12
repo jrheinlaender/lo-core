@@ -545,7 +545,7 @@ void SmDocShell::Compile()
     } catch (Exception &e) {
         // TODO: Show error message to user
         MSG_ERROR(0, "ERROR1: " << STR(e.Message) << endline);
-    } catch (duplication_error &e) {
+    } catch (duplication_error&) {
         // TODO: Show error message and dialog to user
         MSG_ERROR(0, "Caught duplication error" << endline);
     } catch (std::exception &e) {

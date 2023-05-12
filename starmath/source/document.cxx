@@ -299,7 +299,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         if (xPreviousFormulaComponent.is()) {
             Reference< XModel > xPreviousFormula = extractModel(xPreviousFormulaComponent);
 
-            SmModel* pPreviousModel = comphelper::getUnoTunnelImplementation<SmModel>(xPreviousFormula);
+            SmModel* pPreviousModel = comphelper::getFromUnoTunnel<SmModel>(xPreviousFormula);
             SmDocShell* pPreviousDocShell = pPreviousModel ? static_cast<SmDocShell*>(pPreviousModel->GetObjectShell()) : nullptr;
 
             if (pPreviousDocShell != nullptr) {

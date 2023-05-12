@@ -1225,7 +1225,7 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
     // Note: Unfortunately, this does not provide the objects in textual order
     // std::unique_ptr<SwOLENodes> pNodes = SwContentNode::CreateOLENodesArray( *GetDoc()->GetDfltGrfFormatColl(), false );
     // Note: (*pNodes)[i]->GetOLEObj().GetCurrentPersistName() returns a different name (the difference occurs when the user edits the object name through the GUI)
-    auto pDoc = comphelper::getUnoTunnelImplementation<SwXTextDocument>(GetModel());
+    auto pDoc = comphelper::getFromUnoTunnel<SwXTextDocument>(GetModel());
     Reference< text::XText > xText(pDoc->getText(), UNO_QUERY);
     if (xText.is())
     {

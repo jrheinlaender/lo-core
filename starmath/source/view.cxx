@@ -399,6 +399,7 @@ bool SmGraphicWidget::MouseButtonDown(const MouseEvent& rMEvt)
     if (!pNode)
         return true;
 
+    AbstractEditWindow* pEdit = GetView().GetEditWindow();
     if (!pEdit)
         return true;
 
@@ -605,7 +606,7 @@ void SmGraphicWidget::Paint(vcl::RenderContext& rRenderContext, const tools::Rec
     {
         SetIsCursorVisible(false);  // (old) cursor must be drawn again
 
-        if (const SmEditWindow* pEdit = GetView().GetEditWindow())
+        if (const AbstractEditWindow* pEdit = GetView().GetEditWindow())
         {   // get new position for formula-cursor (for possible altered formula)
             sal_Int32  nRow;
             sal_uInt16 nCol;
@@ -1345,14 +1346,9 @@ void SmViewShell::Insert( SfxMedium& rMedium )
     if (!bRet)
         return;
 
-<<<<<<< HEAD
-    OUString aText = pDoc->GetText();
-    if (SmEditWindow *pEditWin = GetEditWindow())
-=======
-    AbstractEditWindow *pEditWin = GetEditWindow();
     OUString aText = GetEditWindow()->IsImWindow() ? pDoc->GetImText() : pDoc->GetText();
+    AbstractEditWindow *pEditWin = GetEditWindow();
     if (pEditWin)
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
         pEditWin->InsertText( aText );
     else
     {
@@ -1387,14 +1383,10 @@ void SmViewShell::InsertFrom(SfxMedium &rMedium)
     if (!bSuccess)
         return;
 
-<<<<<<< HEAD
-    OUString aText = pDoc->GetText();
-    if (SmEditWindow *pEditWin = GetEditWindow())
-=======
-    AbstractEditWindow *pEditWin = GetEditWindow();
     OUString aText = pEditWin->IsImWindow() ? pDoc->GetImText() : pDoc->GetText();
+    AbstractEditWindow *pEditWin = GetEditWindow();
+
     if (pEditWin)
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
         pEditWin->InsertText(aText);
     else
         SAL_WARN( "starmath", "EditWindow missing" );
@@ -1467,13 +1459,8 @@ void SmViewShell::Execute(SfxRequest& rReq)
                 auto pTrans = dynamic_cast<TransferableHelper*>(xTrans.get());
                 if (pTrans)
                 {
-<<<<<<< HEAD
                     if (pWin)
                         pTrans->CopyToClipboard(pWin->GetClipboard());
-=======
-                    AbstractEditWindow *pEditWin = GetEditWindow();
-                    pTrans->CopyToClipboard(pEditWin->GetClipboard());
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
                 }
             }
         }
@@ -1481,11 +1468,6 @@ void SmViewShell::Execute(SfxRequest& rReq)
 
         case SID_PASTEOBJECT:
         {
-<<<<<<< HEAD
-=======
-            AbstractEditWindow *pEditWin = GetEditWindow();
-            TransferableDataHelper aData(TransferableDataHelper::CreateFromClipboard(pEditWin->GetClipboard()));
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
             uno::Reference < io::XInputStream > xStrm;
             if (pWin)
             {
@@ -1548,7 +1530,6 @@ void SmViewShell::Execute(SfxRequest& rReq)
 
         case SID_PASTE:
             {
-<<<<<<< HEAD
                 if (IsInlineEditEnabled())
                 {
                     GetDoc()->GetCursor().Paste(&GetGraphicWindow());
@@ -1558,12 +1539,6 @@ void SmViewShell::Execute(SfxRequest& rReq)
 
                 if( pWin )
                 {
-=======
-                bool bCallExec = nullptr == pWin;
-                if( !bCallExec)
-                {
-                    AbstractEditWindow *pEditWin = GetEditWindow();
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
                     TransferableDataHelper aDataHelper(
                         TransferableDataHelper::CreateFromClipboard(
                                                     pWin->GetClipboard()));
@@ -1607,15 +1582,7 @@ void SmViewShell::Execute(SfxRequest& rReq)
         {
             const SfxStringItem& rItem = rReq.GetArgs()->Get(SID_INSERTCOMMANDTEXT);
 
-<<<<<<< HEAD
-            if (IsInlineEditEnabled())
-=======
-            if (pWin && (mbInsertIntoEditWindow || !IsInlineEditEnabled()))
-            {
-                pWin->InsertText(rItem.GetValue());
-            }
-            if (IsInlineEditEnabled() && (GetDoc() && !mbInsertIntoEditWindow) && !pWin->IsImWindow())
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
+            if (IsInlineEditEnabled() && !pWin->IsImWindow())
             {
                 GetDoc()->GetCursor().InsertCommandText(rItem.GetValue());
                 GetGraphicWidget().GrabFocus();
@@ -1650,14 +1617,7 @@ void SmViewShell::Execute(SfxRequest& rReq)
 
         case SID_IMPORT_MATHML_CLIPBOARD:
         {
-<<<<<<< HEAD
             if (pWin)
-=======
-            AbstractEditWindow *pEditWin = GetEditWindow();
-            TransferableDataHelper aDataHelper(TransferableDataHelper::CreateFromClipboard(pEditWin->GetClipboard()));
-            uno::Reference < io::XInputStream > xStrm;
-            if  ( aDataHelper.GetTransferable().is() )
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
             {
                 TransferableDataHelper aDataHelper(TransferableDataHelper::CreateFromClipboard(pWin->GetClipboard()));
                 uno::Reference < io::XInputStream > xStrm;
@@ -2158,24 +2118,15 @@ SmViewShell::~SmViewShell()
     //!! this view shell is not active anymore !!
     // Thus 'SmGetActiveView' will give a 0 pointer.
     // Thus we need to supply this view as argument
-<<<<<<< HEAD
-    if (SmEditWindow *pEditWin = GetEditWindow())
-=======
     AbstractEditWindow *pEditWin = GetEditWindow();
     if (pEditWin)
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
         pEditWin->DeleteEditView();
     mxGraphicWindow.disposeAndClear();
 }
 
 void SmViewShell::Deactivate( bool bIsMDIActivate )
 {
-<<<<<<< HEAD
-    if (SmEditWindow *pEdit = GetEditWindow())
-=======
-    AbstractEditWindow *pEdit = GetEditWindow();
-    if ( pEdit )
->>>>>>> f462cd8d9533 (iMath: Change Math formula edit window to tabbed view for Starmath and iMath)
+    if (AbstractEditWindow *pEdit = GetEditWindow())
         pEdit->Flush();
 
     SfxViewShell::Deactivate( bIsMDIActivate );

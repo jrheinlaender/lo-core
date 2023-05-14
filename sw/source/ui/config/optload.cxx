@@ -1571,7 +1571,7 @@ SwIMathOptPage::~SwIMathOptPage()
 // TODO Code duplicated from sfx2/source/dialog/documentimathreferencesdialog.cxx
 IMPL_LINK(SwIMathOptPage, UserRefHdl_Impl, weld::Button&, rButton, void)
 {
-    sfx2::FileDialogHelper aDlg(ui::dialogs::TemplateDescription::FILEOPEN_SIMPLE, FileDialogFlags::NONE, SfxResId(STR_IMATH_USRREF_HEADLINE), "imath", OUString(), uno::Sequence<OUString>(), nullptr );
+    sfx2::FileDialogHelper aDlg(ui::dialogs::TemplateDescription::FILEOPEN_SIMPLE, FileDialogFlags::NONE, SfxResId(STR_IMATH_USRREF_HEADLINE), u"imath", OUString(), uno::Sequence<OUString>(), nullptr );
     aDlg.SetTitle( SfxResId( STR_IMATH_USRREF_TITLE ) );
 
     OUString sFolder;

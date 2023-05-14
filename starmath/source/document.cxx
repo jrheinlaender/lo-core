@@ -857,7 +857,7 @@ void SmDocShell::SetImHidden(const bool h)
 
     OUString oldImText = maImText;
     maImText = OU("");
-    //unsigned basefontheight = getFormulaProperty<unsigned>(extractModel(obj), OU("BaseFontHeight"));
+    unsigned basefontheight = o3tl::convert(GetFormat().GetBaseSize().Height(), SmO3tlLengthUnit(), o3tl::Length::pt);
 
     for (auto& l : mLines)
     {
@@ -868,7 +868,7 @@ void SmDocShell::SetImHidden(const bool h)
 
         if (l->getSelectionType() == formulaTypeResult) continue;
 
-        //i->setBasefontHeight(basefontheight);
+        l->setBasefontHeight(basefontheight);
         OUString lineText = l->print();
 
         if (maImText.getLength() > 0)
@@ -973,7 +973,7 @@ void SmDocShell::addResultLines() {
   bool hasResult = false;
   OUString resultText;
   OUString prev_lhs = OU(""); // LHS of previous equation, for chaining
-  unsigned basefontheight = sal_Int16(SmRoundFraction(Sm100th_mmToPts(GetFormat().GetBaseSize().Height()))); // TODO: getFormulaUnsignedProperty(fModel, OU("BaseFontHeight"))
+  unsigned basefontheight = o3tl::convert(GetFormat().GetBaseSize().Height(), SmO3tlLengthUnit(), o3tl::Length::pt);
 
   for (iFormulaLine_it i = mLines.begin(); i != mLines.end();) {
     SAL_INFO_LEVEL(3, "starmath.imath",  "Line type = " << (*i)->getSelectionType() << endline);
@@ -1388,21 +1388,6 @@ void SmDocShell::ImStaticInitialization() {
     }
 
     MSG_INFO(0, "SmDocShell::SmDocShell with iMath version=" << SmModule::get()->GetConfig()->GetDefaultImSyntaxVersion());
-    SvtLinguConfig().GetOptions(maLinguOptions);
-
-    SetPool(&SfxGetpApp()->GetPool());
-
-    auto* config = SmModule::get()->GetConfig();
-    mnSmSyntaxVersion = config->GetDefaultSmSyntaxVersion();
-    maFormat = config->GetStandardFormat();
-
-    StartListening(maFormat);
-    StartListening(*config);
-
-    SetBaseModel(new SmModel(this));
-    SetSmSyntaxVersion(mnSmSyntaxVersion);
-
-    SetMapUnit(SmMapUnit());
 
     // Find decimal separator character from the Office locale and store it for iMath compilation
     // TODO: Re-initialize if the locale is changed?

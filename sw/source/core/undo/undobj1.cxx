@@ -225,7 +225,7 @@ void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
             uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
             if ( xFormulaProps.is() )
             {
-                xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::makeAny(OUString("compile")));
+                xFormulaProps->setPropertyValue("iFormulaPendingAction", com::sun::star::uno::Any(OUString("compile")));
             }
         }
     }

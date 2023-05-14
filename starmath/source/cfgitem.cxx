@@ -75,6 +75,7 @@ static Sequence<OUString> lcl_GetOtherPropertyNames()
     return Sequence<OUString>{ u"LoadSave/IsSaveOnlyUsedSymbols"_ustr,
                                u"Misc/AutoCloseBrackets"_ustr,
                                u"Misc/DefaultSmSyntaxVersion"_ustr,
+                               u"Misc/DefaultImSyntaxVersion"_ustr,
                                u"Misc/InlineEditEnable"_ustr,
                                u"Misc/IgnoreSpacesRight"_ustr,
                                u"Misc/SmEditWindowZoomFactor"_ustr,
@@ -844,7 +845,7 @@ void SmMathConfig::LoadOther()
     if (bool bTmp; pVal->hasValue() && (*pVal >>= bTmp))
         pOther->bInlineEditEnable = bTmp;
     // Misc/DefaultImSyntaxVersion
-    if (sal_Int16 nTmp; pVal->hasValue() && (*pVal >>= nTmp))
+    if (sal_uInt32 nTmp; pVal->hasValue() && (*pVal >>= nTmp))
         pOther->nImSyntaxVersion = nTmp;
     ++pVal;
     // Misc/IgnoreSpacesRight
@@ -1463,6 +1464,7 @@ void SmMathConfig::ItemSetToConfig(const SfxItemSet &rSet)
     CommitLocker aLock(*this);
 
     sal_uInt16 nU16;
+    sal_uInt32 nU32;
     bool bVal;
     if (const SfxUInt16Item* pPrintSizeItem = rSet.GetItemIfSet(SID_PRINTSIZE))
     {   nU16 = pPrintSizeItem->GetValue();
@@ -1515,6 +1517,12 @@ void SmMathConfig::ItemSetToConfig(const SfxItemSet &rSet)
     {
         nU16 = pSyntaxItem->GetValue();
         SetDefaultSmSyntaxVersion( nU16 );
+    }
+
+    if (const SfxUInt32Item* pSyntaxItem = rSet.GetItemIfSet(SID_DEFAULT_IM_SYNTAX_VERSION))
+    {
+        nU32 = pSyntaxItem->GetValue();
+        SetDefaultImSyntaxVersion( nU32 );
     }
 }
 

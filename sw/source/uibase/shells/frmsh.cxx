@@ -744,9 +744,9 @@ void SwFrameShell::Execute(SfxRequest &rReq)
 
                         xSet->getPropertyValue("Formula") >>= aText;
                         if (aText.indexOfAsciiL("=", 1) >= 0)
-                            xSet->setPropertyValue("iFormula", uno::makeAny("@" + OUString::number(GetView().GetDocShell()->GetNextIFormulaNumber()) + "@ EQDEF " + aText));
+                            xSet->setPropertyValue("iFormula", uno::Any("@" + OUString::number(GetView().GetDocShell()->GetNextIFormulaNumber()) + "@ EQDEF " + aText));
                         else
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("EXDEF " + aText)));
+                            xSet->setPropertyValue("iFormula", uno::Any(OUString("EXDEF " + aText)));
                     }
                 }
             }
@@ -783,8 +783,8 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                                 if ( xSet.is() )
                                 {
                                     rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
-                                    xSet->setPropertyValue("Formula", uno::makeAny(OUString()));
-                                    xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=0.04 x^3, 1, " + OUString::number(series+1) + ", \"Series 2\"}"))); // triggers compile, sets chart data
+                                    xSet->setPropertyValue("Formula", uno::Any(OUString()));
+                                    xSet->setPropertyValue("iFormula", uno::Any(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=0.04 x^3, 1, " + OUString::number(series+1) + ", \"Series 2\"}"))); // triggers compile, sets chart data
 
                                     setSeriesDescription(xChartDocument, "Series 2", series); // Note: By default, chart legend is not displayed thus series description remains invisible
                                     setSeriesProperties(xChartDocument, series);
@@ -856,8 +856,8 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                             if ( xNewProperties.is() )
                             {
                                 rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
-                                xNewProperties->setPropertyValue("Formula", uno::makeAny(OUString()));
-                                xNewProperties->setPropertyValue("iFormula", uno::makeAny(OUString("DELETE {") + labelList + "}")); // triggers compile
+                                xNewProperties->setPropertyValue("Formula", uno::Any(OUString()));
+                                xNewProperties->setPropertyValue("iFormula", uno::Any(OUString("DELETE {") + labelList + "}")); // triggers compile
                                 // Both of these are required to close the in-place editor
                                 rSh.FinishOLEObj();
                                 rSh.EnterStdMode();

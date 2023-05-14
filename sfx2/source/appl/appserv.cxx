@@ -566,11 +566,11 @@ void SfxApplication::MiscExec_Impl( SfxRequest& rReq )
                     auto pArgs = args.getArray();
                     PropertyValue hidden;
                     hidden.Name = "Hidden";
-                    hidden.Value = makeAny(false);
+                    hidden.Value = uno::Any(false);
                     pArgs[0] = hidden;
                     PropertyValue ro;
                     ro.Name = "ReadOnly";
-                    ro.Value = makeAny(false);
+                    ro.Value = uno::Any(false);
                     pArgs[1] = ro;
 
                     Reference< XComponentLoader > xComponentLoader(xDesktop, UNO_QUERY_THROW);

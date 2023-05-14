@@ -463,14 +463,14 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                     OUString aText;
                     xSet->getPropertyValue("Formula") >>= aText; // SwWrtShell::InsertOleObject() puts the selected text into this property (see wrtsh1.cxx)
                     if (aText.getLength() == 0) aText = "E = m c^2";
-                    xSet->setPropertyValue("Formula", uno::makeAny(OUString()));
+                    xSet->setPropertyValue("Formula", uno::Any(OUString()));
 
                     // Set margins to zero TODO XPropertySet cannot be accessed here, instead we do it in docsh.cxx at every recalculation
                     /*uno::Reference < beans::XPropertySet > xEmbeddedSet( xObj.GetObject(), uno::UNO_QUERY );
                     if (xEmbeddedSet.is())
                     {
-                        xEmbeddedSet->setPropertyValue("LeftMargin", uno::makeAny(sal_Int16(0)));
-                        xEmbeddedSet->setPropertyValue("RightMargin", uno::makeAny(sal_Int16(0)));
+                        xEmbeddedSet->setPropertyValue("LeftMargin", uno::Any(sal_Int16(0)));
+                        xEmbeddedSet->setPropertyValue("RightMargin", uno::Any(sal_Int16(0)));
                     }*/
 
                     switch( nSlot )
@@ -478,31 +478,31 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                         case FN_IMATH_INSERT_CREATE:
                         {
                             if (aText.indexOfAsciiL("=", 1) > 0)
-                                xSet->setPropertyValue("iFormula", uno::makeAny(formulaLabel + " EQDEF " + aText));
+                                xSet->setPropertyValue("iFormula", uno::Any(formulaLabel + " EQDEF " + aText));
                             else
-                                xSet->setPropertyValue("iFormula", uno::makeAny("EXDEF " + aText));
+                                xSet->setPropertyValue("iFormula", uno::Any("EXDEF " + aText));
                         }
                         break;
                         case FN_IMATH_INSERT_FUNCTION:
                         {
                             auto eq_idx = aText.indexOfAsciiL("=", 1);
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("FUNCTION {{none}, f, x}\n" + formulaLabel + " FUNCDEF f(x) = " + (eq_idx == 0 ? aText : aText.copy(eq_idx + 1)))));
+                            xSet->setPropertyValue("iFormula", uno::Any(OUString("FUNCTION {{none}, f, x}\n" + formulaLabel + " FUNCDEF f(x) = " + (eq_idx == 0 ? aText : aText.copy(eq_idx + 1)))));
                         }
                         break;
                         // Note: All the following discard any selected text that might have been replaced by the formula
                         case FN_IMATH_INSERT_MATRIX:
                         {
-                            xSet->setPropertyValue("iFormula", uno::makeAny(formulaLabel + " MATRIXDEF M = left(MATRIX{ a # b # c ## d # e # f ## g# h# i }right)"));
+                            xSet->setPropertyValue("iFormula", uno::Any(formulaLabel + " MATRIXDEF M = left(MATRIX{ a # b # c ## d # e # f ## g# h# i }right)"));
                         }
                         break;
                         case FN_IMATH_INSERT_VECTOR:
                         {
-                            xSet->setPropertyValue("iFormula", uno::makeAny(formulaLabel + " VECTORDEF v = left(STACK{ a # b # c }right)"));
+                            xSet->setPropertyValue("iFormula", uno::Any(formulaLabel + " VECTORDEF v = left(STACK{ a # b # c }right)"));
                         }
                         break;
                         case FN_IMATH_INSERT_UNIT:
                         {
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("UNITDEF { \"\", %mm = 10^{-3} %metre }")));
+                            xSet->setPropertyValue("iFormula", uno::Any(OUString("UNITDEF { \"\", %mm = 10^{-3} %metre }")));
                         }
                         break;
                         case FN_IMATH_INSERT_SETOPTIONS:
@@ -512,12 +512,12 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                             if (aPrevFormula.getLength() == 0)
                                 void(); // TODO: Error "Please use document options from the iMath menu to change the options at the beginning of the document"
                             else
-                                xSet->setPropertyValue("iFormula", uno::makeAny(OUString("OPTIONS { units = {%metre}; precision = 4}")));
+                                xSet->setPropertyValue("iFormula", uno::Any(OUString("OPTIONS { units = {%metre}; precision = 4}")));
                         }
                         break;
                         case FN_IMATH_INSERT_CLEARALL:
                         {
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CLEAREQUATIONS")));
+                            xSet->setPropertyValue("iFormula", uno::Any(OUString("CLEAREQUATIONS")));
                             OUString flyName = rSh.GetFlyFrameFormat()->GetName();
                             rSh.FinishOLEObj(); // This does NOT trigger RecalculateDependentIFormulas()
                             rSh.EnterStdMode();
@@ -553,7 +553,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
 
                     // Make sure that we have a clear interpretation of where data series are
                     Reference < XPropertySet > cDocProps (cDoc, UNO_QUERY_THROW);
-                    cDocProps->setPropertyValue("DataRowSource", makeAny(chart::ChartDataRowSource_ROWS));
+                    cDocProps->setPropertyValue("DataRowSource", Any(chart::ChartDataRowSource_ROWS));
 
                     // Create a new XYDiagram
                     Reference < chart::XDiagram > xyDiagram(cDocMSF->createInstance("com.sun.star.chart.XYDiagram"), UNO_QUERY_THROW);
@@ -565,11 +565,11 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                     Reference< chart2::data::XDataProvider > dataProvider = chart->getDataProvider();
                     Reference< chart2::data::XDataSequence > seqDataX = dataProvider->createDataSequenceByRangeRepresentation("0");
                     Reference < XPropertySet > seqProps (seqDataX, UNO_QUERY_THROW);
-                    seqProps->setPropertyValue("Role", makeAny(OUString("values-x")));
+                    seqProps->setPropertyValue("Role", Any(OUString("values-x")));
                     Reference< chart2::data::XDataSequence > seqLabelX = dataProvider->createDataSequenceByRangeRepresentation("label 0");
                     Reference< chart2::data::XDataSequence > seqDataY = dataProvider->createDataSequenceByRangeRepresentation("1");
                     seqProps = Reference< XPropertySet >(seqDataY, UNO_QUERY_THROW);
-                    seqProps->setPropertyValue("Role", makeAny(OUString("values-y")));
+                    seqProps->setPropertyValue("Role", Any(OUString("values-y")));
                     Reference< chart2::data::XDataSequence > seqLabelY = dataProvider->createDataSequenceByRangeRepresentation("label 1");
 
                     // Get write access to the chart series
@@ -608,12 +608,12 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                     cDataArray->setData(emptyData);
 
                     Reference< XPropertySet > dProperties(xyDiagram, UNO_QUERY_THROW);
-                    dProperties->setPropertyValue("SplineType", makeAny(sal_uInt32(1)));
+                    dProperties->setPropertyValue("SplineType", Any(sal_uInt32(1)));
 
                     // Set chart title
-                    cDocProps->setPropertyValue("HasMainTitle", makeAny(true));
+                    cDocProps->setPropertyValue("HasMainTitle", Any(true));
                     Reference < XPropertySet > cTProperties(cDoc->getTitle(), UNO_QUERY_THROW);
-                    cTProperties->setPropertyValue("String", makeAny(OUString("Title")));
+                    cTProperties->setPropertyValue("String", Any(OUString("Title")));
 
                     // Insert iFormula to fill the chart with data
                     OUString chartName = rSh.GetFlyName();
@@ -632,8 +632,8 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                         if ( xSet.is() )
                         {
                             rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
-                            xSet->setPropertyValue("Formula", uno::makeAny(OUString()));
-                            xSet->setPropertyValue("iFormula", uno::makeAny(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}"))); // triggers compile, sets chart data
+                            xSet->setPropertyValue("Formula", uno::Any(OUString()));
+                            xSet->setPropertyValue("iFormula", uno::Any(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}"))); // triggers compile, sets chart data
                         }
                     }
                 }

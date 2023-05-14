@@ -1247,7 +1247,7 @@ void updateFormatting(const Reference< XComponent >& xFormulaComp)
             }
 
             if (textExistsInParagraph)
-                setFormulaProperty(xFormulaComp, "IsTextMode", uno::makeAny(textExistsInParagraph));
+                setFormulaProperty(xFormulaComp, "IsTextMode", uno::Any(textExistsInParagraph));
             SAL_INFO_LEVEL(2, "sw.imath", "Set text mode to " << (getFormulaProperty<bool>(xFormulaComp, "IsTextMode") ? "true" : "false"));
         }
     }
@@ -1259,8 +1259,8 @@ void updateFormatting(const Reference< XComponent >& xFormulaComp)
         Reference < XPropertySet > xPropertySet (xTextContent, UNO_QUERY);
         if (xPropertySet.is())
         {
-            xPropertySet->setPropertyValue(OU("LeftMargin"), uno::makeAny(sal_Int16(0)));
-            xPropertySet->setPropertyValue(OU("RightMargin"), uno::makeAny(sal_Int16(0)));
+            xPropertySet->setPropertyValue(OU("LeftMargin"), uno::Any(sal_Int16(0)));
+            xPropertySet->setPropertyValue(OU("RightMargin"), uno::Any(sal_Int16(0)));
         }
     }
 }
@@ -1308,7 +1308,7 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
             SAL_INFO_LEVEL(1, "sw.imath", "Updating formula '" << fn << "', previous formula is '" << previousFormulaName << "'");
             Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fn);
 
-            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
+            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::Any(previousFormulaName));
 
             // Note: Empty iFormulas are included in the chain of previous equations, because when a new iFormula is inserted it starts off as an empty formula
             // The links are updated first, then the formula text is set and compiled. See textsh.cxx FN_IMATH_INSERT_CREATE etc.
@@ -1371,11 +1371,11 @@ void SwDocShell::LoadingFinished()
                     auto pArgs = args.getArray();
                     PropertyValue hidden;
                     hidden.Name = "Hidden";
-                    hidden.Value = makeAny(true);
+                    hidden.Value = Any(true);
                     pArgs[0] = hidden;
                     PropertyValue ro;
                     ro.Name = "ReadOnly";
-                    ro.Value = makeAny(true);
+                    ro.Value = Any(true);
                     pArgs[1] = ro;
 
                     Reference< XComponentLoader > xComponentLoader(xDesktop, UNO_QUERY_THROW);
@@ -1414,18 +1414,18 @@ void SwDocShell::LoadingFinished()
 
             if (pMasterDocument != nullptr && xStorable.is())
             {
-                setFormulaProperty(xFormulaComp, "iFormulaMasterDocument", uno::makeAny(xStorable->getLocation()));
+                setFormulaProperty(xFormulaComp, "iFormulaMasterDocument", uno::Any(xStorable->getLocation()));
                 SwDocShell* pMasterDocumentShell = static_cast<SwDocShell*>(pMasterDocument->GetObjectShell());
 
                 if (!pMasterDocumentShell->m_IFormulaNames.empty())
                 {
-                    setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(pMasterDocumentShell->m_IFormulaNames.back()));
+                    setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::Any(pMasterDocumentShell->m_IFormulaNames.back()));
                     SAL_INFO_LEVEL(2, "sw.imath", "Set previous formula '" << pMasterDocumentShell->m_IFormulaNames.back() << "' in master document '" << xStorable->getLocation() << "'");
                 }
             }
         }
 
-        setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+        setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::Any(OUString("compile")));
         // TODO: Do we need to give time for the compilation?
         // TODO: If the update leads to a changed formula size, then the formula will appear distorted because the frame does not adjust automatically
 
@@ -1468,13 +1468,13 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
         for (const auto& fName : m_IFormulaNames)
         {
             Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), fName);
-            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
+            setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::Any(previousFormulaName));
             previousFormulaName = fName;
 
             if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
             {
                 SAL_INFO_LEVEL(1, "sw.imath", "Triggering compile on " << fName);
-                setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+                setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::Any(OUString("compile")));
                 CheckIFormulaNumber(xFormulaComp);
                 updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
             }
@@ -1538,13 +1538,13 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName, cons
     {
         xFormulaComp = getObjectByName(GetModel(), *it);
         // Update previous iFormula property to catch the case where an empty Math object is inserted and later edited on the iFormula tab
-        setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousFormulaName));
+        setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::Any(previousFormulaName));
         previousFormulaName = *it;
 
         if (getFormulaProperty<OUString>(xFormulaComp, "iFormula").getLength() > 0)
         {
             SAL_INFO_LEVEL(1, "sw.imath", "Triggering compile on " << *it);
-            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile")));
+            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::Any(OUString("compile")));
             CheckIFormulaNumber(xFormulaComp);
             updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
         }
@@ -1595,7 +1595,7 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
     Reference< XComponent > xFormulaComp = getObjectByName(GetModel(), *formulaIterator);
     OUString previousName = getFormulaProperty<OUString>(xFormulaComp, "PreviousIFormula");
     OUString removedDependencies = getFormulaProperty<OUString>(xFormulaComp, "iFormulaDependencyOut");
-    setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("delete"))); // This will remove the IFormulaClosePreventer instance, after this xFormulaComp may become invalid at any time!
+    setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::Any(OUString("delete"))); // This will remove the IFormulaClosePreventer instance, after this xFormulaComp may become invalid at any time!
 
     std::list< OUString >::iterator next_it = m_IFormulaNames.end();
 
@@ -1607,9 +1607,9 @@ void SwDocShell::RemoveIFormula(const OUString& formulaName) {
 
     if (next_it != m_IFormulaNames.end()) {
         xFormulaComp = getObjectByName(GetModel(), *next_it);
-        setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::makeAny(previousName));
+        setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::Any(previousName));
         SAL_INFO_LEVEL(1, "sw.imath", "Updating previous formula of " << *next_it << " to '" << previousName << "'");
-        setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile"))); // Trigger compile
+        setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::Any(OUString("compile"))); // Trigger compile
         RecalculateDependentIFormulas(*next_it, removedDependencies);
     }
 }
@@ -1673,7 +1673,7 @@ void SwDocShell::MergeIFormula(const OUString& formulaName)
     }
 
     // Update previous formula
-    setFormulaProperty(xPreviousFormulaComp, "iFormula", uno::makeAny(getFormulaProperty<OUString>(xPreviousFormulaComp, "iFormula") + interText + formulaText));
+    setFormulaProperty(xPreviousFormulaComp, "iFormula", uno::Any(getFormulaProperty<OUString>(xPreviousFormulaComp, "iFormula") + interText + formulaText));
 
     // Delete formula
     RemoveIFormula(formulaName);
@@ -1690,7 +1690,7 @@ void SwDocShell::HideIFormula(const OUString& formulaName, const bool hide)
 
     if (getFormulaProperty<bool>(xFormulaComp, "ImIsHidden") == hide) return;
 
-    setFormulaProperty(xFormulaComp, "ImIsHidden", uno::makeAny(hide));
+    setFormulaProperty(xFormulaComp, "ImIsHidden", uno::Any(hide));
 }
 
 void SwDocShell::RenumberIFormulas()
@@ -1753,9 +1753,9 @@ void SwDocShell::RenumberIFormulas()
         SAL_INFO_LEVEL(2,  "sw.imath", "iFormula with replacements: '" << result << "'");
 
         if (!result.equals(getFormulaProperty<OUString>(xFormulaComp, "iFormula")))
-            setFormulaProperty(xFormulaComp, "iFormula", uno::makeAny(result));
+            setFormulaProperty(xFormulaComp, "iFormula", uno::Any(result));
         else
-            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::makeAny(OUString("compile"))); // We must always compile, to update the chain of eqc objects
+            setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::Any(OUString("compile"))); // We must always compile, to update the chain of eqc objects
     }
 
     SAL_INFO_LEVEL(2, "sw.imath", "Finished renumbering formulas");

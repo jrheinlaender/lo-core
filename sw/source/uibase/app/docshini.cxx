@@ -397,7 +397,7 @@ SwDocShell::~SwDocShell()
                 uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
                 if ( xFormulaProps.is() )
                 {
-                    xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::makeAny(OUString("delete")));
+                    xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::Any(OUString("delete")));
                 }
             }
         }

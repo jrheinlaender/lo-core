@@ -384,6 +384,7 @@ bool SmGraphicWidget::MouseButtonDown(const MouseEvent& rMEvt)
     if (!pNode)
         return true;
 
+    AbstractEditWindow* pEdit = GetView().GetEditWindow();
     if (!pEdit)
         return true;
 
@@ -592,7 +593,7 @@ void SmGraphicWidget::Paint(vcl::RenderContext& rRenderContext, const tools::Rec
     {
         SetIsCursorVisible(false);  // (old) cursor must be drawn again
 
-        if (const SmEditWindow* pEdit = GetView().GetEditWindow())
+        if (const AbstractEditWindow* pEdit = GetView().GetEditWindow())
         {   // get new position for formula-cursor (for possible altered formula)
             sal_Int32  nRow;
             sal_uInt16 nCol;
@@ -1372,6 +1373,7 @@ void SmViewShell::InsertFrom(SfxMedium &rMedium)
 
     AbstractEditWindow *pEditWin = GetEditWindow();
     OUString aText = pEditWin->IsImWindow() ? pDoc->GetImText() : pDoc->GetText();
+
     if (pEditWin)
         pEditWin->InsertText(aText);
     else

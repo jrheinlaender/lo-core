@@ -179,7 +179,7 @@ SwOleShell::SwOleShell(SwView &_rView) :
                     Reference < beans::XPropertySet > xFormulaProps(formulaComponent, uno::UNO_QUERY );
                     if ( xFormulaProps.is() )
                     {
-                        xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::makeAny(OUString("compile")));
+                        xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::Any(OUString("compile")));
                     }
                 }
                 GetShell().GetDoc()->GetDocShell()->RecalculateDependentIFormulas(mIFormulaName);

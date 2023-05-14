@@ -104,8 +104,8 @@ SfxDocumentIMathReferencesPage::~SfxDocumentIMathReferencesPage() {}
 IMPL_LINK(SfxDocumentIMathReferencesPage, UserRefHdl_Impl, weld::Button&, rButton, void)
 {
     sfx2::FileDialogHelper aDlg(ui::dialogs::TemplateDescription::FILEOPEN_SIMPLE,
-                                FileDialogFlags::NONE, SfxResId(STR_IMATH_USRREF_HEADLINE), "imath",
-                                OUString(), uno::Sequence<OUString>(), nullptr);
+                                FileDialogFlags::NONE, SfxResId(STR_IMATH_USRREF_HEADLINE),
+                                u"imath", OUString(), uno::Sequence<OUString>(), nullptr);
     aDlg.SetTitle(SfxResId(STR_IMATH_USRREF_TITLE));
 
     OUString sFolder;
@@ -146,7 +146,7 @@ IMPL_LINK_NOARG(SfxDocumentIMathReferencesPage, MasterDocHdl_Impl, weld::Button&
 {
     sfx2::FileDialogHelper aDlg(ui::dialogs::TemplateDescription::FILEOPEN_SIMPLE,
                                 FileDialogFlags::NONE, SfxResId(STR_IMATH_MASTERDOC_HEADLINE),
-                                "odm", OUString(), uno::Sequence<OUString>(), nullptr);
+                                u"odm", OUString(), uno::Sequence<OUString>(), nullptr);
     aDlg.SetTitle(SfxResId(STR_IMATH_MASTERDOC_TITLE));
 
     OUString sFolder;

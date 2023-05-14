@@ -109,6 +109,7 @@
 
 #include <comphelper/processfactory.hxx>
 #include <unotxdoc.hxx>
+#include <comphelper/servicehelper.hxx>
 
 #include <unicode/regex.h>
 #include <logging.hxx>

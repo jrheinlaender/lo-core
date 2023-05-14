@@ -24,6 +24,10 @@
 #include "settingsmanager.hxx"
 #endif
 
+#if (OO_MAJOR_VERSION < 5) || ((OO_MAJOR_VERSION == 5) && (OO_MINOR_VERSION <= 3))
+#define Any(var) makeAny(var)
+#endif
+
 using namespace GiNaC;
 
 // How to add a new option:
@@ -418,18 +422,18 @@ void Settingsmanager::setRegistryFromControls(const Reference<XHierarchicalPrope
 
     switch (srec.second.otype) {
       case t_str:
-        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, makeAny(getTextcontrol(xControlContainer, srec.second.controlName)));
+        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, com::sun::star::uno::Any(getTextcontrol(xControlContainer, srec.second.controlName)));
         break;
       case t_align: // Same as boolean option
       case t_bool:
-        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, makeAny(getCheckBox(xControlContainer, srec.second.controlName) == 1));
+        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, com::sun::star::uno::Any(getCheckBox(xControlContainer, srec.second.controlName) == 1));
         break;
       case t_dbl: break;
       case t_uint:
-        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, makeAny(getNumericFieldPosInt(xControlContainer, srec.second.controlName)));
+        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, com::sun::star::uno::Any(getNumericFieldPosInt(xControlContainer, srec.second.controlName)));
         break;
       case t_int:
-        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, makeAny(getNumericFieldInt(xControlContainer, srec.second.controlName)));
+        xProperties->setHierarchicalPropertyValue(srec.second.propertyName, com::sun::star::uno::Any(getNumericFieldInt(xControlContainer, srec.second.controlName)));
         break;
       case t_exvec: break;
     }

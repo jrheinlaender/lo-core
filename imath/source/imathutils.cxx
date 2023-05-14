@@ -272,6 +272,11 @@ using com::sun::star::frame::XStorable;
 using com::sun::star::ucb::XFileIdentifierConverter;
 using com::sun::star::presentation::XPresentationSupplier;
 
+#if (OO_MAJOR_VERSION < 5) || ((OO_MAJOR_VERSION == 5) && (OO_MINOR_VERSION < 3))
+#define Any(var) makeAny(var)
+#else
+using com::sun::star::uno::Any;
+#endif
 
 using namespace GiNaC;
 
@@ -325,7 +330,7 @@ Reference<XDialog> createBasicDialog (const Reference < XComponentContext > &xCC
     Reference< XModel > xModel = xCtrl->getModel();
     if (xModel.is()) {
       Sequence< Any > args(1);
-      args.getArray()[0] = makeAny(xModel);
+      args.getArray()[0] = Any(xModel);
 
       xDialogProvider = Reference< XDialogProvider2 >(
         xMCF->createInstanceWithArgumentsAndContext(OU("com.sun.star.awt.DialogProvider2"), args, xCC), UNO_QUERY_THROW);
@@ -404,7 +409,7 @@ Sequence<Reference < XInterface > > getUserSelections(const Reference < XControl
 /// Set the user selection
 void setUserSelection(const Reference < XController > &xCtrl, const Reference < XComponent >& newSelection) {
   Reference < XSelectionSupplier > xSS(xCtrl, UNO_QUERY_THROW);
-  Any xSelection = makeAny(newSelection);
+  Any xSelection = Any(newSelection);
   xSS->select(xSelection);
 } // setUserSelection()
 
@@ -500,11 +505,11 @@ Reference < XComponent > createObject(const Reference < XModel > &xModel, const 
 
     // Give the empty object a type, and anchor it as a character, and set the margins to zero
     Any Aclsid;
-    Aclsid = makeAny(clsid);
+    Aclsid = Any(clsid);
     Any Aanchor;
-    Aanchor = makeAny(sal_uInt32(1)); // TextContentAnchorType_AS_CHARACTER);
+    Aanchor = Any(sal_uInt32(1)); // TextContentAnchorType_AS_CHARACTER);
     Any Amargin;
-    Amargin = makeAny(sal_uInt32(0));
+    Amargin = Any(sal_uInt32(0));
     xPS->setPropertyValue(OU("CLSID"), Aclsid);
     xPS->setPropertyValue(OU("AnchorType"), Aanchor);
     xPS->setPropertyValue(OU("LeftMargin"), Amargin);
@@ -526,7 +531,7 @@ Reference < XComponent > createObject(const Reference < XModel > &xModel, const 
 
     // Give the empty object a type
     Any Aclsid;
-    Aclsid = makeAny(clsid);
+    Aclsid = Any(clsid);
     xPS->setPropertyValue(OU("CLSID"), Aclsid);
     return xObj;
   } else {
@@ -597,7 +602,7 @@ Reference < XComponent > insertObject(const Reference < XModel > &xModel, const 
     } else if (clsid == CLSID_CHART) {
       size.Height = 9000;
       size.Width = 16000;
-      fPS->setPropertyValue(OU("SizeProtect"), makeAny(false));
+      fPS->setPropertyValue(OU("SizeProtect"), Any(false));
     }
 
     xShape->setSize(size);
@@ -622,7 +627,7 @@ void addDataSeries(const Reference < com::sun::star::chart2::XChartDocument >& c
   Reference< XCloneable > templateDataSeq(dataProvider->createDataSequenceByRangeRepresentation(OU("0")), UNO_QUERY_THROW);
   Reference< XDataSequence > seqDataX(templateDataSeq->createClone(), UNO_QUERY_THROW);
   Reference < XPropertySet > seqProps (seqDataX, UNO_QUERY_THROW);
-  seqProps->setPropertyValue(OU("Role"), makeAny(OU("values-x")));
+  seqProps->setPropertyValue(OU("Role"), Any(OU("values-x")));
   Reference < XNamed > oName(seqDataX, UNO_QUERY_THROW);
   oName->setName(OUSTRINGNUMBER(idx));
   Reference< XCloneable > templateLabelSeq(dataProvider->createDataSequenceByRangeRepresentation(OU("label 0")), UNO_QUERY_THROW);
@@ -632,7 +637,7 @@ void addDataSeries(const Reference < com::sun::star::chart2::XChartDocument >& c
   // Clone an Y data sequence
   Reference< XDataSequence > seqDataY(templateDataSeq->createClone(), UNO_QUERY_THROW);
   seqProps = Reference< XPropertySet >(seqDataY, UNO_QUERY_THROW);
-  seqProps->setPropertyValue(OU("Role"), makeAny(OU("values-y")));
+  seqProps->setPropertyValue(OU("Role"), Any(OU("values-y")));
   oName = Reference < XNamed >(seqDataY, UNO_QUERY_THROW);
   oName->setName(OUSTRINGNUMBER(idx+1));
   Reference< XDataSequence > seqLabelY(templateLabelSeq->createClone(), UNO_QUERY_THROW);
@@ -682,8 +687,8 @@ void forceDiagramUpdate(const Reference< XComponent >& xChart) {
   Reference < ::com::sun::star::chart::XChartDocument > cDoc(extractModel(xChart), UNO_QUERY_THROW);
   Reference< XPropertySet > dProperties(cDoc->getDiagram(), UNO_QUERY_THROW);
   Any type = dProperties->getPropertyValue(OU("SplineType"));
-  dProperties->setPropertyValue(OU("SplineType"), makeAny(sal_uInt32(0)));
-  dProperties->setPropertyValue(OU("SplineType"), makeAny(sal_uInt32(1)));
+  dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(0)));
+  dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
   dProperties->setPropertyValue(OU("SplineType"), type);
 
   if (xEOS2.is()) {
@@ -701,7 +706,7 @@ Reference < XComponent > insertChart(const Reference < XModel > &xModel, const R
 
   // Make sure that we have a clear interpretation of where data series are
   Reference < XPropertySet > cDocProps (cDoc, UNO_QUERY_THROW);
-  cDocProps->setPropertyValue(OU("DataRowSource"), makeAny(::com::sun::star::chart::ChartDataRowSource_ROWS));
+  cDocProps->setPropertyValue(OU("DataRowSource"), Any(::com::sun::star::chart::ChartDataRowSource_ROWS));
 
   // Create a new XYDiagram
   Reference < XDiagram > xyDiagram(cDocMSF->createInstance(OU("com.sun.star.chart.XYDiagram")), UNO_QUERY_THROW);
@@ -713,11 +718,11 @@ Reference < XComponent > insertChart(const Reference < XModel > &xModel, const R
   Reference< XDataProvider > dataProvider = chart->getDataProvider();
   Reference< XDataSequence > seqDataX = dataProvider->createDataSequenceByRangeRepresentation(OU("0"));
   Reference < XPropertySet > seqProps (seqDataX, UNO_QUERY_THROW);
-  seqProps->setPropertyValue(OU("Role"), makeAny(OU("values-x")));
+  seqProps->setPropertyValue(OU("Role"), Any(OU("values-x")));
   Reference< XDataSequence > seqLabelX = dataProvider->createDataSequenceByRangeRepresentation(OU("label 0"));
   Reference< XDataSequence > seqDataY = dataProvider->createDataSequenceByRangeRepresentation(OU("1"));
   seqProps = Reference< XPropertySet >(seqDataY, UNO_QUERY_THROW);
-  seqProps->setPropertyValue(OU("Role"), makeAny(OU("values-y")));
+  seqProps->setPropertyValue(OU("Role"), Any(OU("values-y")));
   Reference< XDataSequence > seqLabelY = dataProvider->createDataSequenceByRangeRepresentation(OU("label 1"));
 
   // Get write access to the chart series
@@ -756,7 +761,7 @@ Reference < XComponent > insertChart(const Reference < XModel > &xModel, const R
   forceDiagramUpdate(xChart);
 
   Reference< XPropertySet > dProperties(xyDiagram, UNO_QUERY_THROW);
-  dProperties->setPropertyValue(OU("SplineType"), makeAny(sal_uInt32(1)));
+  dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
 
   return xChart;
 } // insertChart()
@@ -773,9 +778,9 @@ void setSeriesProperties(const Reference < com::sun::star::chart::XChartDocument
   com::sun::star::awt::Size psize;
   psize.Height = pointsize;
   psize.Width = pointsize;
-  xyProps->setPropertyValue(OU("SymbolSize"), makeAny(psize));
-  xyProps->setPropertyValue(OU("LineWidth"), makeAny(linewidth));
-  xyProps->setPropertyValue(OU("LineColor"), makeAny(linecolor));
+  xyProps->setPropertyValue(OU("SymbolSize"), Any(psize));
+  xyProps->setPropertyValue(OU("LineWidth"), Any(linewidth));
+  xyProps->setPropertyValue(OU("LineColor"), Any(linecolor));
 } // setSeriesProperties()
 void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16 series,
       const sal_uInt16 pointsize, const sal_uInt16 linewidth, const sal_uInt32 linecolor) {
@@ -872,7 +877,7 @@ Reference < com::sun::star::chart2::XChartDocument > getChartDoc(const Reference
 Reference < XChartDataArray > getChartDataArray(const Reference < com::sun::star::chart2::XChartDocument >& cDoc) {
   // Fix changed interpretation of the data series source between ooo/lo versions
   Reference < XPropertySet > cDocProps (cDoc, UNO_QUERY_THROW);
-  cDocProps->setPropertyValue(OU("DataRowSource"), makeAny(::com::sun::star::chart::ChartDataRowSource_ROWS));
+  cDocProps->setPropertyValue(OU("DataRowSource"), Any(::com::sun::star::chart::ChartDataRowSource_ROWS));
 
   return (Reference < XChartDataArray >(cDoc->getDataProvider(), UNO_QUERY_THROW));
 } // getChartDataArray()
@@ -902,9 +907,9 @@ void setTitles(const Reference< XComponent >& xChart, const OUString& main, cons
   Reference < com::sun::star::chart::XChartDocument > cDoc(extractModel(xChart), UNO_QUERY_THROW);
   Reference < XPropertySet > cProperties(cDoc, UNO_QUERY_THROW);
   if (!main.equalsAscii("")) {
-    cProperties->setPropertyValue(OU("HasMainTitle"), makeAny(true));
+    cProperties->setPropertyValue(OU("HasMainTitle"), Any(true));
     Reference < XPropertySet > cTProperties(cDoc->getTitle(), UNO_QUERY_THROW);
-    cTProperties->setPropertyValue(OU("String"), makeAny(main));
+    cTProperties->setPropertyValue(OU("String"), Any(main));
   }
   Reference < XDiagram > cDiagram = cDoc->getDiagram();
   Reference < XAxisXSupplier > cAxisXSupplier(cDiagram, UNO_QUERY_THROW);
@@ -919,7 +924,7 @@ void setTitles(const Reference< XComponent >& xChart, const OUString& main, cons
     else if (xAxis == OU("1"))
       xAx = OU("");
   }
-  axProperties->setPropertyValue(OU("String"), makeAny(xAx));
+  axProperties->setPropertyValue(OU("String"), Any(xAx));
   Reference < XAxisYSupplier > cAxisYSupplier(cDiagram, UNO_QUERY_THROW);
   Reference < XPropertySet > ayProperties(cAxisYSupplier->getYAxisTitle(), UNO_QUERY_THROW);
   if (!yAxis.equalsAscii("")) {
@@ -930,7 +935,7 @@ void setTitles(const Reference< XComponent >& xChart, const OUString& main, cons
     else if (yAxis == OU("1"))
       yAx = OU("");
   }
-  ayProperties->setPropertyValue(OU("String"), makeAny(yAx));
+  ayProperties->setPropertyValue(OU("String"), Any(yAx));
 } // setTitles()
 
 void setChartData(const Reference < XModel >& xModel, const OUString& cName, const matrix& xval, const matrix& yval, const unsigned iseries) {
@@ -1132,10 +1137,10 @@ void setFormulaText(const Reference < XModel > &fModel, const OUString &fText) {
   Reference < XPropertySet > fPS(fModel, UNO_QUERY_THROW);
 
   // set the formula text
-  Any fTextAny = makeAny(fText);
+  Any fTextAny = Any(fText);
   fPS->setPropertyValue(OU("Formula"), fTextAny);
   // Cannot be set earlier because of error "Unknown property"
-  fPS->setPropertyValue(OU("IsScaleAllBrackets"), makeAny(true));
+  fPS->setPropertyValue(OU("IsScaleAllBrackets"), Any(true));
 } // setFormulaText()
 
 void setFormulaProperty(const Reference < XModel >& fModel, const OUString &propName, const Any& value) {
@@ -1323,7 +1328,7 @@ void toggleTextMode(const Reference< XComponent >& f) {
   Any aOldValue = fPS->getPropertyValue(OU("IsTextMode"));
   bool oldValue = false;
   aOldValue >>= oldValue;
-  fPS->setPropertyValue(OU("IsTextMode"), makeAny(!oldValue));
+  fPS->setPropertyValue(OU("IsTextMode"), Any(!oldValue));
 }
 
 void copyProperties(const Reference< XComponent >& source, const Reference< XComponent >& target) {
@@ -1433,8 +1438,8 @@ Reference< XHierarchicalPropertySet > getRegistryAccess(const Reference< XCompon
   Sequence< Any > args(1);
   PropertyValue path;
   path.Name = OU("nodepath");
-  path.Value = makeAny(nodepath);
-  args.getArray()[0] = makeAny(path);
+  path.Value = Any(nodepath);
+  args.getArray()[0] = Any(path);
   Reference< XHierarchicalPropertySet > xProperties;
   xProperties = Reference< XHierarchicalPropertySet >(xConfig->createInstanceWithArguments(
       OU("com.sun.star.configuration.ConfigurationUpdateAccess"), args), UNO_QUERY_THROW);
@@ -1445,7 +1450,7 @@ Reference< XHierarchicalPropertySet > getRegistryAccess(const Reference< XCompon
 // Change number of cached inline objects
 void setInlineCache(const Reference< XComponentContext >& mxCC, const sal_Int32 num) {
   Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(mxCC, OU("/org.openoffice.Office.Common/"));
-  xProperties->setHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"), makeAny(num));
+  xProperties->setHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"), Any(num));
   Reference< XChangesBatch > xUpdateCommit(xProperties, UNO_QUERY_THROW);
   xUpdateCommit->commitChanges();
 } // setInlineCache()
@@ -2184,11 +2189,11 @@ Reference< XModel > loadDocument(const Reference < XDesktop >& xDesktop, const O
   auto pArgs = args.getArray();
   PropertyValue hidden;
   hidden.Name = OU("Hidden");
-  hidden.Value = makeAny(true);
+  hidden.Value = Any(true);
   pArgs[0] = hidden;
   PropertyValue ro;
   ro.Name = OU("ReadOnly");
-  ro.Value = makeAny(readonly);
+  ro.Value = Any(readonly);
   pArgs[1] = ro;
 
   try {

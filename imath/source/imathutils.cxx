@@ -142,6 +142,7 @@
 #include "com/sun/star/frame/XStorable.hpp"
 #include "com/sun/star/ucb/XFileIdentifierConverter.hpp"
 #include <com/sun/star/presentation/XPresentationSupplier.hpp>
+#include <com/sun/star/util/XModifiable.hpp>
 
 
 #include <cmath>
@@ -272,7 +273,7 @@ using com::sun::star::frame::XStorable;
 using com::sun::star::ucb::XFileIdentifierConverter;
 using com::sun::star::presentation::XPresentationSupplier;
 
-#if (OO_MAJOR_VERSION < 5) || ((OO_MAJOR_VERSION == 5) && (OO_MINOR_VERSION < 3))
+#if (OO_MAJOR_VERSION < 7) || ((OO_MAJOR_VERSION == 7) && (OO_MINOR_VERSION < 5))
 #define Any(var) makeAny(var)
 #else
 using com::sun::star::uno::Any;
@@ -668,37 +669,6 @@ void addDataSeries(const Reference < com::sun::star::chart2::XChartDocument >& c
   chartType->addDataSeries(xDataSeries);
 }
 
-void forceDiagramUpdate(const Reference< XComponent >& xChart) {
-#ifdef INSIDE_SM
-  (void)xChart;
-  // TODO Switching to INPLACE_ACTIVE throws an exception, find another way
-  return;
-#else
-  // Hack: Force the diagram to recognize changed data points
-  Reference < XEmbeddedObjectSupplier2 >xEOS2(xChart, UNO_QUERY);
-  if (xEOS2.is()) {
-    Reference < XEmbeddedObject > xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
-    if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::LOADED)
-        xEmbObj->changeState( com::sun::star::embed::EmbedStates::RUNNING);
-    if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::RUNNING)
-        xEmbObj->changeState( com::sun::star::embed::EmbedStates::INPLACE_ACTIVE);
-  }
-
-  Reference < ::com::sun::star::chart::XChartDocument > cDoc(extractModel(xChart), UNO_QUERY_THROW);
-  Reference< XPropertySet > dProperties(cDoc->getDiagram(), UNO_QUERY_THROW);
-  Any type = dProperties->getPropertyValue(OU("SplineType"));
-  dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(0)));
-  dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
-  dProperties->setPropertyValue(OU("SplineType"), type);
-
-  if (xEOS2.is()) {
-    Reference < XEmbeddedObject > xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
-    if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::INPLACE_ACTIVE)
-      xEmbObj->changeState( com::sun::star::embed::EmbedStates::RUNNING);
-  }
-#endif
-}
-
 Reference < XComponent > insertChart(const Reference < XModel > &xModel, const Reference < XComponentContext > &xCC) {
   Reference< XComponent > xChart = insertObject(xModel, CLSID_CHART);
   Reference < com::sun::star::chart::XChartDocument > cDoc(extractModel(xChart), UNO_QUERY_THROW);
@@ -758,10 +728,14 @@ Reference < XComponent > insertChart(const Reference < XModel > &xModel, const R
   emptyData.getArray()[0] = emptyRow;
   Reference < XChartDataArray > cDataArray(chart->getDataProvider(), UNO_QUERY_THROW);
   cDataArray->setData(emptyData);
-  forceDiagramUpdate(xChart);
 
+  // Set line type
   Reference< XPropertySet > dProperties(xyDiagram, UNO_QUERY_THROW);
   dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
+
+  // Update the view
+  Reference< com::sun::star::util::XModifiable > xModChart(xChart, UNO_QUERY);
+  if (xModChart.is()) xModChart->setModified(true);
 
   return xChart;
 } // insertChart()
@@ -949,9 +923,10 @@ void setChartData(const Reference < XModel >& xModel, const OUString& cName, con
 
   // Fill in the data
   setChartData(cDoc, cName, ex_to<matrix>(expression(xval.evalm()).evalf()), ex_to<matrix>(expression(yval.evalm()).evalf()), iseries);
-  // Force diagram update
-  Reference < XComponent > xChart = getChartObjectByName(xModel, cName);
-  forceDiagramUpdate(xChart);
+
+  // Update the view
+  Reference< com::sun::star::util::XModifiable > xModChart(cDoc, UNO_QUERY);
+  if (xModChart.is()) xModChart->setModified(true);
 } // setChartData()
 
 void setChartData(const Reference < XModel >& xModel, const OUString& cName,
@@ -977,9 +952,9 @@ void setChartData(const Reference < XModel >& xModel, const OUString& cName,
   Reference < com::sun::star::chart2::XChartDocument > cDoc = getChartDoc(xModel, cName);
   setChartData(cDoc, cName, x, yval, iseries);
 
-  // Force diagram update
-  Reference < XComponent > xChart = getChartObjectByName(xModel, cName);
-  forceDiagramUpdate(xChart);
+  // Update the view
+  Reference< com::sun::star::util::XModifiable > xModChart(cDoc, UNO_QUERY);
+  if (xModChart.is()) xModChart->setModified(true);
 } // setChartData()
 
 void setChartData(const Reference < XModel >& xModel, const OUString& cName, const matrix& yval, const unsigned iseries) {
@@ -1003,9 +978,9 @@ void setChartData(const Reference < XModel >& xModel, const OUString& cName, con
   // Fill in the data
   setChartData(cDoc, cName, x, ex_to<matrix>(expression(yval.evalm()).evalf()), iseries);
 
-  // Force diagram update
-  Reference < XComponent > xChart = getChartObjectByName(xModel, cName);
-  forceDiagramUpdate(xChart);
+  // Update the view
+  Reference< com::sun::star::util::XModifiable > xModChart(cDoc, UNO_QUERY);
+  if (xModChart.is()) xModChart->setModified(true);
 } // setChartData()
 
 sal_Bool activateOLE(const Reference< XComponent >& xComponent) {

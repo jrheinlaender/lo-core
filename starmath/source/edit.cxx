@@ -933,9 +933,9 @@ void AbstractEditTextWindow::Flush(const sal_uInt16 sid)
         pEditEngine->ClearModifyFlag();
         if (SmViewShell *pViewSh = mrEditWindow.GetView())
         {
-            SfxStringItem aTextToFlush(SID_TEXT, GetText());
+            SfxStringItem aTextToFlush(sid, GetText());
             pViewSh->GetViewFrame().GetDispatcher()->ExecuteList(
-                    SID_TEXT, SfxCallMode::RECORD,
+                    sid, SfxCallMode::RECORD,
                     { &aTextToFlush });
         }
     }

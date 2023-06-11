@@ -548,7 +548,6 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
 
                 if (cDoc.is())
                 {
-                    std::cout << "cDoc is" << std::endl;
                     Reference < lang::XMultiServiceFactory > cDocMSF(cDoc, UNO_QUERY_THROW);
 
                     // Make sure that we have a clear interpretation of where data series are
@@ -614,6 +613,10 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                     cDocProps->setPropertyValue("HasMainTitle", Any(true));
                     Reference < XPropertySet > cTProperties(cDoc->getTitle(), UNO_QUERY_THROW);
                     cTProperties->setPropertyValue("String", Any(OUString("Title")));
+
+                    // Update diagram in GUI
+                    Reference< util::XModifiable > xModChart(chart, UNO_QUERY);
+                    if (xModChart.is()) xModChart->setModified(true);
 
                     // Insert iFormula to fill the chart with data
                     OUString chartName = rSh.GetFlyName();

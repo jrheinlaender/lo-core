@@ -144,6 +144,7 @@
 #include "com/sun/star/frame/XStorable.hpp"
 #include "com/sun/star/ucb/XFileIdentifierConverter.hpp"
 #include <com/sun/star/presentation/XPresentationSupplier.hpp>
+#include <com/sun/star/util/XModifiable.hpp>
 
 #include <cmath>
 #include <limits>
@@ -275,7 +276,7 @@ using com::sun::star::frame::XStorable;
 using com::sun::star::ucb::XFileIdentifierConverter;
 using com::sun::star::presentation::XPresentationSupplier;
 
-#if (OO_MAJOR_VERSION < 5) || ((OO_MAJOR_VERSION == 5) && (OO_MINOR_VERSION < 3))
+#if (OO_MAJOR_VERSION < 7) || ((OO_MAJOR_VERSION == 7) && (OO_MINOR_VERSION < 5))
 #define Any(var) makeAny(var)
 #else
 using com::sun::star::uno::Any;
@@ -746,194 +747,420 @@ Reference<XComponent> insertObject(const Reference<XModel>& xModel, const OUStri
         chartType->addDataSeries(xDataSeries);
     }
 
-    void forceDiagramUpdate(const Reference<XComponent>& xChart)
+    xShape->setSize(size);
+
+    // Set a proper object name (is empty by default)
+    Any aName = fPS->getPropertyValue(OU("PersistName"));
+    OUString objName;
+    aName >>= objName;
+    setObjectName(xObject, objName);
+    MSG_INFO(0, "Set automatic object name to " << STR(objName) << endline);
+}
+else { return Reference<XComponent>(); }
+
+return xObject;
+} // insertObject()
+
+// Append a new XY-data series using an existing XY-series as a template
+void addDataSeries(const Reference<com::sun::star::chart2::XChartDocument>& chart,
+                   const sal_Int32 idx)
+{
+    Reference<XDataProvider> dataProvider = chart->getDataProvider();
+    // Clone an X data sequence
+    Reference<XCloneable> templateDataSeq(
+        dataProvider->createDataSequenceByRangeRepresentation(OU("0")), UNO_QUERY_THROW);
+    Reference<XDataSequence> seqDataX(templateDataSeq->createClone(), UNO_QUERY_THROW);
+    Reference<XPropertySet> seqProps(seqDataX, UNO_QUERY_THROW);
+    seqProps->setPropertyValue(OU("Role"), Any(OU("values-x")));
+    Reference<XNamed> oName(seqDataX, UNO_QUERY_THROW);
+    oName->setName(OUSTRINGNUMBER(idx));
+    Reference<XCloneable> templateLabelSeq(
+        dataProvider->createDataSequenceByRangeRepresentation(OU("label 0")), UNO_QUERY_THROW);
+    Reference<XDataSequence> seqLabelX(templateLabelSeq->createClone(), UNO_QUERY_THROW);
+    oName = Reference<XNamed>(seqLabelX, UNO_QUERY_THROW);
+    oName->setName(OU("label ") + OUSTRINGNUMBER(idx));
+    // Clone an Y data sequence
+    Reference<XDataSequence> seqDataY(templateDataSeq->createClone(), UNO_QUERY_THROW);
+    seqProps = Reference<XPropertySet>(seqDataY, UNO_QUERY_THROW);
+    seqProps->setPropertyValue(OU("Role"), Any(OU("values-y")));
+    oName = Reference<XNamed>(seqDataY, UNO_QUERY_THROW);
+    oName->setName(OUSTRINGNUMBER(idx + 1));
+    Reference<XDataSequence> seqLabelY(templateLabelSeq->createClone(), UNO_QUERY_THROW);
+    oName = Reference<XNamed>(seqLabelY, UNO_QUERY_THROW);
+    oName->setName(OU("label ") + OUSTRINGNUMBER(idx));
+
+    Reference<::com::sun::star::chart2::XDiagram> diagram = chart->getFirstDiagram();
+    Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
+    Reference<XChartTypeContainer> xChartTypeCnt(xCoordCnt->getCoordinateSystems()[0],
+                                                 UNO_QUERY_THROW);
+    Reference<XDataSeriesContainer> chartType(xChartTypeCnt->getChartTypes()[0], UNO_QUERY_THROW);
+    Reference<XDataSource> XYSource(chartType->getDataSeries()[0], UNO_QUERY_THROW);
+
+    Sequence<Reference<XLabeledDataSequence>> sequences(2);
+    auto pSequences = sequences.getArray();
+    Reference<XCloneable> templateSeq(XYSource->getDataSequences()[0], UNO_QUERY_THROW);
+    pSequences[0] = Reference<XLabeledDataSequence>(templateSeq->createClone(), UNO_QUERY_THROW);
+    pSequences[1] = Reference<XLabeledDataSequence>(templateSeq->createClone(), UNO_QUERY_THROW);
+    sequences[0]->setValues(seqDataX);
+    sequences[0]->setLabel(seqLabelX);
+    sequences[1]->setValues(seqDataY);
+    sequences[1]->setLabel(seqLabelY);
+
+    // Add a new series
+    Reference<XCloneable> templateSeries(chartType->getDataSeries()[0], UNO_QUERY_THROW);
+    Reference<XDataSeries> xDataSeries(templateSeries->createClone(), UNO_QUERY_THROW);
+    Reference<XDataSink> XYSink(xDataSeries, UNO_QUERY_THROW);
+    XYSink->setData(sequences);
+    chartType->addDataSeries(xDataSeries);
+}
+
+Reference<XComponent> insertChart(const Reference<XModel>& xModel,
+                                  const Reference<XComponentContext>& xCC)
+{
+    Reference<XComponent> xChart = insertObject(xModel, CLSID_CHART);
+    Reference<com::sun::star::chart::XChartDocument> cDoc(extractModel(xChart), UNO_QUERY_THROW);
+    Reference<XMultiServiceFactory> cDocMSF(cDoc, UNO_QUERY_THROW);
+
+    // Make sure that we have a clear interpretation of where data series are
+    Reference<XPropertySet> cDocProps(cDoc, UNO_QUERY_THROW);
+    cDocProps->setPropertyValue(OU("DataRowSource"),
+                                Any(::com::sun::star::chart::ChartDataRowSource_ROWS));
+
+    // Create a new XYDiagram
+    Reference<XDiagram> xyDiagram(cDocMSF->createInstance(OU("com.sun.star.chart.XYDiagram")),
+                                  UNO_QUERY_THROW);
+    cDoc->setDiagram(xyDiagram);
+
+    // Create two new sequences based on the two first default sequences, setting the roles correctly for an XYDiagram
+    Reference<::com::sun::star::chart2::XChartDocument> chart(cDoc, UNO_QUERY_THROW);
+    chart->createInternalDataProvider(true);
+    Reference<XDataProvider> dataProvider = chart->getDataProvider();
+    Reference<XDataSequence> seqDataX
+        = dataProvider->createDataSequenceByRangeRepresentation(OU("0"));
+    Reference<XPropertySet> seqProps(seqDataX, UNO_QUERY_THROW);
+    seqProps->setPropertyValue(OU("Role"), Any(OU("values-x")));
+    Reference<XDataSequence> seqLabelX
+        = dataProvider->createDataSequenceByRangeRepresentation(OU("label 0"));
+    Reference<XDataSequence> seqDataY
+        = dataProvider->createDataSequenceByRangeRepresentation(OU("1"));
+    seqProps = Reference<XPropertySet>(seqDataY, UNO_QUERY_THROW);
+    seqProps->setPropertyValue(OU("Role"), Any(OU("values-y")));
+    Reference<XDataSequence> seqLabelY
+        = dataProvider->createDataSequenceByRangeRepresentation(OU("label 1"));
+
+    // Get write access to the chart series
+    Reference<::com::sun::star::chart2::XDiagram> diagram = chart->getFirstDiagram();
+    Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
+    Reference<XChartTypeContainer> xChartTypeCnt(xCoordCnt->getCoordinateSystems()[0],
+                                                 UNO_QUERY_THROW);
+    Reference<XDataSeriesContainer> chartType(xChartTypeCnt->getChartTypes()[0], UNO_QUERY_THROW);
+
+    // Create two sequences
+    Reference<XMultiComponentFactory> xServiceManager(
+        xCC->getServiceManager()); // get the service manager (the document service factory cannot create a LabeledDataSequence!)
+    Sequence<Reference<XLabeledDataSequence>> sequences(2);
+    auto pSequences = sequences.getArray();
+    pSequences[0] = Reference<XLabeledDataSequence>(
+        xServiceManager->createInstanceWithContext(
+            OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC),
+        UNO_QUERY_THROW);
+    pSequences[1] = Reference<XLabeledDataSequence>(
+        xServiceManager->createInstanceWithContext(
+            OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC),
+        UNO_QUERY_THROW);
+    sequences[0]->setValues(seqDataX);
+    sequences[0]->setLabel(seqLabelX);
+    sequences[1]->setValues(seqDataY);
+    sequences[1]->setLabel(seqLabelY);
+
+    // Set the data sequences into the chart
+    Reference<XDataSink> XYSink(
+        xServiceManager->createInstanceWithContext(OU("com.sun.star.chart2.DataSeries"), xCC),
+        UNO_QUERY_THROW);
+    XYSink->setData(sequences);
+    Sequence<Reference<XDataSeries>> XYSeries(1);
+    XYSeries.getArray()[0] = Reference<XDataSeries>(XYSink, UNO_QUERY_THROW);
+    chartType->setDataSeries(XYSeries);
+
+    // Fill in some data
+    Sequence<double> emptyRow(2);
+    auto pEmptyRow = emptyRow.getArray();
+    pEmptyRow[0] = 0;
+    pEmptyRow[1] = 0;
+    Sequence<Sequence<double>> emptyData(1);
+    emptyData.getArray()[0] = emptyRow;
+    Reference<XChartDataArray> cDataArray(chart->getDataProvider(), UNO_QUERY_THROW);
+    cDataArray->setData(emptyData);
+
+    // Set line type
+    Reference<XPropertySet> dProperties(xyDiagram, UNO_QUERY_THROW);
+    dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
+
+    // Update the view
+    Reference<com::sun::star::util::XModifiable> xModChart(xChart, UNO_QUERY);
+    if (xModChart.is())
+        xModChart->setModified(true);
+
+    return xChart;
+} // insertChart()
+
+void setSeriesProperties(const Reference<com::sun::star::chart::XChartDocument>& cDoc,
+                         const sal_uInt16 series, const sal_uInt16 pointsize,
+                         const sal_uInt16 linewidth, const sal_uInt32 linecolor)
+{
+    Reference<XDiagram> xyDiagram = cDoc->getDiagram();
+    Reference<XPropertySet> xyProps;
+    try
     {
-#ifdef INSIDE_SM
-        (void)xChart;
-        // TODO Switching to INPLACE_ACTIVE throws an exception, find another way
+        xyProps = xyDiagram->getDataRowProperties(series);
+    }
+    catch (IndexOutOfBoundsException&)
+    {
         return;
-#else
-        // Hack: Force the diagram to recognize changed data points
-        Reference<XEmbeddedObjectSupplier2> xEOS2(xChart, UNO_QUERY);
-        if (xEOS2.is())
-        {
-            Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
-            if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::LOADED)
-                xEmbObj->changeState(com::sun::star::embed::EmbedStates::RUNNING);
-            if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::RUNNING)
-                xEmbObj->changeState(com::sun::star::embed::EmbedStates::INPLACE_ACTIVE);
-        }
-
-        Reference<::com::sun::star::chart::XChartDocument> cDoc(extractModel(xChart),
-                                                                UNO_QUERY_THROW);
-        Reference<XPropertySet> dProperties(cDoc->getDiagram(), UNO_QUERY_THROW);
-        Any type = dProperties->getPropertyValue(OU("SplineType"));
-        dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(0)));
-        dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
-        dProperties->setPropertyValue(OU("SplineType"), type);
-
-        if (xEOS2.is())
-        {
-            Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
-            if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::INPLACE_ACTIVE)
-                xEmbObj->changeState(com::sun::star::embed::EmbedStates::RUNNING);
-        }
-#endif
     }
-
-    Reference<XComponent> insertChart(const Reference<XModel>& xModel,
-                                      const Reference<XComponentContext>& xCC)
-    {
-        Reference<XComponent> xChart = insertObject(xModel, CLSID_CHART);
-        Reference<com::sun::star::chart::XChartDocument> cDoc(extractModel(xChart),
+    com::sun::star::awt::Size psize;
+    psize.Height = pointsize;
+    psize.Width = pointsize;
+    xyProps->setPropertyValue(OU("SymbolSize"), Any(psize));
+    xyProps->setPropertyValue(OU("LineWidth"), Any(linewidth));
+    xyProps->setPropertyValue(OU("LineColor"), Any(linecolor));
+} // setSeriesProperties()
+void setSeriesProperties(const Reference<XComponent>& xChart, const sal_uInt16 series,
+                         const sal_uInt16 pointsize, const sal_uInt16 linewidth,
+                         const sal_uInt32 linecolor)
+{
+    Reference<com::sun::star::chart::XChartDocument> chartDoc(extractModel(xChart),
                                                               UNO_QUERY_THROW);
-        Reference<XMultiServiceFactory> cDocMSF(cDoc, UNO_QUERY_THROW);
+    setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
+}
+void setSeriesProperties(const Reference<com::sun::star::chart2::XChartDocument>& cDoc,
+                         const sal_uInt16 series, const sal_uInt16 pointsize,
+                         const sal_uInt16 linewidth, const sal_uInt32 linecolor)
+{
+    Reference<com::sun::star::chart::XChartDocument> chartDoc(cDoc, UNO_QUERY_THROW);
+    setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
+}
 
-        // Make sure that we have a clear interpretation of where data series are
-        Reference<XPropertySet> cDocProps(cDoc, UNO_QUERY_THROW);
-        cDocProps->setPropertyValue(OU("DataRowSource"),
-                                    Any(::com::sun::star::chart::ChartDataRowSource_ROWS));
-
-        // Create a new XYDiagram
-        Reference<XDiagram> xyDiagram(cDocMSF->createInstance(OU("com.sun.star.chart.XYDiagram")),
-                                      UNO_QUERY_THROW);
-        cDoc->setDiagram(xyDiagram);
-
-        // Create two new sequences based on the two first default sequences, setting the roles correctly for an XYDiagram
-        Reference<::com::sun::star::chart2::XChartDocument> chart(cDoc, UNO_QUERY_THROW);
-        chart->createInternalDataProvider(true);
-        Reference<XDataProvider> dataProvider = chart->getDataProvider();
-        Reference<XDataSequence> seqDataX
-            = dataProvider->createDataSequenceByRangeRepresentation(OU("0"));
-        Reference<XPropertySet> seqProps(seqDataX, UNO_QUERY_THROW);
-        seqProps->setPropertyValue(OU("Role"), Any(OU("values-x")));
-        Reference<XDataSequence> seqLabelX
-            = dataProvider->createDataSequenceByRangeRepresentation(OU("label 0"));
-        Reference<XDataSequence> seqDataY
-            = dataProvider->createDataSequenceByRangeRepresentation(OU("1"));
-        seqProps = Reference<XPropertySet>(seqDataY, UNO_QUERY_THROW);
-        seqProps->setPropertyValue(OU("Role"), Any(OU("values-y")));
-        Reference<XDataSequence> seqLabelY
-            = dataProvider->createDataSequenceByRangeRepresentation(OU("label 1"));
-
-        // Get write access to the chart series
-        Reference<::com::sun::star::chart2::XDiagram> diagram = chart->getFirstDiagram();
-        Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
-        Reference<XChartTypeContainer> xChartTypeCnt(xCoordCnt->getCoordinateSystems()[0],
-                                                     UNO_QUERY_THROW);
-        Reference<XDataSeriesContainer> chartType(xChartTypeCnt->getChartTypes()[0],
-                                                  UNO_QUERY_THROW);
-
-        // Create two sequences
-        Reference<XMultiComponentFactory> xServiceManager(
-            xCC->getServiceManager()); // get the service manager (the document service factory cannot create a LabeledDataSequence!)
-        Sequence<Reference<XLabeledDataSequence>> sequences(2);
-        auto pSequences = sequences.getArray();
-        pSequences[0] = Reference<XLabeledDataSequence>(
-            xServiceManager->createInstanceWithContext(
-                OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC),
-            UNO_QUERY_THROW);
-        pSequences[1] = Reference<XLabeledDataSequence>(
-            xServiceManager->createInstanceWithContext(
-                OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC),
-            UNO_QUERY_THROW);
-        sequences[0]->setValues(seqDataX);
-        sequences[0]->setLabel(seqLabelX);
-        sequences[1]->setValues(seqDataY);
-        sequences[1]->setLabel(seqLabelY);
-
-        // Set the data sequences into the chart
-        Reference<XDataSink> XYSink(
-            xServiceManager->createInstanceWithContext(OU("com.sun.star.chart2.DataSeries"), xCC),
-            UNO_QUERY_THROW);
-        XYSink->setData(sequences);
-        Sequence<Reference<XDataSeries>> XYSeries(1);
-        XYSeries.getArray()[0] = Reference<XDataSeries>(XYSink, UNO_QUERY_THROW);
-        chartType->setDataSeries(XYSeries);
-
-        // Fill in some data
-        Sequence<double> emptyRow(2);
-        auto pEmptyRow = emptyRow.getArray();
-        pEmptyRow[0] = 0;
-        pEmptyRow[1] = 0;
-        Sequence<Sequence<double>> emptyData(1);
-        emptyData.getArray()[0] = emptyRow;
-        Reference<XChartDataArray> cDataArray(chart->getDataProvider(), UNO_QUERY_THROW);
-        cDataArray->setData(emptyData);
-        forceDiagramUpdate(xChart);
-
-        Reference<XPropertySet> dProperties(xyDiagram, UNO_QUERY_THROW);
-        dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
-
-        return xChart;
-    } // insertChart()
-
-    void setSeriesProperties(const Reference<com::sun::star::chart::XChartDocument>& cDoc,
-                             const sal_uInt16 series, const sal_uInt16 pointsize,
-                             const sal_uInt16 linewidth, const sal_uInt32 linecolor)
-    {
-        Reference<XDiagram> xyDiagram = cDoc->getDiagram();
-        Reference<XPropertySet> xyProps;
+double forceDouble(const expression& val, const double not_a_number)
+{
+    if (is_a<numeric>(val))
         try
-        {
-            xyProps = xyDiagram->getDataRowProperties(series);
+        { // info_flags::rational or ::real doesn't work for e.g. -%pi:%pi as the x range
+            return ex_to<numeric>(val).to_double();
         }
-        catch (IndexOutOfBoundsException&)
+        catch (Exception& e)
         {
-            return;
-        }
-        com::sun::star::awt::Size psize;
-        psize.Height = pointsize;
-        psize.Width = pointsize;
-        xyProps->setPropertyValue(OU("SymbolSize"), Any(psize));
-        xyProps->setPropertyValue(OU("LineWidth"), Any(linewidth));
-        xyProps->setPropertyValue(OU("LineColor"), Any(linecolor));
-    } // setSeriesProperties()
-    void setSeriesProperties(const Reference<XComponent>& xChart, const sal_uInt16 series,
-                             const sal_uInt16 pointsize, const sal_uInt16 linewidth,
-                             const sal_uInt32 linecolor)
+            (void)e;
+        };
+    return not_a_number;
+} // forceDouble()
+
+void setChartData(const Reference<com::sun::star::chart2::XChartDocument> cDoc,
+                  const OUString& cName, const matrix& newx, const matrix& newy,
+                  const unsigned iseries)
+{
+    MSG_INFO(3, "cName: " << STR(cName) << endline);
+    MSG_INFO(3, "xval: '" << newx << "'" << endline);
+    MSG_INFO(3, "yval: '" << newy << "'" << endline);
+    MSG_INFO(4, "iseries: '" << iseries << "'" << endline);
+
+    // get existing data
+    Reference<XChartDataArray> cDataArray = getChartDataArray(cDoc);
+    Sequence<Sequence<double>> data = cDataArray->getData();
+    unsigned rows = data.getLength();
+    unsigned series = data[0].getLength();
+    MSG_INFO(4, "series: '" << series << "'" << endline);
+
+    while (iseries > series)
+    { // Add series (x- and y-column) to the data
+        addDataSeries(cDoc, series + 1);
+        // There seems to be an "invisible" extra series before the new x-y-series in the data table that does not need
+        // to be added but must be skipped when filling in the data
+        series += 3;
+    }
+    MSG_INFO(4, "new series: '" << series << "'" << endline);
+
+    if (newx.rows() > rows)
+    { // Make space for more points
+        rows = newx.rows();
+    }
+    else if ((iseries == 1) && (series == 2) && (newx.rows() < rows))
     {
-        Reference<com::sun::star::chart::XChartDocument> chartDoc(extractModel(xChart),
+        rows = newx.rows(); // Reduce number of points if there is only one series
+    }
+
+    double not_a_number;
+    not_a_number = cDataArray->getNotANumber();
+    Sequence<Sequence<double>> newData(rows);
+    auto pNewData = newData.getArray();
+
+    for (unsigned r = 0; r < rows; ++r)
+    {
+        pNewData[r] = Sequence<double>(series);
+        auto pNewPoint = pNewData[r].getArray();
+
+        if (r < newx.rows())
+        {
+            pNewPoint[iseries - 1] = forceDouble(expression(newx(r, 0)), not_a_number); // X-values
+            pNewPoint[iseries] = forceDouble(expression(newy(r, 0)), not_a_number); // Y-values
+        }
+
+        Reference<XComponent> insertChart(const Reference<XModel>& xModel,
+                                          const Reference<XComponentContext>& xCC)
+        {
+            Reference<XComponent> xChart = insertObject(xModel, CLSID_CHART);
+            Reference<com::sun::star::chart::XChartDocument> cDoc(extractModel(xChart),
                                                                   UNO_QUERY_THROW);
-        setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
-    }
-    void setSeriesProperties(const Reference<com::sun::star::chart2::XChartDocument>& cDoc,
-                             const sal_uInt16 series, const sal_uInt16 pointsize,
-                             const sal_uInt16 linewidth, const sal_uInt32 linecolor)
-    {
-        Reference<com::sun::star::chart::XChartDocument> chartDoc(cDoc, UNO_QUERY_THROW);
-        setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
-    }
+            Reference<XMultiServiceFactory> cDocMSF(cDoc, UNO_QUERY_THROW);
 
-    double forceDouble(const expression& val, const double not_a_number)
-    {
-        if (is_a<numeric>(val))
+            // Make sure that we have a clear interpretation of where data series are
+            Reference<XPropertySet> cDocProps(cDoc, UNO_QUERY_THROW);
+            cDocProps->setPropertyValue(OU("DataRowSource"),
+                                        Any(::com::sun::star::chart::ChartDataRowSource_ROWS));
+
+            // Create a new XYDiagram
+            Reference<XDiagram> xyDiagram(
+                cDocMSF->createInstance(OU("com.sun.star.chart.XYDiagram")), UNO_QUERY_THROW);
+            cDoc->setDiagram(xyDiagram);
+
+            // Create two new sequences based on the two first default sequences, setting the roles correctly for an XYDiagram
+            Reference<::com::sun::star::chart2::XChartDocument> chart(cDoc, UNO_QUERY_THROW);
+            chart->createInternalDataProvider(true);
+            Reference<XDataProvider> dataProvider = chart->getDataProvider();
+            Reference<XDataSequence> seqDataX
+                = dataProvider->createDataSequenceByRangeRepresentation(OU("0"));
+            Reference<XPropertySet> seqProps(seqDataX, UNO_QUERY_THROW);
+            seqProps->setPropertyValue(OU("Role"), Any(OU("values-x")));
+            Reference<XDataSequence> seqLabelX
+                = dataProvider->createDataSequenceByRangeRepresentation(OU("label 0"));
+            Reference<XDataSequence> seqDataY
+                = dataProvider->createDataSequenceByRangeRepresentation(OU("1"));
+            seqProps = Reference<XPropertySet>(seqDataY, UNO_QUERY_THROW);
+            seqProps->setPropertyValue(OU("Role"), Any(OU("values-y")));
+            Reference<XDataSequence> seqLabelY
+                = dataProvider->createDataSequenceByRangeRepresentation(OU("label 1"));
+
+            // Get write access to the chart series
+            Reference<::com::sun::star::chart2::XDiagram> diagram = chart->getFirstDiagram();
+            Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
+            Reference<XChartTypeContainer> xChartTypeCnt(xCoordCnt->getCoordinateSystems()[0],
+                                                         UNO_QUERY_THROW);
+            Reference<XDataSeriesContainer> chartType(xChartTypeCnt->getChartTypes()[0],
+                                                      UNO_QUERY_THROW);
+
+            // Create two sequences
+            Reference<XMultiComponentFactory> xServiceManager(
+                xCC->getServiceManager()); // get the service manager (the document service factory cannot create a LabeledDataSequence!)
+            Sequence<Reference<XLabeledDataSequence>> sequences(2);
+            auto pSequences = sequences.getArray();
+            pSequences[0] = Reference<XLabeledDataSequence>(
+                xServiceManager->createInstanceWithContext(
+                    OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC),
+                UNO_QUERY_THROW);
+            pSequences[1] = Reference<XLabeledDataSequence>(
+                xServiceManager->createInstanceWithContext(
+                    OU("com.sun.star.chart2.data.LabeledDataSequence"), xCC),
+                UNO_QUERY_THROW);
+            sequences[0]->setValues(seqDataX);
+            sequences[0]->setLabel(seqLabelX);
+            sequences[1]->setValues(seqDataY);
+            sequences[1]->setLabel(seqLabelY);
+
+            // Set the data sequences into the chart
+            Reference<XDataSink> XYSink(xServiceManager->createInstanceWithContext(
+                                            OU("com.sun.star.chart2.DataSeries"), xCC),
+                                        UNO_QUERY_THROW);
+            XYSink->setData(sequences);
+            Sequence<Reference<XDataSeries>> XYSeries(1);
+            XYSeries.getArray()[0] = Reference<XDataSeries>(XYSink, UNO_QUERY_THROW);
+            chartType->setDataSeries(XYSeries);
+
+            // Fill in some data
+            Sequence<double> emptyRow(2);
+            auto pEmptyRow = emptyRow.getArray();
+            pEmptyRow[0] = 0;
+            pEmptyRow[1] = 0;
+            Sequence<Sequence<double>> emptyData(1);
+            emptyData.getArray()[0] = emptyRow;
+            Reference<XChartDataArray> cDataArray(chart->getDataProvider(), UNO_QUERY_THROW);
+            cDataArray->setData(emptyData);
+            forceDiagramUpdate(xChart);
+
+            Reference<XPropertySet> dProperties(xyDiagram, UNO_QUERY_THROW);
+            dProperties->setPropertyValue(OU("SplineType"), Any(sal_uInt32(1)));
+
+            return xChart;
+        } // insertChart()
+
+        void setSeriesProperties(const Reference<com::sun::star::chart::XChartDocument>& cDoc,
+                                 const sal_uInt16 series, const sal_uInt16 pointsize,
+                                 const sal_uInt16 linewidth, const sal_uInt32 linecolor)
+        {
+            Reference<XDiagram> xyDiagram = cDoc->getDiagram();
+            Reference<XPropertySet> xyProps;
             try
-            { // info_flags::rational or ::real doesn't work for e.g. -%pi:%pi as the x range
-                return ex_to<numeric>(val).to_double();
-            }
-            catch (Exception& e)
             {
-                (void)e;
-            };
-        return not_a_number;
-    } // forceDouble()
+                xyProps = xyDiagram->getDataRowProperties(series);
+            }
+            catch (IndexOutOfBoundsException&)
+            {
+                return;
+            }
+            com::sun::star::awt::Size psize;
+            psize.Height = pointsize;
+            psize.Width = pointsize;
+            xyProps->setPropertyValue(OU("SymbolSize"), Any(psize));
+            xyProps->setPropertyValue(OU("LineWidth"), Any(linewidth));
+            xyProps->setPropertyValue(OU("LineColor"), Any(linecolor));
+        } // setSeriesProperties()
+        void setSeriesProperties(const Reference<XComponent>& xChart, const sal_uInt16 series,
+                                 const sal_uInt16 pointsize, const sal_uInt16 linewidth,
+                                 const sal_uInt32 linecolor)
+        {
+            Reference<com::sun::star::chart::XChartDocument> chartDoc(extractModel(xChart),
+                                                                      UNO_QUERY_THROW);
+            setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
+        }
+        void setSeriesProperties(const Reference<com::sun::star::chart2::XChartDocument>& cDoc,
+                                 const sal_uInt16 series, const sal_uInt16 pointsize,
+                                 const sal_uInt16 linewidth, const sal_uInt32 linecolor)
+        {
+            Reference<com::sun::star::chart::XChartDocument> chartDoc(cDoc, UNO_QUERY_THROW);
+            setSeriesProperties(chartDoc, series, pointsize, linewidth, linecolor);
+        }
 
-    void setChartData(const Reference<com::sun::star::chart2::XChartDocument> cDoc,
-                      const OUString& cName, const matrix& newx, const matrix& newy,
-                      const unsigned iseries)
-    {
-        MSG_INFO(3, "cName: " << STR(cName) << endline);
-        MSG_INFO(3, "xval: '" << newx << "'" << endline);
-        MSG_INFO(3, "yval: '" << newy << "'" << endline);
-        MSG_INFO(4, "iseries: '" << iseries << "'" << endline);
+        double forceDouble(const expression& val, const double not_a_number)
+        {
+            if (is_a<numeric>(val))
+                try
+                { // info_flags::rational or ::real doesn't work for e.g. -%pi:%pi as the x range
+                    return ex_to<numeric>(val).to_double();
+                }
+                catch (Exception& e)
+                {
+                    (void)e;
+                };
+            return not_a_number;
+        } // forceDouble()
 
-        // get existing data
-        Reference<XChartDataArray> cDataArray = getChartDataArray(cDoc);
-        Sequence<Sequence<double>> data = cDataArray->getData();
-        unsigned rows = data.getLength();
-        unsigned series = data[0].getLength();
-        MSG_INFO(4, "series: '" << series << "'" << endline);
+        void setChartData(const Reference<com::sun::star::chart2::XChartDocument> cDoc,
+                          const OUString& cName, const matrix& newx, const matrix& newy,
+                          const unsigned iseries)
+        {
+            MSG_INFO(3, "cName: " << STR(cName) << endline);
+            MSG_INFO(3, "xval: '" << newx << "'" << endline);
+            MSG_INFO(3, "yval: '" << newy << "'" << endline);
+            MSG_INFO(4, "iseries: '" << iseries << "'" << endline);
+
+            // Fill in the data
+            setChartData(cDoc, cName, ex_to<matrix>(expression(xval.evalm()).evalf()),
+                         ex_to<matrix>(expression(yval.evalm()).evalf()), iseries);
+
+            // Update the view
+            Reference<com::sun::star::util::XModifiable> xModChart(cDoc, UNO_QUERY);
+            if (xModChart.is())
+                xModChart->setModified(true);
+        } // setChartData()
 
         while (iseries > series)
         { // Add series (x- and y-column) to the data
@@ -976,8 +1203,10 @@ Reference<XComponent> insertObject(const Reference<XModel>& xModel, const OUStri
                             pNewPoint[s] = data[r][s];
         }
 
-        cDataArray->setData(newData);
-        MSG_INFO(4, "Finished setChartData()" << endline);
+        // Update the view
+        Reference<com::sun::star::util::XModifiable> xModChart(cDoc, UNO_QUERY);
+        if (xModChart.is())
+            xModChart->setModified(true);
     } // setChartData()
 
     Sequence<Sequence<double>> getChartData(const Reference<XComponent>& xChart)
@@ -1022,1514 +1251,1490 @@ Reference<XComponent> insertObject(const Reference<XModel>& xModel, const OUStri
         return (Reference<XChartDataArray>(cDoc->getDataProvider(), UNO_QUERY_THROW));
     } // getChartDataArray()
 
-    void setSeriesDescription(const Reference<com::sun::star::chart2::XChartDocument>& cDoc,
-                              const OUString& desc, const int idx)
-    {
-        Reference<XChartDataArray> cDataArray(cDoc->getDataProvider(), UNO_QUERY_THROW);
-        Sequence<OUString> descriptions = cDataArray->getColumnDescriptions();
-        auto pDescriptions = descriptions.getArray();
+    // Update the view
+    Reference<com::sun::star::util::XModifiable> xModChart(cDoc, UNO_QUERY);
+    if (xModChart.is())
+        xModChart->setModified(true);
+} // setChartData()
 
-        if (idx < descriptions.getLength())
-        {
-            pDescriptions[idx] = desc;
-            cDataArray->setColumnDescriptions(descriptions);
-        }
-    } // setSeriesDescription()
+if (idx < descriptions.getLength())
+{
+    pDescriptions[idx] = desc;
+    cDataArray->setColumnDescriptions(descriptions);
+}
+} // setSeriesDescription()
 
-    void setSeriesDescription(const Reference<XComponent>& xChart, const OUString& desc,
-                              const int idx)
+void setSeriesDescription(const Reference<XComponent>& xChart, const OUString& desc, const int idx)
+{
+    Reference<com::sun::star::chart2::XChartDocument> cDoc(extractModel(xChart), UNO_QUERY_THROW);
+    setSeriesDescription(cDoc, desc, idx);
+}
+
+void setSeriesDescription(const Reference<XModel>& xModel, const OUString& cName,
+                          const OUString& desc, const int idx)
+{
+    Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
+    setSeriesDescription(cDoc, desc, idx);
+}
+
+void setTitles(const Reference<XComponent>& xChart, const OUString& main, const OUString& xAxis,
+               const OUString& yAxis)
+{
+    Reference<com::sun::star::chart::XChartDocument> cDoc(extractModel(xChart), UNO_QUERY_THROW);
+    Reference<XPropertySet> cProperties(cDoc, UNO_QUERY_THROW);
+    if (!main.equalsAscii(""))
     {
-        Reference<com::sun::star::chart2::XChartDocument> cDoc(extractModel(xChart),
-                                                               UNO_QUERY_THROW);
-        setSeriesDescription(cDoc, desc, idx);
+        cProperties->setPropertyValue(OU("HasMainTitle"), Any(true));
+        Reference<XPropertySet> cTProperties(cDoc->getTitle(), UNO_QUERY_THROW);
+        cTProperties->setPropertyValue(OU("String"), Any(main));
+    }
+    Reference<XDiagram> cDiagram = cDoc->getDiagram();
+    Reference<XAxisXSupplier> cAxisXSupplier(cDiagram, UNO_QUERY_THROW);
+    Reference<XPropertySet> axProperties(cAxisXSupplier->getXAxisTitle(), UNO_QUERY_THROW);
+    OUString xAx = xAxis;
+    OUString yAx = yAxis;
+    if (!xAxis.equalsAscii(""))
+    {
+        if (xAxis.matchAsciiL("\"", 1, 0))
+            xAx = xAxis.copy(1, xAxis.getLength() - 2);
+        else if (xAxis.matchAsciiL("%", 1, 0))
+            xAx = xAxis.copy(1);
+        else if (xAxis == OU("1"))
+            xAx = OU("");
+    }
+    axProperties->setPropertyValue(OU("String"), Any(xAx));
+    Reference<XAxisYSupplier> cAxisYSupplier(cDiagram, UNO_QUERY_THROW);
+    Reference<XPropertySet> ayProperties(cAxisYSupplier->getYAxisTitle(), UNO_QUERY_THROW);
+    if (!yAxis.equalsAscii(""))
+    {
+        if (yAxis.matchAsciiL("\"", 1, 0))
+            yAx = yAxis.copy(1, yAxis.getLength() - 2);
+        else if (yAxis.matchAsciiL("%", 1, 0))
+            yAx = yAxis.copy(1);
+        else if (yAxis == OU("1"))
+            yAx = OU("");
+    }
+    ayProperties->setPropertyValue(OU("String"), Any(yAx));
+} // setTitles()
+
+void setChartData(const Reference<XModel>& xModel, const OUString& cName, const matrix& xval,
+                  const matrix& yval, const unsigned iseries)
+{
+    // Sanity checks
+    if (xval.cols() != 1)
+        throw RuntimeException(OU("Vector of X values can only have one column"), xModel);
+    if (yval.cols() != 1)
+        throw RuntimeException(OU("Vector of Y values can only have one column"), xModel);
+    if (xval.rows() != yval.rows())
+        throw RuntimeException(OU("Arguments to chart must be vectors of equal length"), xModel);
+
+    // Find the chart
+    Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
+
+    // Fill in the data
+    setChartData(cDoc, cName, ex_to<matrix>(expression(xval.evalm()).evalf()),
+                 ex_to<matrix>(expression(yval.evalm()).evalf()), iseries);
+    // Force diagram update
+    Reference<XComponent> xChart = getChartObjectByName(xModel, cName);
+    forceDiagramUpdate(xChart);
+} // setChartData()
+
+void setChartData(const Reference<XModel>& xModel, const OUString& cName, const extsymbol& s,
+                  const matrix& xval, const expression& yexpr, const unsigned iseries)
+{
+    // Sanity checks
+    if (xval.cols() != 1)
+        throw RuntimeException(OU("Vector of X values can only have one column"), xModel);
+
+    // Get X values
+    matrix x = ex_to<matrix>(expression(xval).evalf());
+
+    // Create Y values
+    matrix yval(xval.rows(), 1);
+    std::vector<std::string> vunsafe;
+    vunsafe.emplace_back("unsafe");
+    //MSG_INFO(3,  "Function for y: " << yexpr << endline);
+
+    for (unsigned r = 0; r < yval.rows(); r++)
+    {
+        //MSG_INFO(3,  "Calculating yval for " << x(r,0) << endline);
+        yval(r, 0) = expression(yexpr.subs(s == xval(r, 0))).evalf().simplify(vunsafe);
     }
 
-    void setSeriesDescription(const Reference<XModel>& xModel, const OUString& cName,
-                              const OUString& desc, const int idx)
+    // Fill in the data
+    Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
+    setChartData(cDoc, cName, x, yval, iseries);
+
+    // Force diagram update
+    Reference<XComponent> xChart = getChartObjectByName(xModel, cName);
+    forceDiagramUpdate(xChart);
+} // setChartData()
+
+void setChartData(const Reference<XModel>& xModel, const OUString& cName, const matrix& yval,
+                  const unsigned iseries)
+{
+    // Sanity checks
+    if (yval.cols() != 1)
+        throw RuntimeException(OU("Vector of Y values can only have one column"), xModel);
+
+    // Find the chart
+    Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
+    Reference<XChartDataArray> cDataArray = getChartDataArray(cDoc);
+
+    // get old data
+    Sequence<Sequence<double>> data = cDataArray->getData();
+    unsigned rows = data.getLength();
+    if (rows <= 1)
+        throw RuntimeException(OU("Arguments to chart must be vectors or equation and expression"),
+                               xModel);
+    if (rows != yval.rows())
+        throw RuntimeException(OU("Arguments to chart must be vectors of equal length"), xModel);
+
+    // // Use existing X-values. Rows are 1 if the chart is empty, see insertChart().
+    matrix x(rows, 1);
+    for (unsigned r = 0; r < rows; r++)
+        x(r, 0) = data[r][0];
+
+    // Fill in the data
+    setChartData(cDoc, cName, x, ex_to<matrix>(expression(yval.evalm()).evalf()), iseries);
+
+    // Force diagram update
+    Reference<XComponent> xChart = getChartObjectByName(xModel, cName);
+    forceDiagramUpdate(xChart);
+} // setChartData()
+
+sal_Bool activateOLE(const Reference<XComponent>& xComponent)
+{
+    if (!xComponent.is())
+        return sal_False;
+    Reference<XEmbeddedObjectSupplier2> xEOS2(xComponent, UNO_QUERY);
+    if (!xEOS2.is())
+        return sal_False;
+    Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
+    if (!xEmbObj.is())
+        return sal_False;
+
+    try
     {
-        Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
-        setSeriesDescription(cDoc, desc, idx);
+        if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::LOADED)
+            xEmbObj->changeState(com::sun::star::embed::EmbedStates::RUNNING);
+        if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::RUNNING)
+            xEmbObj->changeState(
+                com::sun::star::embed::EmbedStates::
+                    UI_ACTIVE); // Note: This may block when triggered from XAsyncJob updateLoop()
     }
-
-    void setTitles(const Reference<XComponent>& xChart, const OUString& main, const OUString& xAxis,
-                   const OUString& yAxis)
+    catch (Exception&)
     {
-        Reference<com::sun::star::chart::XChartDocument> cDoc(extractModel(xChart),
-                                                              UNO_QUERY_THROW);
-        Reference<XPropertySet> cProperties(cDoc, UNO_QUERY_THROW);
-        if (!main.equalsAscii(""))
-        {
-            cProperties->setPropertyValue(OU("HasMainTitle"), Any(true));
-            Reference<XPropertySet> cTProperties(cDoc->getTitle(), UNO_QUERY_THROW);
-            cTProperties->setPropertyValue(OU("String"), Any(main));
-        }
-        Reference<XDiagram> cDiagram = cDoc->getDiagram();
-        Reference<XAxisXSupplier> cAxisXSupplier(cDiagram, UNO_QUERY_THROW);
-        Reference<XPropertySet> axProperties(cAxisXSupplier->getXAxisTitle(), UNO_QUERY_THROW);
-        OUString xAx = xAxis;
-        OUString yAx = yAxis;
-        if (!xAxis.equalsAscii(""))
-        {
-            if (xAxis.matchAsciiL("\"", 1, 0))
-                xAx = xAxis.copy(1, xAxis.getLength() - 2);
-            else if (xAxis.matchAsciiL("%", 1, 0))
-                xAx = xAxis.copy(1);
-            else if (xAxis == OU("1"))
-                xAx = OU("");
-        }
-        axProperties->setPropertyValue(OU("String"), Any(xAx));
-        Reference<XAxisYSupplier> cAxisYSupplier(cDiagram, UNO_QUERY_THROW);
-        Reference<XPropertySet> ayProperties(cAxisYSupplier->getYAxisTitle(), UNO_QUERY_THROW);
-        if (!yAxis.equalsAscii(""))
-        {
-            if (yAxis.matchAsciiL("\"", 1, 0))
-                yAx = yAxis.copy(1, yAxis.getLength() - 2);
-            else if (yAxis.matchAsciiL("%", 1, 0))
-                yAx = yAxis.copy(1);
-            else if (yAxis == OU("1"))
-                yAx = OU("");
-        }
-        ayProperties->setPropertyValue(OU("String"), Any(yAx));
-    } // setTitles()
-
-    void setChartData(const Reference<XModel>& xModel, const OUString& cName, const matrix& xval,
-                      const matrix& yval, const unsigned iseries)
-    {
-        // Sanity checks
-        if (xval.cols() != 1)
-            throw RuntimeException(OU("Vector of X values can only have one column"), xModel);
-        if (yval.cols() != 1)
-            throw RuntimeException(OU("Vector of Y values can only have one column"), xModel);
-        if (xval.rows() != yval.rows())
-            throw RuntimeException(OU("Arguments to chart must be vectors of equal length"),
-                                   xModel);
-
-        // Find the chart
-        Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
-
-        // Fill in the data
-        setChartData(cDoc, cName, ex_to<matrix>(expression(xval.evalm()).evalf()),
-                     ex_to<matrix>(expression(yval.evalm()).evalf()), iseries);
-        // Force diagram update
-        Reference<XComponent> xChart = getChartObjectByName(xModel, cName);
-        forceDiagramUpdate(xChart);
-    } // setChartData()
-
-    void setChartData(const Reference<XModel>& xModel, const OUString& cName, const extsymbol& s,
-                      const matrix& xval, const expression& yexpr, const unsigned iseries)
-    {
-        // Sanity checks
-        if (xval.cols() != 1)
-            throw RuntimeException(OU("Vector of X values can only have one column"), xModel);
-
-        // Get X values
-        matrix x = ex_to<matrix>(expression(xval).evalf());
-
-        // Create Y values
-        matrix yval(xval.rows(), 1);
-        std::vector<std::string> vunsafe;
-        vunsafe.emplace_back("unsafe");
-        //MSG_INFO(3,  "Function for y: " << yexpr << endline);
-
-        for (unsigned r = 0; r < yval.rows(); r++)
-        {
-            //MSG_INFO(3,  "Calculating yval for " << x(r,0) << endline);
-            yval(r, 0) = expression(yexpr.subs(s == xval(r, 0))).evalf().simplify(vunsafe);
-        }
-
-        // Fill in the data
-        Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
-        setChartData(cDoc, cName, x, yval, iseries);
-
-        // Force diagram update
-        Reference<XComponent> xChart = getChartObjectByName(xModel, cName);
-        forceDiagramUpdate(xChart);
-    } // setChartData()
-
-    void setChartData(const Reference<XModel>& xModel, const OUString& cName, const matrix& yval,
-                      const unsigned iseries)
-    {
-        // Sanity checks
-        if (yval.cols() != 1)
-            throw RuntimeException(OU("Vector of Y values can only have one column"), xModel);
-
-        // Find the chart
-        Reference<com::sun::star::chart2::XChartDocument> cDoc = getChartDoc(xModel, cName);
-        Reference<XChartDataArray> cDataArray = getChartDataArray(cDoc);
-
-        // get old data
-        Sequence<Sequence<double>> data = cDataArray->getData();
-        unsigned rows = data.getLength();
-        if (rows <= 1)
-            throw RuntimeException(
-                OU("Arguments to chart must be vectors or equation and expression"), xModel);
-        if (rows != yval.rows())
-            throw RuntimeException(OU("Arguments to chart must be vectors of equal length"),
-                                   xModel);
-
-        // // Use existing X-values. Rows are 1 if the chart is empty, see insertChart().
-        matrix x(rows, 1);
-        for (unsigned r = 0; r < rows; r++)
-            x(r, 0) = data[r][0];
-
-        // Fill in the data
-        setChartData(cDoc, cName, x, ex_to<matrix>(expression(yval.evalm()).evalf()), iseries);
-
-        // Force diagram update
-        Reference<XComponent> xChart = getChartObjectByName(xModel, cName);
-        forceDiagramUpdate(xChart);
-    } // setChartData()
-
-    sal_Bool activateOLE(const Reference<XComponent>& xComponent)
-    {
-        if (!xComponent.is())
-            return sal_False;
-        Reference<XEmbeddedObjectSupplier2> xEOS2(xComponent, UNO_QUERY);
-        if (!xEOS2.is())
-            return sal_False;
-        Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
-        if (!xEmbObj.is())
-            return sal_False;
-
-        try
-        {
-            if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::LOADED)
-                xEmbObj->changeState(com::sun::star::embed::EmbedStates::RUNNING);
-            if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::RUNNING)
-                xEmbObj->changeState(
-                    com::sun::star::embed::EmbedStates::
-                        UI_ACTIVE); // Note: This may block when triggered from XAsyncJob updateLoop()
-        }
-        catch (Exception&)
-        {
-            return sal_False;
-        }
-        return sal_True;
-    } // activateOLE()
-
-    sal_Bool deactivateOLE(const Reference<XComponent>& xComponent)
-    {
-        Reference<XEmbeddedObjectSupplier2> xEOS2(xComponent, UNO_QUERY);
-        if (!xEOS2.is())
-            return sal_False;
-        Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
-        if (!xEmbObj.is())
-            return sal_False;
-
-        try
-        {
-            if ((xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::UI_ACTIVE)
-                || (xEmbObj->getCurrentState()
-                    == com::sun::star::embed::EmbedStates::INPLACE_ACTIVE)
-                || (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::ACTIVE))
-                xEmbObj->changeState(com::sun::star::embed::EmbedStates::RUNNING);
-            if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::RUNNING)
-                xEmbObj->changeState(com::sun::star::embed::EmbedStates::LOADED);
-        }
-        catch (Exception&)
-        {
-            return sal_False;
-        }
-
-        return sal_True;
-    } // deactivateOLE()
-
-    sal_Bool isOLEactivated(const Reference<XComponent>& xComponent)
-    {
-        Reference<XEmbeddedObjectSupplier2> xEOS2(xComponent, UNO_QUERY);
-        if (!xEOS2.is())
-            return sal_False;
-        Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
-        if (!xEmbObj.is())
-            return sal_False;
-        return (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::UI_ACTIVE);
+        return sal_False;
     }
+    return sal_True;
+} // activateOLE()
 
-    sal_Bool formulaActive(const Reference<XModel>& xModel)
+sal_Bool deactivateOLE(const Reference<XComponent>& xComponent)
+{
+    Reference<XEmbeddedObjectSupplier2> xEOS2(xComponent, UNO_QUERY);
+    if (!xEOS2.is())
+        return sal_False;
+    Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
+    if (!xEmbObj.is())
+        return sal_False;
+
+    try
     {
-        iIterator it(xModel, CLSID_FORMULA);
-        while (it.next())
-            if (isOLEactivated(*it))
-                return sal_True;
+        if ((xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::UI_ACTIVE)
+            || (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::INPLACE_ACTIVE)
+            || (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::ACTIVE))
+            xEmbObj->changeState(com::sun::star::embed::EmbedStates::RUNNING);
+        if (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::RUNNING)
+            xEmbObj->changeState(com::sun::star::embed::EmbedStates::LOADED);
+    }
+    catch (Exception&)
+    {
         return sal_False;
     }
 
-    sal_Bool checkIsObject(const Reference<XComponent>& xComponent, const OUString& clsid)
+    return sal_True;
+} // deactivateOLE()
+
+sal_Bool isOLEactivated(const Reference<XComponent>& xComponent)
+{
+    Reference<XEmbeddedObjectSupplier2> xEOS2(xComponent, UNO_QUERY);
+    if (!xEOS2.is())
+        return sal_False;
+    Reference<XEmbeddedObject> xEmbObj(xEOS2->getExtendedControlOverEmbeddedObject());
+    if (!xEmbObj.is())
+        return sal_False;
+    return (xEmbObj->getCurrentState() == com::sun::star::embed::EmbedStates::UI_ACTIVE);
+}
+
+sal_Bool formulaActive(const Reference<XModel>& xModel)
+{
+    iIterator it(xModel, CLSID_FORMULA);
+    while (it.next())
+        if (isOLEactivated(*it))
+            return sal_True;
+    return sal_False;
+}
+
+sal_Bool checkIsObject(const Reference<XComponent>& xComponent, const OUString& clsid)
+{
+    MSG_INFO(4, "checkIsObject(XComponent)" << endline);
+    Reference<XPropertySet> xPS(xComponent, UNO_QUERY_THROW);
+    Any aClsid;
+
+    try
     {
-        MSG_INFO(4, "checkIsObject(XComponent)" << endline);
-        Reference<XPropertySet> xPS(xComponent, UNO_QUERY_THROW);
-        Any aClsid;
-
-        try
-        {
-            aClsid = xPS->getPropertyValue(OU("CLSID"));
-        }
-        catch (UnknownPropertyException& e)
-        {
-            (void)e;
-            return false;
-        }
-
-        OUString clsid_str;
-        aClsid >>= clsid_str;
-        return (clsid_str.equals(clsid));
-    } // checkIsObject()
-
-    // Check if this object is a smath formula
-    sal_Bool checkIsFormula(const Reference<XComponent>& xComponent)
+        aClsid = xPS->getPropertyValue(OU("CLSID"));
+    }
+    catch (UnknownPropertyException& e)
     {
-        return checkIsObject(xComponent, CLSID_FORMULA);
+        (void)e;
+        return false;
     }
 
-    sal_Bool checkIsChart(const Reference<XComponent>& xComponent)
-    {
-        return checkIsObject(xComponent, CLSID_CHART);
-    }
+    OUString clsid_str;
+    aClsid >>= clsid_str;
+    return (clsid_str.equals(clsid));
+} // checkIsObject()
 
-    /// Check if this object is an iFormula
-    sal_Bool checkIsiFormula(const Reference<XComponent>& xComponent)
-    {
-        MSG_INFO(2, "checkIsiFormula(XComponent)" << endline);
-        if (checkIsFormula(xComponent))
-        { // we have a formula, is it an iFormula?
+// Check if this object is a smath formula
+sal_Bool checkIsFormula(const Reference<XComponent>& xComponent)
+{
+    return checkIsObject(xComponent, CLSID_FORMULA);
+}
+
+sal_Bool checkIsChart(const Reference<XComponent>& xComponent)
+{
+    return checkIsObject(xComponent, CLSID_CHART);
+}
+
+/// Check if this object is an iFormula
+sal_Bool checkIsiFormula(const Reference<XComponent>& xComponent)
+{
+    MSG_INFO(2, "checkIsiFormula(XComponent)" << endline);
+    if (checkIsFormula(xComponent))
+    { // we have a formula, is it an iFormula?
 #ifdef INSIDE_SM
-            return true; // Any formula is a potential iFormula, since the user might double-click on it and start editing, then compilation needs to work immediately
+        return true; // Any formula is a potential iFormula, since the user might double-click on it and start editing, then compilation needs to work immediately
 #else
-            Reference<XModel> fModel = extractModel(xComponent);
-            OUString fText(getFormulaText(fModel));
-            int iipos = fText.indexOfAsciiL("%%ii", 4);
-            return (iipos >= 0);
+        Reference<XModel> fModel = extractModel(xComponent);
+        OUString fText(getFormulaText(fModel));
+        int iipos = fText.indexOfAsciiL("%%ii", 4);
+        return (iipos >= 0);
 #endif
-        }
-        else
-        {
-            return false;
-        }
-    } // checkIsiFormula
-
-    Reference<XModel> extractModel(const Reference<XComponent>& xComponent)
-    {
-        Reference<XEmbeddedObjectSupplier> xEOS(xComponent, UNO_QUERY);
-        if (xEOS.is())
-            return Reference<XModel>(xEOS->getEmbeddedObject(), UNO_QUERY_THROW);
-
-        Reference<XPropertySet> xPS(xComponent, UNO_QUERY_THROW);
-        Any fModelAny;
-        fModelAny = xPS->getPropertyValue(OU("Model"));
-        Reference<XModel> result;
-        fModelAny >>= result;
-        return result;
     }
-
-    OUString getFormulaText(const Reference<XModel>& fModel)
+    else
     {
-        Reference<XPropertySet> fPS(fModel, UNO_QUERY);
-        if (!fPS.is())
-            return OU(""); // Avoid crash after an Undo action
+        return false;
+    }
+} // checkIsiFormula
 
-        // get the formula text
-        Any fTextAny;
+Reference<XModel> extractModel(const Reference<XComponent>& xComponent)
+{
+    Reference<XEmbeddedObjectSupplier> xEOS(xComponent, UNO_QUERY);
+    if (xEOS.is())
+        return Reference<XModel>(xEOS->getEmbeddedObject(), UNO_QUERY_THROW);
+
+    Reference<XPropertySet> xPS(xComponent, UNO_QUERY_THROW);
+    Any fModelAny;
+    fModelAny = xPS->getPropertyValue(OU("Model"));
+    Reference<XModel> result;
+    fModelAny >>= result;
+    return result;
+}
+
+OUString getFormulaText(const Reference<XModel>& fModel)
+{
+    Reference<XPropertySet> fPS(fModel, UNO_QUERY);
+    if (!fPS.is())
+        return OU(""); // Avoid crash after an Undo action
+
+    // get the formula text
+    Any fTextAny;
 #ifdef INSIDE_SM
-        fTextAny = fPS->getPropertyValue(OU("iFormula"));
+    fTextAny = fPS->getPropertyValue(OU("iFormula"));
 #else
-        fTextAny = fPS->getPropertyValue(OU("Formula"));
+    fTextAny = fPS->getPropertyValue(OU("Formula"));
 #endif
-        OUString fText;
-        fTextAny >>= fText;
-        return fText;
+    OUString fText;
+    fTextAny >>= fText;
+    return fText;
+}
+
+void setFormulaText(const Reference<XModel>& fModel, const OUString& fText)
+{
+    if (!fModel.is())
+        return;
+    Reference<XPropertySet> fPS(fModel, UNO_QUERY_THROW);
+
+    // set the formula text
+    Any fTextAny = Any(fText);
+    fPS->setPropertyValue(OU("Formula"), fTextAny);
+    // Cannot be set earlier because of error "Unknown property"
+    fPS->setPropertyValue(OU("IsScaleAllBrackets"), Any(true));
+} // setFormulaText()
+
+void setFormulaProperty(const Reference<XModel>& fModel, const OUString& propName, const Any& value)
+{
+    Reference<XPropertySet> fPS(fModel, UNO_QUERY);
+    if (!fPS.is())
+        return;
+    fPS->setPropertyValue(propName, value);
+}
+
+unsigned getFormulaUnsignedProperty(const Reference<XModel>& fModel, const OUString& propName)
+{
+    Reference<XPropertySet> fPS(fModel, UNO_QUERY);
+    if (!fPS.is())
+        return 0; // Avoid crash after an Undo action
+
+    Any aResult = fPS->getPropertyValue(propName);
+    long result = 0; // Must use long for the Any cast!
+    aResult >>= result;
+    return result;
+}
+
+OUString getObjectName(const Reference<XComponent>& comp)
+{
+    Reference<XNamed> oName(comp, UNO_QUERY_THROW);
+    return oName->getName();
+}
+
+void setObjectName(const Reference<XComponent>& comp, const OUString& name)
+{
+    Reference<XNamed> oName(comp, UNO_QUERY_THROW);
+    return oName->setName(name);
+}
+
+Reference<XChartDocument> getChart(const Reference<XComponent>& xComponent)
+{
+    if (checkIsChart(xComponent))
+    {
+        Reference<XChartDocument> chart(extractModel(xComponent), UNO_QUERY_THROW);
+        return chart;
     }
-
-    void setFormulaText(const Reference<XModel>& fModel, const OUString& fText)
+    else
     {
-        if (!fModel.is())
-            return;
-        Reference<XPropertySet> fPS(fModel, UNO_QUERY_THROW);
-
-        // set the formula text
-        Any fTextAny = Any(fText);
-        fPS->setPropertyValue(OU("Formula"), fTextAny);
-        // Cannot be set earlier because of error "Unknown property"
-        fPS->setPropertyValue(OU("IsScaleAllBrackets"), Any(true));
-    } // setFormulaText()
-
-    void setFormulaProperty(const Reference<XModel>& fModel, const OUString& propName,
-                            const Any& value)
-    {
-        Reference<XPropertySet> fPS(fModel, UNO_QUERY);
-        if (!fPS.is())
-            return;
-        fPS->setPropertyValue(propName, value);
+        return Reference<XChartDocument>();
     }
+}
 
-    unsigned getFormulaUnsignedProperty(const Reference<XModel>& fModel, const OUString& propName)
+Reference<XPropertySet> getChartTitleProperties(const Reference<XChartDocument>& chart)
+{
+    Reference<XTitled> xTitled(chart, UNO_QUERY_THROW);
+    Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
+    if (!title.is())
+        return Reference<XPropertySet>();
+    Sequence<Reference<XFormattedString>> titleText = title->getText();
+    Reference<XFormattedString> titleTextPortion
+        = titleText[0]; // No point iterating because UI only allows one font for the title
+    Reference<XPropertySet> titleTextProps(titleTextPortion, UNO_QUERY_THROW);
+    return titleTextProps;
+}
+
+Reference<XPropertySet>
+getDiagramTitleProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram)
+{
+    Reference<XTitled> xTitled(diagram, UNO_QUERY_THROW);
+    Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
+    if (!title.is())
+        return Reference<XPropertySet>();
+    Sequence<Reference<XFormattedString>> titleText = title->getText();
+    Reference<XFormattedString> titleTextPortion
+        = titleText[0]; // No point iterating because UI only allows one font for the title
+    Reference<XPropertySet> titleTextProps(titleTextPortion, UNO_QUERY_THROW);
+    return titleTextProps;
+}
+
+Reference<XPropertySet>
+getDiagramLegendProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram)
+{
+    Reference<XLegend> legend = diagram->getLegend();
+    if (!legend.is())
+        return Reference<XPropertySet>();
+    Reference<XPropertySet> legendTextProps(legend, UNO_QUERY_THROW);
+    return legendTextProps;
+}
+
+Sequence<Sequence<Sequence<Reference<XPropertySet>>>>
+getDiagramAxesTitleProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram)
+{
+    Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
+    Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
+    Sequence<Sequence<Sequence<Reference<XPropertySet>>>> result_csystems(cSystems.getLength());
+    auto pResult_csystems = result_csystems.getArray();
+
+    for (int c = 0; c < cSystems.getLength(); ++c)
     {
-        Reference<XPropertySet> fPS(fModel, UNO_QUERY);
-        if (!fPS.is())
-            return 0; // Avoid crash after an Undo action
+        Sequence<Sequence<Reference<XPropertySet>>> result_dimensions(cSystems[c]->getDimension());
+        auto pResult_dimensions = result_dimensions.getArray();
 
-        Any aResult = fPS->getPropertyValue(propName);
-        long result = 0; // Must use long for the Any cast!
-        aResult >>= result;
-        return result;
-    }
-
-    OUString getObjectName(const Reference<XComponent>& comp)
-    {
-        Reference<XNamed> oName(comp, UNO_QUERY_THROW);
-        return oName->getName();
-    }
-
-    void setObjectName(const Reference<XComponent>& comp, const OUString& name)
-    {
-        Reference<XNamed> oName(comp, UNO_QUERY_THROW);
-        return oName->setName(name);
-    }
-
-    Reference<XChartDocument> getChart(const Reference<XComponent>& xComponent)
-    {
-        if (checkIsChart(xComponent))
+        for (int d = 0; d < cSystems[c]->getDimension(); ++d)
         {
-            Reference<XChartDocument> chart(extractModel(xComponent), UNO_QUERY_THROW);
-            return chart;
-        }
-        else
-        {
-            return Reference<XChartDocument>();
-        }
-    }
+            Sequence<Reference<XPropertySet>> result_axes(
+                cSystems[c]->getMaximumAxisIndexByDimension(d));
+            auto pResult_axes = result_axes.getArray();
 
-    Reference<XPropertySet> getChartTitleProperties(const Reference<XChartDocument>& chart)
-    {
-        Reference<XTitled> xTitled(chart, UNO_QUERY_THROW);
-        Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
-        if (!title.is())
-            return Reference<XPropertySet>();
-        Sequence<Reference<XFormattedString>> titleText = title->getText();
-        Reference<XFormattedString> titleTextPortion
-            = titleText[0]; // No point iterating because UI only allows one font for the title
-        Reference<XPropertySet> titleTextProps(titleTextPortion, UNO_QUERY_THROW);
-        return titleTextProps;
-    }
-
-    Reference<XPropertySet> getDiagramTitleProperties(
-        const Reference<com::sun::star::chart2::XDiagram>& diagram)
-    {
-        Reference<XTitled> xTitled(diagram, UNO_QUERY_THROW);
-        Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
-        if (!title.is())
-            return Reference<XPropertySet>();
-        Sequence<Reference<XFormattedString>> titleText = title->getText();
-        Reference<XFormattedString> titleTextPortion
-            = titleText[0]; // No point iterating because UI only allows one font for the title
-        Reference<XPropertySet> titleTextProps(titleTextPortion, UNO_QUERY_THROW);
-        return titleTextProps;
-    }
-
-    Reference<XPropertySet> getDiagramLegendProperties(
-        const Reference<com::sun::star::chart2::XDiagram>& diagram)
-    {
-        Reference<XLegend> legend = diagram->getLegend();
-        if (!legend.is())
-            return Reference<XPropertySet>();
-        Reference<XPropertySet> legendTextProps(legend, UNO_QUERY_THROW);
-        return legendTextProps;
-    }
-
-    Sequence<Sequence<Sequence<Reference<XPropertySet>>>> getDiagramAxesTitleProperties(
-        const Reference<com::sun::star::chart2::XDiagram>& diagram)
-    {
-        Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
-        Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
-        Sequence<Sequence<Sequence<Reference<XPropertySet>>>> result_csystems(cSystems.getLength());
-        auto pResult_csystems = result_csystems.getArray();
-
-        for (int c = 0; c < cSystems.getLength(); ++c)
-        {
-            Sequence<Sequence<Reference<XPropertySet>>> result_dimensions(
-                cSystems[c]->getDimension());
-            auto pResult_dimensions = result_dimensions.getArray();
-
-            for (int d = 0; d < cSystems[c]->getDimension(); ++d)
+            for (int n = 0; n < cSystems[c]->getMaximumAxisIndexByDimension(d); ++n)
             {
-                Sequence<Reference<XPropertySet>> result_axes(
-                    cSystems[c]->getMaximumAxisIndexByDimension(d));
-                auto pResult_axes = result_axes.getArray();
+                Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
 
-                for (int n = 0; n < cSystems[c]->getMaximumAxisIndexByDimension(d); ++n)
+                if (axis.is())
                 {
-                    Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
-
-                    if (axis.is())
+                    Reference<XTitled> xTitled(axis, UNO_QUERY_THROW);
+                    Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
+                    if (!title.is())
                     {
-                        Reference<XTitled> xTitled(axis, UNO_QUERY_THROW);
-                        Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
-                        if (!title.is())
-                        {
-                            pResult_axes[n] = Reference<XPropertySet>();
-                        }
-                        else
-                        {
-                            Sequence<Reference<XFormattedString>> titleText = title->getText();
-                            Reference<XFormattedString> titleTextPortion = titleText
-                                [0]; // No point iterating because UI only allows one font for the title
-                            Reference<XPropertySet> titleTextProps(titleTextPortion,
-                                                                   UNO_QUERY_THROW);
-                            pResult_axes[n] = titleTextProps;
-                        }
+                        pResult_axes[n] = Reference<XPropertySet>();
+                    }
+                    else
+                    {
+                        Sequence<Reference<XFormattedString>> titleText = title->getText();
+                        Reference<XFormattedString> titleTextPortion = titleText
+                            [0]; // No point iterating because UI only allows one font for the title
+                        Reference<XPropertySet> titleTextProps(titleTextPortion, UNO_QUERY_THROW);
+                        pResult_axes[n] = titleTextProps;
                     }
                 }
-
-                pResult_dimensions[d] = result_axes;
             }
 
-            pResult_csystems[c] = result_dimensions;
+            pResult_dimensions[d] = result_axes;
         }
 
-        return result_csystems;
+        pResult_csystems[c] = result_dimensions;
     }
 
-    Sequence<Sequence<Sequence<Reference<XPropertySet>>>> getDiagramAxesProperties(
-        const Reference<com::sun::star::chart2::XDiagram>& diagram)
+    return result_csystems;
+}
+
+Sequence<Sequence<Sequence<Reference<XPropertySet>>>>
+getDiagramAxesProperties(const Reference<com::sun::star::chart2::XDiagram>& diagram)
+{
+    Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
+    Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
+    Sequence<Sequence<Sequence<Reference<XPropertySet>>>> result_csystems(cSystems.getLength());
+    auto pResult_csystems = result_csystems.getArray();
+
+    for (int c = 0; c < cSystems.getLength(); ++c)
     {
-        Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
-        Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
-        Sequence<Sequence<Sequence<Reference<XPropertySet>>>> result_csystems(cSystems.getLength());
-        auto pResult_csystems = result_csystems.getArray();
+        Sequence<Sequence<Reference<XPropertySet>>> result_dimensions(cSystems[c]->getDimension());
+        auto pResult_dimensions = result_dimensions.getArray();
 
-        for (int c = 0; c < cSystems.getLength(); ++c)
+        for (int d = 0; d < cSystems[c]->getDimension(); ++d)
         {
-            Sequence<Sequence<Reference<XPropertySet>>> result_dimensions(
-                cSystems[c]->getDimension());
-            auto pResult_dimensions = result_dimensions.getArray();
+            Sequence<Reference<XPropertySet>> result_axes(
+                cSystems[c]->getMaximumAxisIndexByDimension(d));
+            auto pResult_axes = result_axes.getArray();
 
-            for (int d = 0; d < cSystems[c]->getDimension(); ++d)
+            for (int n = 0; n < cSystems[c]->getMaximumAxisIndexByDimension(d); ++n)
             {
-                Sequence<Reference<XPropertySet>> result_axes(
-                    cSystems[c]->getMaximumAxisIndexByDimension(d));
-                auto pResult_axes = result_axes.getArray();
-
-                for (int n = 0; n < cSystems[c]->getMaximumAxisIndexByDimension(d); ++n)
+                Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
+                if (axis.is())
                 {
-                    Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
-                    if (axis.is())
-                    {
-                        Reference<XPropertySet> axisProps(axis, UNO_QUERY_THROW);
-                        pResult_axes[n] = axisProps;
-                    }
+                    Reference<XPropertySet> axisProps(axis, UNO_QUERY_THROW);
+                    pResult_axes[n] = axisProps;
                 }
-                pResult_dimensions[d] = result_axes;
             }
-            pResult_csystems[c] = result_dimensions;
+            pResult_dimensions[d] = result_axes;
         }
-
-        return result_csystems;
+        pResult_csystems[c] = result_dimensions;
     }
 
-    void setDiagramAxesTitleProperties(
-        Reference<com::sun::star::chart2::XDiagram> & diagram,
-        const Sequence<Sequence<Sequence<Reference<XPropertySet>>>>& props)
+    return result_csystems;
+}
+
+void setDiagramAxesTitleProperties(
+    Reference<com::sun::star::chart2::XDiagram>& diagram,
+    const Sequence<Sequence<Sequence<Reference<XPropertySet>>>>& props)
+{
+    Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
+    Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
+
+    for (int c = 0; (c < cSystems.getLength()) && (c < props.getLength()); ++c)
     {
-        Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
-        Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
-
-        for (int c = 0; (c < cSystems.getLength()) && (c < props.getLength()); ++c)
+        const Sequence<Sequence<Reference<XPropertySet>>>& dimensions = props[c];
+        for (int d = 0; (d < cSystems[c]->getDimension()) && (d < dimensions.getLength()); ++d)
         {
-            const Sequence<Sequence<Reference<XPropertySet>>>& dimensions = props[c];
-            for (int d = 0; (d < cSystems[c]->getDimension()) && (d < dimensions.getLength()); ++d)
+            Sequence<Reference<XPropertySet>> axes = dimensions[d];
+            for (int n = 0;
+                 (n < cSystems[c]->getMaximumAxisIndexByDimension(d)) && (n < axes.getLength());
+                 ++n)
             {
-                Sequence<Reference<XPropertySet>> axes = dimensions[d];
-                for (int n = 0;
-                     (n < cSystems[c]->getMaximumAxisIndexByDimension(d)) && (n < axes.getLength());
-                     ++n)
+                Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
+                if (axis.is())
                 {
-                    Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
-                    if (axis.is())
-                    {
-                        Reference<XTitled> xTitled(axis, UNO_QUERY_THROW);
-                        Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
+                    Reference<XTitled> xTitled(axis, UNO_QUERY_THROW);
+                    Reference<com::sun::star::chart2::XTitle> title = xTitled->getTitleObject();
 
-                        if (title.is())
-                        {
-                            Sequence<Reference<XFormattedString>> titleText = title->getText();
-                            Reference<XFormattedString> titleTextPortion = titleText
-                                [0]; // No point iterating because UI only allows one font for the title
-                            Reference<XPropertySet> titleTextProps(titleTextPortion,
-                                                                   UNO_QUERY_THROW);
-                            titleTextProps->setPropertyValue(
-                                OU("CharFontName"), axes[n]->getPropertyValue(OU("CharFontName")));
-                        }
+                    if (title.is())
+                    {
+                        Sequence<Reference<XFormattedString>> titleText = title->getText();
+                        Reference<XFormattedString> titleTextPortion = titleText
+                            [0]; // No point iterating because UI only allows one font for the title
+                        Reference<XPropertySet> titleTextProps(titleTextPortion, UNO_QUERY_THROW);
+                        titleTextProps->setPropertyValue(
+                            OU("CharFontName"), axes[n]->getPropertyValue(OU("CharFontName")));
                     }
                 }
             }
         }
     }
+}
 
-    void setDiagramAxesProperties(
-        Reference<com::sun::star::chart2::XDiagram> & diagram,
-        const Sequence<Sequence<Sequence<Reference<XPropertySet>>>>& props)
+void setDiagramAxesProperties(Reference<com::sun::star::chart2::XDiagram>& diagram,
+                              const Sequence<Sequence<Sequence<Reference<XPropertySet>>>>& props)
+{
+    Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
+    Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
+
+    for (int c = 0; (c < cSystems.getLength()) && (c < props.getLength()); ++c)
     {
-        Reference<XCoordinateSystemContainer> xCoordCnt(diagram, UNO_QUERY_THROW);
-        Sequence<Reference<XCoordinateSystem>> cSystems = xCoordCnt->getCoordinateSystems();
-
-        for (int c = 0; (c < cSystems.getLength()) && (c < props.getLength()); ++c)
+        const Sequence<Sequence<Reference<XPropertySet>>>& dimensions = props[c];
+        for (int d = 0; (d < cSystems[c]->getDimension()) && (d < dimensions.getLength()); ++d)
         {
-            const Sequence<Sequence<Reference<XPropertySet>>>& dimensions = props[c];
-            for (int d = 0; (d < cSystems[c]->getDimension()) && (d < dimensions.getLength()); ++d)
+            Sequence<Reference<XPropertySet>> axes = dimensions[d];
+            for (int n = 0;
+                 (n < cSystems[c]->getMaximumAxisIndexByDimension(d)) && (n < axes.getLength());
+                 ++n)
             {
-                Sequence<Reference<XPropertySet>> axes = dimensions[d];
-                for (int n = 0;
-                     (n < cSystems[c]->getMaximumAxisIndexByDimension(d)) && (n < axes.getLength());
-                     ++n)
-                {
-                    Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
+                Reference<XAxis> axis = cSystems[c]->getAxisByDimension(d, n);
 
-                    if (axis.is())
-                    {
-                        Reference<XPropertySet> axisProps(axis, UNO_QUERY_THROW);
-                        axisProps->setPropertyValue(OU("CharFontName"),
-                                                    axes[n]->getPropertyValue(OU("CharFontName")));
-                    }
+                if (axis.is())
+                {
+                    Reference<XPropertySet> axisProps(axis, UNO_QUERY_THROW);
+                    axisProps->setPropertyValue(OU("CharFontName"),
+                                                axes[n]->getPropertyValue(OU("CharFontName")));
                 }
             }
         }
     }
+}
 
-    void toggleTextMode(const Reference<XComponent>& f)
+void toggleTextMode(const Reference<XComponent>& f)
+{
+    Reference<XModel> fModel = extractModel(f);
+    Reference<XPropertySet> fPS(fModel, UNO_QUERY);
+    if (!fPS.is())
+        return;
+
+    Any aOldValue = fPS->getPropertyValue(OU("IsTextMode"));
+    bool oldValue = false;
+    aOldValue >>= oldValue;
+    fPS->setPropertyValue(OU("IsTextMode"), Any(!oldValue));
+}
+
+void copyProperties(const Reference<XComponent>& source, const Reference<XComponent>& target)
+{
+    Reference<XPropertySet> sPS(extractModel(source), UNO_QUERY);
+    if (!sPS.is())
+        return; // Avoid crash after an Undo action
+
+    Reference<XPropertySet> tPS(extractModel(target), UNO_QUERY);
+    if (!tPS.is())
+        return;
+
+    // Formula properties, available in the "Format" menu when the formula editor is active
+    Sequence<com::sun::star::beans::Property> properties(
+        sPS->getPropertySetInfo()->getProperties());
+    for (int p = 0; p < properties.getLength(); ++p)
     {
-        Reference<XModel> fModel = extractModel(f);
-        Reference<XPropertySet> fPS(fModel, UNO_QUERY);
-        if (!fPS.is())
-            return;
-
-        Any aOldValue = fPS->getPropertyValue(OU("IsTextMode"));
-        bool oldValue = false;
-        aOldValue >>= oldValue;
-        fPS->setPropertyValue(OU("IsTextMode"), Any(!oldValue));
-    }
-
-    void copyProperties(const Reference<XComponent>& source, const Reference<XComponent>& target)
-    {
-        Reference<XPropertySet> sPS(extractModel(source), UNO_QUERY);
-        if (!sPS.is())
-            return; // Avoid crash after an Undo action
-
-        Reference<XPropertySet> tPS(extractModel(target), UNO_QUERY);
-        if (!tPS.is())
-            return;
-
-        // Formula properties, available in the "Format" menu when the formula editor is active
-        Sequence<com::sun::star::beans::Property> properties(
-            sPS->getPropertySetInfo()->getProperties());
-        for (int p = 0; p < properties.getLength(); ++p)
+        OUString pName = properties[p].Name;
+        if (!pName.equalsAscii("Formula") && !pName.equalsAscii("IsTextMode"))
         {
-            OUString pName = properties[p].Name;
-            if (!pName.equalsAscii("Formula") && !pName.equalsAscii("IsTextMode"))
+            try
             {
-                try
-                {
-                    tPS->setPropertyValue(pName, sPS->getPropertyValue(pName));
-                }
-                catch (const Exception& e)
-                {
-                    (void)e; /* Unknown property */
-                }
+                tPS->setPropertyValue(pName, sPS->getPropertyValue(pName));
+            }
+            catch (const Exception& e)
+            {
+                (void)e; /* Unknown property */
             }
         }
-
-        // Embedded object properties, available from the context menu entry "Object"
-        sPS = Reference<XPropertySet>(source, UNO_QUERY);
-        tPS = Reference<XPropertySet>(target, UNO_QUERY);
-        try
-        {
-            tPS->setPropertyValue(OU("LeftMargin"), sPS->getPropertyValue(OU("LeftMargin")));
-            tPS->setPropertyValue(OU("RightMargin"), sPS->getPropertyValue(OU("RightMargin")));
-        }
-        catch (const Exception& e)
-        {
-            (void)e; /* Unknown property, e.g. for Presentation */
-        }
     }
 
-    Reference<XComponent> insertFormula(const Reference<XModel>& xModel)
+    // Embedded object properties, available from the context menu entry "Object"
+    sPS = Reference<XPropertySet>(source, UNO_QUERY);
+    tPS = Reference<XPropertySet>(target, UNO_QUERY);
+    try
     {
-        return insertObject(xModel, CLSID_FORMULA);
+        tPS->setPropertyValue(OU("LeftMargin"), sPS->getPropertyValue(OU("LeftMargin")));
+        tPS->setPropertyValue(OU("RightMargin"), sPS->getPropertyValue(OU("RightMargin")));
     }
-
-    void deleteFormula(const Reference<XModel>& xModel, const Reference<XComponent>& iFormula)
+    catch (const Exception& e)
     {
-        if (docType(xModel).equalsAscii("TextDocument"))
-        {
-            deactivateOLE(
-                iFormula); // Why is this necessary??? (started being necessary in LibreOffice 3.3)
-            Reference<XTextCursor> xModelCursor;
-            Reference<XText> xDocumentText
-                = getDocumentText(xModel->getCurrentController(), xModelCursor);
-            xDocumentText->removeTextContent(Reference<XTextContent>(iFormula, UNO_QUERY_THROW));
-        }
-        else if (docType(xModel).equalsAscii("Presentation"))
-        {
-            iIterator it(xModel);
+        (void)e; /* Unknown property, e.g. for Presentation */
+    }
+}
 
-            while (it.next())
+Reference<XComponent> insertFormula(const Reference<XModel>& xModel)
+{
+    return insertObject(xModel, CLSID_FORMULA);
+}
+
+void deleteFormula(const Reference<XModel>& xModel, const Reference<XComponent>& iFormula)
+{
+    if (docType(xModel).equalsAscii("TextDocument"))
+    {
+        deactivateOLE(
+            iFormula); // Why is this necessary??? (started being necessary in LibreOffice 3.3)
+        Reference<XTextCursor> xModelCursor;
+        Reference<XText> xDocumentText
+            = getDocumentText(xModel->getCurrentController(), xModelCursor);
+        xDocumentText->removeTextContent(Reference<XTextContent>(iFormula, UNO_QUERY_THROW));
+    }
+    else if (docType(xModel).equalsAscii("Presentation"))
+    {
+        iIterator it(xModel);
+
+        while (it.next())
+        {
+            if (getObjectName(*it).equals(getObjectName(iFormula)))
             {
-                if (getObjectName(*it).equals(getObjectName(iFormula)))
-                {
-                    Reference<XShapes> xShapes = it.getCurrentShapes();
-                    xShapes->remove(Reference<XShape>(iFormula, UNO_QUERY_THROW));
-                    break;
-                }
+                Reference<XShapes> xShapes = it.getCurrentShapes();
+                xShapes->remove(Reference<XShape>(iFormula, UNO_QUERY_THROW));
+                break;
             }
         }
-    } // deleteFormula()
-
-    Reference<XComponent> getObjectByName(const Reference<XNameAccess>& embeddedObjects,
-                                          const OUString& objectName)
-    {
-        try
-        {
-            Any object = embeddedObjects->getByName(objectName);
-            Reference<XComponent> xComponent;
-            object >>= xComponent;
-            return xComponent;
-        }
-        catch (const Exception&)
-        {
-            return Reference<XComponent>();
-        }
     }
+} // deleteFormula()
 
-    Reference<XComponent> getObjectByName(const Reference<XIndexAccess>& xDrawPages,
-                                          const OUString& objectName)
+Reference<XComponent> getObjectByName(const Reference<XNameAccess>& embeddedObjects,
+                                      const OUString& objectName)
+{
+    try
     {
-        for (int idx = 0; idx < xDrawPages->getCount(); ++idx)
-        {
-            Reference<XDrawPage> page(xDrawPages->getByIndex(idx), UNO_QUERY_THROW);
-            Reference<XIndexAccess> shapes(page, UNO_QUERY_THROW);
-
-            for (int sh = 0; sh < shapes->getCount(); ++sh)
-            {
-                Reference<XServiceInfo> xSI(shapes->getByIndex(sh), UNO_QUERY_THROW);
-
-                if (xSI.is() && xSI->supportsService(OU("com.sun.star.drawing.OLE2Shape")))
-                {
-                    Reference<XComponent> comp(shapes->getByIndex(sh), UNO_QUERY_THROW);
-
-                    if (getObjectName(comp).equals(objectName))
-                        return comp;
-                }
-            }
-        }
-
+        Any object = embeddedObjects->getByName(objectName);
+        Reference<XComponent> xComponent;
+        object >>= xComponent;
+        return xComponent;
+    }
+    catch (const Exception&)
+    {
         return Reference<XComponent>();
     }
+}
 
-    Reference<XComponent> getObjectByName(const Reference<XModel>& xModel,
-                                          const OUString& objectName)
+Reference<XComponent> getObjectByName(const Reference<XIndexAccess>& xDrawPages,
+                                      const OUString& objectName)
+{
+    for (int idx = 0; idx < xDrawPages->getCount(); ++idx)
     {
-        if (docType(xModel).equalsAscii("TextDocument"))
+        Reference<XDrawPage> page(xDrawPages->getByIndex(idx), UNO_QUERY_THROW);
+        Reference<XIndexAccess> shapes(page, UNO_QUERY_THROW);
+
+        for (int sh = 0; sh < shapes->getCount(); ++sh)
         {
-            Reference<XTextEmbeddedObjectsSupplier> xTEOS(xModel, UNO_QUERY_THROW);
-            return getObjectByName(xTEOS->getEmbeddedObjects(), objectName);
-        }
-        else
-        {
-            Reference<XDrawPagesSupplier> xPresDoc(xModel, UNO_QUERY_THROW);
-            Reference<XIndexAccess> xDrawPages(xPresDoc->getDrawPages(), UNO_QUERY_THROW);
-            return getObjectByName(xDrawPages, objectName);
-        }
-    } // getObjectByName()
+            Reference<XServiceInfo> xSI(shapes->getByIndex(sh), UNO_QUERY_THROW);
 
-    OUString getInterText(const Reference<XTextContent>& f1, const Reference<XTextContent>& f2)
-    {
-        Reference<XText> xDocumentText = f2->getAnchor()->getText();
-        Reference<XParagraphCursor> xCursor(
-            xDocumentText->createTextCursorByRange(f1->getAnchor()->getEnd()), UNO_QUERY_THROW);
-        xCursor->gotoRange(f2->getAnchor()->getEnd(), true);
-        return xCursor->getString();
-    }
+            if (xSI.is() && xSI->supportsService(OU("com.sun.star.drawing.OLE2Shape")))
+            {
+                Reference<XComponent> comp(shapes->getByIndex(sh), UNO_QUERY_THROW);
 
-    Reference<XHierarchicalPropertySet> getRegistryAccess(const Reference<XComponentContext>& mxCC,
-                                                          const OUString& nodepath)
-    {
-        // Get access to the registry node which contains the data for our option page using the nodepath
-        Reference<::com::sun::star::lang::XMultiComponentFactory> xMCF
-            = mxCC->getServiceManager(); // The mxMCF of the component is undefined here, why?
-        Reference<XMultiServiceFactory> xConfig = Reference<XMultiServiceFactory>(
-            xMCF->createInstanceWithContext(OU("com.sun.star.configuration.ConfigurationProvider"),
-                                            mxCC),
-            UNO_QUERY_THROW);
-        Sequence<Any> args(1);
-        PropertyValue path;
-        path.Name = OU("nodepath");
-        path.Value = Any(nodepath);
-        args.getArray()[0] = Any(path);
-        Reference<XHierarchicalPropertySet> xProperties;
-        xProperties = Reference<XHierarchicalPropertySet>(
-            xConfig->createInstanceWithArguments(
-                OU("com.sun.star.configuration.ConfigurationUpdateAccess"), args),
-            UNO_QUERY_THROW);
-
-        return xProperties;
-    } // getRegistryAccess()
-
-    // Change number of cached inline objects
-    void setInlineCache(const Reference<XComponentContext>& mxCC, const sal_Int32 num)
-    {
-        Reference<XHierarchicalPropertySet> xProperties
-            = getRegistryAccess(mxCC, OU("/org.openoffice.Office.Common/"));
-        xProperties->setHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"), Any(num));
-        Reference<XChangesBatch> xUpdateCommit(xProperties, UNO_QUERY_THROW);
-        xUpdateCommit->commitChanges();
-    } // setInlineCache()
-
-    // Get number of cacheable inline objects
-    sal_Int32 getInlineCache(const Reference<XComponentContext>& mxCC)
-    {
-        Reference<XHierarchicalPropertySet> xProperties
-            = getRegistryAccess(mxCC, OU("/org.openoffice.Office.Common/"));
-
-        Any anyCacheSize
-            = xProperties->getHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"));
-        sal_Int32 cacheSize = 0;
-        anyCacheSize >>= cacheSize;
-        return cacheSize;
-    } // getInlineCache()
-
-    bool hasControl(const Reference<XControlContainer>& xControlContainer,
-                    const OUString& controlName)
-    {
-        try
-        {
-            Reference<XControl> xControl = xControlContainer->getControl(controlName);
-            return xControl.is();
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return false;
+                if (getObjectName(comp).equals(objectName))
+                    return comp;
+            }
         }
     }
 
-    // get selections of list box control
-    Sequence<OUString> getListBoxSelections(const Reference<XControlContainer>& xControlContainer,
-                                            const OUString& controlName)
-    {
-        try
-        {
-            Reference<XControl> xControl = xControlContainer->getControl(controlName);
-            Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
-            return xListBox->getSelectedItems();
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return Sequence<OUString>();
-        }
-    } // getListBoxSelections()
+    return Reference<XComponent>();
+}
 
-    OUString getFirstListBoxSelection(const Reference<XControlContainer>& xControlContainer,
-                                      const OUString& controlName)
+Reference<XComponent> getObjectByName(const Reference<XModel>& xModel, const OUString& objectName)
+{
+    if (docType(xModel).equalsAscii("TextDocument"))
     {
-        Sequence<OUString> selections = getListBoxSelections(xControlContainer, controlName);
-        if (selections.getLength() == 0)
-            return OU("");
-        else
-            return selections[0];
+        Reference<XTextEmbeddedObjectsSupplier> xTEOS(xModel, UNO_QUERY_THROW);
+        return getObjectByName(xTEOS->getEmbeddedObjects(), objectName);
     }
-
-    Sequence<short> getListBoxSelectionsPos(const Reference<XControlContainer>& xControlContainer,
-                                            const OUString& controlName)
+    else
     {
-        try
-        {
-            Reference<XControl> xControl = xControlContainer->getControl(controlName);
-            Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
-            return xListBox->getSelectedItemsPos();
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return Sequence<short>();
-        }
-    } // getListBoxSelectionsPos()
+        Reference<XDrawPagesSupplier> xPresDoc(xModel, UNO_QUERY_THROW);
+        Reference<XIndexAccess> xDrawPages(xPresDoc->getDrawPages(), UNO_QUERY_THROW);
+        return getObjectByName(xDrawPages, objectName);
+    }
+} // getObjectByName()
 
-    void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                    const OUString& itemName)
+OUString getInterText(const Reference<XTextContent>& f1, const Reference<XTextContent>& f2)
+{
+    Reference<XText> xDocumentText = f2->getAnchor()->getText();
+    Reference<XParagraphCursor> xCursor(
+        xDocumentText->createTextCursorByRange(f1->getAnchor()->getEnd()), UNO_QUERY_THROW);
+    xCursor->gotoRange(f2->getAnchor()->getEnd(), true);
+    return xCursor->getString();
+}
+
+Reference<XHierarchicalPropertySet> getRegistryAccess(const Reference<XComponentContext>& mxCC,
+                                                      const OUString& nodepath)
+{
+    // Get access to the registry node which contains the data for our option page using the nodepath
+    Reference<::com::sun::star::lang::XMultiComponentFactory> xMCF
+        = mxCC->getServiceManager(); // The mxMCF of the component is undefined here, why?
+    Reference<XMultiServiceFactory> xConfig = Reference<XMultiServiceFactory>(
+        xMCF->createInstanceWithContext(OU("com.sun.star.configuration.ConfigurationProvider"),
+                                        mxCC),
+        UNO_QUERY_THROW);
+    Sequence<Any> args(1);
+    PropertyValue path;
+    path.Name = OU("nodepath");
+    path.Value = Any(nodepath);
+    args.getArray()[0] = Any(path);
+    Reference<XHierarchicalPropertySet> xProperties;
+    xProperties = Reference<XHierarchicalPropertySet>(
+        xConfig->createInstanceWithArguments(
+            OU("com.sun.star.configuration.ConfigurationUpdateAccess"), args),
+        UNO_QUERY_THROW);
+
+    return xProperties;
+} // getRegistryAccess()
+
+// Change number of cached inline objects
+void setInlineCache(const Reference<XComponentContext>& mxCC, const sal_Int32 num)
+{
+    Reference<XHierarchicalPropertySet> xProperties
+        = getRegistryAccess(mxCC, OU("/org.openoffice.Office.Common/"));
+    xProperties->setHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"), Any(num));
+    Reference<XChangesBatch> xUpdateCommit(xProperties, UNO_QUERY_THROW);
+    xUpdateCommit->commitChanges();
+} // setInlineCache()
+
+// Get number of cacheable inline objects
+sal_Int32 getInlineCache(const Reference<XComponentContext>& mxCC)
+{
+    Reference<XHierarchicalPropertySet> xProperties
+        = getRegistryAccess(mxCC, OU("/org.openoffice.Office.Common/"));
+
+    Any anyCacheSize = xProperties->getHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"));
+    sal_Int32 cacheSize = 0;
+    anyCacheSize >>= cacheSize;
+    return cacheSize;
+} // getInlineCache()
+
+bool hasControl(const Reference<XControlContainer>& xControlContainer, const OUString& controlName)
+{
+    try
     {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
+        Reference<XControl> xControl = xControlContainer->getControl(controlName);
+        return xControl.is();
+    }
+    catch (Exception& e)
+    {
+        (void)e;
+        return false;
+    }
+}
+
+// get selections of list box control
+Sequence<OUString> getListBoxSelections(const Reference<XControlContainer>& xControlContainer,
+                                        const OUString& controlName)
+{
+    try
+    {
+        Reference<XControl> xControl = xControlContainer->getControl(controlName);
         Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
-        xListBox->selectItem(itemName, true);
-        xListBox->makeVisible(xListBox->getSelectedItemPos());
-    } // setListBox
-
-    void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                    const short itemPos)
+        return xListBox->getSelectedItems();
+    }
+    catch (Exception& e)
     {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
+        (void)e;
+        return Sequence<OUString>();
+    }
+} // getListBoxSelections()
+
+OUString getFirstListBoxSelection(const Reference<XControlContainer>& xControlContainer,
+                                  const OUString& controlName)
+{
+    Sequence<OUString> selections = getListBoxSelections(xControlContainer, controlName);
+    if (selections.getLength() == 0)
+        return OU("");
+    else
+        return selections[0];
+}
+
+Sequence<short> getListBoxSelectionsPos(const Reference<XControlContainer>& xControlContainer,
+                                        const OUString& controlName)
+{
+    try
+    {
+        Reference<XControl> xControl = xControlContainer->getControl(controlName);
         Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
-        xListBox->selectItemPos(itemPos, true);
-        xListBox->makeVisible(xListBox->getSelectedItemPos());
+        return xListBox->getSelectedItemsPos();
     }
-
-    void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                    const std::list<OUString>& itemNames)
+    catch (Exception& e)
     {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
-        Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
-        for (const auto& i : itemNames)
-            xListBox->selectItem(i, true);
-        xListBox->makeVisible(xListBox->getSelectedItemPos());
+        (void)e;
+        return Sequence<short>();
     }
+} // getListBoxSelectionsPos()
 
-    void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                    const Sequence<short>& itemPos)
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const OUString& itemName)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
+    xListBox->selectItem(itemName, true);
+    xListBox->makeVisible(xListBox->getSelectedItemPos());
+} // setListBox
+
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const short itemPos)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
+    xListBox->selectItemPos(itemPos, true);
+    xListBox->makeVisible(xListBox->getSelectedItemPos());
+}
+
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const std::list<OUString>& itemNames)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
+    for (const auto& i : itemNames)
+        xListBox->selectItem(i, true);
+    xListBox->makeVisible(xListBox->getSelectedItemPos());
+}
+
+void setListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                const Sequence<short>& itemPos)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
+    xListBox->selectItemsPos(itemPos, true);
+    xListBox->makeVisible(xListBox->getSelectedItemPos());
+}
+
+void deselectListBox(const Reference<XControlContainer>& xContainer, const OUString& controlName)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
+    for (int i = 0; i < xListBox->getItemCount(); ++i)
+        xListBox->selectItemPos(i, false);
+}
+
+// get value of text control
+OUString getTextcontrol(const Reference<XControlContainer>& xControlContainer,
+                        const OUString& controlName)
+{
+    try
     {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
-        Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
-        xListBox->selectItemsPos(itemPos, true);
-        xListBox->makeVisible(xListBox->getSelectedItemPos());
+        Reference<XControl> xControl = xControlContainer->getControl(controlName);
+        Reference<XTextComponent> xTextComponent(xControl, UNO_QUERY_THROW);
+        return xTextComponent->getText();
     }
-
-    void deselectListBox(const Reference<XControlContainer>& xContainer,
-                         const OUString& controlName)
+    catch (Exception& e)
     {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
-        Reference<XListBox> xListBox(xControl, UNO_QUERY_THROW);
-        for (int i = 0; i < xListBox->getItemCount(); ++i)
-            xListBox->selectItemPos(i, false);
+        (void)e;
+        return OUString::createFromAscii("");
     }
+} // getTextcontrol
 
-    // get value of text control
-    OUString getTextcontrol(const Reference<XControlContainer>& xControlContainer,
-                            const OUString& controlName)
-    {
-        try
-        {
-            Reference<XControl> xControl = xControlContainer->getControl(controlName);
-            Reference<XTextComponent> xTextComponent(xControl, UNO_QUERY_THROW);
-            return xTextComponent->getText();
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return OUString::createFromAscii("");
-        }
-    } // getTextcontrol
+void setTextcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const OUString& text)
+{
+    Any aText;
+    aText <<= text;
+    setTextcontrol(xContainer, controlName, aText);
+}
 
-    void setTextcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                        const OUString& text)
-    {
-        Any aText;
-        aText <<= text;
-        setTextcontrol(xContainer, controlName, aText);
-    }
+void setTextcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const Any& value)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XPropertySet> xProp(xControl->getModel(), UNO_QUERY_THROW);
+    xProp->setPropertyValue(OUString::createFromAscii("Text"), value);
+} // setTextcontrol
 
-    void setTextcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                        const Any& value)
-    {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
-        Reference<XPropertySet> xProp(xControl->getModel(), UNO_QUERY_THROW);
-        xProp->setPropertyValue(OUString::createFromAscii("Text"), value);
-    } // setTextcontrol
+void setLabelcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                     const OUString& text)
+{
+    Any aText;
+    aText <<= text;
+    setLabelcontrol(xContainer, controlName, aText);
+}
 
-    void setLabelcontrol(const Reference<XControlContainer>& xContainer,
-                         const OUString& controlName, const OUString& text)
-    {
-        Any aText;
-        aText <<= text;
-        setLabelcontrol(xContainer, controlName, aText);
-    }
+void setLabelcontrol(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                     const Any& value)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XPropertySet> xProp(xControl->getModel(), UNO_QUERY_THROW);
+    xProp->setPropertyValue(OUString::createFromAscii("Label"), value);
+} // setTextcontrol
 
-    void setLabelcontrol(const Reference<XControlContainer>& xContainer,
-                         const OUString& controlName, const Any& value)
+// get value of radio button
+sal_Bool getRadioButton(const Reference<XControlContainer>& xControlContainer,
+                        const OUString& buttonName)
+{
+    try
     {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
-        Reference<XPropertySet> xProp(xControl->getModel(), UNO_QUERY_THROW);
-        xProp->setPropertyValue(OUString::createFromAscii("Label"), value);
-    } // setTextcontrol
-
-    // get value of radio button
-    sal_Bool getRadioButton(const Reference<XControlContainer>& xControlContainer,
-                            const OUString& buttonName)
-    {
-        try
-        {
-            Reference<XControl> xControl = xControlContainer->getControl(buttonName);
-            Reference<XRadioButton> xRadioButton(xControl, UNO_QUERY_THROW);
-            return xRadioButton->getState();
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return sal_False;
-        }
-    } // getRadioButton
-
-    void setRadioButton(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                        const sal_Bool value)
-    {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
+        Reference<XControl> xControl = xControlContainer->getControl(buttonName);
         Reference<XRadioButton> xRadioButton(xControl, UNO_QUERY_THROW);
-        xRadioButton->setState(value);
-    } // setRadiobutton()
-
-    void setCheckBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                     const sal_Bool value)
+        return xRadioButton->getState();
+    }
+    catch (Exception& e)
     {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
+        (void)e;
+        return sal_False;
+    }
+} // getRadioButton
+
+void setRadioButton(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const sal_Bool value)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XRadioButton> xRadioButton(xControl, UNO_QUERY_THROW);
+    xRadioButton->setState(value);
+} // setRadiobutton()
+
+void setCheckBox(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                 const sal_Bool value)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XCheckBox> xCheckBox(xControl, UNO_QUERY_THROW);
+    xCheckBox->setState(value);
+} // setCheckBox()
+
+sal_Int32 getCheckBox(const Reference<XControlContainer>& xControlContainer,
+                      const OUString& controlName)
+{
+    try
+    {
+        Reference<XControl> xControl = xControlContainer->getControl(controlName);
         Reference<XCheckBox> xCheckBox(xControl, UNO_QUERY_THROW);
-        xCheckBox->setState(value);
-    } // setCheckBox()
-
-    sal_Int32 getCheckBox(const Reference<XControlContainer>& xControlContainer,
-                          const OUString& controlName)
+        return xCheckBox->getState();
+    }
+    catch (Exception& e)
     {
-        try
-        {
-            Reference<XControl> xControl = xControlContainer->getControl(controlName);
-            Reference<XCheckBox> xCheckBox(xControl, UNO_QUERY_THROW);
-            return xCheckBox->getState();
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return -1;
-        }
-    } // getCheckBox
+        (void)e;
+        return -1;
+    }
+} // getCheckBox
 
-    // extract value of numeric field
-    sal_Int32 getNumericFieldPosInt(const Reference<XControlContainer>& xControlContainer,
-                                    const OUString& controlName)
-    {
-        try
-        {
-            Reference<XControl> xControl = xControlContainer->getControl(controlName);
-            Reference<XNumericField> xNumericField(xControl, UNO_QUERY_THROW);
-            return std::lround(xNumericField->getValue());
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return -1; // So that error can be recognized
-        }
-    } // getNumericFieldPosInt()
-
-    // extract value of numeric field
-    sal_Int32 getNumericFieldInt(const Reference<XControlContainer>& xControlContainer,
-                                 const OUString& controlName)
+// extract value of numeric field
+sal_Int32 getNumericFieldPosInt(const Reference<XControlContainer>& xControlContainer,
+                                const OUString& controlName)
+{
+    try
     {
         Reference<XControl> xControl = xControlContainer->getControl(controlName);
         Reference<XNumericField> xNumericField(xControl, UNO_QUERY_THROW);
         return std::lround(xNumericField->getValue());
-    } // getNumericFieldInt()
-
-    void setNumericFieldPosInt(const Reference<XControlContainer>& xContainer,
-                               const OUString& controlName, const sal_uInt32 value)
-    {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
-        Reference<XNumericField> xNumericField(xControl, UNO_QUERY_THROW);
-        return xNumericField->setValue(value);
-    } // setNumericFieldPosInt()
-
-    void setNumericFieldInt(const Reference<XControlContainer>& xContainer,
-                            const OUString& controlName, const sal_Int32 value)
-    {
-        Reference<XControl> xControl = xContainer->getControl(controlName);
-        if (xControl == NULL)
-            return;
-        Reference<XNumericField> xNumericField(xControl, UNO_QUERY_THROW);
-        return xNumericField->setValue(value);
-    } // setNumericFieldInt()
-
-    void showControl(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                     const bool show)
-    {
-        MSG_INFO(3, "Show/Hide control " << STR(controlName) << endline);
-        Reference<XWindow> control(xContainer->getControl(controlName), UNO_QUERY_THROW);
-        control->setVisible(show);
     }
-
-    void enableControl(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                       const bool enable)
+    catch (Exception& e)
     {
-        MSG_INFO(3, "Enable/Disable control " << STR(controlName) << endline);
-        Reference<XWindow> control(xContainer->getControl(controlName), UNO_QUERY);
-        control->setEnable(enable);
+        (void)e;
+        return -1; // So that error can be recognized
     }
+} // getNumericFieldPosInt()
 
-    void moveControlRel(const Reference<XControlContainer>& xContainer, const OUString& controlName,
-                        const int deltaX, const int deltaY)
+// extract value of numeric field
+sal_Int32 getNumericFieldInt(const Reference<XControlContainer>& xControlContainer,
+                             const OUString& controlName)
+{
+    Reference<XControl> xControl = xControlContainer->getControl(controlName);
+    Reference<XNumericField> xNumericField(xControl, UNO_QUERY_THROW);
+    return std::lround(xNumericField->getValue());
+} // getNumericFieldInt()
+
+void setNumericFieldPosInt(const Reference<XControlContainer>& xContainer,
+                           const OUString& controlName, const sal_uInt32 value)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XNumericField> xNumericField(xControl, UNO_QUERY_THROW);
+    return xNumericField->setValue(value);
+} // setNumericFieldPosInt()
+
+void setNumericFieldInt(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                        const sal_Int32 value)
+{
+    Reference<XControl> xControl = xContainer->getControl(controlName);
+    if (xControl == NULL)
+        return;
+    Reference<XNumericField> xNumericField(xControl, UNO_QUERY_THROW);
+    return xNumericField->setValue(value);
+} // setNumericFieldInt()
+
+void showControl(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                 const bool show)
+{
+    MSG_INFO(3, "Show/Hide control " << STR(controlName) << endline);
+    Reference<XWindow> control(xContainer->getControl(controlName), UNO_QUERY_THROW);
+    control->setVisible(show);
+}
+
+void enableControl(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                   const bool enable)
+{
+    MSG_INFO(3, "Enable/Disable control " << STR(controlName) << endline);
+    Reference<XWindow> control(xContainer->getControl(controlName), UNO_QUERY);
+    control->setEnable(enable);
+}
+
+void moveControlRel(const Reference<XControlContainer>& xContainer, const OUString& controlName,
+                    const int deltaX, const int deltaY)
+{
+    Reference<XWindow> control(xContainer->getControl(controlName), UNO_QUERY_THROW);
+    com::sun::star::awt::Rectangle controlPosSize = control->getPosSize();
+    control->setPosSize(controlPosSize.X + deltaX, controlPosSize.Y + deltaY, controlPosSize.Width,
+                        controlPosSize.Height, 3);
+}
+
+// Checks if the name property of the window is one of the supported names and returns
+// always a valid string or null
+OUString getWindowName(const Reference<XWindow>& aWindow)
+{
+    if (!aWindow.is())
+        throw Exception(OUString::createFromAscii(
+                            "Method getWindowName requires that a window is passed as argument"),
+                        aWindow);
+
+    //We need to get the control model of the window. Therefore the first step is
+    //to query for it.
+    Reference<XControl> xControlDlg(aWindow, UNO_QUERY_THROW);
+
+    //Now get model
+    Reference<XControlModel> xModelDlg = xControlDlg->getModel();
+    if (!xModelDlg.is())
+        throw Exception(OUString::createFromAscii(
+                            "Cannot obtain XControlModel from XWindow in method getWindowName."),
+                        aWindow);
+
+    //The model itself does not provide any information except that its
+    //implementation supports XPropertySet which is used to access the data.
+    Reference<XPropertySet> xPropDlg(xModelDlg, UNO_QUERY_THROW);
+
+    //Get the "Name" property of the window
+    Any aWindowName = xPropDlg->getPropertyValue(OUString::createFromAscii("Name"));
+
+    //Get the string from the returned com.sun.star.uno.Any
+    OUString sName;
+    aWindowName >>= sName;
+    return sName;
+} // getWindowName()
+
+sal_Bool propertyIs(const Reference<XPropertyContainer>& xUserPropsContainer,
+                    const OUString& propName)
+{
+    try
     {
-        Reference<XWindow> control(xContainer->getControl(controlName), UNO_QUERY_THROW);
-        com::sun::star::awt::Rectangle controlPosSize = control->getPosSize();
-        control->setPosSize(controlPosSize.X + deltaX, controlPosSize.Y + deltaY,
-                            controlPosSize.Width, controlPosSize.Height, 3);
-    }
-
-    // Checks if the name property of the window is one of the supported names and returns
-    // always a valid string or null
-    OUString getWindowName(const Reference<XWindow>& aWindow)
-    {
-        if (!aWindow.is())
-            throw Exception(
-                OUString::createFromAscii(
-                    "Method getWindowName requires that a window is passed as argument"),
-                aWindow);
-
-        //We need to get the control model of the window. Therefore the first step is
-        //to query for it.
-        Reference<XControl> xControlDlg(aWindow, UNO_QUERY_THROW);
-
-        //Now get model
-        Reference<XControlModel> xModelDlg = xControlDlg->getModel();
-        if (!xModelDlg.is())
-            throw Exception(
-                OUString::createFromAscii(
-                    "Cannot obtain XControlModel from XWindow in method getWindowName."),
-                aWindow);
-
-        //The model itself does not provide any information except that its
-        //implementation supports XPropertySet which is used to access the data.
-        Reference<XPropertySet> xPropDlg(xModelDlg, UNO_QUERY_THROW);
-
-        //Get the "Name" property of the window
-        Any aWindowName = xPropDlg->getPropertyValue(OUString::createFromAscii("Name"));
-
-        //Get the string from the returned com.sun.star.uno.Any
-        OUString sName;
-        aWindowName >>= sName;
-        return sName;
-    } // getWindowName()
-
-    sal_Bool propertyIs(const Reference<XPropertyContainer>& xUserPropsContainer,
-                        const OUString& propName)
-    {
-        try
-        {
-            Reference<XPropertySet> xUserProps(xUserPropsContainer, UNO_QUERY_THROW);
-            Any test = xUserProps->getPropertyValue(propName);
-            (void)test;
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return sal_False;
-        }
-        return sal_True;
-    } // propertyIs()
-
-    OUString getTextProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
-                             const OUString& propName)
-    {
-        // We assume that it has been tested that this property exists
         Reference<XPropertySet> xUserProps(xUserPropsContainer, UNO_QUERY_THROW);
-        Any Avalue = xUserProps->getPropertyValue(propName);
-        OUString value(OU(""));
-        Avalue >>= value;
-        return value;
-    } // getTextProperty()
-
-    sal_Bool getBoolProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
-                             const OUString& propName)
+        Any test = xUserProps->getPropertyValue(propName);
+        (void)test;
+    }
+    catch (Exception& e)
     {
-        // We assume that it has been tested that this property exists
-        Reference<XPropertySet> xUserProps(xUserPropsContainer, UNO_QUERY_THROW);
-        Any Avalue = xUserProps->getPropertyValue(propName);
-        sal_Bool value(sal_True);
-        Avalue >>= value;
-        return value;
-    } // getBoolProperty()
+        (void)e;
+        return sal_False;
+    }
+    return sal_True;
+} // propertyIs()
+
+OUString getTextProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName)
+{
+    // We assume that it has been tested that this property exists
+    Reference<XPropertySet> xUserProps(xUserPropsContainer, UNO_QUERY_THROW);
+    Any Avalue = xUserProps->getPropertyValue(propName);
+    OUString value(OU(""));
+    Avalue >>= value;
+    return value;
+} // getTextProperty()
+
+sal_Bool getBoolProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName)
+{
+    // We assume that it has been tested that this property exists
+    Reference<XPropertySet> xUserProps(xUserPropsContainer, UNO_QUERY_THROW);
+    Any Avalue = xUserProps->getPropertyValue(propName);
+    sal_Bool value(sal_True);
+    Avalue >>= value;
+    return value;
+} // getBoolProperty()
 
 #if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_IS_AOO == 1)
-    sal_Int64 getPosIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
-                                const OUString& propName)
-    {
-        return floor(getNumberProperty(xUserPropsContainer, propName));
-    }
+sal_Int64 getPosIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                            const OUString& propName)
+{
+    return floor(getNumberProperty(xUserPropsContainer, propName));
+}
 #else
-    sal_uInt32 getPosIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
-                                 const OUString& propName)
-    {
-        return std::lround(getNumberProperty(xUserPropsContainer, propName));
-    } // getPosIntProperty()
+sal_uInt32 getPosIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                             const OUString& propName)
+{
+    return std::lround(getNumberProperty(xUserPropsContainer, propName));
+} // getPosIntProperty()
 #endif
 
-    sal_Int32 getIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
-                             const OUString& propName)
-    {
-        return std::lround(getNumberProperty(xUserPropsContainer, propName));
-    } // getPosIntProperty()
+sal_Int32 getIntProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName)
+{
+    return std::lround(getNumberProperty(xUserPropsContainer, propName));
+} // getPosIntProperty()
 
-    double getNumberProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
-                             const OUString& propName)
+double getNumberProperty(const Reference<XPropertyContainer>& xUserPropsContainer,
+                         const OUString& propName)
+{
+    // We assume that it has been tested that this property exists
+    Reference<XPropertySet> xUserProps(xUserPropsContainer, UNO_QUERY_THROW);
+    Any Avalue = xUserProps->getPropertyValue(propName);
+    double value = 0.0;
+    Avalue >>= value;
+    return value;
+} // getNumberProperty()
+
+sal_Bool propertyIs(const Reference<XHierarchicalPropertySet>& xProperties,
+                    const OUString& propName)
+{
+    try
     {
-        // We assume that it has been tested that this property exists
-        Reference<XPropertySet> xUserProps(xUserPropsContainer, UNO_QUERY_THROW);
-        Any Avalue = xUserProps->getPropertyValue(propName);
-        double value = 0.0;
+        Any test = xProperties->getHierarchicalPropertyValue(propName);
+        (void)test;
+    }
+    catch (Exception& e)
+    {
+        (void)e;
+        return sal_False;
+    }
+    return sal_True;
+} // propertyIs()
+
+OUString getTextProperty(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                         const Reference<XNamedGraph>& xGraph,
+                         const Reference<XHierarchicalPropertySet>& xProperties,
+                         const OUString& userPropName, const OUString& propName)
+{
+    OUString value;
+    if (!hasStatement(mxCC, xModel, xGraph, userPropName))
+    {
+        Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
         Avalue >>= value;
-        return value;
-    } // getNumberProperty()
-
-    sal_Bool propertyIs(const Reference<XHierarchicalPropertySet>& xProperties,
-                        const OUString& propName)
+        addStatement(mxCC, xModel, xGraph, userPropName, value);
+    }
+    else
     {
-        try
-        {
-            Any test = xProperties->getHierarchicalPropertyValue(propName);
-            (void)test;
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            return sal_False;
-        }
-        return sal_True;
-    } // propertyIs()
+        value = getStatementString(mxCC, xModel, xGraph, userPropName);
+    }
+    return value;
+} // getTextProperty()
 
-    OUString getTextProperty(const Reference<XComponentContext>& mxCC,
-                             const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
-                             const Reference<XHierarchicalPropertySet>& xProperties,
-                             const OUString& userPropName, const OUString& propName)
+sal_Bool getBoolProperty(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                         const Reference<XNamedGraph>& xGraph,
+                         const Reference<XHierarchicalPropertySet>& xProperties,
+                         const OUString& userPropName, const OUString& propName)
+{
+    sal_Bool value = false; // Initialize to get rid of compiler warning
+    if (!hasStatement(mxCC, xModel, xGraph, userPropName))
     {
-        OUString value;
-        if (!hasStatement(mxCC, xModel, xGraph, userPropName))
-        {
-            Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
-            Avalue >>= value;
-            addStatement(mxCC, xModel, xGraph, userPropName, value);
-        }
-        else
-        {
-            value = getStatementString(mxCC, xModel, xGraph, userPropName);
-        }
-        return value;
-    } // getTextProperty()
-
-    sal_Bool getBoolProperty(const Reference<XComponentContext>& mxCC,
-                             const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
-                             const Reference<XHierarchicalPropertySet>& xProperties,
-                             const OUString& userPropName, const OUString& propName)
+        Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
+        Avalue >>= value;
+        addStatement(mxCC, xModel, xGraph, userPropName, OU(value ? "true" : "false"));
+    }
+    else
     {
-        sal_Bool value = false; // Initialize to get rid of compiler warning
-        if (!hasStatement(mxCC, xModel, xGraph, userPropName))
-        {
-            Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
-            Avalue >>= value;
-            addStatement(mxCC, xModel, xGraph, userPropName, OU(value ? "true" : "false"));
-        }
-        else
-        {
-            value = getStatementBool(mxCC, xModel, xGraph, userPropName);
-        }
-        return value;
-    } // getBoolProperty()
+        value = getStatementBool(mxCC, xModel, xGraph, userPropName);
+    }
+    return value;
+} // getBoolProperty()
 
 #if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_IS_AOO == 1)
-    sal_Int64 getPosIntProperty(const Reference<XComponentContext>& mxCC,
-                                const Reference<XModel>& xModel,
-                                const Reference<XNamedGraph>& xGraph,
-                                const Reference<XHierarchicalPropertySet>& xProperties,
-                                const OUString& userPropName, const OUString& propName)
+sal_Int64 getPosIntProperty(const Reference<XComponentContext>& mxCC,
+                            const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                            const Reference<XHierarchicalPropertySet>& xProperties,
+                            const OUString& userPropName, const OUString& propName)
+{
+    sal_Int64 value = 0;
+    if (!hasStatement(mxCC, xModel, xGraph, userPropName))
     {
-        sal_Int64 value = 0;
-        if (!hasStatement(mxCC, xModel, xGraph, userPropName))
-        {
-            Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
-            Avalue >>= value;
-            addStatement(mxCC, xModel, xGraph, userPropName, OUSTRINGNUMBER(value));
-        }
-        else
-        {
-            value = getStatementPosInt(mxCC, xModel, xGraph, userPropName);
-        }
-        return value;
-    } // getPosIntProperty()
+        Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
+        Avalue >>= value;
+        addStatement(mxCC, xModel, xGraph, userPropName, OUSTRINGNUMBER(value));
+    }
+    else
+    {
+        value = getStatementPosInt(mxCC, xModel, xGraph, userPropName);
+    }
+    return value;
+} // getPosIntProperty()
 #else
-    sal_uInt32 getPosIntProperty(const Reference<XComponentContext>& mxCC,
-                                 const Reference<XModel>& xModel,
-                                 const Reference<XNamedGraph>& xGraph,
-                                 const Reference<XHierarchicalPropertySet>& xProperties,
-                                 const OUString& userPropName, const OUString& propName)
-    {
-        long value = 0; // Must use long for the Any cast!
-        if (!hasStatement(mxCC, xModel, xGraph, userPropName))
-        {
-            Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
-            Avalue >>= value;
-            addStatement(mxCC, xModel, xGraph, userPropName, OUSTRINGNUMBER(value));
-        }
-        else
-        {
-            value = getStatementPosInt(mxCC, xModel, xGraph, userPropName);
-        }
-        return value;
-    } // getPosIntProperty()
-#endif
-
-    sal_Int32 getIntProperty(const Reference<XComponentContext>& mxCC,
+sal_uInt32 getPosIntProperty(const Reference<XComponentContext>& mxCC,
                              const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
                              const Reference<XHierarchicalPropertySet>& xProperties,
                              const OUString& userPropName, const OUString& propName)
+{
+    long value = 0; // Must use long for the Any cast!
+    if (!hasStatement(mxCC, xModel, xGraph, userPropName))
     {
-        sal_Int32 value = 0;
-        if (!hasStatement(mxCC, xModel, xGraph, userPropName))
-        {
-            Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
-            Avalue >>= value;
-            addStatement(mxCC, xModel, xGraph, userPropName, OUSTRINGNUMBER(value));
-        }
-        else
-        {
-            value = getStatementInt(mxCC, xModel, xGraph, userPropName);
-        }
-        return value;
-    } // getPosIntProperty()
-
-    OUString extractReferences(const Reference<XControlContainer>& xContainer)
-    {
-        std::map<std::string, OUString> refmap; // This automatically orders by key
-        Sequence<Reference<XControl>> allControls = xContainer->getControls();
-        for (sal_Int32 i = 0; i < allControls.getLength(); i++)
-        {
-            Reference<XControlModel> cModel = allControls[i]->getModel();
-            Reference<XPropertySet> cProps(cModel, UNO_QUERY_THROW);
-            Any aName = cProps->getPropertyValue(OU("Name"));
-            OUString cName;
-            aName >>= cName;
-            sal_Bool isChecked = getCheckBox(xContainer, cName) == 1;
-            if (isChecked && (cName.indexOfAsciiL("O_", 2) == 0) && (cName.getLength() > 4))
-                refmap[STR(cName.copy(2, 2))] = cName.copy(2);
-        }
-        OUString references = OU("");
-        for (const auto& r : refmap)
-            references = references + OU(" ") + r.second;
-        MSG_INFO(0, "Found references '" << STR(references) << "'" << endline);
-        return references;
+        Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
+        Avalue >>= value;
+        addStatement(mxCC, xModel, xGraph, userPropName, OUSTRINGNUMBER(value));
     }
-
-    void setReferences(const Reference<XControlContainer>& xContainer, const OUString& references)
+    else
     {
-        std::list<OUString> files = splitString(references, ' ');
-
-        for (const auto& f : files)
-        {
-            setCheckBox(xContainer, OU("O_") + f, true);
-            MSG_INFO(0, "Set reference '" << STR(f) << "'" << endline);
-        }
+        value = getStatementPosInt(mxCC, xModel, xGraph, userPropName);
     }
+    return value;
+} // getPosIntProperty()
+#endif
 
-    bool checkTextmodeFormula(const Reference<XTextContent>&(formula))
+sal_Int32 getIntProperty(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                         const Reference<XNamedGraph>& xGraph,
+                         const Reference<XHierarchicalPropertySet>& xProperties,
+                         const OUString& userPropName, const OUString& propName)
+{
+    sal_Int32 value = 0;
+    if (!hasStatement(mxCC, xModel, xGraph, userPropName))
     {
-        if (!formula.is())
-            return false;
-
-        Reference<XText> xDocumentText = formula->getAnchor()->getText();
-        Reference<XParagraphCursor> xCursor(
-            xDocumentText->createTextCursorByRange(formula->getAnchor()->getEnd()),
-            UNO_QUERY_THROW);
-
-        // Look for non-whitespace to the left and right of the anchor point, inside the paragraph where the anchor point is
-        xCursor->gotoStartOfParagraph(true);
-        if (xCursor->getString().trim().getLength() > 0)
-            return true; // Text exists before the formula
-        xCursor->gotoEndOfParagraph(true);
-        return (xCursor->getString().trim().getLength() > 0);
+        Any Avalue = xProperties->getHierarchicalPropertyValue(propName);
+        Avalue >>= value;
+        addStatement(mxCC, xModel, xGraph, userPropName, OUSTRINGNUMBER(value));
     }
-
-    // Iterate through all formulas of the document IN THEIR TEXTUAL ORDER. The list supplied by getEmbeddedObjects() is only in this order after
-    // loading a document, before the user modifies the order of the elements (closing and re-opening a document seems to re-order the elements in textual order)
-    // This returns a list of formula labels which allows the formulas to be accessed by XNameAccess from getEmbeddedObjects() when required
-    void orderXText(const Reference<XText>& xText, std::list<OUString>& formulas, unsigned& count,
-                    const Reference<XStatusIndicator>& xStatus)
+    else
     {
-        Reference<XEnumerationAccess> xEnum(xText, UNO_QUERY_THROW);
-        Reference<XEnumeration> xParaEnum = xEnum->createEnumeration();
-        //MSG_INFO(3,  "orderXText called" << endline);
+        value = getStatementInt(mxCC, xModel, xGraph, userPropName);
+    }
+    return value;
+} // getPosIntProperty()
 
-        while (xParaEnum->hasMoreElements())
-        { //iterate through all paragraphs of the document
-            Any paragraph = xParaEnum->nextElement();
-            //MSG_INFO(3,  "Paragraph loop" << endline);
+OUString extractReferences(const Reference<XControlContainer>& xContainer)
+{
+    std::map<std::string, OUString> refmap; // This automatically orders by key
+    Sequence<Reference<XControl>> allControls = xContainer->getControls();
+    for (sal_Int32 i = 0; i < allControls.getLength(); i++)
+    {
+        Reference<XControlModel> cModel = allControls[i]->getModel();
+        Reference<XPropertySet> cProps(cModel, UNO_QUERY_THROW);
+        Any aName = cProps->getPropertyValue(OU("Name"));
+        OUString cName;
+        aName >>= cName;
+        sal_Bool isChecked = getCheckBox(xContainer, cName) == 1;
+        if (isChecked && (cName.indexOfAsciiL("O_", 2) == 0) && (cName.getLength() > 4))
+            refmap[STR(cName.copy(2, 2))] = cName.copy(2);
+    }
+    OUString references = OU("");
+    for (const auto& r : refmap)
+        references = references + OU(" ") + r.second;
+    MSG_INFO(0, "Found references '" << STR(references) << "'" << endline);
+    return references;
+}
 
-            // Check what the "paragraph" actually is
-            Reference<XServiceInfo> xInfo;
-            paragraph >>= xInfo;
-            if (xInfo->supportsService(OU("com.sun.star.text.TextTable")))
-            { // paragraph is really a table
-                Reference<XTextTable> xTable;
-                paragraph >>= xTable;
-                Sequence<OUString> cellnames = xTable->getCellNames();
+void setReferences(const Reference<XControlContainer>& xContainer, const OUString& references)
+{
+    std::list<OUString> files = splitString(references, ' ');
 
-                for (int i = 0; i < cellnames.getLength(); i++)
-                { // Iterate through all cells of the table
-                    //MSG_INFO(3,  "Table cells loop: " << STR(cellnames[i]) << endline);
-                    Reference<XText> xTableText(xTable->getCellByName(cellnames[i]),
-                                                UNO_QUERY_THROW);
-                    orderXText(xTableText, formulas, count, xStatus);
-                }
-                continue; // skip the rest, it is for paragraphs only
+    for (const auto& f : files)
+    {
+        setCheckBox(xContainer, OU("O_") + f, true);
+        MSG_INFO(0, "Set reference '" << STR(f) << "'" << endline);
+    }
+}
+
+bool checkTextmodeFormula(const Reference<XTextContent>&(formula))
+{
+    if (!formula.is())
+        return false;
+
+    Reference<XText> xDocumentText = formula->getAnchor()->getText();
+    Reference<XParagraphCursor> xCursor(
+        xDocumentText->createTextCursorByRange(formula->getAnchor()->getEnd()), UNO_QUERY_THROW);
+
+    // Look for non-whitespace to the left and right of the anchor point, inside the paragraph where the anchor point is
+    xCursor->gotoStartOfParagraph(true);
+    if (xCursor->getString().trim().getLength() > 0)
+        return true; // Text exists before the formula
+    xCursor->gotoEndOfParagraph(true);
+    return (xCursor->getString().trim().getLength() > 0);
+}
+
+// Iterate through all formulas of the document IN THEIR TEXTUAL ORDER. The list supplied by getEmbeddedObjects() is only in this order after
+// loading a document, before the user modifies the order of the elements (closing and re-opening a document seems to re-order the elements in textual order)
+// This returns a list of formula labels which allows the formulas to be accessed by XNameAccess from getEmbeddedObjects() when required
+void orderXText(const Reference<XText>& xText, std::list<OUString>& formulas, unsigned& count,
+                const Reference<XStatusIndicator>& xStatus)
+{
+    Reference<XEnumerationAccess> xEnum(xText, UNO_QUERY_THROW);
+    Reference<XEnumeration> xParaEnum = xEnum->createEnumeration();
+    //MSG_INFO(3,  "orderXText called" << endline);
+
+    while (xParaEnum->hasMoreElements())
+    { //iterate through all paragraphs of the document
+        Any paragraph = xParaEnum->nextElement();
+        //MSG_INFO(3,  "Paragraph loop" << endline);
+
+        // Check what the "paragraph" actually is
+        Reference<XServiceInfo> xInfo;
+        paragraph >>= xInfo;
+        if (xInfo->supportsService(OU("com.sun.star.text.TextTable")))
+        { // paragraph is really a table
+            Reference<XTextTable> xTable;
+            paragraph >>= xTable;
+            Sequence<OUString> cellnames = xTable->getCellNames();
+
+            for (int i = 0; i < cellnames.getLength(); i++)
+            { // Iterate through all cells of the table
+                //MSG_INFO(3,  "Table cells loop: " << STR(cellnames[i]) << endline);
+                Reference<XText> xTableText(xTable->getCellByName(cellnames[i]), UNO_QUERY_THROW);
+                orderXText(xTableText, formulas, count, xStatus);
             }
+            continue; // skip the rest, it is for paragraphs only
+        }
 
-            Reference<XEnumerationAccess> xParaEnumAccess;
-            paragraph >>= xParaEnumAccess;
-            Reference<XEnumeration> xPortionsEnum = xParaEnumAccess->createEnumeration();
+        Reference<XEnumerationAccess> xParaEnumAccess;
+        paragraph >>= xParaEnumAccess;
+        Reference<XEnumeration> xPortionsEnum = xParaEnumAccess->createEnumeration();
 
-            while (xPortionsEnum->hasMoreElements())
-            { // iterate through all text portions of the paragraph
-                //MSG_INFO(3,  "Paragraph text portion loop" << endline);
-                Any portion = xPortionsEnum->nextElement();
-                Reference<XPropertySet> xPS;
-                portion >>= xPS;
-                Any portionType = xPS->getPropertyValue(OU("TextPortionType"));
-                OUString pTypeStr;
-                portionType >>= pTypeStr;
-                //MSG_INFO(3,  "This is a " << STR(pTypeStr) << endline);
+        while (xPortionsEnum->hasMoreElements())
+        { // iterate through all text portions of the paragraph
+            //MSG_INFO(3,  "Paragraph text portion loop" << endline);
+            Any portion = xPortionsEnum->nextElement();
+            Reference<XPropertySet> xPS;
+            portion >>= xPS;
+            Any portionType = xPS->getPropertyValue(OU("TextPortionType"));
+            OUString pTypeStr;
+            portionType >>= pTypeStr;
+            //MSG_INFO(3,  "This is a " << STR(pTypeStr) << endline);
 
-                if (pTypeStr == OU("Footnote"))
-                {
-                    Any anyFootnote = xPS->getPropertyValue(OU("Footnote"));
-                    Reference<XFootnote> xF;
-                    anyFootnote >>= xF;
-                    Reference<XText> xFootnote;
-                    anyFootnote >>= xFootnote;
-                    orderXText(xFootnote, formulas, count, xStatus);
+            if (pTypeStr == OU("Footnote"))
+            {
+                Any anyFootnote = xPS->getPropertyValue(OU("Footnote"));
+                Reference<XFootnote> xF;
+                anyFootnote >>= xF;
+                Reference<XText> xFootnote;
+                anyFootnote >>= xFootnote;
+                orderXText(xFootnote, formulas, count, xStatus);
+            }
+            else if ((pTypeStr == OU("TextContent")) || (pTypeStr == OU("Frame")))
+            {
+                count++;
+
+                if (xStatus.is())
+                    xStatus->setValue(count);
+
+                Reference<XContentEnumerationAccess> xContentEnumAccess;
+                portion >>= xContentEnumAccess;
+                Reference<XEnumeration> xContentEnum
+                    = xContentEnumAccess->createContentEnumeration(OU("TextContent"));
+
+                while (xContentEnum->hasMoreElements())
+                { // iterate through all text contents of the text portion
+                    //MSG_INFO(3,  "Text portion text content loop" << endline);
+                    Any tc = xContentEnum->nextElement();
+                    Reference<XComponent> comp;
+                    tc >>= comp;
+                    //MSG_INFO(3,  "Name: " << STR(getObjectName(comp)) << endline);
+
+                    if (checkIsiFormula(comp))
+                    {
+                        //MSG_INFO(3,  "Found formula: " << STR(getObjectName(comp)) << endline);
+                        formulas.emplace_back(getObjectName(comp));
+                    }
                 }
-                else if ((pTypeStr == OU("TextContent")) || (pTypeStr == OU("Frame")))
-                {
-                    count++;
+            }
+            // Note: Also possible (sw/source/core/unocore/unoobj2.cxx: SwXTextGraphicObject
+        }
+    }
+    //MSG_INFO(3,  "orderXText() finished" << endline);
+} // orderXText()
 
+void orderPresentation(const Reference<XModel>& xModel, std::list<OUString>& formulas,
+                       unsigned& count, const Reference<XStatusIndicator>& xStatus)
+{
+    Reference<XDrawPagesSupplier> xPresDoc(xModel, UNO_QUERY);
+    Reference<XIndexAccess> xDrawPages(xPresDoc->getDrawPages(), UNO_QUERY_THROW);
+
+    for (int idx = 0; idx < xDrawPages->getCount(); ++idx)
+    {
+        Reference<XDrawPage> page(xDrawPages->getByIndex(idx), UNO_QUERY_THROW);
+        MSG_INFO(3, "Presentation page " << idx << endline);
+        Reference<XIndexAccess> shapes(page, UNO_QUERY_THROW);
+        std::set<OUString> pageFormulas; // Set is an ordered collection
+
+        for (int sh = 0; sh < shapes->getCount(); ++sh)
+        {
+            MSG_INFO(3, "Shape " << sh << endline);
+            Reference<XServiceInfo> xSI(shapes->getByIndex(sh), UNO_QUERY_THROW);
+
+            if (xSI.is() && xSI->supportsService(OU("com.sun.star.drawing.OLE2Shape")))
+            {
+                Reference<XComponent> comp(shapes->getByIndex(sh), UNO_QUERY_THROW);
+                MSG_INFO(2, "Found OLE shape" << endline);
+
+                if (checkIsFormula(comp))
+                {
+                    OUString objName = getObjectName(comp);
+                    MSG_INFO(2, "Found formula: " << STR(objName) << endline);
+                    ++count;
                     if (xStatus.is())
                         xStatus->setValue(count);
-
-                    Reference<XContentEnumerationAccess> xContentEnumAccess;
-                    portion >>= xContentEnumAccess;
-                    Reference<XEnumeration> xContentEnum
-                        = xContentEnumAccess->createContentEnumeration(OU("TextContent"));
-
-                    while (xContentEnum->hasMoreElements())
-                    { // iterate through all text contents of the text portion
-                        //MSG_INFO(3,  "Text portion text content loop" << endline);
-                        Any tc = xContentEnum->nextElement();
-                        Reference<XComponent> comp;
-                        tc >>= comp;
-                        //MSG_INFO(3,  "Name: " << STR(getObjectName(comp)) << endline);
-
-                        if (checkIsiFormula(comp))
-                        {
-                            //MSG_INFO(3,  "Found formula: " << STR(getObjectName(comp)) << endline);
-                            formulas.emplace_back(getObjectName(comp));
-                        }
-                    }
+                    pageFormulas.emplace(objName);
                 }
-                // Note: Also possible (sw/source/core/unocore/unoobj2.cxx: SwXTextGraphicObject
             }
         }
-        //MSG_INFO(3,  "orderXText() finished" << endline);
-    } // orderXText()
 
-    void orderPresentation(const Reference<XModel>& xModel, std::list<OUString>& formulas,
-                           unsigned& count, const Reference<XStatusIndicator>& xStatus)
+        formulas.insert(formulas.end(), pageFormulas.begin(), pageFormulas.end());
+    }
+}
+
+unsigned countFormulas(const Reference<XModel>& xModel)
+{
+    unsigned result = 0;
+    Reference<XDrawPagesSupplier> xPresDoc(xModel, UNO_QUERY);
+    Reference<XIndexAccess> xDrawPages(xPresDoc->getDrawPages(), UNO_QUERY_THROW);
+
+    for (int idx = 0; idx < xDrawPages->getCount(); ++idx)
     {
-        Reference<XDrawPagesSupplier> xPresDoc(xModel, UNO_QUERY);
-        Reference<XIndexAccess> xDrawPages(xPresDoc->getDrawPages(), UNO_QUERY_THROW);
+        Reference<XDrawPage> page(xDrawPages->getByIndex(idx), UNO_QUERY_THROW);
+        Reference<XIndexAccess> shapes(page, UNO_QUERY_THROW);
 
-        for (int idx = 0; idx < xDrawPages->getCount(); ++idx)
+        for (int sh = 0; sh < shapes->getCount(); ++sh)
         {
-            Reference<XDrawPage> page(xDrawPages->getByIndex(idx), UNO_QUERY_THROW);
-            MSG_INFO(3, "Presentation page " << idx << endline);
-            Reference<XIndexAccess> shapes(page, UNO_QUERY_THROW);
-            std::set<OUString> pageFormulas; // Set is an ordered collection
+            Reference<XServiceInfo> xSI(shapes->getByIndex(sh), UNO_QUERY_THROW);
 
-            for (int sh = 0; sh < shapes->getCount(); ++sh)
+            if (xSI.is() && xSI->supportsService(OU("com.sun.star.drawing.OLE2Shape")))
             {
-                MSG_INFO(3, "Shape " << sh << endline);
-                Reference<XServiceInfo> xSI(shapes->getByIndex(sh), UNO_QUERY_THROW);
+                Reference<XComponent> comp(shapes->getByIndex(sh), UNO_QUERY_THROW);
 
-                if (xSI.is() && xSI->supportsService(OU("com.sun.star.drawing.OLE2Shape")))
-                {
-                    Reference<XComponent> comp(shapes->getByIndex(sh), UNO_QUERY_THROW);
-                    MSG_INFO(2, "Found OLE shape" << endline);
-
-                    if (checkIsFormula(comp))
-                    {
-                        OUString objName = getObjectName(comp);
-                        MSG_INFO(2, "Found formula: " << STR(objName) << endline);
-                        ++count;
-                        if (xStatus.is())
-                            xStatus->setValue(count);
-                        pageFormulas.emplace(objName);
-                    }
-                }
+                if (checkIsFormula(comp))
+                    ++result;
             }
-
-            formulas.insert(formulas.end(), pageFormulas.begin(), pageFormulas.end());
         }
     }
 
-    unsigned countFormulas(const Reference<XModel>& xModel)
+    return result;
+}
+
+OUString getTextFieldContent(const Reference<XTextDocument>& xDoc, const OUString& textFieldName)
+{
+    Reference<XTextFieldsSupplier> xTFSupplier(xDoc, UNO_QUERY_THROW);
+    Reference<XNameAccess> xTextFieldMasters = xTFSupplier->getTextFieldMasters();
+    if (!xTextFieldMasters->hasByName(OU("com.sun.star.text.fieldmaster.") + textFieldName))
+        return OU("notfound");
+
+    Reference<XPropertySet> xTextFieldMaster(
+        xTextFieldMasters->getByName(OU("com.sun.star.text.fieldmaster.") + textFieldName),
+        UNO_QUERY);
+
+    if (xTextFieldMaster.is())
     {
-        unsigned result = 0;
-        Reference<XDrawPagesSupplier> xPresDoc(xModel, UNO_QUERY);
-        Reference<XIndexAccess> xDrawPages(xPresDoc->getDrawPages(), UNO_QUERY_THROW);
-
-        for (int idx = 0; idx < xDrawPages->getCount(); ++idx)
-        {
-            Reference<XDrawPage> page(xDrawPages->getByIndex(idx), UNO_QUERY_THROW);
-            Reference<XIndexAccess> shapes(page, UNO_QUERY_THROW);
-
-            for (int sh = 0; sh < shapes->getCount(); ++sh)
-            {
-                Reference<XServiceInfo> xSI(shapes->getByIndex(sh), UNO_QUERY_THROW);
-
-                if (xSI.is() && xSI->supportsService(OU("com.sun.star.drawing.OLE2Shape")))
-                {
-                    Reference<XComponent> comp(shapes->getByIndex(sh), UNO_QUERY_THROW);
-
-                    if (checkIsFormula(comp))
-                        ++result;
-                }
-            }
-        }
-
-        return result;
-    }
-
-    OUString getTextFieldContent(const Reference<XTextDocument>& xDoc,
-                                 const OUString& textFieldName)
-    {
-        Reference<XTextFieldsSupplier> xTFSupplier(xDoc, UNO_QUERY_THROW);
-        Reference<XNameAccess> xTextFieldMasters = xTFSupplier->getTextFieldMasters();
-        if (!xTextFieldMasters->hasByName(OU("com.sun.star.text.fieldmaster.") + textFieldName))
-            return OU("notfound");
-
-        Reference<XPropertySet> xTextFieldMaster(
-            xTextFieldMasters->getByName(OU("com.sun.star.text.fieldmaster.") + textFieldName),
-            UNO_QUERY);
-
-        if (xTextFieldMaster.is())
-        {
-            /*
+        /*
      // Note: This only works if there actually are dependent text fields displayed in the document
      Any aDependentTextFields = xTextFieldMaster->getPropertyValue(OU("DependentTextFields"));
      Sequence< Reference< XDependentTextField > > xDependentTextFields;
@@ -2540,422 +2745,1118 @@ Reference<XComponent> insertObject(const Reference<XModel>& xModel, const OUStri
     }
     */
 
-            // Note: This also does not update correctly if no text field is actually displayed in the document
-            Any aContent = xTextFieldMaster->getPropertyValue(OU("Content"));
-            OUString c;
-            aContent >>= c;
-            return c;
-        }
-
-        return OU("error");
+        // Note: This also does not update correctly if no text field is actually displayed in the document
+        Any aContent = xTextFieldMaster->getPropertyValue(OU("Content"));
+        OUString c;
+        aContent >>= c;
+        return c;
     }
 
-    bool checkHasChartsAndTables(const Reference<XModel>& xModel)
+    return OU("error");
+}
+
+bool checkHasChartsAndTables(const Reference<XModel>& xModel)
+{
+    Reference<XTextDocument> xTextDoc(xModel, UNO_QUERY);
+    if (xTextDoc.is())
+        return true;
+
+    Reference<XPresentationSupplier> xPresDoc(xModel, UNO_QUERY);
+    if (xPresDoc.is())
+        return true;
+
+    return false;
+}
+
+Reference<XCell> getTableCell(const Reference<XTextDocument>& xDoc, const OUString& tableName,
+                              const OUString& tableCellName)
+{
+    Reference<XTextTablesSupplier> xTSupplier(xDoc, UNO_QUERY_THROW);
+    Reference<XNameAccess> xTextTables = xTSupplier->getTextTables();
+
+    if (xTextTables->hasByName(tableName))
     {
-        Reference<XTextDocument> xTextDoc(xModel, UNO_QUERY);
-        if (xTextDoc.is())
-            return true;
-
-        Reference<XPresentationSupplier> xPresDoc(xModel, UNO_QUERY);
-        if (xPresDoc.is())
-            return true;
-
-        return false;
+        Any aTextTable = xTextTables->getByName(tableName);
+        Reference<XTextTable> xTextTable;
+        aTextTable >>= xTextTable;
+        Reference<XCell> xCell(xTextTable->getCellByName(tableCellName), UNO_QUERY);
+        if (xCell.is())
+            return xCell;
+        else
+            throw std::runtime_error("Referenced cell '" + STR(tableCellName) + "' does not exist");
     }
-
-    Reference<XCell> getTableCell(const Reference<XTextDocument>& xDoc, const OUString& tableName,
-                                  const OUString& tableCellName)
+    else
     {
-        Reference<XTextTablesSupplier> xTSupplier(xDoc, UNO_QUERY_THROW);
-        Reference<XNameAccess> xTextTables = xTSupplier->getTextTables();
+        throw std::runtime_error("Referenced table '" + STR(tableName) + "' does not exist");
+    }
+}
 
-        if (xTextTables->hasByName(tableName))
+expression getCellExpression(const Reference<XCell>& xCell)
+{
+    if (xCell.is())
+    {
+        if ((xCell->getType() == com::sun::star::table::CellContentType_VALUE)
+            || ((xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
+                && (xCell->getError() == 0)))
         {
-            Any aTextTable = xTextTables->getByName(tableName);
-            Reference<XTextTable> xTextTable;
-            aTextTable >>= xTextTable;
-            Reference<XCell> xCell(xTextTable->getCellByName(tableCellName), UNO_QUERY);
-            if (xCell.is())
-                return xCell;
+            double val = xCell->getValue();
+            if (std::floor(val) - val == 0)
+                return dynallocate<numeric>(std::floor(val));
             else
-                throw std::runtime_error("Referenced cell '" + STR(tableCellName)
-                                         + "' does not exist");
+                return dynallocate<numeric>(val);
+        }
+        else if (xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
+        {
+            return dynallocate<stringex>(STR(xCell->getFormula()));
+        }
+        else if (xCell->getType() == com::sun::star::table::CellContentType_TEXT)
+        {
+            Reference<XText> xCellText(xCell, UNO_QUERY);
+            if (xCellText.is())
+                return dynallocate<stringex>(STR(xCellText->getString()));
+        }
+    }
+
+    return dynallocate<stringex>("");
+}
+
+void setCellString(const Reference<XCell>& xCell, const OUString& value)
+{
+    if (xCell.is())
+    {
+        if (value.trim()[0] == '=')
+        {
+            xCell->setFormula(value);
         }
         else
         {
-            throw std::runtime_error("Referenced table '" + STR(tableName) + "' does not exist");
+            Reference<XText> xCellText(xCell, UNO_QUERY);
+            if (xCellText.is())
+                xCellText->setString(value);
         }
     }
+}
 
-    expression getCellExpression(const Reference<XCell>& xCell)
+void setCellDouble(const Reference<XCell>& xCell, const double value)
+{
+    if (xCell.is())
+        xCell->setValue(value);
+}
+
+void setCellExpression(const Reference<XCell>& xCell, const expression& value)
+{
+    if (xCell.is())
     {
-        if (xCell.is())
+        if (is_a<stringex>(value))
         {
-            if ((xCell->getType() == com::sun::star::table::CellContentType_VALUE)
-                || ((xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
-                    && (xCell->getError() == 0)))
-            {
-                double val = xCell->getValue();
-                if (std::floor(val) - val == 0)
-                    return dynallocate<numeric>(std::floor(val));
-                else
-                    return dynallocate<numeric>(val);
-            }
-            else if (xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
-            {
-                return dynallocate<stringex>(STR(xCell->getFormula()));
-            }
-            else if (xCell->getType() == com::sun::star::table::CellContentType_TEXT)
-            {
-                Reference<XText> xCellText(xCell, UNO_QUERY);
-                if (xCellText.is())
-                    return dynallocate<stringex>(STR(xCellText->getString()));
-            }
+            // This avoids quotation marks around the string
+            setCellString(xCell, OUS8(ex_to<stringex>(value).get_string()));
         }
-
-        return dynallocate<stringex>("");
-    }
-
-    void setCellString(const Reference<XCell>& xCell, const OUString& value)
-    {
-        if (xCell.is())
+        else
         {
-            if (value.trim()[0] == '=')
+            if (is_a<numeric>(value) && ex_to<numeric>(value).info(info_flags::real))
             {
-                xCell->setFormula(value);
+                setCellDouble(xCell, ex_to<numeric>(value).to_double());
             }
             else
             {
-                Reference<XText> xCellText(xCell, UNO_QUERY);
-                if (xCellText.is())
-                    xCellText->setString(value);
+                std::ostringstream os;
+                os << value;
+                setCellString(xCell, OUS8(os.str()));
             }
         }
     }
+}
 
-    void setCellDouble(const Reference<XCell>& xCell, const double value)
+void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName,
+                  const OUString& tableCellName, const GiNaC::expression& value)
+{
+    // Note: LO6 crashes when a table cell is changed during a pasting operation
+    Reference<XTextDocument> xDoc(
+        xDocumentModel, UNO_QUERY_THROW); // This must be checked before calling the method
+    Reference<XCell> xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
+    setCellExpression(xCell, value);
+}
+
+expression calcCellRangeContent(const Reference<XComponentContext>& xContext,
+                                const OUString& calcURL, const OUString& sheetName,
+                                const OUString& cellRange)
+{
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XDesktop> xDesktop(
+        xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
+        UNO_QUERY_THROW);
+    Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
+    bool docIsLoaded = docModel.is();
+    if (!docIsLoaded)
+        docModel = loadDocument(xDesktop, calcURL, true);
+
+    Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
+    Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
+    expression result = getCalcRangeExpression(xColumnRowRange);
+
+    if (!docIsLoaded)
     {
-        if (xCell.is())
-            xCell->setValue(value);
+        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
+        xClose->close(true);
     }
 
-    void setCellExpression(const Reference<XCell>& xCell, const expression& value)
+    return result;
+}
+
+void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL,
+                      const OUString& sheetName, const OUString& cellRange, const ex& value)
+{
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XDesktop> xDesktop(
+        xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
+        UNO_QUERY_THROW);
+    Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
+    bool docIsLoaded = docModel.is();
+    if (!docIsLoaded)
+        docModel = loadDocument(xDesktop, calcURL, false);
+
+    Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
+    Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
+    setCalcCellRangeExpression(xColumnRowRange, value);
+
+    if (!docIsLoaded)
     {
-        if (xCell.is())
-        {
-            if (is_a<stringex>(value))
-            {
-                // This avoids quotation marks around the string
-                setCellString(xCell, OUS8(ex_to<stringex>(value).get_string()));
-            }
-            else
-            {
-                if (is_a<numeric>(value) && ex_to<numeric>(value).info(info_flags::real))
-                {
-                    setCellDouble(xCell, ex_to<numeric>(value).to_double());
-                }
-                else
-                {
-                    std::ostringstream os;
-                    os << value;
-                    setCellString(xCell, OUS8(os.str()));
-                }
-            }
-        }
+        Reference<XStorable> xStore(xCalcDoc, UNO_QUERY_THROW);
+        xStore->store();
+        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
+        xClose->close(true);
+    }
+}
+
+Reference<XModel> checkDocumentLoaded(Reference<XDesktop>& xDesktop, const OUString& URL)
+{
+    Reference<XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
+    Reference<XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
+
+    while (xDocsEnum->hasMoreElements())
+    {
+        Any docModel = xDocsEnum->nextElement();
+        Reference<XModel> xModel;
+        docModel >>= xModel;
+        if (xModel.is() && (xModel->getURL() == URL))
+            return xModel;
     }
 
-    void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName,
-                      const OUString& tableCellName, const GiNaC::expression& value)
-    {
-        // Note: LO6 crashes when a table cell is changed during a pasting operation
-        Reference<XTextDocument> xDoc(
-            xDocumentModel, UNO_QUERY_THROW); // This must be checked before calling the method
-        Reference<XCell> xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
-        setCellExpression(xCell, value);
-    }
+    return Reference<XModel>();
+}
 
-    expression calcCellRangeContent(const Reference<XComponentContext>& xContext,
-                                    const OUString& calcURL, const OUString& sheetName,
-                                    const OUString& cellRange)
+Reference<XModel> loadDocument(const Reference<XDesktop>& xDesktop, const OUString& calcURL,
+                               const bool readonly)
+{
+    Sequence<PropertyValue> args(2);
+    auto pArgs = args.getArray();
+    PropertyValue hidden;
+    hidden.Name = OU("Hidden");
+    hidden.Value = Any(true);
+    pArgs[0] = hidden;
+    PropertyValue ro;
+    ro.Name = OU("ReadOnly");
+    ro.Value = Any(readonly);
+    pArgs[1] = ro;
+
+    try
     {
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XDesktop> xDesktop(
-            xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
+        Reference<XComponentLoader> xComponentLoader(xDesktop, UNO_QUERY_THROW);
+        return Reference<XModel>(
+            xComponentLoader->loadComponentFromURL(calcURL, OU("_default"), 0, args),
             UNO_QUERY_THROW);
-        Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
-        bool docIsLoaded = docModel.is();
-        if (!docIsLoaded)
-            docModel = loadDocument(xDesktop, calcURL, true);
-
-        Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
-        Reference<XColumnRowRange> xColumnRowRange
-            = getCalcCellRange(xCalcDoc, sheetName, cellRange);
-        expression result = getCalcRangeExpression(xColumnRowRange);
-
-        if (!docIsLoaded)
-        {
-            Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
-            xClose->close(true);
-        }
-
-        return result;
     }
-
-    void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL,
-                          const OUString& sheetName, const OUString& cellRange, const ex& value)
+    catch (Exception& e)
     {
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XDesktop> xDesktop(
-            xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
-            UNO_QUERY_THROW);
-        Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
-        bool docIsLoaded = docModel.is();
-        if (!docIsLoaded)
-            docModel = loadDocument(xDesktop, calcURL, false);
-
-        Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
-        Reference<XColumnRowRange> xColumnRowRange
-            = getCalcCellRange(xCalcDoc, sheetName, cellRange);
-        setCalcCellRangeExpression(xColumnRowRange, value);
-
-        if (!docIsLoaded)
-        {
-            Reference<XStorable> xStore(xCalcDoc, UNO_QUERY_THROW);
-            xStore->store();
-            Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
-            xClose->close(true);
-        }
+        (void)e;
+        throw std::runtime_error("Referenced document '" + STR(calcURL) + "' does not exist");
     }
+}
 
-    Reference<XModel> checkDocumentLoaded(Reference<XDesktop> & xDesktop, const OUString& URL)
+OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext)
+{
+    MSG_INFO(2, "makeSystemPathFor() '" << STR(theURL) << "'" << endline);
+    if (!theURL.matchAsciiL("file:///",
+                            8)) // No URL given, so we assume it is already a system path
+        return theURL;
+
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XFileIdentifierConverter> xFIConverter(
+        xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
+        UNO_QUERY_THROW);
+    return (xFIConverter->getSystemPathFromFileURL(theURL));
+} // makeSystemPathFor()
+
+OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL,
+                    const Reference<XComponentContext>& xContext)
+{
+    MSG_INFO(2, "makeURLFor()" << endline);
+    OUString result = OU("");
+
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XFileIdentifierConverter> xFIConverter(
+        xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
+        UNO_QUERY_THROW);
+
+    if (!newURL.equalsAscii(""))
     {
-        Reference<XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
-        Reference<XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
-
-        while (xDocsEnum->hasMoreElements())
-        {
-            Any docModel = xDocsEnum->nextElement();
-            Reference<XModel> xModel;
-            docModel >>= xModel;
-            if (xModel.is() && (xModel->getURL() == URL))
-                return xModel;
+        if (newURL.matchAsciiL("/", 1))
+        { // Absolute Unix path
+            return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
         }
-
-        return Reference<XModel>();
-    }
-
-    Reference<XModel> loadDocument(const Reference<XDesktop>& xDesktop, const OUString& calcURL,
-                                   const bool readonly)
-    {
-        Sequence<PropertyValue> args(2);
-        auto pArgs = args.getArray();
-        PropertyValue hidden;
-        hidden.Name = OU("Hidden");
-        hidden.Value = Any(true);
-        pArgs[0] = hidden;
-        PropertyValue ro;
-        ro.Name = OU("ReadOnly");
-        ro.Value = Any(readonly);
-        pArgs[1] = ro;
-
-        try
+        else if (newURL.copy(1, 1).equalsAscii(":") || newURL.matchAsciiL("\\\\", 2))
         {
-            Reference<XComponentLoader> xComponentLoader(xDesktop, UNO_QUERY_THROW);
-            return Reference<XModel>(
-                xComponentLoader->loadComponentFromURL(calcURL, OU("_default"), 0, args),
-                UNO_QUERY_THROW);
+            // Windows absolute path, e.g. C: or D:, or Windows network path
+            return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
         }
-        catch (Exception& e)
-        {
-            (void)e;
-            throw std::runtime_error("Referenced document '" + STR(calcURL) + "' does not exist");
+        else if (newURL.matchAsciiL("file:///", 8))
+        { // Absolute office URL
+            return newURL;
         }
-    }
-
-    OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext)
-    {
-        MSG_INFO(2, "makeSystemPathFor() '" << STR(theURL) << "'" << endline);
-        if (!theURL.matchAsciiL("file:///",
-                                8)) // No URL given, so we assume it is already a system path
-            return theURL;
-
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XFileIdentifierConverter> xFIConverter(
-            xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
-            UNO_QUERY_THROW);
-        return (xFIConverter->getSystemPathFromFileURL(theURL));
-    } // makeSystemPathFor()
-
-    OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL,
-                        const Reference<XComponentContext>& xContext)
-    {
-        MSG_INFO(2, "makeURLFor()" << endline);
-        OUString result = OU("");
-
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XFileIdentifierConverter> xFIConverter(
-            xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
-            UNO_QUERY_THROW);
-
-        if (!newURL.equalsAscii(""))
-        {
-            if (newURL.matchAsciiL("/", 1))
-            { // Absolute Unix path
-                return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
-            }
-            else if (newURL.copy(1, 1).equalsAscii(":") || newURL.matchAsciiL("\\\\", 2))
-            {
-                // Windows absolute path, e.g. C: or D:, or Windows network path
-                return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
-            }
-            else if (newURL.matchAsciiL("file:///", 8))
-            { // Absolute office URL
+        else
+        { // relative URL
+            if (absoluteURL.equalsAscii(""))
+            { // unsaved new document!
                 return newURL;
             }
             else
-            { // relative URL
-                if (absoluteURL.equalsAscii(""))
-                { // unsaved new document!
-                    return newURL;
-                }
-                else
+            {
+                int slashpos = absoluteURL.lastIndexOfAsciiL("/", 1);
+                return absoluteURL.copy(0, slashpos) + OU("/")
+                       + xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
+            }
+        }
+    }
+
+    return result;
+} // makeURLFor()
+
+sal_Bool isGlobalDocument(const Reference<XModel>& xModel)
+{
+    Reference<XServiceInfo> xServiceInfo(xModel, UNO_QUERY_THROW);
+    return (xServiceInfo->supportsService(OU("com.sun.star.text.GlobalDocument")));
+}
+
+OUString docType(const Reference<XModel>& xModel)
+{
+    Reference<XTextDocument> doc(xModel, UNO_QUERY);
+    return doc.is() ? OU("TextDocument") : OU("Presentation");
+}
+
+Reference<XColumnRowRange> getCalcCellRange(const Reference<XSpreadsheetDocument>& xCalcDoc,
+                                            const OUString& sheetName, const OUString& cellRange)
+{
+    try
+    {
+        Reference<XSpreadsheets> xCalcSheets = xCalcDoc->getSheets();
+        Reference<XSpreadsheet> xCalcSheet(xCalcSheets->getByName(sheetName), UNO_QUERY_THROW);
+        Reference<XColumnRowRange> xColumnRowRange(xCalcSheet->getCellRangeByName(cellRange),
+                                                   UNO_QUERY_THROW);
+        return xColumnRowRange;
+    }
+    catch (Exception& e)
+    {
+        (void)e;
+        throw std::runtime_error("Referenced cell range '" + STR(sheetName) + "." + STR(cellRange)
+                                 + "' does not exist");
+    }
+}
+
+expression getCalcRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange)
+{
+    if (xColumnRowRange.is())
+    {
+        Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
+        Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
+        Reference<XTableRows> xRows = xColumnRowRange->getRows();
+
+        unsigned rows = xRows->getCount();
+        unsigned cols = xCols->getCount();
+        MSG_INFO(2,
+                 "Found cell range with " << rows << " rows and " << cols << " coumns" << endline);
+
+        if ((rows == 1) && (cols == 1))
+        {
+            Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
+            return getCellExpression(xCell);
+        }
+        else
+        {
+            matrix m(rows, cols);
+
+            for (unsigned r = 0; r < rows; ++r)
+            {
+                for (unsigned c = 0; c < cols; ++c)
                 {
-                    int slashpos = absoluteURL.lastIndexOfAsciiL("/", 1);
-                    return absoluteURL.copy(0, slashpos) + OU("/")
-                           + xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
+                    Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
+                    m(r, c) = getCellExpression(xCell);
+                }
+            }
+            return m;
+        }
+    }
+    return dynallocate<stringex>("Error: Non-existant calc cell range or internal error");
+}
+
+void setCalcCellRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange,
+                                const expression& value)
+{
+    if (xColumnRowRange.is())
+    {
+        Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
+        Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
+        Reference<XTableRows> xRows = xColumnRowRange->getRows();
+
+        unsigned rows = xRows->getCount();
+        unsigned cols = xCols->getCount();
+        MSG_INFO(2,
+                 "Found cell range with " << rows << " rows and " << cols << " coumns" << endline);
+
+        if (is_a<matrix>(value))
+        {
+            const matrix& m = ex_to<matrix>(value);
+            unsigned mrows = m.rows();
+            unsigned mcols = m.cols();
+
+            if ((rows != mrows) || (cols != mcols))
+                throw std::runtime_error(
+                    "Cell range dimensions do not match vector/matrix dimensions");
+
+            for (unsigned r = 0; r < rows; ++r)
+            {
+                for (unsigned c = 0; c < cols; ++c)
+                {
+                    Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
+                    setCellExpression(xCell, m(r, c));
                 }
             }
         }
-
-        return result;
-    } // makeURLFor()
-
-    sal_Bool isGlobalDocument(const Reference<XModel>& xModel)
-    {
-        Reference<XServiceInfo> xServiceInfo(xModel, UNO_QUERY_THROW);
-        return (xServiceInfo->supportsService(OU("com.sun.star.text.GlobalDocument")));
-    }
-
-    OUString docType(const Reference<XModel>& xModel)
-    {
-        Reference<XTextDocument> doc(xModel, UNO_QUERY);
-        return doc.is() ? OU("TextDocument") : OU("Presentation");
-    }
-
-    Reference<XColumnRowRange> getCalcCellRange(const Reference<XSpreadsheetDocument>& xCalcDoc,
-                                                const OUString& sheetName,
-                                                const OUString& cellRange)
-    {
-        try
+        else if ((rows == 1) && (cols == 1))
         {
-            Reference<XSpreadsheets> xCalcSheets = xCalcDoc->getSheets();
-            Reference<XSpreadsheet> xCalcSheet(xCalcSheets->getByName(sheetName), UNO_QUERY_THROW);
-            Reference<XColumnRowRange> xColumnRowRange(xCalcSheet->getCellRangeByName(cellRange),
-                                                       UNO_QUERY_THROW);
-            return xColumnRowRange;
+            Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
+            setCellExpression(xCell, value);
         }
-        catch (Exception& e)
+        else
         {
-            (void)e;
-            throw std::runtime_error("Referenced cell range '" + STR(sheetName) + "."
-                                     + STR(cellRange) + "' does not exist");
+            throw std::runtime_error("Cell range dimensions do not match scalar");
         }
     }
+}
 
-    expression getCalcRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange)
+expression parseNumber(const std::string& s)
+{
+    std::string::size_type delim;
+    std::string ss = s;
+
+    while ((delim = ss.find(",")) != std::string::npos)
+        ss.replace(delim, 1, ".");
+
+    try
     {
-        if (xColumnRowRange.is())
+        return dynallocate<numeric>(ss.c_str());
+    }
+    catch (std::exception&)
+    {
+        return dynallocate<stringex>(s);
+    }
+}
+
+expression getExpressionFromString(const OUString& s)
+{
+    std::string tf = STR(s);
+
+    if ((tf.find("\n") != std::string::npos) || (tf.find("\t") != std::string::npos))
+    {
+        // String represents a matrix. Split rows at line breaks and columns at tabs
+        std::istringstream mtext(tf);
+        std::string row;
+        std::vector<std::string> rows;
+        while (std::getline(mtext, row, '\n'))
+            rows.emplace_back(row);
+
+        std::vector<std::vector<std::string>> strmatrix;
+        size_t colnum = 0;
+
+        for (const auto& r : rows)
         {
-            Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
-            Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
-            Reference<XTableRows> xRows = xColumnRowRange->getRows();
+            std::istringstream rtext(r);
+            std::string col;
+            strmatrix.emplace_back();
+            std::vector<std::string>& cols = strmatrix.back();
+            while (std::getline(rtext, col, '\t'))
+                cols.emplace_back(col);
 
-            unsigned rows = xRows->getCount();
-            unsigned cols = xCols->getCount();
-            MSG_INFO(2, "Found cell range with " << rows << " rows and " << cols << " coumns"
-                                                 << endline);
+            size_t oldcolnum = colnum;
+            colnum = cols.size();
+            if ((oldcolnum != 0) && (oldcolnum != colnum)) // Column number mismatch
+                return dynallocate<stringex>(tf);
+        }
 
-            if ((rows == 1) && (cols == 1))
+        matrix m((unsigned)strmatrix.size(), (unsigned)colnum);
+        unsigned irow = 0;
+        for (std::vector<std::vector<std::string>>::const_iterator r = strmatrix.begin();
+             r != strmatrix.end(); ++r, ++irow)
+        {
+            unsigned icol = 0;
+            for (std::vector<std::string>::const_iterator e = r->begin(); e != r->end();
+                 ++e, ++icol)
             {
-                Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
-                return getCellExpression(xCell);
+                m(irow, icol) = parseNumber(*e);
+            }
+        }
+
+        return m;
+    }
+    else
+    {
+        return parseNumber(tf);
+    }
+}
+
+Reference<XNamedGraph> createGraph(const Reference<XComponentContext>& mxCC,
+                                   const Reference<XModel>& xModel)
+{
+    Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
+    Reference<XURI> xType
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
+    Sequence<Reference<XURI>> types(1);
+    types.getArray()[0] = xType;
+
+    try
+    {
+        Reference<XURI> xGraphName = xDMA->addMetadataFile(OU("imathoptions.rdf"), types);
+        return xDMA->getRDFRepository()->getGraph(xGraphName);
+    }
+    catch (ElementExistException e)
+    { // filename exists?
+    }
+
+    throw std::runtime_error("Internal error: RDF graph already exists");
+}
+
+Reference<XNamedGraph> getGraph(const Reference<XComponentContext>& mxCC,
+                                const Reference<XModel>& xModel)
+{
+    Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
+    Reference<XURI> xType
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
+    Sequence<Reference<XURI>> graphNames = xDMA->getMetadataGraphsWithType(xType);
+    Reference<XNamedGraph> result;
+
+    if (graphNames.getLength() > 0)
+    {
+        // There should only be one single graph
+        result = xDMA->getRDFRepository()->getGraph(graphNames[0]);
+    }
+
+    return result;
+}
+
+void addStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                  const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                  const OUString& value)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XLiteral> xLit = Literal::create(mxCC, value);
+    Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
+#else
+    Reference<XLiteral> xObj = Literal::create(mxCC, value);
+#endif
+    xGraph->addStatement(docURI, xPredicate, xObj);
+}
+
+void updateStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                     const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                     const OUString& value)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XLiteral> xLit = Literal::create(mxCC, value);
+    Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
+#else
+    Reference<XLiteral> xObj = Literal::create(mxCC, value);
+#endif
+    xGraph->removeStatements(docURI, xPredicate, NULL);
+    xGraph->addStatement(docURI, xPredicate, xObj);
+}
+
+bool hasStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                  const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+    Reference<XEnumeration> xResult = xGraph->getStatements(
+        docURI, xPredicate, NULL); // All statements must have this document as subject
+
+    return xResult->hasMoreElements();
+}
+
+OUString getStatementString(const Reference<XComponentContext>& mxCC,
+                            const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                            const OUString& predicate)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+    Reference<XEnumeration> xResult = xGraph->getStatements(
+        docURI, xPredicate, NULL); // All statements must have this document as subject
+
+    if (xResult->hasMoreElements())
+    {
+        Any element = xResult->nextElement();
+        Statement stmt;
+        element >>= stmt;
+        Reference<XLiteral> object(stmt.Object, UNO_QUERY_THROW);
+        return object->getValue();
+    }
+    else
+    {
+        return OU("");
+    }
+}
+
+sal_Bool getStatementBool(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                          const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+    return getStatementString(mxCC, xModel, xGraph, predicate) == OU("true");
+}
+sal_uInt32 getStatementPosInt(const Reference<XComponentContext>& mxCC,
+                              const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                              const OUString& predicate)
+{
+    return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
+}
+sal_Int32 getStatementInt(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                          const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+    return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
+}
+
+void removeStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                     const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+    xGraph->removeStatements(docURI, xPredicate, NULL);
+}
+
+OUString getPackageLocation(const Reference<XComponentContext>& mxContext, const OUString& id)
+{
+    Reference<XPackageInformationProvider> xInfoProvider(
+        com::sun::star::deployment::PackageInformationProvider::get(mxContext));
+    return xInfoProvider->getPackageLocation(id);
+}
+
+std::string trimstring(const std::string& s)
+{
+    std::string result = s;
+
+    size_t endpos = result.find_last_not_of(" \t");
+    if (std::string::npos != endpos)
+        result = result.substr(0, endpos + 1);
+
+    size_t startpos = result.find_first_not_of(" \t");
+    if (std::string::npos != startpos)
+        result = result.substr(startpos);
+
+    return result;
+}
+
+OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl)
+{
+    int idx = 0;
+    int lastidx = 0;
+    OUString result(OU(""));
+
+    while (idx < str.getLength())
+    {
+        lastidx = idx;
+        idx = str.indexOf(substr, lastidx);
+        if (idx < 0)
+        {
+            return result + str.copy(lastidx);
+        }
+        else
+        {
+            result = result + str.copy(lastidx, idx - lastidx) + repl;
+            idx = idx + substr.getLength();
+        }
+    }
+
+    return result; // This is never reached, but pacifies the compiler
+}
+
+std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary)
+{
+    std::list<OUString> result;
+    sal_Int32 idx = 0;
+
+    do
+    {
+        OUString token = str.getToken(0, boundary, idx);
+        if (token.getLength() > 0)
+            result.emplace_back(token);
+    } while (idx >= 0);
+
+    return result;
+}
+
+OUString getLocaleName(const Reference<XComponentContext>& mxCC)
+{
+    Reference<XHierarchicalPropertySet> xProperties
+        = getRegistryAccess(mxCC, OU("/org.openoffice.Setup/L10N"));
+    Any aLocale = xProperties->getHierarchicalPropertyValue(OU("ooLocale")); // UI language
+    OUString ooLocale;
+    aLocale >>= ooLocale;
+    aLocale = xProperties->getHierarchicalPropertyValue(
+        OU("ooSetupSystemLocale")); // Locale set by user (might be empty)
+    OUString ooSSLocale;
+    aLocale >>= ooSSLocale;
+    return (ooSSLocale == OU("") ? ooLocale : ooSSLocale);
+    // Note: There is also "DecimalSeparatorAsLocale" with the following description in Setup.xcs:
+    //      Indicates that the decimal separator (dot or commma) is used as appropriate for the selected locale instead of the one related to the default keyboard layout
+} // getLocaleName()
+
+bool hasEnclosingBrackets(const OUString& arg)
+{
+    if (arg.matchAsciiL("(", 1, 0) && arg.endsWithAsciiL(")", 1))
+    {
+        if (arg.getLength() == 3)
+            return true; // single letter or digit
+
+        // Check for enclosing brackets at start and end of string
+        int blevel = 1; // bracket level
+        int startpos = 1;
+        int bopenpos = arg.indexOfAsciiL("(", 1, startpos); // Could be -1 (not found)
+        int bclosepos = arg.indexOfAsciiL(")", 1, startpos); // Could be -1 (not found)
+        int bpos;
+        if (bopenpos < 0)
+            bpos = bclosepos;
+        else if (bclosepos < 0)
+            bpos = bopenpos;
+        else
+            bpos = std::min(bopenpos, bclosepos);
+        bool hasBrackets = false;
+
+        while (bpos > 0)
+        {
+            if (bpos == bopenpos)
+                blevel++;
+            else
+                blevel--;
+            if (blevel == 0)
+            {
+                hasBrackets
+                    = (bpos
+                       == arg.getLength()
+                              - 1); // Bracket level zero and closing bracket is last character of string
+                break;
+            }
+            startpos = bpos + 1;
+            bopenpos = arg.indexOfAsciiL("(", 1, startpos);
+            bclosepos = arg.indexOfAsciiL(")", 1, startpos);
+            if (bopenpos < 0)
+                bpos = bclosepos;
+            else if (bclosepos < 0)
+                bpos = bopenpos;
+            else
+                bpos = std::min(bopenpos, bclosepos);
+        }
+
+        return hasBrackets;
+    }
+
+    return false;
+}
+
+OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols)
+{
+    Reference<XTextTablesSupplier> xTSupplier(xDoc, UNO_QUERY_THROW);
+    Reference<XNameAccess> xTextTables = xTSupplier->getTextTables();
+
+    if (xTextTables->hasByName(tableName))
+    {
+        Any aTextTable = xTextTables->getByName(tableName);
+        Reference<XTextTable> xTextTable;
+        aTextTable >>= xTextTable;
+        Reference<XCell> xCell(xTextTable->getCellByName(tableCellName), UNO_QUERY);
+        if (xCell.is())
+            return xCell;
+        else
+            throw std::runtime_error("Referenced cell '" + STR(tableCellName) + "' does not exist");
+    }
+    else
+    {
+        throw std::runtime_error("Referenced table '" + STR(tableName) + "' does not exist");
+    }
+}
+
+expression getCellExpression(const Reference<XCell>& xCell)
+{
+    if (xCell.is())
+    {
+        if ((xCell->getType() == com::sun::star::table::CellContentType_VALUE)
+            || ((xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
+                && (xCell->getError() == 0)))
+        {
+            double val = xCell->getValue();
+            if (std::floor(val) - val == 0)
+                return dynallocate<numeric>(std::floor(val));
+            else
+                return dynallocate<numeric>(val);
+        }
+        else if (xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
+        {
+            return dynallocate<stringex>(STR(xCell->getFormula()));
+        }
+        else if (xCell->getType() == com::sun::star::table::CellContentType_TEXT)
+        {
+            Reference<XText> xCellText(xCell, UNO_QUERY);
+            if (xCellText.is())
+                return dynallocate<stringex>(STR(xCellText->getString()));
+        }
+    }
+
+    return dynallocate<stringex>("");
+}
+
+void setCellString(const Reference<XCell>& xCell, const OUString& value)
+{
+    if (xCell.is())
+    {
+        if (value.trim()[0] == '=')
+        {
+            xCell->setFormula(value);
+        }
+        else
+        {
+            Reference<XText> xCellText(xCell, UNO_QUERY);
+            if (xCellText.is())
+                xCellText->setString(value);
+        }
+    }
+}
+
+void setCellDouble(const Reference<XCell>& xCell, const double value)
+{
+    if (xCell.is())
+        xCell->setValue(value);
+}
+
+void setCellExpression(const Reference<XCell>& xCell, const expression& value)
+{
+    if (xCell.is())
+    {
+        if (is_a<stringex>(value))
+        {
+            // This avoids quotation marks around the string
+            setCellString(xCell, OUS8(ex_to<stringex>(value).get_string()));
+        }
+        else
+        {
+            if (is_a<numeric>(value) && ex_to<numeric>(value).info(info_flags::real))
+            {
+                setCellDouble(xCell, ex_to<numeric>(value).to_double());
             }
             else
             {
-                matrix m(rows, cols);
-
-                for (unsigned r = 0; r < rows; ++r)
-                {
-                    for (unsigned c = 0; c < cols; ++c)
-                    {
-                        Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
-                        m(r, c) = getCellExpression(xCell);
-                    }
-                }
-                return m;
+                std::ostringstream os;
+                os << value;
+                setCellString(xCell, OUS8(os.str()));
             }
         }
-        return dynallocate<stringex>("Error: Non-existant calc cell range or internal error");
+    }
+}
+
+void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName,
+                  const OUString& tableCellName, const GiNaC::expression& value)
+{
+    // Note: LO6 crashes when a table cell is changed during a pasting operation
+    Reference<XTextDocument> xDoc(
+        xDocumentModel, UNO_QUERY_THROW); // This must be checked before calling the method
+    Reference<XCell> xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
+    setCellExpression(xCell, value);
+}
+
+expression calcCellRangeContent(const Reference<XComponentContext>& xContext,
+                                const OUString& calcURL, const OUString& sheetName,
+                                const OUString& cellRange)
+{
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XDesktop> xDesktop(
+        xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
+        UNO_QUERY_THROW);
+    Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
+    bool docIsLoaded = docModel.is();
+    if (!docIsLoaded)
+        docModel = loadDocument(xDesktop, calcURL, true);
+
+    Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
+    Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
+    expression result = getCalcRangeExpression(xColumnRowRange);
+
+    if (!docIsLoaded)
+    {
+        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
+        xClose->close(true);
     }
 
-    void setCalcCellRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange,
-                                    const expression& value)
+    return result;
+}
+
+void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL,
+                      const OUString& sheetName, const OUString& cellRange, const ex& value)
+{
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XDesktop> xDesktop(
+        xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
+        UNO_QUERY_THROW);
+    Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
+    bool docIsLoaded = docModel.is();
+    if (!docIsLoaded)
+        docModel = loadDocument(xDesktop, calcURL, false);
+
+    Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
+    Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
+    setCalcCellRangeExpression(xColumnRowRange, value);
+
+    if (!docIsLoaded)
     {
-        if (xColumnRowRange.is())
+        Reference<XStorable> xStore(xCalcDoc, UNO_QUERY_THROW);
+        xStore->store();
+        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
+        xClose->close(true);
+    }
+}
+
+Reference<XModel> checkDocumentLoaded(Reference<XDesktop>& xDesktop, const OUString& URL)
+{
+    Reference<XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
+    Reference<XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
+
+    while (xDocsEnum->hasMoreElements())
+    {
+        Any docModel = xDocsEnum->nextElement();
+        Reference<XModel> xModel;
+        docModel >>= xModel;
+        if (xModel.is() && (xModel->getURL() == URL))
+            return xModel;
+    }
+
+    return Reference<XModel>();
+}
+
+Reference<XModel> loadDocument(const Reference<XDesktop>& xDesktop, const OUString& calcURL,
+                               const bool readonly)
+{
+    Sequence<PropertyValue> args(2);
+    auto pArgs = args.getArray();
+    PropertyValue hidden;
+    hidden.Name = OU("Hidden");
+    hidden.Value = makeAny(true);
+    pArgs[0] = hidden;
+    PropertyValue ro;
+    ro.Name = OU("ReadOnly");
+    ro.Value = makeAny(readonly);
+    pArgs[1] = ro;
+
+    try
+    {
+        Reference<XComponentLoader> xComponentLoader(xDesktop, UNO_QUERY_THROW);
+        return Reference<XModel>(
+            xComponentLoader->loadComponentFromURL(calcURL, OU("_default"), 0, args),
+            UNO_QUERY_THROW);
+    }
+    catch (Exception& e)
+    {
+        (void)e;
+        throw std::runtime_error("Referenced document '" + STR(calcURL) + "' does not exist");
+    }
+}
+
+OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext)
+{
+    MSG_INFO(2, "makeSystemPathFor() '" << STR(theURL) << "'" << endline);
+    if (!theURL.matchAsciiL("file:///",
+                            8)) // No URL given, so we assume it is already a system path
+        return theURL;
+
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XFileIdentifierConverter> xFIConverter(
+        xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
+        UNO_QUERY_THROW);
+    return (xFIConverter->getSystemPathFromFileURL(theURL));
+} // makeSystemPathFor()
+
+OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL,
+                    const Reference<XComponentContext>& xContext)
+{
+    MSG_INFO(2, "makeURLFor()" << endline);
+    OUString result = OU("");
+
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XFileIdentifierConverter> xFIConverter(
+        xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
+        UNO_QUERY_THROW);
+
+    if (!newURL.equalsAscii(""))
+    {
+        if (newURL.matchAsciiL("/", 1))
+        { // Absolute Unix path
+            return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
+        }
+        else if (newURL.copy(1, 1).equalsAscii(":") || newURL.matchAsciiL("\\\\", 2))
         {
-            Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
-            Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
-            Reference<XTableRows> xRows = xColumnRowRange->getRows();
-
-            unsigned rows = xRows->getCount();
-            unsigned cols = xCols->getCount();
-            MSG_INFO(2, "Found cell range with " << rows << " rows and " << cols << " coumns"
-                                                 << endline);
-
-            if (is_a<matrix>(value))
-            {
-                const matrix& m = ex_to<matrix>(value);
-                unsigned mrows = m.rows();
-                unsigned mcols = m.cols();
-
-                if ((rows != mrows) || (cols != mcols))
-                    throw std::runtime_error(
-                        "Cell range dimensions do not match vector/matrix dimensions");
-
-                for (unsigned r = 0; r < rows; ++r)
-                {
-                    for (unsigned c = 0; c < cols; ++c)
-                    {
-                        Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
-                        setCellExpression(xCell, m(r, c));
-                    }
-                }
-            }
-            else if ((rows == 1) && (cols == 1))
-            {
-                Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
-                setCellExpression(xCell, value);
+            // Windows absolute path, e.g. C: or D:, or Windows network path
+            return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
+        }
+        else if (newURL.matchAsciiL("file:///", 8))
+        { // Absolute office URL
+            return newURL;
+        }
+        else
+        { // relative URL
+            if (absoluteURL.equalsAscii(""))
+            { // unsaved new document!
+                return newURL;
             }
             else
             {
-                throw std::runtime_error("Cell range dimensions do not match scalar");
+                int slashpos = absoluteURL.lastIndexOfAsciiL("/", 1);
+                return absoluteURL.copy(0, slashpos) + OU("/")
+                       + xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
             }
         }
     }
 
-    expression parseNumber(const std::string& s)
+    return result;
+} // makeURLFor()
+
+sal_Bool isGlobalDocument(const Reference<XModel>& xModel)
+{
+    Reference<XServiceInfo> xServiceInfo(xModel, UNO_QUERY_THROW);
+    return (xServiceInfo->supportsService(OU("com.sun.star.text.GlobalDocument")));
+}
+
+OUString docType(const Reference<XModel>& xModel)
+{
+    Reference<XTextDocument> doc(xModel, UNO_QUERY);
+    return doc.is() ? OU("TextDocument") : OU("Presentation");
+}
+
+Reference<XColumnRowRange> getCalcCellRange(const Reference<XSpreadsheetDocument>& xCalcDoc,
+                                            const OUString& sheetName, const OUString& cellRange)
+{
+    try
     {
-        std::string::size_type delim;
-        std::string ss = s;
+        Reference<XSpreadsheets> xCalcSheets = xCalcDoc->getSheets();
+        Reference<XSpreadsheet> xCalcSheet(xCalcSheets->getByName(sheetName), UNO_QUERY_THROW);
+        Reference<XColumnRowRange> xColumnRowRange(xCalcSheet->getCellRangeByName(cellRange),
+                                                   UNO_QUERY_THROW);
+        return xColumnRowRange;
+    }
+    catch (Exception& e)
+    {
+        (void)e;
+        throw std::runtime_error("Referenced cell range '" + STR(sheetName) + "." + STR(cellRange)
+                                 + "' does not exist");
+    }
+}
 
-        while ((delim = ss.find(",")) != std::string::npos)
-            ss.replace(delim, 1, ".");
+expression parseNumber(const std::string& s)
+{
+    std::string::size_type delim;
+    std::string ss = s;
 
-        try
+    while ((delim = ss.find(",")) != std::string::npos)
+        ss.replace(delim, 1, ".");
+
+    try
+    {
+        return dynallocate<numeric>(ss.c_str());
+    }
+    catch (std::exception&)
+    {
+        return dynallocate<stringex>(s);
+    }
+}
+
+expression getExpressionFromString(const OUString& s)
+{
+    std::string tf = STR(s);
+
+    if ((tf.find("\n") != std::string::npos) || (tf.find("\t") != std::string::npos))
+    {
+        // String represents a matrix. Split rows at line breaks and columns at tabs
+        std::istringstream mtext(tf);
+        std::string row;
+        std::vector<std::string> rows;
+        while (std::getline(mtext, row, '\n'))
+            rows.emplace_back(row);
+
+        std::vector<std::vector<std::string>> strmatrix;
+        size_t colnum = 0;
+
+        for (const auto& r : rows)
         {
-            return dynallocate<numeric>(ss.c_str());
+            std::istringstream rtext(r);
+            std::string col;
+            strmatrix.emplace_back();
+            std::vector<std::string>& cols = strmatrix.back();
+            while (std::getline(rtext, col, '\t'))
+                cols.emplace_back(col);
+
+            size_t oldcolnum = colnum;
+            colnum = cols.size();
+            if ((oldcolnum != 0) && (oldcolnum != colnum)) // Column number mismatch
+                return dynallocate<stringex>(tf);
         }
-        catch (std::exception&)
+
+        if (success)
+        {
+            text >> inumber; // This will always work: decimal places are cut off
+
+            if ((double)inumber != dnumber)
+                return expression(dnumber);
+            else
+                return expression(inumber); // Preserve integers if possible
+        }
+        else
         {
             return dynallocate<stringex>(s);
         }
@@ -3307,815 +4208,107 @@ Reference<XComponent> insertObject(const Reference<XModel>& xModel, const OUStri
 
     OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols)
     {
-        Reference<XTextTablesSupplier> xTSupplier(xDoc, UNO_QUERY_THROW);
-        Reference<XNameAccess> xTextTables = xTSupplier->getTextTables();
+        OUString result;
 
-        if (xTextTables->hasByName(tableName))
+        for (const auto& e : symbols)
         {
-            Any aTextTable = xTextTables->getByName(tableName);
-            Reference<XTextTable> xTextTable;
-            aTextTable >>= xTextTable;
-            Reference<XCell> xCell(xTextTable->getCellByName(tableCellName), UNO_QUERY);
-            if (xCell.is())
-                return xCell;
-            else
-                throw std::runtime_error("Referenced cell '" + STR(tableCellName)
-                                         + "' does not exist");
-        }
-        else
-        {
-            throw std::runtime_error("Referenced table '" + STR(tableName) + "' does not exist");
-        }
-    }
-
-    expression getCellExpression(const Reference<XCell>& xCell)
-    {
-        if (xCell.is())
-        {
-            if ((xCell->getType() == com::sun::star::table::CellContentType_VALUE)
-                || ((xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
-                    && (xCell->getError() == 0)))
+            if (result.getLength() > 0)
+                result += ",";
+            if (GiNaC::is_a<GiNaC::symbol>(e))
             {
-                double val = xCell->getValue();
-                if (std::floor(val) - val == 0)
-                    return dynallocate<numeric>(std::floor(val));
-                else
-                    return dynallocate<numeric>(val);
+                // Note: Symbols may contain anything in their subscripts TODO This might possibly lead to symbol collisions
+                // Note: Using the symbol's internal serial number does not work because it is incremented every time a new instance of the class is created, that is, at every recalculation
+                OUString sname = OUS8(GiNaC::ex_to<GiNaC::symbol>(e).get_name());
+                result += sname.replace(' ', '_');
             }
-            else if (xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
+            else if (GiNaC::is_a<GiNaC::func>(e))
             {
-                return dynallocate<stringex>(STR(xCell->getFormula()));
+                const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
+                if (Functionmanager::is_hard_func(f.get_name()))
+                    continue; // Hard-coded functions cannot be influenced by a formula in the document
+                result += OUString("func") + OUString::number(f.get_serial());
             }
-            else if (xCell->getType() == com::sun::star::table::CellContentType_TEXT)
-            {
-                Reference<XText> xCellText(xCell, UNO_QUERY);
-                if (xCellText.is())
-                    return dynallocate<stringex>(STR(xCellText->getString()));
-            }
-        }
-
-        return dynallocate<stringex>("");
-    }
-
-    void setCellString(const Reference<XCell>& xCell, const OUString& value)
-    {
-        if (xCell.is())
-        {
-            if (value.trim()[0] == '=')
-            {
-                xCell->setFormula(value);
-            }
-            else
-            {
-                Reference<XText> xCellText(xCell, UNO_QUERY);
-                if (xCellText.is())
-                    xCellText->setString(value);
-            }
-        }
-    }
-
-    void setCellDouble(const Reference<XCell>& xCell, const double value)
-    {
-        if (xCell.is())
-            xCell->setValue(value);
-    }
-
-    void setCellExpression(const Reference<XCell>& xCell, const expression& value)
-    {
-        if (xCell.is())
-        {
-            if (is_a<stringex>(value))
-            {
-                // This avoids quotation marks around the string
-                setCellString(xCell, OUS8(ex_to<stringex>(value).get_string()));
-            }
-            else
-            {
-                if (is_a<numeric>(value) && ex_to<numeric>(value).info(info_flags::real))
-                {
-                    setCellDouble(xCell, ex_to<numeric>(value).to_double());
-                }
-                else
-                {
-                    std::ostringstream os;
-                    os << value;
-                    setCellString(xCell, OUS8(os.str()));
-                }
-            }
-        }
-    }
-
-    void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName,
-                      const OUString& tableCellName, const GiNaC::expression& value)
-    {
-        // Note: LO6 crashes when a table cell is changed during a pasting operation
-        Reference<XTextDocument> xDoc(
-            xDocumentModel, UNO_QUERY_THROW); // This must be checked before calling the method
-        Reference<XCell> xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
-        setCellExpression(xCell, value);
-    }
-
-    expression calcCellRangeContent(const Reference<XComponentContext>& xContext,
-                                    const OUString& calcURL, const OUString& sheetName,
-                                    const OUString& cellRange)
-    {
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XDesktop> xDesktop(
-            xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
-            UNO_QUERY_THROW);
-        Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
-        bool docIsLoaded = docModel.is();
-        if (!docIsLoaded)
-            docModel = loadDocument(xDesktop, calcURL, true);
-
-        Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
-        Reference<XColumnRowRange> xColumnRowRange
-            = getCalcCellRange(xCalcDoc, sheetName, cellRange);
-        expression result = getCalcRangeExpression(xColumnRowRange);
-
-        if (!docIsLoaded)
-        {
-            Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
-            xClose->close(true);
         }
 
         return result;
     }
 
-    void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL,
-                          const OUString& sheetName, const OUString& cellRange, const ex& value)
+    int versionCompare(const OUString& file, const OUString& prog)
     {
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XDesktop> xDesktop(
-            xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
-            UNO_QUERY_THROW);
-        Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
-        bool docIsLoaded = docModel.is();
-        if (!docIsLoaded)
-            docModel = loadDocument(xDesktop, calcURL, false);
+        MSG_INFO(0, "Comparing file version " << STR(file) << " with program version " << STR(prog)
+                                              << endline);
+        if (file.equals(prog))
+            return 0; // Catch most frequent case
 
-        Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
-        Reference<XColumnRowRange> xColumnRowRange
-            = getCalcCellRange(xCalcDoc, sheetName, cellRange);
-        setCalcCellRangeExpression(xColumnRowRange, value);
+        std::list<OUString> fileParts = splitString(file, '.');
+        std::list<OUString> progParts = splitString(prog, '.');
+        auto fp = fileParts.begin();
+        auto pp = progParts.begin();
 
-        if (!docIsLoaded)
+        for (; fp != fileParts.end(), pp != progParts.end(); ++fp, ++pp)
         {
-            Reference<XStorable> xStore(xCalcDoc, UNO_QUERY_THROW);
-            xStore->store();
-            Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
-            xClose->close(true);
+            sal_Int32 num_file = fp->toInt32();
+            sal_Int32 num_prog = fp->toInt32();
+
+            if (num_file < num_prog)
+                return -1;
+            else if (num_file > num_prog)
+                return +1;
         }
+
+        int rem_file_idx = file.indexOf('~');
+        int rem_prog_idx = prog.indexOf('~');
+
+        if (rem_file_idx > 0 && rem_prog_idx > 0)
+        {
+            OUString rem_file = file.copy(rem_file_idx);
+            OUString rem_prog = prog.copy(rem_prog_idx);
+
+            if (rem_file < rem_prog)
+                return -1;
+            else if (rem_file < rem_prog)
+                return +1;
+        }
+
+        return 0;
     }
 
-    Reference<XModel> checkDocumentLoaded(Reference<XDesktop> & xDesktop, const OUString& URL)
+    std::string getTempPath()
     {
-        Reference<XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
-        Reference<XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
-
-        while (xDocsEnum->hasMoreElements())
-        {
-            Any docModel = xDocsEnum->nextElement();
-            Reference<XModel> xModel;
-            docModel >>= xModel;
-            if (xModel.is() && (xModel->getURL() == URL))
-                return xModel;
-        }
-
-        return Reference<XModel>();
-    }
-
-    Reference<XModel> loadDocument(const Reference<XDesktop>& xDesktop, const OUString& calcURL,
-                                   const bool readonly)
-    {
-        Sequence<PropertyValue> args(2);
-        auto pArgs = args.getArray();
-        PropertyValue hidden;
-        hidden.Name = OU("Hidden");
-        hidden.Value = makeAny(true);
-        pArgs[0] = hidden;
-        PropertyValue ro;
-        ro.Name = OU("ReadOnly");
-        ro.Value = makeAny(readonly);
-        pArgs[1] = ro;
-
-        try
-        {
-            Reference<XComponentLoader> xComponentLoader(xDesktop, UNO_QUERY_THROW);
-            return Reference<XModel>(
-                xComponentLoader->loadComponentFromURL(calcURL, OU("_default"), 0, args),
-                UNO_QUERY_THROW);
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            throw std::runtime_error("Referenced document '" + STR(calcURL) + "' does not exist");
-        }
-    }
-
-    OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext)
-    {
-        MSG_INFO(2, "makeSystemPathFor() '" << STR(theURL) << "'" << endline);
-        if (!theURL.matchAsciiL("file:///",
-                                8)) // No URL given, so we assume it is already a system path
-            return theURL;
-
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XFileIdentifierConverter> xFIConverter(
-            xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
-            UNO_QUERY_THROW);
-        return (xFIConverter->getSystemPathFromFileURL(theURL));
-    } // makeSystemPathFor()
-
-    OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL,
-                        const Reference<XComponentContext>& xContext)
-    {
-        MSG_INFO(2, "makeURLFor()" << endline);
-        OUString result = OU("");
-
-        Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
-        Reference<XFileIdentifierConverter> xFIConverter(
-            xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
-            UNO_QUERY_THROW);
-
-        if (!newURL.equalsAscii(""))
-        {
-            if (newURL.matchAsciiL("/", 1))
-            { // Absolute Unix path
-                return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
-            }
-            else if (newURL.copy(1, 1).equalsAscii(":") || newURL.matchAsciiL("\\\\", 2))
-            {
-                // Windows absolute path, e.g. C: or D:, or Windows network path
-                return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
-            }
-            else if (newURL.matchAsciiL("file:///", 8))
-            { // Absolute office URL
-                return newURL;
-            }
-            else
-            { // relative URL
-                if (absoluteURL.equalsAscii(""))
-                { // unsaved new document!
-                    return newURL;
-                }
-                else
-                {
-                    int slashpos = absoluteURL.lastIndexOfAsciiL("/", 1);
-                    return absoluteURL.copy(0, slashpos) + OU("/")
-                           + xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
-                }
-            }
-        }
-
-        return result;
-    } // makeURLFor()
-
-    sal_Bool isGlobalDocument(const Reference<XModel>& xModel)
-    {
-        Reference<XServiceInfo> xServiceInfo(xModel, UNO_QUERY_THROW);
-        return (xServiceInfo->supportsService(OU("com.sun.star.text.GlobalDocument")));
-    }
-
-    OUString docType(const Reference<XModel>& xModel)
-    {
-        Reference<XTextDocument> doc(xModel, UNO_QUERY);
-        return doc.is() ? OU("TextDocument") : OU("Presentation");
-    }
-
-    Reference<XColumnRowRange> getCalcCellRange(const Reference<XSpreadsheetDocument>& xCalcDoc,
-                                                const OUString& sheetName,
-                                                const OUString& cellRange)
-    {
-        try
-        {
-            Reference<XSpreadsheets> xCalcSheets = xCalcDoc->getSheets();
-            Reference<XSpreadsheet> xCalcSheet(xCalcSheets->getByName(sheetName), UNO_QUERY_THROW);
-            Reference<XColumnRowRange> xColumnRowRange(xCalcSheet->getCellRangeByName(cellRange),
-                                                       UNO_QUERY_THROW);
-            return xColumnRowRange;
-        }
-        catch (Exception& e)
-        {
-            (void)e;
-            throw std::runtime_error("Referenced cell range '" + STR(sheetName) + "."
-                                     + STR(cellRange) + "' does not exist");
-        }
-    }
-
-    expression parseNumber(const std::string& s)
-    {
-        std::string::size_type delim;
-        std::string ss = s;
-
-        while ((delim = ss.find(",")) != std::string::npos)
-            ss.replace(delim, 1, ".");
-
-        try
-        {
-            return dynallocate<numeric>(ss.c_str());
-        }
-        catch (std::exception&)
-        {
-            return dynallocate<stringex>(s);
-        }
-    }
-
-    expression getExpressionFromString(const OUString& s)
-    {
-        std::string tf = STR(s);
-
-        if ((tf.find("\n") != std::string::npos) || (tf.find("\t") != std::string::npos))
-        {
-            // String represents a matrix. Split rows at line breaks and columns at tabs
-            std::istringstream mtext(tf);
-            std::string row;
-            std::vector<std::string> rows;
-            while (std::getline(mtext, row, '\n'))
-                rows.emplace_back(row);
-
-            std::vector<std::vector<std::string>> strmatrix;
-            size_t colnum = 0;
-
-            for (const auto& r : rows)
-            {
-                std::istringstream rtext(r);
-                std::string col;
-                strmatrix.emplace_back();
-                std::vector<std::string>& cols = strmatrix.back();
-                while (std::getline(rtext, col, '\t'))
-                    cols.emplace_back(col);
-
-                size_t oldcolnum = colnum;
-                colnum = cols.size();
-                if ((oldcolnum != 0) && (oldcolnum != colnum)) // Column number mismatch
-                    return dynallocate<stringex>(tf);
-            }
-
-            if (success)
-            {
-                text >> inumber; // This will always work: decimal places are cut off
-
-                if ((double)inumber != dnumber)
-                    return expression(dnumber);
-                else
-                    return expression(inumber); // Preserve integers if possible
-            }
-            else
-            {
-                return dynallocate<stringex>(s);
-            }
-        }
-
-        expression getExpressionFromString(const OUString& s)
-        {
-            std::string tf = STR(s);
-
-            if ((tf.find("\n") != std::string::npos) || (tf.find("\t") != std::string::npos))
-            {
-                // String represents a matrix. Split rows at line breaks and columns at tabs
-                std::istringstream mtext(tf);
-                std::string row;
-                std::vector<std::string> rows;
-                while (std::getline(mtext, row, '\n'))
-                    rows.emplace_back(row);
-
-                std::vector<std::vector<std::string>> strmatrix;
-                size_t colnum = 0;
-
-                for (const auto& r : rows)
-                {
-                    std::istringstream rtext(r);
-                    std::string col;
-                    strmatrix.emplace_back();
-                    std::vector<std::string>& cols = strmatrix.back();
-                    while (std::getline(rtext, col, '\t'))
-                        cols.emplace_back(col);
-
-                    size_t oldcolnum = colnum;
-                    colnum = cols.size();
-                    if ((oldcolnum != 0) && (oldcolnum != colnum)) // Column number mismatch
-                        return dynallocate<stringex>(tf);
-                }
-
-                matrix m((unsigned)strmatrix.size(), (unsigned)colnum);
-                unsigned irow = 0;
-                for (std::vector<std::vector<std::string>>::const_iterator r = strmatrix.begin();
-                     r != strmatrix.end(); ++r, ++irow)
-                {
-                    unsigned icol = 0;
-                    for (std::vector<std::string>::const_iterator e = r->begin(); e != r->end();
-                         ++e, ++icol)
-                    {
-                        m(irow, icol) = parseNumber(*e);
-                    }
-                }
-
-                return m;
-            }
-            else
-            {
-                return parseNumber(tf);
-            }
-        }
-
-        Reference<XNamedGraph> createGraph(const Reference<XComponentContext>& mxCC,
-                                           const Reference<XModel>& xModel)
-        {
-            Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
-            Reference<XURI> xType
-                = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
-            Sequence<Reference<XURI>> types(1);
-            types.getArray()[0] = xType;
-
-            try
-            {
-                Reference<XURI> xGraphName = xDMA->addMetadataFile(OU("imathoptions.rdf"), types);
-                return xDMA->getRDFRepository()->getGraph(xGraphName);
-            }
-            catch (ElementExistException e)
-            { // filename exists?
-            }
-
-            throw std::runtime_error("Internal error: RDF graph already exists");
-        }
-
-        Reference<XNamedGraph> getGraph(const Reference<XComponentContext>& mxCC,
-                                        const Reference<XModel>& xModel)
-        {
-            Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
-            Reference<XURI> xType
-                = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
-            Sequence<Reference<XURI>> graphNames = xDMA->getMetadataGraphsWithType(xType);
-            Reference<XNamedGraph> result;
-
-            if (graphNames.getLength() > 0)
-            {
-                // There should only be one single graph
-                result = xDMA->getRDFRepository()->getGraph(graphNames[0]);
-            }
-
-            return result;
-        }
-
-        void addStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                          const Reference<XNamedGraph>& xGraph, const OUString& predicate,
-                          const OUString& value)
-        {
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-            Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-            Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-            Reference<XURI> xPredicate = URI::create(
-                mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-            Reference<XLiteral> xLit = Literal::create(mxCC, value);
-            Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
-#else
-            Reference<XLiteral> xObj = Literal::create(mxCC, value);
-#endif
-            xGraph->addStatement(docURI, xPredicate, xObj);
-        }
-
-        void updateStatement(const Reference<XComponentContext>& mxCC,
-                             const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
-                             const OUString& predicate, const OUString& value)
-        {
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-            Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-            Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-            Reference<XURI> xPredicate = URI::create(
-                mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-            Reference<XLiteral> xLit = Literal::create(mxCC, value);
-            Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
-#else
-            Reference<XLiteral> xObj = Literal::create(mxCC, value);
-#endif
-            xGraph->removeStatements(docURI, xPredicate, NULL);
-            xGraph->addStatement(docURI, xPredicate, xObj);
-        }
-
-        bool hasStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-                          const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-        {
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-            Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-            Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-            Reference<XURI> xPredicate = URI::create(
-                mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-            Reference<XEnumeration> xResult = xGraph->getStatements(
-                docURI, xPredicate, NULL); // All statements must have this document as subject
-
-            return xResult->hasMoreElements();
-        }
-
-        OUString getStatementString(const Reference<XComponentContext>& mxCC,
-                                    const Reference<XModel>& xModel,
-                                    const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-        {
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-            Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-            Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-            Reference<XURI> xPredicate = URI::create(
-                mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-            Reference<XEnumeration> xResult = xGraph->getStatements(
-                docURI, xPredicate, NULL); // All statements must have this document as subject
-
-            if (xResult->hasMoreElements())
-            {
-                Any element = xResult->nextElement();
-                Statement stmt;
-                element >>= stmt;
-                Reference<XLiteral> object(stmt.Object, UNO_QUERY_THROW);
-                return object->getValue();
-            }
-            else
-            {
-                return OU("");
-            }
-        }
-
-        sal_Bool getStatementBool(const Reference<XComponentContext>& mxCC,
-                                  const Reference<XModel>& xModel,
-                                  const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-        {
-            return getStatementString(mxCC, xModel, xGraph, predicate) == OU("true");
-        }
-        sal_uInt32 getStatementPosInt(
-            const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-            const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-        {
-            return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
-        }
-        sal_Int32 getStatementInt(const Reference<XComponentContext>& mxCC,
-                                  const Reference<XModel>& xModel,
-                                  const Reference<XNamedGraph>& xGraph, const OUString& predicate)
-        {
-            return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
-        }
-
-        void removeStatement(const Reference<XComponentContext>& mxCC,
-                             const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
-                             const OUString& predicate)
-        {
-#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
-    || (OO_IS_AOO == 1)
-            Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
-#else
-            Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
-#endif
-            Reference<XURI> xPredicate = URI::create(
-                mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
-            xGraph->removeStatements(docURI, xPredicate, NULL);
-        }
-
-        OUString getPackageLocation(const Reference<XComponentContext>& mxContext,
-                                    const OUString& id)
-        {
-            Reference<XPackageInformationProvider> xInfoProvider(
-                com::sun::star::deployment::PackageInformationProvider::get(mxContext));
-            return xInfoProvider->getPackageLocation(id);
-        }
-
-        std::string trimstring(const std::string& s)
-        {
-            std::string result = s;
-
-            size_t endpos = result.find_last_not_of(" \t");
-            if (std::string::npos != endpos)
-                result = result.substr(0, endpos + 1);
-
-            size_t startpos = result.find_first_not_of(" \t");
-            if (std::string::npos != startpos)
-                result = result.substr(startpos);
-
-            return result;
-        }
-
-        OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl)
-        {
-            int idx = 0;
-            int lastidx = 0;
-            OUString result(OU(""));
-
-            while (idx < str.getLength())
-            {
-                lastidx = idx;
-                idx = str.indexOf(substr, lastidx);
-                if (idx < 0)
-                {
-                    return result + str.copy(lastidx);
-                }
-                else
-                {
-                    result = result + str.copy(lastidx, idx - lastidx) + repl;
-                    idx = idx + substr.getLength();
-                }
-            }
-
-            return result; // This is never reached, but pacifies the compiler
-        }
-
-        std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary)
-        {
-            std::list<OUString> result;
-            sal_Int32 idx = 0;
-
-            do
-            {
-                OUString token = str.getToken(0, boundary, idx);
-                if (token.getLength() > 0)
-                    result.emplace_back(token);
-            } while (idx >= 0);
-
-            return result;
-        }
-
-        OUString getLocaleName(const Reference<XComponentContext>& mxCC)
-        {
-            Reference<XHierarchicalPropertySet> xProperties
-                = getRegistryAccess(mxCC, OU("/org.openoffice.Setup/L10N"));
-            Any aLocale = xProperties->getHierarchicalPropertyValue(OU("ooLocale")); // UI language
-            OUString ooLocale;
-            aLocale >>= ooLocale;
-            aLocale = xProperties->getHierarchicalPropertyValue(
-                OU("ooSetupSystemLocale")); // Locale set by user (might be empty)
-            OUString ooSSLocale;
-            aLocale >>= ooSSLocale;
-            return (ooSSLocale == OU("") ? ooLocale : ooSSLocale);
-            // Note: There is also "DecimalSeparatorAsLocale" with the following description in Setup.xcs:
-            //      Indicates that the decimal separator (dot or commma) is used as appropriate for the selected locale instead of the one related to the default keyboard layout
-        } // getLocaleName()
-
-        bool hasEnclosingBrackets(const OUString& arg)
-        {
-            if (arg.matchAsciiL("(", 1, 0) && arg.endsWithAsciiL(")", 1))
-            {
-                if (arg.getLength() == 3)
-                    return true; // single letter or digit
-
-                // Check for enclosing brackets at start and end of string
-                int blevel = 1; // bracket level
-                int startpos = 1;
-                int bopenpos = arg.indexOfAsciiL("(", 1, startpos); // Could be -1 (not found)
-                int bclosepos = arg.indexOfAsciiL(")", 1, startpos); // Could be -1 (not found)
-                int bpos;
-                if (bopenpos < 0)
-                    bpos = bclosepos;
-                else if (bclosepos < 0)
-                    bpos = bopenpos;
-                else
-                    bpos = std::min(bopenpos, bclosepos);
-                bool hasBrackets = false;
-
-                while (bpos > 0)
-                {
-                    if (bpos == bopenpos)
-                        blevel++;
-                    else
-                        blevel--;
-                    if (blevel == 0)
-                    {
-                        hasBrackets
-                            = (bpos
-                               == arg.getLength()
-                                      - 1); // Bracket level zero and closing bracket is last character of string
-                        break;
-                    }
-                    startpos = bpos + 1;
-                    bopenpos = arg.indexOfAsciiL("(", 1, startpos);
-                    bclosepos = arg.indexOfAsciiL(")", 1, startpos);
-                    if (bopenpos < 0)
-                        bpos = bclosepos;
-                    else if (bclosepos < 0)
-                        bpos = bopenpos;
-                    else
-                        bpos = std::min(bopenpos, bclosepos);
-                }
-
-                return hasBrackets;
-            }
-
-            return false;
-        }
-
-        OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols)
-        {
-            OUString result;
-
-            for (const auto& e : symbols)
-            {
-                if (result.getLength() > 0)
-                    result += ",";
-                if (GiNaC::is_a<GiNaC::symbol>(e))
-                {
-                    // Note: Symbols may contain anything in their subscripts TODO This might possibly lead to symbol collisions
-                    // Note: Using the symbol's internal serial number does not work because it is incremented every time a new instance of the class is created, that is, at every recalculation
-                    OUString sname = OUS8(GiNaC::ex_to<GiNaC::symbol>(e).get_name());
-                    result += sname.replace(' ', '_');
-                }
-                else if (GiNaC::is_a<GiNaC::func>(e))
-                {
-                    const GiNaC::func& f = GiNaC::ex_to<GiNaC::func>(e);
-                    if (Functionmanager::is_hard_func(f.get_name()))
-                        continue; // Hard-coded functions cannot be influenced by a formula in the document
-                    result += OUString("func") + OUString::number(f.get_serial());
-                }
-            }
-
-            return result;
-        }
-
-        int versionCompare(const OUString& file, const OUString& prog)
-        {
-            MSG_INFO(0, "Comparing file version " << STR(file) << " with program version "
-                                                  << STR(prog) << endline);
-            if (file.equals(prog))
-                return 0; // Catch most frequent case
-
-            std::list<OUString> fileParts = splitString(file, '.');
-            std::list<OUString> progParts = splitString(prog, '.');
-            auto fp = fileParts.begin();
-            auto pp = progParts.begin();
-
-            for (; fp != fileParts.end(), pp != progParts.end(); ++fp, ++pp)
-            {
-                sal_Int32 num_file = fp->toInt32();
-                sal_Int32 num_prog = fp->toInt32();
-
-                if (num_file < num_prog)
-                    return -1;
-                else if (num_file > num_prog)
-                    return +1;
-            }
-
-            int rem_file_idx = file.indexOf('~');
-            int rem_prog_idx = prog.indexOf('~');
-
-            if (rem_file_idx > 0 && rem_prog_idx > 0)
-            {
-                OUString rem_file = file.copy(rem_file_idx);
-                OUString rem_prog = prog.copy(rem_prog_idx);
-
-                if (rem_file < rem_prog)
-                    return -1;
-                else if (rem_file < rem_prog)
-                    return +1;
-            }
-
-            return 0;
-        }
-
-        std::string getTempPath()
-        {
 #ifdef _MSC_VER
-            // This file will usually be located in <User>/AppData/Local/Temp
-            TCHAR lpTempPathBuffer[MAX_PATH];
-            DWORD dwRetVal = GetTempPath(MAX_PATH, lpTempPathBuffer);
-            if ((dwRetVal <= MAX_PATH) && (dwRetVal != 0))
-                return std::string(lpTempPathBuffer) + "\\";
-            else
-                return "";
+        // This file will usually be located in <User>/AppData/Local/Temp
+        TCHAR lpTempPathBuffer[MAX_PATH];
+        DWORD dwRetVal = GetTempPath(MAX_PATH, lpTempPathBuffer);
+        if ((dwRetVal <= MAX_PATH) && (dwRetVal != 0))
+            return std::string(lpTempPathBuffer) + "\\";
+        else
+            return "";
 #else
-            return "/tmp/";
+        return "/tmp/";
 #endif
-        }
+    }
 
-        bool runProgram(const std::string& program, const std::string& argument)
+    bool runProgram(const std::string& program, const std::string& argument)
+    {
+        if (!system(NULL))
+            return false;
+        if (program.find(" ") != std::string::npos)
         {
-            if (!system(NULL))
-                return false;
-            if (program.find(" ") != std::string::npos)
-            {
-                // Safety check on file names with spaces, otherwise we might execute a program with parameters e.g. "format C:"
-                std::ifstream ifile;
-                ifile.open("program");
-                if (!ifile)
-                    return false; // File does not exist
-                ifile.close();
-            }
+            // Safety check on file names with spaces, otherwise we might execute a program with parameters e.g. "format C:"
+            std::ifstream ifile;
+            ifile.open("program");
+            if (!ifile)
+                return false; // File does not exist
+            ifile.close();
+        }
 #ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
 #endif
-            if (system(std::string(program + " " + argument).c_str()) != 0)
-                return false;
+        if (system(std::string(program + " " + argument).c_str()) != 0)
+            return false;
 #ifndef _MSC_VER
 #pragma GCC diagnostic pop
 #endif
-            return true;
-        }
+        return true;
+    }

@@ -530,8 +530,10 @@
         </menu:menupopup>
       </menu:menu>
       <menu:menu menu:id=".uno:iMathFormatMenu">
-        <menu:menuitem menu:id=".uno:iMathRenumber"/>
-        <menu:menuitem menu:id=".uno:iMathRecalculate"/>
+        <menu:menupopup>
+          <menu:menuitem menu:id=".uno:iMathRenumber"/>
+          <menu:menuitem menu:id=".uno:iMathRecalculate"/>
+        </menu:menupopup>
       </menu:menu>
       <menu:menuitem menu:id=".uno:NameGroup" menu:style="text"/>
       <menu:menuitem menu:id=".uno:ObjectTitleDescription" menu:style="text"/>

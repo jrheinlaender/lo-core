@@ -98,6 +98,7 @@
 #include <com/sun/star/frame/XComponentLoader.hpp>
 #include <com/sun/star/text/XParagraphCursor.hpp>
 #include <ooo/vba/XSinkCaller.hpp>
+#include "com/sun/star/util/XChangesBatch.hpp"
 
 #include <unotextrange.hxx>
 #include <unotxdoc.hxx>
@@ -1303,6 +1304,14 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
         m_IFormulaNames.clear();
         Reference< task::XStatusIndicator > xStatusIndicator;
         orderXText(xText, m_IFormulaNames, count, xStatusIndicator);
+
+        // Set inline cache size to avoid sluggish documents TODO Should we reset this after the iMath document is unloaded?
+        Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
+        Reference< XHierarchicalPropertySet > xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.Common/"));
+        xProperties->setHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"), Any(sal_Int32(count) + 20));
+        Reference< util::XChangesBatch > xUpdateCommit(xProperties, UNO_QUERY_THROW);
+        xUpdateCommit->commitChanges();
+
         OUString previousFormulaName = "";
 
         for (const auto& fn : m_IFormulaNames)

@@ -268,9 +268,6 @@ IMATH_DLLPUBLIC void setChartData(const Reference < XModel >& xModel, const OUSt
 IMATH_DLLPUBLIC void setChartData(const Reference < XModel >& xModel, const OUString& cName,
   const GiNaC::extsymbol& s, const GiNaC::matrix& xval, const GiNaC::expression& yexpr, const unsigned iseries);
 
-/// Force the diagram to update
-void forceDiagramUpdate(const Reference< XComponent >& xChart);
-
 /// remove a formula
 IMATH_DLLPUBLIC void deleteFormula(const Reference < XModel > &xModel, const Reference < XComponent >& iFormula);
 

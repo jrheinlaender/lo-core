@@ -464,6 +464,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                     xSet->getPropertyValue("Formula") >>= aText; // SwWrtShell::InsertOleObject() puts the selected text into this property (see wrtsh1.cxx)
                     if (aText.getLength() == 0) aText = "E = m c^2";
                     xSet->setPropertyValue("Formula", uno::Any(OUString()));
+                    xSet->setPropertyValue("IsScaleAllBrackets", uno::Any(true));
 
                     // Set margins to zero TODO XPropertySet cannot be accessed here, instead we do it in docsh.cxx at every recalculation
                     /*uno::Reference < beans::XPropertySet > xEmbeddedSet( xObj.GetObject(), uno::UNO_QUERY );
@@ -492,12 +493,12 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                         // Note: All the following discard any selected text that might have been replaced by the formula
                         case FN_IMATH_INSERT_MATRIX:
                         {
-                            xSet->setPropertyValue("iFormula", uno::Any(formulaLabel + " MATRIXDEF M = left(MATRIX{ a # b # c ## d # e # f ## g# h# i }right)"));
+                            xSet->setPropertyValue("iFormula", uno::Any(formulaLabel + " MATRIXDEF M = (MATRIX{ a # b # c ## d # e # f ## g# h# i })"));
                         }
                         break;
                         case FN_IMATH_INSERT_VECTOR:
                         {
-                            xSet->setPropertyValue("iFormula", uno::Any(formulaLabel + " VECTORDEF v = left(STACK{ a # b # c }right)"));
+                            xSet->setPropertyValue("iFormula", uno::Any(formulaLabel + " VECTORDEF v = (STACK{ a # b # c })"));
                         }
                         break;
                         case FN_IMATH_INSERT_UNIT:

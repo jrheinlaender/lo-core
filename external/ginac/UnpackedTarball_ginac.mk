@@ -21,7 +21,7 @@ endif
 
 ginac_patches += container_sort.patch container_pushpop.patch
 ifeq ($(COM),MSC)
-ginac_patches += add_header_crc32.patch
+ginac_patches += add_header_crc32.patch factor_numbertype.patch
 endif
 
 $(eval $(call gb_UnpackedTarball_set_patchlevel,ginac,0))

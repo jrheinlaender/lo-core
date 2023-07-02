@@ -122,11 +122,12 @@ private:
 
 public:
     CachedFontConfigFontOptions()
-        // arbitrary cache size of 10
+        // Since Math formulas use a lot of different fonts, the size of the font cache has a large impact on performance of documents with a lot of formulas
+        // Most of the time is consumed in FcFontSetMatch() of libfontconfig.so
 #if defined __cpp_lib_memory_resource
-        : lru_options_cache(10, &CacheOwner::GetMemoryResource())
+        : lru_options_cache(100, &CacheOwner::GetMemoryResource())
 #else
-        : lru_options_cache(10)
+        : lru_options_cache(100)
 #endif
     {
     }
@@ -141,6 +142,8 @@ public:
 
     void cache(const FontOptionsKey& rKey, const FcPattern* pPattern)
     {
+        // TODO Keep track of cache misses per second and dynamically increase/decrease the cache size
+        // That only makes sense if memory usage of the cache is relevant compared to total memory usage
         lru_options_cache.insert(std::make_pair(rKey, FcPatternUniquePtr(FcPatternDuplicate(pPattern))));
     }
 

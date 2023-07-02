@@ -22,6 +22,11 @@ endif
 $(eval $(call gb_UnpackedTarball_set_patchlevel,cln,0))
 
 cln_patches += max_cmdline_length.patch asm_files.patch
+
+ifeq ($(COM),MSC)
+	cln_patches += printflags_undefined_symbol.patch
+endif
+
 # These are possible fixes for a shared library build
 #cln_patches += dll_undefined_symbols.patch dll_multiply_defined_symbols.patch
 

@@ -53,7 +53,7 @@ ifeq ($(COM),MSC)
 			PKG_CONFIG_PATH=$(call gb_UnpackedTarball_get_dir,cln) \
 			--prefix=$(call gb_UnpackedTarball_get_dir,ginac)/instdir \
 			$(if $(ginac_CPPFLAGS),CPPFLAGS='$(ginac_CPPFLAGS)') \
-			CPPFLAGS="$(CPPFLAGS) -MD -EHsc -Zc:__cplusplus" \
+			CPPFLAGS="$(CPPFLAGS) -MD -EHsc -Zc:__cplusplus -std:c++20" \
 			CXXFLAGS="$(CXXFLAGS) $(gb_EMSCRIPTEN_CPPFLAGS) $(if $(ENABLE_OPTIMIZED),$(gb_COMPILEROPTFLAGS),$(gb_COMPILERNOOPTFLAGS)) $(if $(debug),$(gb_DEBUGINFO_FLAGS))" \
 	)
 else

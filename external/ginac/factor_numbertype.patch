@@ -1,0 +1,11 @@
+--- ginac/factor.cpp	2023-06-20 21:06:53.263433500 +0200
++++ ginac/factor.cpp	2023-06-18 21:10:52.025012500 +0200
+@@ -2394,7 +2394,7 @@
+ 		ctx.vn = ctx.pp.collect(x).lcoeff(x);
+ 		ctx.vnlst = put_factors_into_vec(factor(ctx.vn));
+ 
+-		ctx.modulus = (ctx.vnlst.size() > 3) ? ctx.vnlst.size() : 3;
++		ctx.modulus = (unsigned long)((ctx.vnlst.size() > 3) ? ctx.vnlst.size() : 3);
+ 
+ 		ctx_in_x.push_back(ctx);
+ 	}

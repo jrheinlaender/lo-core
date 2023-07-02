@@ -1,0 +1,31 @@
+--- include/cln/output.h	2009-05-10 22:32:30.000000000 +0200
++++ include/cln/output.h	2023-06-24 06:29:02.384936700 +0200
+@@ -61,8 +61,7 @@
+ struct cl_print_univpoly_flags {
+ 	cl_string univpoly_varname;
+ // Constructor.
+-	cl_print_univpoly_flags () :
+-		univpoly_varname ("x") {}
++	cl_print_univpoly_flags ();
+ };
+ 
+ struct cl_print_flags : cl_print_number_flags, cl_print_vector_flags, cl_print_univpoly_flags {};
+--- src/base/string/cl_st_make1.cc	2009-05-10 22:32:30.000000000 +0200
++++ src/base/string/cl_st_make1.cc	2023-06-24 06:51:29.193083700 +0200
+@@ -5,7 +5,7 @@
+ 
+ // Specification.
+ #include "cln/string.h"
+-
++#include "cln/output.h"
+ 
+ // Implementation.
+ 
+@@ -32,4 +32,7 @@
+ 	return str;
+ }
+ 
++cl_print_univpoly_flags::cl_print_univpoly_flags () : 
++	univpoly_varname ("x") {}
++
+ }  // namespace cln

@@ -98,6 +98,10 @@ public:
     void Flush() override;
 };
 
+#define SM_EDITWINDOW_TAB_SM 0
+#define SM_EDITWINDOW_TAB_IMGUI 1
+#define SM_EDITWINDOW_TAB_IMTXT 2
+
 class AbstractEditWindow
 {
 protected:
@@ -179,7 +183,7 @@ public:
     bool IsImWindow() const override { return false; }
     bool IsCurrent() const override
     {
-        return mxNotebook ? (mxNotebook->get_current_page() == 0) : true;
+        return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_SM) : true;
     }
 };
 
@@ -199,7 +203,7 @@ public:
     bool IsImWindow() const override { return true; }
     bool IsCurrent() const override
     {
-        return mxNotebook ? (mxNotebook->get_current_page() == 1) : false;
+        return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_IMTXT) : false;
     }
 };
 

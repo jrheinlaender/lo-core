@@ -603,16 +603,21 @@ void AbstractEditWindow::GrabFocus()
 
 void SmEditWindow::GrabFocus()
 {
-    mxNotebook->set_current_page(0);
+    mxNotebook->set_current_page(SM_EDITWINDOW_TAB_SM);
     AbstractEditWindow::GrabFocus();
 }
 
 void ImEditWindow::GrabFocus()
 {
-    mxNotebook->set_current_page(1);
+    mxNotebook->set_current_page(SM_EDITWINDOW_TAB_IMTXT);
     AbstractEditWindow::GrabFocus();
 }
 
+void ImGuiWindow::GrabFocus()
+{
+    mxNotebook->set_current_page(SM_EDITWINDOW_TAB_IMGUI);
+    mxGrid->grab_focus();
+}
 bool AbstractEditWindow::HasFocus() const
 {
     if (!mxTextControl)

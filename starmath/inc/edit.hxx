@@ -100,6 +100,10 @@ public:
     void Flush() override;
 };
 
+#define SM_EDITWINDOW_TAB_SM 0
+#define SM_EDITWINDOW_TAB_IMGUI 1
+#define SM_EDITWINDOW_TAB_IMTXT 2
+
 class AbstractEditWindow
 {
 protected:
@@ -177,7 +181,7 @@ public:
     void GrabFocus() override;
 
     bool IsImWindow() const override { return false; }
-    bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == 0) : true; }
+    bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_SM) : true; }
 };
 
 class ImEditWindow : public AbstractEditWindow
@@ -194,7 +198,9 @@ public:
     void GrabFocus() override;
 
     bool IsImWindow() const override { return true; }
-    bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == 1) : false; }
+    bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_IMTXT) : false; }
+};
+
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

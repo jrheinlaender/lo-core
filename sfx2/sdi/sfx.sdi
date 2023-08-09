@@ -5083,21 +5083,6 @@ SfxVoidItem iMathWiki SID_IMATH_WIKI
     MenuConfig = TRUE,
     GroupId = SfxGroupId::Application;
 ]
-SfxVoidItem iMathWebsite SID_IMATH_WEBSITE
-()
-[
-    AutoUpdate = FALSE,
-    FastCall = FALSE,
-    ReadOnlyDoc = TRUE,
-    Toggle = FALSE,
-    Container = FALSE,
-    RecordAbsolute = FALSE,
-    RecordPerSet;
-
-    AccelConfig = TRUE,
-    MenuConfig = TRUE,
-    GroupId = SfxGroupId::Application;
-]
 SfxVoidItem iMathFonts SID_IMATH_FONTS
 ()
 [

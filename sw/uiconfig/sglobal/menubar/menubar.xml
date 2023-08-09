@@ -843,8 +843,6 @@
             </menu:menupopup>
           </menu:menu>
           <menu:menuseparator/>
-          <menu:menuitem menu:id=".uno:iMathWebsite"/>
-          <menu:menuseparator/>
           <menu:menuitem menu:id=".uno:iMathFonts"/>
         </menu:menupopup>
       </menu:menu>

@@ -135,10 +135,6 @@ interface Application
     [
         ExecMethod = MiscExec_Impl ;
     ]
-    SID_IMATH_WEBSITE
-    [
-        ExecMethod = MiscExec_Impl ;
-    ]
     SID_IMATH_FONTS
     [
         ExecMethod = MiscExec_Impl ;

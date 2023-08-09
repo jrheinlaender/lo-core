@@ -42,6 +42,7 @@ $(eval $(call gb_Library_use_libraries,cui,\
     editeng \
     i18nlangtag \
     i18nutil \
+    imath \
     $(if $(ENABLE_JAVA), \
         jvmfwk) \
     lng \
@@ -192,6 +193,7 @@ $(eval $(call gb_Library_add_exception_objects,cui,\
     cui/source/options/optdeepl \
     cui/source/options/optinet2 \
     cui/source/options/optjava \
+    cui/source/options/optimath \
     cui/source/options/optjsearch \
     cui/source/options/optlingu \
 	$(call gb_Helper_optional,OPENCL, \

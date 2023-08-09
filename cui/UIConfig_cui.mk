@@ -144,6 +144,7 @@ $(eval $(call gb_UIConfig_add_uifiles,cui,\
 	cui/uiconfig/ui/optfontspage \
 	cui/uiconfig/ui/optgeneralpage \
 	cui/uiconfig/ui/opthtmlpage \
+	cui/uiconfig/ui/optimathpage \
 	cui/uiconfig/ui/langtoolconfigpage \
 	cui/uiconfig/ui/optionsdialog \
 	cui/uiconfig/ui/optjsearchpage \

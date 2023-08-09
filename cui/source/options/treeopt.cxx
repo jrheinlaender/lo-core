@@ -52,6 +52,7 @@
 #include "opthtml.hxx"
 #include "optinet2.hxx"
 #include "optjava.hxx"
+#include "optimath.hxx"
 #include "optjsearch.hxx"
 #include <optlingu.hxx>
 #include <optpath.hxx>
@@ -307,6 +308,7 @@ constexpr OptionsMapping_Impl OptionsMap_Impl[]
     { u"ProductName"_ustr,        u"Java"_ustr,                 RID_SVXPAGE_OPTIONS_JAVA },
     { u"ProductName"_ustr,        u"BasicIDEOptions"_ustr,      RID_SVXPAGE_BASICIDE_OPTIONS },
     { u"ProductName"_ustr,        u"OnlineUpdate"_ustr,         RID_SVXPAGE_ONLINEUPDATE },
+    { u"ProductName"_ustr,        u"iMath"_ustr,                RID_SVXPAGE_OPTIONS_IMATH },
     { u"LanguageSettings"_ustr,   u""_ustr,                SID_LANGUAGE_OPTIONS },
     { u"LanguageSettings"_ustr,   u"Languages"_ustr,            OFA_TP_LANGUAGES  },
     { u"LanguageSettings"_ustr,   u"WritingAids"_ustr,          RID_SFXPAGE_LINGU },
@@ -336,7 +338,7 @@ constexpr OptionsMapping_Impl OptionsMap_Impl[]
     { u"Writer"_ustr,             u"Compatibility"_ustr,        RID_SW_TP_OPTCOMPATIBILITY_PAGE },
     { u"Writer"_ustr,             u"AutoCaption"_ustr,          RID_SW_TP_OPTCAPTION_PAGE },
     { u"Writer"_ustr,             u"MailMerge"_ustr,            RID_SW_TP_MAILCONFIG },
-    { u"Writer"_ustr,             "iMath",                      RID_SW_TP_OPTIMATH_PAGE },
+    { u"Writer"_ustr,             u"iMath"_ustr,                RID_SW_TP_OPTIMATH_PAGE },
     { u"WriterWeb"_ustr,          u""_ustr,                SID_SW_ONLINEOPTIONS },
     { u"WriterWeb"_ustr,          u"View"_ustr,                 RID_SW_TP_HTML_CONTENT_OPT },
     { u"WriterWeb"_ustr,          u"FormattingAids"_ustr,       RID_SW_TP_HTML_OPTSHDWCRSR },

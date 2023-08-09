@@ -71,7 +71,6 @@ $(eval $(call gb_Library_use_libraries,swui,\
     editeng \
     i18nlangtag \
     i18nutil \
-    imath \
     msfilter \
     sal \
     salhelper \

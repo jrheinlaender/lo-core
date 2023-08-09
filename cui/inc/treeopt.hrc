@@ -45,7 +45,8 @@ const std::pair<TranslateId, sal_uInt16> SID_GENERAL_OPTIONS_RES[] =
     { NC_("SID_GENERAL_OPTIONS_RES", "Advanced"), RID_SVXPAGE_OPTIONS_JAVA  },
     { NC_("SID_GENERAL_OPTIONS_RES", "Basic IDE"), RID_SVXPAGE_BASICIDE_OPTIONS  },
     { NC_("SID_GENERAL_OPTIONS_RES", "Online Update"), RID_SVXPAGE_ONLINEUPDATE  },
-    { NC_("SID_GENERAL_OPTIONS_RES", "OpenCL"), RID_SVXPAGE_OPENCL  }
+    { NC_("SID_GENERAL_OPTIONS_RES", "OpenCL"), RID_SVXPAGE_OPENCL  },
+    { NC_("SID_GENERAL_OPTIONS_RES", "iMath"), RID_SVXPAGE_OPTIONS_IMATH }
 };
 
 const std::pair<TranslateId, sal_uInt16> SID_LANGUAGE_OPTIONS_RES[] =
@@ -83,8 +84,7 @@ const std::pair<TranslateId, sal_uInt16> SID_SW_EDITOPTIONS_RES[] =
     { NC_("SID_SW_EDITOPTIONS_RES", "Comparison"), RID_SW_TP_COMPARISON_OPT  },
     { NC_("SID_SW_EDITOPTIONS_RES", "Compatibility"), RID_SW_TP_OPTCOMPATIBILITY_PAGE     },
     { NC_("SID_SW_EDITOPTIONS_RES", "AutoCaption"), RID_SW_TP_OPTCAPTION_PAGE  },
-    { NC_("SID_SW_EDITOPTIONS_RES", "Mail Merge Email"), RID_SW_TP_MAILCONFIG },
-    { NC_("SID_SW_EDITOPTIONS_RES", "iMath"), RID_SW_TP_OPTIMATH_PAGE }
+    { NC_("SID_SW_EDITOPTIONS_RES", "Mail Merge Email"), RID_SW_TP_MAILCONFIG }
 };
 
 const std::pair<TranslateId, sal_uInt16> SID_SW_ONLINEOPTIONS_RES[] =

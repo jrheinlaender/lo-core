@@ -517,13 +517,6 @@ std::unique_ptr<SfxTabPage> SwModule::CreateTabPage( sal_uInt16 nId, weld::Conta
             xRet = (*fnCreatePage)( pPage, pController, &rSet );
         }
         break;
-        case RID_SW_TP_OPTIMATH_PAGE:
-        {
-            SwAbstractDialogFactory* pFact = SwAbstractDialogFactory::Create();
-            ::CreateTabPage fnCreatePage = pFact->GetTabPageCreatorFunc( RID_SW_TP_OPTIMATH_PAGE );
-            xRet = (*fnCreatePage)( pPage, pController, &rSet );
-        }
-        break;
     }
 
     if(!xRet)

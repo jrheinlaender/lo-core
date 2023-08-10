@@ -33,6 +33,7 @@
 #include <sfx2/event.hxx>
 #include <sfx2/app.hxx>
 #include <sfx2/bindings.hxx>
+#include <sfx2/dinfdlg.hxx>
 #include <sfx2/docfile.hxx>
 #include <sfx2/docfilt.hxx>
 #include <sfx2/msg.hxx>
@@ -1533,6 +1534,18 @@ bool SmDocShell::ConvertFrom(SfxMedium &rMedium)
     return bSuccess;
 }
 
+std::shared_ptr<SfxDocumentInfoDialog> SmDocShell::CreateDocumentInfoDialog(weld::Window* pParent, const SfxItemSet &rSet)
+{
+    std::shared_ptr<SfxDocumentInfoDialog> xDlg = std::make_shared<SfxDocumentInfoDialog>(pParent, rSet);
+
+    SmDocShell* pDocSh = static_cast<SmDocShell*>( SfxObjectShell::Current());
+    if( pDocSh == this )
+    {
+        xDlg->AddIMathTabPage();
+        xDlg->AddIMathReferencesTabPage();
+    }
+    return xDlg;
+}
 
 bool SmDocShell::InitNew( const uno::Reference < embed::XStorage >& xStorage )
 {

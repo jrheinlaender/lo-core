@@ -45,6 +45,7 @@ typedef std::list<iFormulaLine_ptr>::iterator iFormulaLine_it;
 class SfxPrinter;
 class Printer;
 class SmCursor;
+class SfxDocumentInfoDialog;
 
 namespace oox::formulaimport { class XmlStream; }
 
@@ -149,6 +150,9 @@ class SM_DLLPUBLIC SmDocShell final : public SfxObjectShell, public SfxListener
     void                SetFormulaArranged(bool bVal) { mbFormulaArranged = bVal; }
 
     virtual bool        ConvertFrom(SfxMedium &rMedium) override;
+
+    /// Make DocInfo known to the Doc.
+    SAL_DLLPRIVATE virtual std::shared_ptr<SfxDocumentInfoDialog> CreateDocumentInfoDialog(weld::Window* pParent, const SfxItemSet &rSet) override;
 
     /** Called whenever the formula is changed
      * Deletes the current cursor

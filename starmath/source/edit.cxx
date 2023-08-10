@@ -42,6 +42,8 @@
 #include <cfgitem.hxx>
 #include <smediteng.hxx>
 
+#include <com/sun/star/container/XChild.hpp>
+
 using namespace com::sun::star::accessibility;
 using namespace com::sun::star;
 
@@ -192,8 +194,19 @@ ImEditWindow::ImEditWindow(SmCmdBoxWindow &rMyCmdBoxWin, weld::Builder& rBuilder
     CreateEditView(rBuilder);
     EditEngine *pEditEngine = const_cast< ImEditWindow* >(this)->GetEditEngine();
     OSL_ENSURE( pEditEngine, "EditEngine missing" );
-    if (pEditEngine && pEditEngine->GetTextLen() > 0)
-        mxNotebook->set_current_page(1);
+
+    // TODO The wish is to compile the Math formula after it has been opened (in stand-alone Math) Is there a better place/way?
+    if (SmDocShell *pDoc = GetDoc()) {
+        // Check for stand-alone formula
+        Reference<com::sun::star::container::XChild> xChild(pDoc->GetModel(), UNO_QUERY);
+        Reference<XModel> xParent;
+        if (xChild.is())
+            xParent = Reference<XModel>(xChild->getParent(), UNO_QUERY);
+        Reference<XModel> xModel;
+
+        if (!xParent.is())
+            pDoc->Compile();
+    }
 }
 
 ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE

@@ -485,6 +485,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     }
 
     // Get access to the RDF graph that contains the document-specific options. Create one if it doesn't exist
+    // TODO In stand-alone Math the graph does not get saved with the document. Why?
     Reference<XNamedGraph> xGraph = getGraph(xContext, xModel);
     if (!xGraph.is()) xGraph = createGraph(xContext, xModel);
 

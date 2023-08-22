@@ -2,6 +2,38 @@
 <!-- Generated with glade 3.38.2 -->
 <interface domain="sm">
   <requires lib="gtk+" version="3.20"/>
+  <object class="GtkListStore" id="liststore_formulalines">
+    <columns>
+      <!-- column-name Hidden0 -->
+      <column type="gboolean"/>
+      <!-- column-name Hidden -->
+      <column type="gboolean"/>
+      <!-- column-name Label -->
+      <column type="gchararray"/>
+      <!-- column-name Type -->
+      <column type="gchararray"/>
+      <!-- column-name Formula -->
+      <column type="gchararray"/>
+      <!-- column-name id -->
+      <column type="gchararray"/>
+      <!-- column-name Hidden_Visible0 -->
+      <column type="gboolean"/>
+      <!-- column-name Hidden_Visible -->
+      <column type="gboolean"/>
+      <!-- column-name Hidden_TriState0 -->
+      <column type="gboolean"/>
+      <!-- column-name Hidden_TriState -->
+      <column type="gboolean"/>
+      <!-- column-name Label_Weight -->
+      <column type="gint"/>
+      <!-- column-name Type_Weight -->
+      <column type="gint"/>
+      <!-- column-name Formula_Weight -->
+      <column type="gint"/>
+      <!-- column-name Label_Sensitive -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
   <object class="GtkBox" id="EditWindow">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
@@ -47,6 +79,108 @@
           </packing>
         </child>
         <child>
+          <object class="GtkScrolledWindow" id="iguiscrolledwindow">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="shadow-type">in</property>
+            <child>
+              <object class="GtkViewport">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkTreeView" id="iformulalist">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="model">liststore_formulalines</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection" id="Macro Library List-selection2"/>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="col_hidden">
+                        <property name="spacing">6</property>
+                        <property name="title" translatable="yes" context="editwindow|col_hidden">Hidden</property>
+                        <child>
+                          <object class="GtkCellRendererToggle"/>
+                          <attributes>
+                            <attribute name="visible">6</attribute>
+                            <attribute name="active">0</attribute>
+                          </attributes>
+                        </child>
+                        <child>
+                          <object class="GtkCellRendererToggle"/>
+                          <attributes>
+                            <attribute name="visible">7</attribute>
+                            <attribute name="active">1</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="col_label">
+                        <property name="resizable">True</property>
+                        <property name="spacing">6</property>
+                        <property name="title" translatable="yes" context="editwindow|col_label">Label</property>
+                        <child>
+                          <object class="GtkCellRendererText">
+                            <property name="editable">True</property>
+                          </object>
+                          <attributes>
+                            <attribute name="sensitive">13</attribute>
+                            <attribute name="text">2</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="col_type">
+                        <property name="resizable">True</property>
+                        <property name="spacing">6</property>
+                        <property name="title" translatable="yes" context="editwindow|col_type">Type</property>
+                        <child>
+                          <object class="GtkCellRendererText">
+                            <property name="editable">True</property>
+                          </object>
+                          <attributes>
+                            <attribute name="text">3</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="col_formula">
+                        <property name="resizable">True</property>
+                        <property name="spacing">6</property>
+                        <property name="title" translatable="yes" context="editwindow|col_formula">Formula</property>
+                        <child>
+                          <object class="GtkCellRendererText">
+                            <property name="editable">True</property>
+                          </object>
+                          <attributes>
+                            <attribute name="text">4</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel" id="imath-gui-tab">
+            <property name="can-focus">False</property>
+            <property name="label">iMath</property>
+          </object>
+          <packing>
+            <property name="position">1</property>
+            <property name="tab-fill">False</property>
+          </packing>
+        </child>
+        <child>
           <object class="GtkScrolledWindow" id="iscrolledwindow">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
@@ -69,18 +203,24 @@
             </child>
           </object>
           <packing>
-            <property name="position">1</property>
+            <property name="position">2</property>
           </packing>
         </child>
         <child type="tab">
           <object class="GtkLabel" id="imath-tab">
             <property name="can-focus">False</property>
-            <property name="label">iMath</property>
+            <property name="label">iMath (source)</property>
           </object>
           <packing>
-            <property name="position">1</property>
+            <property name="position">2</property>
             <property name="tab-fill">False</property>
           </packing>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+        <child type="tab">
+          <placeholder/>
         </child>
       </object>
       <packing>

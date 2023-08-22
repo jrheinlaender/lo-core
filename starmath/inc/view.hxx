@@ -190,6 +190,7 @@ class SmCmdBoxWindow final : public SfxDockingWindow
 {
     std::unique_ptr<SmEditWindow, o3tl::default_delete<SmEditWindow>> m_xEdit;
     std::unique_ptr<ImEditWindow, o3tl::default_delete<ImEditWindow>> m_xImEdit;
+    std::unique_ptr<ImGuiWindow,  o3tl::default_delete<ImGuiWindow>>  m_xImGui;
     SmEditController    aController;
     SmEditController    aImController;
     bool                bExiting;
@@ -224,8 +225,11 @@ public:
     void AdjustPosition();
 
     AbstractEditWindow& GetEditWindow();
+    ImGuiWindow& GetGuiWindow();
 
     SmViewShell* GetView();
+
+    weld::Builder& GetBuilder() { return *m_xBuilder; }
 };
 
 class SmCmdBoxWrapper final : public SfxChildWindow
@@ -239,6 +243,11 @@ public:
     AbstractEditWindow& GetEditWindow()
     {
         return static_cast<SmCmdBoxWindow *>(GetWindow())->GetEditWindow();
+    }
+
+    ImGuiWindow& GetGuiWindow()
+    {
+        return static_cast<SmCmdBoxWindow *>(GetWindow())->GetGuiWindow();
     }
 };
 
@@ -285,6 +294,7 @@ public:
     }
 
     SAL_RET_MAYBENULL AbstractEditWindow * GetEditWindow();
+    ImGuiWindow * GetGuiWindow();
 
     SmGraphicWidget& GetGraphicWidget()
     {

@@ -213,6 +213,114 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 {
 }
 
+ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
+    : rCmdBox(rMyCmdBoxWin)
+    , mxNotebook(rBuilder.weld_notebook("notebook"))
+    , mxScrolledWindow(rBuilder.weld_scrolled_window("iguiscrolledwindow", true))
+    , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
+{
+    if (!mxScrolledWindow || !mxFormulaList)
+        return;
+
+    mxFormulaList->set_size_request(mxFormulaList->get_approximate_digit_width() * 60, mxFormulaList->get_height_rows(5));
+    mxFormulaList->enable_toggle_buttons(weld::ColumnToggleType::Check);
+
+    mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
+    mxFormulaList->connect_toggled(LINK(this, ImGuiWindow, ToggleHdl));
+    mxFormulaList->set_selection_mode(SelectionMode::Single);
+
+    SmDocShell* pDoc = GetDoc();
+    if (!pDoc) return;
+
+    std::unique_ptr<weld::TreeIter> xIter = mxFormulaList->make_iterator();
+    int id = 0;
+
+    for (const auto& fLine : pDoc->GetFormulaLines())
+    {
+        if (fLine->getSelectionType() == formulaTypeResult) continue;
+
+        mxFormulaList->append(xIter.get());
+
+        mxFormulaList->set_id(*xIter, OUString::number(id++));
+
+        iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
+        if (expr != nullptr && !std::dynamic_pointer_cast<iFormulaNodeText>(fLine))
+        {
+            mxFormulaList->set_toggle(*xIter, expr->getHide() ? TRISTATE_TRUE : TRISTATE_FALSE, 0);
+            mxFormulaList->set_sensitive(*xIter, true, 1);
+            mxFormulaList->set_text(*xIter, expr->getLabel(), 1);
+        }
+        else
+        {
+            // Note toggle remains invisible since we do not set a value
+            mxFormulaList->set_sensitive(*xIter, false, 1); // Make Label read-only
+        }
+        mxFormulaList->set_text(*xIter, fLine->getCommand(), 2);
+        mxFormulaList->set_text(*xIter, fLine->printFormula(), 3);
+    }
+
+    mxFormulaList->columns_autosize();
+}
+
+ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
+{
+}
+
+IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)
+{
+    (void)rIter;
+    return true; // Allow editing
+}
+
+
+auto getLineIterator(std::list<std::shared_ptr<iFormulaLine>>& fLines, const unsigned lineId)
+{
+    if (fLines.size() == 0) return fLines.end();
+    auto itLine = fLines.begin();
+    unsigned lineNum = 0;
+
+    for (; itLine != fLines.end(); ++itLine)
+    {
+        if ((*itLine)->getSelectionType() == formulaTypeResult) continue;
+        if (lineNum == lineId) break;
+        ++lineNum;
+    }
+
+    return itLine;
+}
+
+OUString makeNewFormula(const std::list<std::shared_ptr<iFormulaLine>>& fLines)
+{
+    OUString newFormula;
+
+    for (const auto& line : fLines)
+    {
+        if (line->getSelectionType() == formulaTypeResult) continue;
+        newFormula += line->print().copy(5) + "\n";
+    }
+
+    return newFormula;
+}
+
+IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void)
+{
+    SmDocShell* pDoc = GetDoc();
+    if (!pDoc) return;
+
+    auto fLines = pDoc->GetFormulaLines();
+    auto itLine = getLineIterator(fLines, mxFormulaList->get_id(rRowCol.first).toUInt64());
+
+    if (itLine == fLines.end()) return; // line number not found
+    if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return; // Text lines cannot be hidden
+
+    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+    if (expr != nullptr)
+    {
+        expr->setHide(mxFormulaList->get_toggle(rRowCol.first, 0) == TRISTATE_TRUE);
+        pDoc->SetImText(makeNewFormula(fLines));
+    }
+}
+
 weld::Window* AbstractEditWindow::GetFrameWeld() const
 {
     return rCmdBox.GetFrameWeld();
@@ -235,6 +343,12 @@ SmViewShell * AbstractEditWindow::GetView()
 }
 
 SmDocShell * AbstractEditWindow::GetDoc()
+{
+    SmViewShell *pView = rCmdBox.GetView();
+    return pView ? pView->GetDoc() : nullptr;
+}
+
+SmDocShell * ImGuiWindow::GetDoc()
 {
     SmViewShell *pView = rCmdBox.GetView();
     return pView ? pView->GetDoc() : nullptr;
@@ -629,14 +743,23 @@ void ImEditWindow::GrabFocus()
 void ImGuiWindow::GrabFocus()
 {
     mxNotebook->set_current_page(SM_EDITWINDOW_TAB_IMGUI);
-    mxGrid->grab_focus();
+    mxFormulaList->grab_focus();
 }
+
 bool AbstractEditWindow::HasFocus() const
 {
     if (!mxTextControl)
         return false;
 
     return mxTextControl->HasFocus();
+}
+
+bool ImGuiWindow::HasFocus() const
+{
+    if (!mxFormulaList)
+        return false;
+
+    return mxFormulaList->has_focus();
 }
 
 void AbstractEditTextWindow::SetText(const OUString& rText)

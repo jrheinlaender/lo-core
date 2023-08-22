@@ -201,6 +201,31 @@ public:
     bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_IMTXT) : false; }
 };
 
+class ImGuiWindow
+{
+private:
+    SmCmdBoxWindow& rCmdBox;
+    std::unique_ptr<weld::Builder> mxBuilder;
+    std::unique_ptr<weld::Notebook> mxNotebook;
+    std::unique_ptr<weld::ScrolledWindow> mxScrolledWindow;
+    std::unique_ptr<weld::TreeView> mxFormulaList;
+
+    DECL_LINK(EditingEntryHdl, const weld::TreeIter&, bool);
+    typedef std::pair<const weld::TreeIter&, OUString> IterString;
+    DECL_LINK(EditedEntryHdl, const IterString&, bool);
+    DECL_LINK(ToggleHdl, const weld::TreeView::iter_col&, void);
+
+public:
+    ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder);
+    virtual ~ImGuiWindow() COVERITY_NOEXCEPT_FALSE;
+
+    SmDocShell* GetDoc();
+
+    void Update();
+    virtual void GrabFocus();
+    bool HasFocus() const;
+    // Is the page of this view current in the notebook?
+    bool IsCurrent() const { return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_IMGUI) : false; }
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

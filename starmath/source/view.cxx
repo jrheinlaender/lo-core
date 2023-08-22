@@ -956,6 +956,7 @@ SmCmdBoxWindow::SmCmdBoxWindow(SfxBindings *pBindings_, SfxChildWindow *pChildWi
     : SfxDockingWindow(pBindings_, pChildWindow, pParent, u"EditWindow"_ustr, u"modules/smath/ui/editwindow.ui"_ustr)
     , m_xEdit(new SmEditWindow(*this, *m_xBuilder))
     , m_xImEdit(new ImEditWindow(*this, *m_xBuilder))
+    , m_xImGui(new ImGuiWindow(*this, *m_xBuilder))
     , aController(*m_xEdit, SID_TEXT, *pBindings_)
     , aImController(*m_xImEdit, SID_ITEXT, *pBindings_)
     , bExiting(false)
@@ -1019,6 +1020,7 @@ void SmCmdBoxWindow::dispose()
     aImController.dispose();
     m_xEdit.reset();
     m_xImEdit.reset();
+    m_xImGui.reset();
     SfxDockingWindow::dispose();
 }
 
@@ -1094,7 +1096,7 @@ IMPL_LINK_NOARG( SmCmdBoxWindow, InitialFocusTimerHdl, Timer *, void )
         assert(pView);
 
         if (pView->GetDoc()->GetImText().getLength() > 0)
-            m_xImEdit->GrabFocus();
+            m_xImGui->GrabFocus();
         else
             m_xEdit->GrabFocus();
 
@@ -1147,6 +1149,11 @@ AbstractEditWindow& SmCmdBoxWindow::GetEditWindow()
         return *m_xImEdit;
 
     return *m_xEdit;
+}
+
+ImGuiWindow& SmCmdBoxWindow::GetGuiWindow()
+{
+    return *m_xImGui;
 }
 
 void SmCmdBoxWindow::ToggleFloatingMode()
@@ -1285,6 +1292,20 @@ AbstractEditWindow *SmViewShell::GetEditWindow()
     {
         AbstractEditWindow& rEditWin = pWrapper->GetEditWindow();
         return &rEditWin;
+    }
+
+    return nullptr;
+}
+
+ImGuiWindow *SmViewShell::GetGuiWindow()
+{
+    SmCmdBoxWrapper* pWrapper = static_cast<SmCmdBoxWrapper*>(
+                                    GetViewFrame()->GetChildWindow(SmCmdBoxWrapper::GetChildWindowId()));
+
+    if (pWrapper != nullptr)
+    {
+        ImGuiWindow& rGuiWin = pWrapper->GetGuiWindow();
+        return &rGuiWin;
     }
 
     return nullptr;

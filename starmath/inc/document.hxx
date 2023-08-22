@@ -303,6 +303,10 @@ public:
     //       and also gives headaches about persisting the mpCurrentCompiler
     void PreventFormulaClose(const bool prevent);
 
+    /// Get the formula lines to fill the edit view
+    const std::list<iFormulaLine_ptr>& GetFormulaLines() const { return mLines; }
+    std::list<iFormulaLine_ptr>& GetFormulaLines() { return mLines; }
+
 private:
     /// Name of the previous iFormula (OLE mode), empty if the formula is stand-alone or the first formula in a document
     OUString mPreviousFormula;

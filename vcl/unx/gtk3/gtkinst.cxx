@@ -16025,6 +16025,52 @@ public:
         return true;
     }
 
+    virtual bool get_cursor(weld::TreeIter* pIter, int& col) const override
+    {
+        GtkInstanceTreeIter* pGtkIter = static_cast<GtkInstanceTreeIter*>(pIter);
+        GtkTreePath* path;
+        GtkTreeViewColumn* focus_column;
+        gtk_tree_view_get_cursor(m_pTreeView, &path, &focus_column);
+
+        if (pGtkIter && path)
+        {
+            gtk_tree_model_get_iter(m_pTreeModel, &pGtkIter->iter, path);
+        }
+        if (!path)
+            return false;
+
+        col = 0;
+        bool found = false;
+
+        for (GList* pEntry = g_list_first(m_pColumns); pEntry; pEntry = g_list_next(pEntry))
+        {
+            GtkTreeViewColumn* pCurrentColumn = GTK_TREE_VIEW_COLUMN(pEntry->data);
+
+            GList *pRenderers = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(pCurrentColumn));
+            for (GList* pRenderer = g_list_first(pRenderers); pRenderer; pRenderer = g_list_next(pRenderer))
+            {
+                GValue value = G_VALUE_INIT;
+                g_value_init(&value, G_TYPE_BOOLEAN);
+                g_object_get_property(G_OBJECT(pRenderer->data), "editing", &value);
+                if (g_value_get_boolean(&value)) break;
+
+                ++col;
+            }
+            g_list_free(pRenderers);
+
+            if (pCurrentColumn == focus_column)
+            {
+                col = to_external_model(col);
+                found = true;
+                break;
+            }
+        }
+
+        gtk_tree_path_free(path);
+
+        return found;
+    }
+
     virtual int get_cursor_index() const override
     {
         int nRet = -1;

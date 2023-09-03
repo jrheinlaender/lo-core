@@ -1770,6 +1770,8 @@ public:
 
     virtual bool get_cursor(weld::TreeIter* pIter) const override;
 
+    virtual bool get_cursor(weld::TreeIter* pIter, int& col) const override;
+
     virtual void set_cursor(const weld::TreeIter& rIter) override;
 
     virtual bool get_iter_first(weld::TreeIter& rIter) const override;

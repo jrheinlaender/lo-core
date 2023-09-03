@@ -1329,14 +1329,8 @@ public:
     virtual void copy_iterator(const TreeIter& rSource, TreeIter& rDest) const = 0;
     virtual bool get_selected(TreeIter* pIter) const = 0;
     virtual bool get_cursor(TreeIter* pIter) const = 0;
-
-    void set_cursor(const TreeIter& rIter)
-    {
-        disable_notify_events();
-        do_set_cursor(rIter);
-        enable_notify_events();
-    }
-
+    virtual bool get_cursor(TreeIter* pIter, int& col) const = 0;
+    virtual void set_cursor(const TreeIter& rIter) = 0;
     virtual bool get_iter_first(TreeIter& rIter) const = 0;
     // set iter to point to next node at the current level
     virtual bool iter_next_sibling(TreeIter& rIter) const = 0;

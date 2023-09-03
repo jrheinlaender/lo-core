@@ -213,6 +213,11 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 {
 }
 
+#define IMGUIWINDOW_COL_HIDDEN 0
+#define IMGUIWINDOW_COL_LABEL 1
+#define IMGUIWINDOW_COL_TYPE 2
+#define IMGUIWINDOW_COL_FORMULA 3
+
 ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     : rCmdBox(rMyCmdBoxWin)
     , mxNotebook(rBuilder.weld_notebook("notebook"))
@@ -226,6 +231,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     mxFormulaList->enable_toggle_buttons(weld::ColumnToggleType::Check);
 
     mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
+    mxFormulaList->connect_key_release(LINK(this, ImGuiWindow, KeyReleaseHdl));
     mxFormulaList->connect_toggled(LINK(this, ImGuiWindow, ToggleHdl));
     mxFormulaList->set_selection_mode(SelectionMode::Single);
 
@@ -246,60 +252,135 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
         iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
         if (expr != nullptr && !std::dynamic_pointer_cast<iFormulaNodeText>(fLine))
         {
-            mxFormulaList->set_toggle(*xIter, expr->getHide() ? TRISTATE_TRUE : TRISTATE_FALSE, 0);
-            mxFormulaList->set_sensitive(*xIter, true, 1);
-            mxFormulaList->set_text(*xIter, expr->getLabel(), 1);
+            mxFormulaList->set_toggle(*xIter, expr->getHide() ? TRISTATE_TRUE : TRISTATE_FALSE, IMGUIWINDOW_COL_HIDDEN);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
+            mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
         }
         else
         {
             // Note toggle remains invisible since we do not set a value
-            mxFormulaList->set_sensitive(*xIter, false, 1); // Make Label read-only
+            mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
         }
-        mxFormulaList->set_text(*xIter, fLine->getCommand(), 2);
-        mxFormulaList->set_text(*xIter, fLine->printFormula(), 3);
+        mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
+        mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
     }
 
     mxFormulaList->columns_autosize();
+    editedColumn = -1;
 }
 
 ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
 {
 }
 
+namespace {
+    auto getLineIterator(std::list<std::shared_ptr<iFormulaLine>>& fLines, const unsigned lineId)
+    {
+        if (fLines.size() == 0) return fLines.end();
+        auto itLine = fLines.begin();
+        unsigned lineNum = 0;
+
+        for (; itLine != fLines.end(); ++itLine)
+        {
+            if ((*itLine)->getSelectionType() == formulaTypeResult) continue;
+            if (lineNum == lineId) break;
+            ++lineNum;
+        }
+
+        return itLine;
+    }
+
+    OUString makeNewFormula(const std::list<std::shared_ptr<iFormulaLine>>& fLines)
+    {
+        OUString newFormula;
+
+        for (const auto& line : fLines)
+        {
+            if (line->getSelectionType() == formulaTypeResult) continue;
+            newFormula += line->print().copy(5) + "\n";
+        }
+
+        return newFormula;
+    }
+}
+
 IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)
 {
     (void)rIter;
-    return true; // Allow editing
+    return true; // Allow editing (called for text and combo cell renderers)
 }
 
-
-auto getLineIterator(std::list<std::shared_ptr<iFormulaLine>>& fLines, const unsigned lineId)
+IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
-    if (fLines.size() == 0) return fLines.end();
-    auto itLine = fLines.begin();
-    unsigned lineNum = 0;
+    if (mxFormulaList->get_text(rIterString.first) == rIterString.second)
+        return true; // Nothing changed
 
-    for (; itLine != fLines.end(); ++itLine)
+    SmDocShell* pDoc = GetDoc();
+    if (!pDoc) return true; // Returning false would pass the call on to the next handler
+
+    auto fLines = pDoc->GetFormulaLines();
+    auto itLine = getLineIterator(fLines, mxFormulaList->get_id(rIterString.first).toUInt64());
+    if (itLine == fLines.end()) return true; // line number not found
+    if (editedColumn < 0) return true; // Just to be safe
+
+    switch (editedColumn)
     {
-        if ((*itLine)->getSelectionType() == formulaTypeResult) continue;
-        if (lineNum == lineId) break;
-        ++lineNum;
+        case IMGUIWINDOW_COL_LABEL:
+        {
+            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+            if (expr != nullptr)
+                expr->setLabel(rIterString.second);
+            break;
+        }
+        case IMGUIWINDOW_COL_TYPE:
+            //(*itLine)->setLabel(mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE));
+            break;
+        case IMGUIWINDOW_COL_FORMULA:
+            (*itLine)->setFormula(rIterString.second);
+            break;
     }
 
-    return itLine;
+    pDoc->SetImText(makeNewFormula(fLines));
+
+    return true;
 }
 
-OUString makeNewFormula(const std::list<std::shared_ptr<iFormulaLine>>& fLines)
+IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
 {
-    OUString newFormula;
+    // Pass-through any key presses but use the trigger to update the iFormula
+    sal_Unicode cCharCode = rKEvt.GetCharCode();
+    (void)cCharCode;
 
-    for (const auto& line : fLines)
+    SmDocShell* pDoc = GetDoc();
+    if (!pDoc) return false;
+
+    // Find active cell (xIter, col)
+    auto xIter(mxFormulaList->make_iterator());
+    int col = 0;
+    if (!mxFormulaList->get_cursor(xIter.get(), col)) return false;
+    // We are only interested in text columns here
+    if (col != IMGUIWINDOW_COL_LABEL && col != IMGUIWINDOW_COL_FORMULA) return false;
+    editedColumn = col; // Save for storing editing result in EditedEntryHdl
+
+    // TODO How do we get the changed text out of the GtkCellRendererText? The TreeView returns the old text
+    std::cout << "Text=" << mxFormulaList->get_text(*xIter, col) << std::endl;
+    /*
+    auto fLines = pDoc->GetFormulaLines();
+    auto itLine = getLineIterator(fLines, mxFormulaList->get_id(*xIter).toUInt64());
+    if (itLine == fLines.end()) return false; // line number not found
+
+    if (col == IMGUIWINDOW_COL_LABEL)
     {
-        if (line->getSelectionType() == formulaTypeResult) continue;
-        newFormula += line->print().copy(5) + "\n";
-    }
+        iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+        if (expr != nullptr)
+            expr->setLabel(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_LABEL));
+    } else if (col == IMGUIWINDOW_COL_FORMULA)
+        (*itLine)->setFormula(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA));
 
-    return newFormula;
+    pDoc->SetImText(makeNewFormula(fLines));
+    */
+
+    return false; // Let text editor handle the key
 }
 
 IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void)
@@ -316,7 +397,7 @@ IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void
     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
     if (expr != nullptr)
     {
-        expr->setHide(mxFormulaList->get_toggle(rRowCol.first, 0) == TRISTATE_TRUE);
+        expr->setHide(mxFormulaList->get_toggle(rRowCol.first, rRowCol.second) == TRISTATE_TRUE);
         pDoc->SetImText(makeNewFormula(fLines));
     }
 }

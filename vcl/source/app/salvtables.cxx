@@ -4550,7 +4550,17 @@ bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter) const
     return pEntry != nullptr;
 }
 
-void SalInstanceTreeView::do_set_cursor(const weld::TreeIter& rIter)
+bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter, int& col) const
+{
+    SvTreeListEntry* pEntry = m_xTreeView->GetCurEntry();
+    auto pVclIter = static_cast<SalInstanceTreeIter*>(pIter);
+    if (pVclIter)
+        pVclIter->iter = pEntry;
+    // TODO How to determine focus column? Currently only required by starmath edit.cxx
+    return pEntry != nullptr;
+}
+
+void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter)
 {
     const SalInstanceTreeIter& rVclIter = static_cast<const SalInstanceTreeIter&>(rIter);
     m_xTreeView->SetCurEntry(rVclIter.iter);

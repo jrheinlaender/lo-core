@@ -753,7 +753,7 @@ void setSeriesProperties(const Reference < com::sun::star::chart::XChartDocument
   psize.Height = pointsize;
   psize.Width = pointsize;
   xyProps->setPropertyValue(OU("SymbolSize"), Any(psize));
-  xyProps->setPropertyValue(OU("LineWidth"), Any(linewidth));
+  xyProps->setPropertyValue(OU("LineWidth"), Any(sal_uInt32(linewidth)));
   xyProps->setPropertyValue(OU("LineColor"), Any(linecolor));
 } // setSeriesProperties()
 void setSeriesProperties(const Reference< XComponent >& xChart, const sal_uInt16 series,
@@ -2620,7 +2620,7 @@ int versionCompare(const OUString& file, const OUString& prog) {
 
   for (; fp != fileParts.end(), pp != progParts.end(); ++fp, ++pp) {
     sal_Int32 num_file = fp->toInt32();
-    sal_Int32 num_prog = fp->toInt32();
+    sal_Int32 num_prog = pp->toInt32();
 
     if (num_file < num_prog)
       return -1;

@@ -14478,11 +14478,24 @@ private:
 
     DECL_LINK(async_stop_cell_editing, void*, void);
 
-    static void signalCellEditingStarted(GtkCellRenderer*, GtkCellEditable*, const gchar *path, gpointer widget)
+    static void signalCellEditingStarted(GtkCellRenderer* pRenderer, GtkCellEditable* pEditable, const gchar *path, gpointer widget)
     {
         GtkInstanceTreeView* pThis = static_cast<GtkInstanceTreeView*>(widget);
+
+        if (GTK_IS_CELL_RENDERER_COMBO(pRenderer) && GTK_IS_COMBO_BOX(pEditable)) {
+            g_object_set(pEditable, "id-column", 0, nullptr);
+            g_signal_connect(pEditable, "changed", G_CALLBACK(signalComboRendererChanged), pRenderer);
+        }
+
         if (!pThis->signal_cell_editing_started(path))
             Application::PostUserEvent(LINK(pThis, GtkInstanceTreeView, async_stop_cell_editing));
+    }
+
+    static void signalComboRendererChanged(GtkComboBox* pComboBox, gpointer user_data)
+    {
+        GtkCellRendererCombo* pCell = static_cast<GtkCellRendererCombo*>(user_data);
+        gchar *activeId = g_strdup(gtk_combo_box_get_active_id(pComboBox));
+        g_object_set_data_full(G_OBJECT(pCell), "g-lo-ComboBoxIdChanged", activeId, g_free);
     }
 
     bool signal_cell_editing_started(const gchar *path)
@@ -14499,6 +14512,12 @@ private:
     static void signalCellEdited(GtkCellRendererText* pCell, const gchar *path, const gchar *pNewText, gpointer widget)
     {
         GtkInstanceTreeView* pThis = static_cast<GtkInstanceTreeView*>(widget);
+
+        if (GTK_IS_CELL_RENDERER_COMBO(pCell)) {
+            void* pData = g_object_get_data(G_OBJECT(pCell), "g-lo-ComboBoxIdChanged");
+            pNewText = static_cast<const gchar*>(pData); // Replace user-visible text with internal ID
+        }
+
         pThis->signal_cell_edited(pCell, path, pNewText);
     }
 

@@ -83,6 +83,7 @@ $(packimages_DIR)/sourceimagelist.ilst : \
 		$(SRCDIR)/sd/inc/bitmaps.hlst \
 		$(SRCDIR)/sdext/inc/bitmaps.hlst \
 		$(SRCDIR)/sfx2/inc/bitmaps.hlst \
+		$(SRCDIR)/starmath/inc/bitmaps.hlst \
 		$(SRCDIR)/svtools/inc/bitmaps.hlst \
 		$(SRCDIR)/svx/inc/bitmaps.hlst \
 		$(SRCDIR)/sw/inc/bitmaps.hlst \

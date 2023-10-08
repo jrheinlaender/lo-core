@@ -41,6 +41,7 @@
 #include <document.hxx>
 #include <cfgitem.hxx>
 #include <smediteng.hxx>
+#include <bitmaps.hlst>
 
 #include <com/sun/star/container/XChild.hpp>
 
@@ -223,6 +224,9 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mxNotebook(rBuilder.weld_notebook("notebook"))
     , mxScrolledWindow(rBuilder.weld_scrolled_window("iguiscrolledwindow", true))
     , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
+    , mSelected(false)
+    , mNumClicks(0)
+    , mEditedColumn(-1)
 {
     if (!mxScrolledWindow || !mxFormulaList)
         return;
@@ -230,11 +234,14 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     mxFormulaList->set_size_request(mxFormulaList->get_approximate_digit_width() * 60, mxFormulaList->get_height_rows(5));
     mxFormulaList->enable_toggle_buttons(weld::ColumnToggleType::Check);
 
-    mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
     mxFormulaList->connect_key_release(LINK(this, ImGuiWindow, KeyReleaseHdl));
-    mxFormulaList->connect_toggled(LINK(this, ImGuiWindow, ToggleHdl));
+    mxFormulaList->connect_changed(LINK(this, ImGuiWindow, SelectHdl));
+    mxFormulaList->connect_mouse_press(LINK(this, ImGuiWindow, MousePressHdl));
+    mxFormulaList->connect_mouse_release(LINK(this, ImGuiWindow, MouseReleaseHdl));
+    mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
     mxFormulaList->set_selection_mode(SelectionMode::Single);
 
+    mxFormulaList->columns_autosize();
     SmDocShell* pDoc = GetDoc();
     if (!pDoc) return;
 
@@ -253,6 +260,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
         if (expr != nullptr && !std::dynamic_pointer_cast<iFormulaNodeText>(fLine))
         {
             mxFormulaList->set_toggle(*xIter, expr->getHide() ? TRISTATE_TRUE : TRISTATE_FALSE, IMGUIWINDOW_COL_HIDDEN);
+            mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
             mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
         }
@@ -269,8 +277,16 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     editedColumn = -1;
 }
 
+IMPL_LINK_NOARG(ImGuiWindow, SelectHdl, weld::TreeView&, void)
 ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
 {
+    mSelected = true;
+}
+
+IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
+{
+    mNumClicks = rMEvt.GetClicks();
+    return false;
 }
 
 namespace {
@@ -302,6 +318,49 @@ namespace {
 
         return newFormula;
     }
+}
+
+IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
+{
+    if (mSelected) {
+        mSelected = false;
+        mNumClicks = 0;
+        return false;  // This  click selected a new entry
+    }
+
+    Point mousePos = rMEvt.GetPosPixel();
+    tools::Rectangle cellArea = mxFormulaList->get_column_area(IMGUIWINDOW_COL_HIDDEN);
+    auto xIter(mxFormulaList->make_iterator());
+    if (!mxFormulaList->get_selected(xIter.get()))
+        return false; // No entry is selected
+    cellArea = cellArea.Intersection(mxFormulaList->get_row_area(*xIter));
+
+    if (mNumClicks == 1 && cellArea.Contains(mousePos))
+    {
+        mNumClicks = 0;
+
+        SmDocShell* pDoc = GetDoc();
+        if (!pDoc) return false;
+
+        auto fLines = pDoc->GetFormulaLines();
+        auto itLine = getLineIterator(fLines, mxFormulaList->get_selected_id().toUInt64());
+
+        if (itLine == fLines.end()) return false; // line number not found
+        if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return false; // Text lines cannot be hidden
+
+        iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+        if (expr != nullptr)
+        {
+            expr->setHide(!expr->getHide());
+            mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
+            pDoc->SetImText(makeNewFormula(fLines));
+            ResetModel();
+            return true;
+        }
+    }
+
+    mNumClicks = 0;
+    return false;
 }
 
 IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)

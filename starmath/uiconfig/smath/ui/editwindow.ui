@@ -4,10 +4,8 @@
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkListStore" id="liststore_formulalines">
     <columns>
-      <!-- column-name Hidden0 -->
-      <column type="gboolean"/>
       <!-- column-name Hidden -->
-      <column type="gboolean"/>
+      <column type="GdkPixbuf"/>
       <!-- column-name Label -->
       <column type="gchararray"/>
       <!-- column-name Type -->
@@ -16,14 +14,6 @@
       <column type="gchararray"/>
       <!-- column-name id -->
       <column type="gchararray"/>
-      <!-- column-name Hidden_Visible0 -->
-      <column type="gboolean"/>
-      <!-- column-name Hidden_Visible -->
-      <column type="gboolean"/>
-      <!-- column-name Hidden_TriState0 -->
-      <column type="gboolean"/>
-      <!-- column-name Hidden_TriState -->
-      <column type="gboolean"/>
       <!-- column-name Label_Weight -->
       <column type="gint"/>
       <!-- column-name Type_Weight -->
@@ -100,17 +90,9 @@
                         <property name="spacing">6</property>
                         <property name="title" translatable="yes" context="editwindow|col_hidden">Hidden</property>
                         <child>
-                          <object class="GtkCellRendererToggle"/>
+                          <object class="GtkCellRendererPixbuf"/>
                           <attributes>
-                            <attribute name="visible">6</attribute>
-                            <attribute name="active">0</attribute>
-                          </attributes>
-                        </child>
-                        <child>
-                          <object class="GtkCellRendererToggle"/>
-                          <attributes>
-                            <attribute name="visible">7</attribute>
-                            <attribute name="active">1</attribute>
+                            <attribute name="pixbuf">0</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -125,8 +107,9 @@
                             <property name="editable">True</property>
                           </object>
                           <attributes>
-                            <attribute name="sensitive">13</attribute>
-                            <attribute name="text">2</attribute>
+                            <attribute name="sensitive">8</attribute>
+                            <attribute name="text">1</attribute>
+                            <attribute name="weight">5</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -141,7 +124,8 @@
                             <property name="editable">True</property>
                           </object>
                           <attributes>
-                            <attribute name="text">3</attribute>
+                            <attribute name="text">2</attribute>
+                            <attribute name="weight">6</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -156,7 +140,8 @@
                             <property name="editable">True</property>
                           </object>
                           <attributes>
-                            <attribute name="text">4</attribute>
+                            <attribute name="text">3</attribute>
+                            <attribute name="weight">7</attribute>
                           </attributes>
                         </child>
                       </object>

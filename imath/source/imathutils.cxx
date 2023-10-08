@@ -922,7 +922,7 @@ void setSeriesProperties(const Reference<com::sun::star::chart::XChartDocument>&
     psize.Height = pointsize;
     psize.Width = pointsize;
     xyProps->setPropertyValue(OU("SymbolSize"), Any(psize));
-    xyProps->setPropertyValue(OU("LineWidth"), Any(linewidth));
+    xyProps->setPropertyValue(OU("LineWidth"), Any(sal_uInt32(linewidth)));
     xyProps->setPropertyValue(OU("LineColor"), Any(linecolor));
 } // setSeriesProperties()
 void setSeriesProperties(const Reference<XComponent>& xChart, const sal_uInt16 series,
@@ -2920,12 +2920,61 @@ void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUStri
     Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
     setCalcCellRangeExpression(xColumnRowRange, value);
 
-    if (!docIsLoaded)
+    for (; fp != fileParts.end(), pp != progParts.end(); ++fp, ++pp)
     {
-        Reference<XStorable> xStore(xCalcDoc, UNO_QUERY_THROW);
-        xStore->store();
-        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
-        xClose->close(true);
+        sal_Int32 num_file = fp->toInt32();
+        sal_Int32 num_prog = pp->toInt32();
+
+        if (num_file < num_prog)
+            return -1;
+        else if (num_file > num_prog)
+            return +1;
+    }
+
+    int rem_file_idx = file.indexOf('~');
+    int rem_prog_idx = prog.indexOf('~');
+
+    if (rem_file_idx > 0 && rem_prog_idx > 0)
+    {
+        OUString rem_file = file.copy(rem_file_idx);
+        OUString rem_prog = prog.copy(rem_prog_idx);
+
+        if (rem_file < rem_prog)
+            return -1;
+        else if (rem_file < rem_prog)
+            return +1;
+    }
+
+    return 0;
+}
+
+std::string getTempPath()
+{
+#ifdef _MSC_VER
+    // This file will usually be located in <User>/AppData/Local/Temp
+    TCHAR lpTempPathBuffer[MAX_PATH];
+    DWORD dwRetVal = GetTempPath(MAX_PATH, lpTempPathBuffer);
+    if ((dwRetVal <= MAX_PATH) && (dwRetVal != 0))
+        return std::string(lpTempPathBuffer) + "\\";
+    else
+        return "";
+#else
+    return "/tmp/";
+#endif
+}
+
+bool runProgram(const std::string& program, const std::string& argument)
+{
+    if (!system(NULL))
+        return false;
+    if (program.find(" ") != std::string::npos)
+    {
+        // Safety check on file names with spaces, otherwise we might execute a program with parameters e.g. "format C:"
+        std::ifstream ifile;
+        ifile.open("program");
+        if (!ifile)
+            return false; // File does not exist
+        ifile.close();
     }
 }
 

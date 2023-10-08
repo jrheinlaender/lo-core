@@ -13935,6 +13935,28 @@ tools::Rectangle get_row_area(GtkTreeView* pTreeView, GList* pColumns, GtkTreePa
     return aRet;
 }
 
+tools::Rectangle get_column_area(GtkTreeView* pTreeView,  GtkTreeViewColumn* pColumn)
+{
+    tools::Rectangle aRet;
+
+    GtkTreeIter iter;
+    GtkTreeModel *pModel = gtk_tree_view_get_model(pTreeView);
+
+    if (!gtk_tree_model_get_iter_first(pModel, &iter))
+            return aRet;
+
+    GdkRectangle aRect;
+
+    do
+    {
+        GtkTreePath* pPath = gtk_tree_model_get_path(pModel, &iter);
+        gtk_tree_view_get_cell_area(pTreeView, pPath, pColumn, &aRect);
+        aRet.Union(tools::Rectangle(aRect.x, aRect.y, aRect.x + aRect.width, aRect.y + aRect.height));
+    } while (gtk_tree_model_iter_next(pModel, &iter));
+
+    return aRet;
+}
+
 struct GtkTreeRowReferenceDeleter
 {
     void operator()(GtkTreeRowReference* p) const
@@ -16648,6 +16670,13 @@ public:
         tools::Rectangle aRet = ::get_row_area(m_pTreeView, m_pColumns, pPath);
         gtk_tree_path_free(pPath);
         return aRet;
+    }
+
+    virtual tools::Rectangle get_column_area(const int nColumn) const override
+    {
+        GtkTreeViewColumn* pColumn = GTK_TREE_VIEW_COLUMN(g_list_nth_data(m_pColumns, nColumn));
+        assert(pColumn && "wrong count");
+        return ::get_column_area(m_pTreeView, pColumn);
     }
 
     virtual void start_editing(const weld::TreeIter& rIter) override

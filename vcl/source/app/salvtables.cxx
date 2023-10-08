@@ -5117,6 +5117,11 @@ tools::Rectangle SalInstanceTreeView::get_row_area(const weld::TreeIter& rIter) 
     return m_xTreeView->GetBoundingRect(static_cast<const SalInstanceTreeIter&>(rIter).iter);
 }
 
+tools::Rectangle SalInstanceTreeView::get_column_area(const int nColumn) const
+{
+    return tools::Rectangle(); // TODO Not implemented and not used?
+}
+
 weld::TreeView* SalInstanceTreeView::get_drag_source() const { return g_DragSource; }
 
 int SalInstanceTreeView::vadjustment_get_value() const

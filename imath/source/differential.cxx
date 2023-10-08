@@ -180,7 +180,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
           c.s << rbracket;
         }
     } else if (difftype == "line") {
-        if (is_a<func>(e) && ex_to<func>(e).get_numargs() != 1) MSG_WARN(0, "Warning: Diff type 'line' makes no sense with " << e << endline);
+        if (is_a<func>(e) && ex_to<func>(e).get_numargs() != 1) MSG_WARN(0, "Warning: Diff type 'line' makes no sense with " << ex_to<func>(e) << endline);
 
         c.s << lbracket;
 

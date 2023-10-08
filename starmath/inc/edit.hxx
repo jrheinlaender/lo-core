@@ -209,13 +209,18 @@ private:
     std::unique_ptr<weld::Notebook> mxNotebook;
     std::unique_ptr<weld::ScrolledWindow> mxScrolledWindow;
     std::unique_ptr<weld::TreeView> mxFormulaList;
-    int editedColumn;
+
+    DECL_LINK(SelectHdl, weld::TreeView&, void);
+    bool mSelected;
+    DECL_LINK(MousePressHdl, const ::MouseEvent&, bool);
+    int mNumClicks;
+    DECL_LINK(MouseReleaseHdl, const MouseEvent&, bool);
+    DECL_LINK(KeyReleaseHdl, const ::KeyEvent&, bool);
 
     DECL_LINK(EditingEntryHdl, const weld::TreeIter&, bool);
     typedef std::pair<const weld::TreeIter&, OUString> IterString;
     DECL_LINK(EditedEntryHdl, const IterString&, bool);
-    DECL_LINK(KeyReleaseHdl, const ::KeyEvent&, bool);
-    DECL_LINK(ToggleHdl, const weld::TreeView::iter_col&, void);
+    int mEditedColumn;
 
 public:
     ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder);

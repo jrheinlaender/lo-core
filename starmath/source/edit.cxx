@@ -417,9 +417,9 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
     auto xIter(mxFormulaList->make_iterator());
     int col = 0;
     if (!mxFormulaList->get_cursor(xIter.get(), col)) return false;
-    // We are only interested in text columns here
-    if (col != IMGUIWINDOW_COL_LABEL && col != IMGUIWINDOW_COL_FORMULA) return false;
-    editedColumn = col; // Save for storing editing result in EditedEntryHdl
+    // We are only interested in certain columns here
+    if (col != IMGUIWINDOW_COL_FORMULA) return false;
+    mEditedColumn = col; // Save for storing editing result in EditedEntryHdl
 
     // TODO How do we get the changed text out of the GtkCellRendererText? The TreeView returns the old text
     std::cout << "Text=" << mxFormulaList->get_text(*xIter, col) << std::endl;

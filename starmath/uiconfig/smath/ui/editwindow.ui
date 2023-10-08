@@ -24,6 +24,112 @@
       <column type="gboolean"/>
     </columns>
   </object>
+  <object class="GtkListStore" id="liststore_formulatypes">
+    <columns>
+      <!-- column-name key -->
+      <column type="gchararray"/>
+      <!-- column-name value -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0">EQDEF</col>
+        <col id="1" translatable="yes" context="formulatype|equation">Equation</col>
+      </row>
+      <row>
+        <col id="0">EXDEF</col>
+        <col id="1" translatable="yes" context="formulatype|expression">Expression</col>
+      </row>
+      <row>
+        <col id="0">CONSTDEF</col>
+        <col id="1" translatable="yes" context="formulatype|constant">Constant</col>
+      </row>
+      <row>
+        <col id="0">FUNCTION</col>
+        <col id="1" translatable="yes" context="formulatype|function_name">Function name</col>
+      </row>
+      <row>
+        <col id="0">FUNCDEF</col>
+        <col id="1" translatable="yes" context="formulatype|function_definition">Function definition</col>
+      </row>
+      <row>
+        <col id="0">VECTORDEF</col>
+        <col id="1" translatable="yes" context="formulatype|vector">Vector name</col>
+      </row>
+      <row>
+        <col id="0">MATRIXDEF</col>
+        <col id="1" translatable="yes" context="formulatype|matrix">Matrix name</col>
+      </row>
+      <row>
+        <col id="0">UNITDEF</col>
+        <col id="1" translatable="yes" context="formulatype|unit">Unit definition</col>
+      </row>
+      <row>
+        <col id="0">OPTIONS</col>
+        <col id="1" translatable="yes" context="formulatype|options">Set options</col>
+      </row>
+      <row>
+        <col id="0">CHART</col>
+        <col id="1" translatable="yes" context="formulatype|chart">Chart</col>
+      </row>
+      <row>
+        <col id="0">TEXT</col>
+        <col id="1" translatable="yes" context="formulatype|text">Text</col>
+      </row>
+      <row>
+        <col id="0">CLEAREQUATIONS</col>
+        <col id="1" translatable="yes" context="formulatype|clear_all">Clear all</col>
+      </row>
+      <row>
+        <col id="0">DELETE</col>
+        <col id="1" translatable="yes" context="formulatype|clear">Clear</col>
+      </row>
+      <row>
+        <col id="0">EXPLAIN</col>
+        <col id="1" translatable="yes" context="formulatype|explain">Explain</col>
+      </row>
+      <row>
+        <col id="0">PRINTVAL</col>
+        <col id="1" translatable="yes" context="formulatype|print_value">Print value</col>
+      </row>
+      <row>
+        <col id="0">READFILE</col>
+        <col id="1" translatable="yes" context="formulatype|include">Include file</col>
+      </row>
+      <row>
+        <col id="0">BEGIN_NS</col>
+        <col id="1" translatable="yes" context="formulatype|namespace_begin">Namespace</col>
+      </row>
+      <row>
+        <col id="0">END_NS</col>
+        <col id="1" translatable="yes" context="formulatype|namespace_end">Namespace end</col>
+      </row>
+      <row>
+        <col id="0">PREFIXDEF</col>
+        <col id="1" translatable="yes" context="formulatype|unit_prefix">Define unit prefix</col>
+      </row>
+      <row>
+        <col id="0">REALVARDEF</col>
+        <col id="1" translatable="yes" context="formulatype|real_var">Real variable</col>
+      </row>
+      <row>
+        <col id="0">POSVARDEF</col>
+        <col id="1" translatable="yes" context="formulatype|positive_var">Positive variable</col>
+      </row>
+      <row>
+        <col id="0">UPDATE</col>
+        <col id="1" translatable="yes" context="formulatype|update">Update equation</col>
+      </row>
+      <row>
+        <col id="0">SETTABLECELL</col>
+        <col id="1" translatable="yes" context="formulatype|table_cell">Table cell</col>
+      </row>
+      <row>
+        <col id="0">SETCALCCELLS</col>
+        <col id="1" translatable="yes" context="formulatype|calc_cell">Calc cell</col>
+      </row>
+    </data>
+  </object>
   <object class="GtkBox" id="EditWindow">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
@@ -118,10 +224,14 @@
                       <object class="GtkTreeViewColumn" id="col_type">
                         <property name="resizable">True</property>
                         <property name="spacing">6</property>
+                        <property name="min-width">140</property>
                         <property name="title" translatable="yes" context="editwindow|col_type">Type</property>
                         <child>
-                          <object class="GtkCellRendererText">
+                          <object class="GtkCellRendererCombo">
                             <property name="editable">True</property>
+                            <property name="has-entry">False</property>
+                            <property name="model">liststore_formulatypes</property>
+                            <property name="text-column">1</property>
                           </object>
                           <attributes>
                             <attribute name="text">2</attribute>

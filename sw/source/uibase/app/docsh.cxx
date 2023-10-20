@@ -1642,45 +1642,40 @@ void SwDocShell::MergeIFormula(const OUString& formulaName)
     // Save formula's properties
     OUString formulaText = getFormulaProperty<OUString>(xFormulaComp, "iFormula");
 
-    // Find text to interject between the two formulas
-    OUString interText = "\nTEXT newline\n";
+    // Is there any text in the document between the two formulas?
+    Reference< XTextContent > xPreviousFormulaTextContent(xPreviousFormulaComp, UNO_QUERY_THROW);
+    Reference< XTextContent > xFormulaTextContent(xFormulaComp, UNO_QUERY_THROW);
+    Reference< XText > xDocumentText = xFormulaTextContent->getAnchor()->getText();
+    Reference< text::XParagraphCursor > xCursor(xDocumentText->createTextCursorByRange(xPreviousFormulaTextContent->getAnchor()->getEnd()), UNO_QUERY_THROW);
+    xCursor->gotoRange(xFormulaTextContent->getAnchor()->getEnd(), true);
+    bool intermediateNewline = xCursor->getString().indexOfAsciiL("\n", 1) >= 0;
 
-    if (!getFormulaProperty<bool>(xPreviousFormulaComp, "ImIsHidden"))
+    // Find text to interject between the two formulas
+    OUString interText;
+
+    if (!intermediateNewline)
     {
         OUString prevLast = getFormulaProperty<OUString>(xPreviousFormulaComp, "ImTypeLastLine");
         OUString thisFirst = getFormulaProperty<OUString>(xFormulaComp, "ImTypeFirstLine");
         SAL_INFO_LEVEL(2, "sw.imath", "Found " << prevLast << " followed by " << thisFirst);
 
         if (prevLast == "equation" && thisFirst == "expression")
-        {
+            // Assume that the expression is the evaluation of the right-hand-side of the equation
             interText = OU("\nTEXT =\n");
-        }
         else if (prevLast == "equation" && thisFirst == "equation")
-        {
-            if (getFormulaProperty<OUString>(xPreviousFormulaComp, "ImExpressionLastLhs") == getFormulaProperty<OUString>(xPreviousFormulaComp, "ImExpressionFirstLhs"))
-            {
-                // Check intermediate text
-                interText = getInterText(Reference< XTextContent >(xPreviousFormulaComp, UNO_QUERY_THROW), Reference< XTextContent >(xFormulaComp, UNO_QUERY_THROW));
-
-                if (interText.indexOfAsciiL("\n", 1) < 0 && interText.trim().getLength() == 0)
-                    interText = OU("\n");
-            }
-        }
-        else if (prevLast == "expression" && thisFirst == "expression")
-        {
-            interText = getInterText(Reference< XTextContent >(xPreviousFormulaComp, UNO_QUERY_THROW), Reference< XTextContent >(xFormulaComp, UNO_QUERY_THROW));
-
-            if (interText.indexOfAsciiL("\n", 1) < 0 && interText.trim().getLength() == 0)
-                interText = OU("\nTEXT =\n");
-        }
-        else
-        {
+            // Assume that the equations should appear in the same line. Note: If they have identical left-hand-sides, they may then be automatically chained
             interText = OU("\n");
-        }
+        else if (prevLast == "expression" && thisFirst == "expression")
+            // Assume that the expressions are equal
+            interText = OU("\nTEXT =\n");
+        else
+            // Simply concatenate the formulas on the same line
+            interText = OU("\n");
     }
     else
     {
-        interText = OU("\n");
+        // Ensure that the formulas appear on separate lines
+        interText = "\nTEXT newline\n";
     }
 
     // Update previous formula

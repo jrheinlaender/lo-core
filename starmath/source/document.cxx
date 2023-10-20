@@ -106,7 +106,6 @@ using namespace ::com::sun::star::uno;
 #include <com/sun/star/util/CloseVetoException.hpp>
 #include <logging.hxx>
 #include <imath/settingsmanager.hxx>
-#include <imath/alignblock.hxx>
 #include <imath/funcmgr.hxx>
 #include <imath/imathutils.hxx>
 #include <imath/imathparse.hxx>

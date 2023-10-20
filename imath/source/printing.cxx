@@ -572,13 +572,13 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level) {
   (void)level;
 
   if (m.cols() == 1) { // stack{} is only useable for matrices with one single column
-    c.s << "( STACK{";
+    c.s << "(alignc STACK{";
     for (unsigned r = 0; r < m.rows(); ) {
       m(r, 0).print(c, 1);
       if (++r != m.rows()) c.s << " # ";
     }
   } else {
-    c.s << "( MATRIX{";
+    c.s << "(alignc MATRIX{";
     for (unsigned r = 0; r < m.rows(); ) {
       for (unsigned col = 0; col < m.cols(); ) {
         m(r, col).print(c, 1);

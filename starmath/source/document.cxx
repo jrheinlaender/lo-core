@@ -710,8 +710,6 @@ void SmDocShell::Compile()
             maImTypeFirstLine = "";
             maImTypeLastLine = "";
             mImHidden = true;
-            maImExprFirstLhs = "";
-            maImExprLastLhs = "";
             std::shared_ptr<iFormulaLine> firstLine; // First expression or equation (of multi-line formula)
             std::shared_ptr<iFormulaLine> lastLine; // Last expression or equation  (of multi-line formula)
             std::vector<OUString> tempLabels; // Sequence does not appear to support appending of elements
@@ -722,7 +720,6 @@ void SmDocShell::Compile()
                 {
                     maImTypeFirstLine = "equation";
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
-                    maImExprFirstLhs = expr->getDisplayedLhs();
                     tempLabels.push_back(expr->getLabel());
                     firstLine = l;
                     break;
@@ -731,7 +728,6 @@ void SmDocShell::Compile()
                 {
                     maImTypeFirstLine = "expression";
                     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
-                    maImExprFirstLhs = expr->getDisplayedLhs();
                     if (expr->getLabel().getLength() > 0)
                         tempLabels.push_back(expr->getLabel());
                     firstLine = l;
@@ -749,16 +745,12 @@ void SmDocShell::Compile()
                 if ((*line)->getSelectionType() == formulaTypeEquation)
                 {
                     maImTypeLastLine = "equation";
-                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*line);
-                    maImExprLastLhs = expr->getDisplayedLhs();
                     lastLine = *line;
                     break;
                 }
                 else if ((*line)->getSelectionType() == formulaTypeExpression || (*line)->getSelectionType() == formulaTypeConstant)
                 {
                     maImTypeLastLine = "expression";
-                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*line);
-                    maImExprLastLhs = expr->getDisplayedLhs();
                     lastLine = *line;
                     break;
                 }
@@ -1440,8 +1432,6 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     , maImTypeFirstLine("")
     , maImTypeLastLine("")
     , mImHidden(false)
-    , maImExprFirstLhs("")
-    , maImExprLastLhs("")
 {
     ImStaticInitialization();
     SAL_INFO_LEVEL(0, "starmath.imath", "SmDocShell::SmDocShell with iMath version=" << mnImSyntaxVersion);

@@ -184,53 +184,6 @@ OUString makeOptionString(const option_type otype, const OUString& formulaOption
 {
     OUString result = OU("; ") + formulaOptionName + OU("=");
 
-    switch (otype)
-    {
-        case t_str:
-            if (formulaOptionName.equalsAscii("units"))
-            {
-                if (o.value.str->size() > 0)
-                {
-                    result += OU("{") + OUS8(*(o.value.str)) + OU("}");
-                }
-                else
-                {
-                    return OU("");
-                }
-            }
-            else
-            {
-                result += OU("\"") + OUS8(*(o.value.str)) + OU("\"");
-            }
-            break;
-        case t_bool:
-        {
-            bool val = invert ? !o.value.boolean : o.value.boolean;
-            result += (val ? OU("true") : OU("false"));
-            break;
-        }
-        case t_dbl:
-            break;
-        case t_align:
-            result += ((o.value.align == both) ? OU("true") : OU("false"));
-            break;
-        case t_uint:
-            result += OUSTRINGNUMBER((sal_Int32)o.value.uinteger);
-            break;
-        case t_int:
-            result += OUSTRINGNUMBER((sal_Int32)o.value.integer);
-            break;
-        case t_exvec:
-            break;
-    }
-
-    return result;
-}
-
-OUString Settingsmanager::createOptionString(const optionmap& options)
-{
-    OUString result;
-
     for (const auto& i : options)
     {
         if (i.first == o_units)
@@ -317,9 +270,9 @@ void Settingsmanager::initializeOptionmap(const Reference<XComponentContext>& mx
 {
     for (const auto& srec : settings)
     {
-        if (srec.second.propertyName.getLength() == 0 || srec.second.statementName.getLength() == 0)
+        if (srec.second.propertyName.isEmpty() || srec.second.statementName.isEmpty())
         {
-            if (srec.second.formulaOptionName.getLength() > 0)
+            if (!srec.second.formulaOptionName.isEmpty())
                 MSG_INFO(1, "initializeOptionmap: " << STR(srec.second.formulaOptionName)
                                                     << " is not defined" << endline);
             // otherwise silently ignore (options for internal usage only)
@@ -339,430 +292,676 @@ void Settingsmanager::initializeOptionmap(const Reference<XComponentContext>& mx
                         if (srec.first == o_unitstr && (*o)[srec.first].value.str != nullptr)
                             (*o)[srec.first].value.str->append(
                                 ((o->at(srec.first).value.str->size() > 0
-                                  && localStatement.getLength() > 0)
+                                  && !localStatement.isEmpty())
                                      ? "; "
                                      : "")
                                 + STR(localStatement));
                         else
-                            (*o)[srec.first] = option(STR(localStatement));
-                        // else keep value from master document
-                        // TODO: There is a memory leak here, because srec.second.value.str is a pointer to a std::string
+                        {
+                            result += OU("\"") + OUS8(*(o.value.str)) + OU("\"");
+                        }
+                        break;
+                        case t_bool:
+                        {
+                            bool val = invert ? !o.value.boolean : o.value.boolean;
+                            result += (val ? OU("true") : OU("false"));
+                            break;
+                        }
+                        case t_dbl:
+                            break;
+                        case t_align:
+                            result += ((o.value.align == both) ? OU("true") : OU("false"));
+                            break;
+                        case t_uint:
+                            result += OUSTRINGNUMBER((sal_Int32)o.value.uinteger);
+                            break;
+                        case t_int:
+                            result += OUSTRINGNUMBER((sal_Int32)o.value.integer);
+                            break;
+                        case t_exvec:
+                            break;
                     }
+
+                    return result;
                 }
-                else
+
+                OUString Settingsmanager::createOptionString(const optionmap& options)
                 {
-                    if (propertyIs(xProperties, srec.second.propertyName))
-                        (*o)[srec.first] = option(STR(
-                            getTextProperty(mxCC, xModel, xGraph, xProperties,
+                    OUString result;
+
+                    for (const auto& i : options)
+                    {
+                        if (i.first == o_units)
+                            continue; // We use o_unitstr for creating the option string
+                        if (i.first == o_forceautoformat)
+                            continue; // Internal use only, set by the parser
+                        std::map<option_name, settingsdata>::const_iterator s_it
+                            = settings.find(i.first);
+                        if (s_it == settings.end())
+                        {
+                            MSG_INFO(1, "createOptionString: Setting "
+                                            << STR(s_it->second.formulaOptionName)
+                                            << " does not exist" << endline);
+                            continue;
+                        }
+                        result
+                            += makeOptionString(s_it->second.otype, s_it->second.formulaOptionName,
+                                                i.second, s_it->second.invert);
+                    }
+
+                    return result;
+                }
+
+                OUString Settingsmanager::createOptionStringFromControls(
+                    const optionmap& options, Reference<XControlContainer>& xControlContainer)
+                {
+                    OUString result;
+                    option o;
+
+                    for (const auto& i : options)
+                    {
+                        std::map<option_name, settingsdata>::const_iterator s_it
+                            = settings.find(i.first);
+                        if (s_it == settings.end())
+                        {
+                            MSG_INFO(1, "createOptionStringFromControls: Setting "
+                                            << STR(s_it->second.formulaOptionName)
+                                            << " does not exist" << endline);
+                            continue;
+                        }
+                        if (!hasControl(xControlContainer, s_it->second.controlName))
+                        {
+                            MSG_INFO(1, "createOptionStringFromControls: control does not exist: "
+                                            << STR(s_it->second.controlName) << endline);
+                            continue;
+                        }
+
+                        switch (s_it->second.otype)
+                        {
+                            case t_str:
+                                o = option(STR(
+                                    getTextcontrol(xControlContainer, s_it->second.controlName)));
+                                break;
+                            case t_bool:
+                                o = option(
+                                    s_it->second.invert
+                                        ? (getCheckBox(xControlContainer, s_it->second.controlName)
+                                           != 1)
+                                        : (getCheckBox(xControlContainer, s_it->second.controlName)
+                                           == 1));
+                                break;
+                            case t_dbl:
+                                break;
+                            case t_align:
+                                o = option(
+                                    (getCheckBox(xControlContainer, s_it->second.controlName) == 1)
+                                        ? both
+                                        : none);
+                                break;
+                            case t_uint:
+                                o = option((unsigned)getNumericFieldPosInt(
+                                    xControlContainer, s_it->second.controlName));
+                                break;
+                            case t_int:
+                                o = option((int)getNumericFieldInt(xControlContainer,
+                                                                   s_it->second.controlName));
+                                break;
+                            case t_exvec:
+                                break;
+                        }
+
+                        if (i.second != o)
+                            result += makeOptionString(s_it->second.otype,
+                                                       s_it->second.formulaOptionName, o,
+                                                       s_it->second.invert);
+                    }
+
+                    return result;
+                }
+
+                void Settingsmanager::initializeOptionmap(
+                    const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                    const Reference<XNamedGraph>& xGraph,
+                    const Reference<XHierarchicalPropertySet>& xProperties,
+                    std::shared_ptr<optionmap> o, const bool hasMasterDoc)
+                {
+                    for (const auto& srec : settings)
+                    {
+                        if (srec.second.propertyName.getLength() == 0
+                            || srec.second.statementName.getLength() == 0)
+                        {
+                            if (srec.second.formulaOptionName.getLength() > 0)
+                                MSG_INFO(1, "initializeOptionmap: "
+                                                << STR(srec.second.formulaOptionName)
+                                                << " is not defined" << endline);
+                            // otherwise silently ignore (options for internal usage only)
+                            continue;
+                        }
+
+                        switch (srec.second.otype)
+                        {
+                            case t_str:
+                            {
+                                if (hasMasterDoc)
+                                {
+                                    if (hasStatement(mxCC, xModel, xGraph,
+                                                     srec.second.statementName))
+                                    {
+                                        OUString localStatement = getStatementString(
+                                            mxCC, xModel, xGraph, srec.second.statementName);
+                                        if (srec.first == o_unitstr
+                                            && (*o)[srec.first].value.str != nullptr)
+                                            (*o)[srec.first].value.str->append(
+                                                ((o->at(srec.first).value.str->size() > 0
+                                                  && localStatement.getLength() > 0)
+                                                     ? "; "
+                                                     : "")
+                                                + STR(localStatement));
+                                        else
+                                            (*o)[srec.first] = option(STR(localStatement));
+                                        // else keep value from master document
+                                        // TODO: There is a memory leak here, because srec.second.value.str is a pointer to a std::string
+                                    }
+                                }
+                                else
+                                {
+                                    if (propertyIs(xProperties, srec.second.propertyName))
+                                        (*o)[srec.first] = option(STR(getTextProperty(
+                                            mxCC, xModel, xGraph, xProperties,
                                             srec.second.statementName, srec.second.propertyName)));
-                    else
-                        MSG_ERROR(1, "Internal error: Property "
-                                         << STR(srec.second.propertyName)
-                                         << " does not exist in the registry." << endline);
-                }
-                break;
-            }
-            case t_bool:
-            {
-                if (hasMasterDoc)
-                {
-                    if (hasStatement(mxCC, xModel, xGraph, srec.second.statementName))
-                    {
-                        bool val = getStatementBool(
-                            mxCC, xModel, xGraph,
-                            srec.second
-                                .statementName); // Beware: Using sal_Bool does not create a t_bool option!
-                        (*o)[srec.first] = option(srec.second.invert ? !val : val);
-                    } // else keep value from master document
-                }
-                else
-                {
-                    if (propertyIs(xProperties, srec.second.propertyName))
-                    {
-                        bool val = getBoolProperty(
-                            mxCC, xModel, xGraph, xProperties, srec.second.statementName,
-                            srec.second
-                                .propertyName); // Beware: Using sal_Bool does not create a t_bool option!
-                        (*o)[srec.first] = option(srec.second.invert ? !val : val);
+                                    else
+                                        MSG_ERROR(1, "Internal error: Property "
+                                                         << STR(srec.second.propertyName)
+                                                         << " does not exist in the registry."
+                                                         << endline);
+                                }
+                                break;
+                            }
+                            case t_bool:
+                            {
+                                if (hasMasterDoc)
+                                {
+                                    if (hasStatement(mxCC, xModel, xGraph,
+                                                     srec.second.statementName))
+                                    {
+                                        bool val = getStatementBool(
+                                            mxCC, xModel, xGraph,
+                                            srec.second
+                                                .statementName); // Beware: Using sal_Bool does not create a t_bool option!
+                                        (*o)[srec.first] = option(srec.second.invert ? !val : val);
+                                    } // else keep value from master document
+                                }
+                                else
+                                {
+                                    if (propertyIs(xProperties, srec.second.propertyName))
+                                    {
+                                        bool val = getBoolProperty(
+                                            mxCC, xModel, xGraph, xProperties,
+                                            srec.second.statementName,
+                                            srec.second
+                                                .propertyName); // Beware: Using sal_Bool does not create a t_bool option!
+                                        (*o)[srec.first] = option(srec.second.invert ? !val : val);
+                                    }
+                                    else
+                                    {
+                                        MSG_ERROR(1, "Internal error: Property "
+                                                         << STR(srec.second.propertyName)
+                                                         << " does not exist in the registry."
+                                                         << endline);
+                                    }
+                                }
+                                break;
+                            }
+                            case t_dbl:
+                                break;
+                            case t_align:
+                            {
+                                if (hasMasterDoc)
+                                {
+                                    if (hasStatement(mxCC, xModel, xGraph,
+                                                     srec.second.statementName))
+                                    {
+                                        sal_Bool val = getStatementBool(mxCC, xModel, xGraph,
+                                                                        srec.second.statementName);
+                                        (*o)[srec.first] = option(val ? both : none);
+                                    } // else keep value from master document
+                                }
+                                else
+                                {
+                                    if (propertyIs(xProperties, srec.second.propertyName))
+                                    {
+                                        sal_Bool val = getBoolProperty(
+                                            mxCC, xModel, xGraph, xProperties,
+                                            srec.second.statementName, srec.second.propertyName);
+                                        (*o)[srec.first] = option(val ? both : none);
+                                    }
+                                    else
+                                    {
+                                        MSG_ERROR(1, "Internal error: Property "
+                                                         << STR(srec.second.propertyName)
+                                                         << " does not exist in the registry."
+                                                         << endline);
+                                    }
+                                }
+                                break;
+                            }
+                            case t_uint:
+                            {
+                                if (hasMasterDoc)
+                                {
+                                    if (hasStatement(mxCC, xModel, xGraph,
+                                                     srec.second.statementName))
+                                        (*o)[srec.first] = option((unsigned)getStatementPosInt(
+                                            mxCC, xModel, xGraph, srec.second.statementName));
+                                    // else keep value from master document
+                                }
+                                else
+                                {
+                                    if (propertyIs(xProperties, srec.second.propertyName))
+                                        (*o)[srec.first] = option((unsigned)getPosIntProperty(
+                                            mxCC, xModel, xGraph, xProperties,
+                                            srec.second.statementName, srec.second.propertyName));
+                                    else
+                                        MSG_ERROR(1, "Internal error: Property "
+                                                         << STR(srec.second.propertyName)
+                                                         << " does not exist in the registry."
+                                                         << endline);
+                                }
+                                break;
+                            }
+                            case t_int:
+                            {
+                                if (hasMasterDoc)
+                                {
+                                    if (hasStatement(mxCC, xModel, xGraph,
+                                                     srec.second.statementName))
+                                        (*o)[srec.first] = option((int)getStatementInt(
+                                            mxCC, xModel, xGraph, srec.second.statementName));
+                                    // else keep value from master document
+                                }
+                                else
+                                {
+                                    if (propertyIs(xProperties, srec.second.propertyName))
+                                        (*o)[srec.first] = option((int)getIntProperty(
+                                            mxCC, xModel, xGraph, xProperties,
+                                            srec.second.statementName, srec.second.propertyName));
+                                    else
+                                        MSG_ERROR(1, "Internal error: Property "
+                                                         << STR(srec.second.propertyName)
+                                                         << " does not exist in the registry."
+                                                         << endline);
+                                }
+                                break;
+                            }
+                            case t_exvec:
+                                break;
+                        }
                     }
-                    else
-                    {
-                        MSG_ERROR(1, "Internal error: Property "
-                                         << STR(srec.second.propertyName)
-                                         << " does not exist in the registry." << endline);
-                    }
                 }
-                break;
-            }
-            case t_dbl:
-                break;
-            case t_align:
-            {
-                if (hasMasterDoc)
-                {
-                    if (hasStatement(mxCC, xModel, xGraph, srec.second.statementName))
-                    {
-                        sal_Bool val
-                            = getStatementBool(mxCC, xModel, xGraph, srec.second.statementName);
-                        (*o)[srec.first] = option(val ? both : none);
-                    } // else keep value from master document
-                }
-                else
-                {
-                    if (propertyIs(xProperties, srec.second.propertyName))
-                    {
-                        sal_Bool val
-                            = getBoolProperty(mxCC, xModel, xGraph, xProperties,
-                                              srec.second.statementName, srec.second.propertyName);
-                        (*o)[srec.first] = option(val ? both : none);
-                    }
-                    else
-                    {
-                        MSG_ERROR(1, "Internal error: Property "
-                                         << STR(srec.second.propertyName)
-                                         << " does not exist in the registry." << endline);
-                    }
-                }
-                break;
-            }
-            case t_uint:
-            {
-                if (hasMasterDoc)
-                {
-                    if (hasStatement(mxCC, xModel, xGraph, srec.second.statementName))
-                        (*o)[srec.first] = option((unsigned)getStatementPosInt(
-                            mxCC, xModel, xGraph, srec.second.statementName));
-                    // else keep value from master document
-                }
-                else
-                {
-                    if (propertyIs(xProperties, srec.second.propertyName))
-                        (*o)[srec.first] = option((unsigned)getPosIntProperty(
-                            mxCC, xModel, xGraph, xProperties, srec.second.statementName,
-                            srec.second.propertyName));
-                    else
-                        MSG_ERROR(1, "Internal error: Property "
-                                         << STR(srec.second.propertyName)
-                                         << " does not exist in the registry." << endline);
-                }
-                break;
-            }
-            case t_int:
-            {
-                if (hasMasterDoc)
-                {
-                    if (hasStatement(mxCC, xModel, xGraph, srec.second.statementName))
-                        (*o)[srec.first] = option(
-                            (int)getStatementInt(mxCC, xModel, xGraph, srec.second.statementName));
-                    // else keep value from master document
-                }
-                else
-                {
-                    if (propertyIs(xProperties, srec.second.propertyName))
-                        (*o)[srec.first] = option((int)getIntProperty(
-                            mxCC, xModel, xGraph, xProperties, srec.second.statementName,
-                            srec.second.propertyName));
-                    else
-                        MSG_ERROR(1, "Internal error: Property "
-                                         << STR(srec.second.propertyName)
-                                         << " does not exist in the registry." << endline);
-                }
-                break;
-            }
-            case t_exvec:
-                break;
-        }
-    }
-}
 
-void Settingsmanager::setLineOptionsFromControls(
-    iFormulaLine& f, const Reference<XControlContainer>& xControlContainer)
-{
-    for (const auto& srec : settings)
-    {
-        if (!hasControl(xControlContainer, srec.second.controlName))
-        {
-            MSG_INFO(1, "setLineOptionsFromControls: control does not exist: "
-                            << STR(srec.second.controlName) << endline);
-            continue;
-        }
+                void Settingsmanager::setLineOptionsFromControls(
+                    iFormulaLine & f, const Reference<XControlContainer>& xControlContainer)
+                {
+                    for (const auto& srec : settings)
+                    {
+                        if (!hasControl(xControlContainer, srec.second.controlName))
+                        {
+                            MSG_INFO(1, "setLineOptionsFromControls: control does not exist: "
+                                            << STR(srec.second.controlName) << endline);
+                            continue;
+                        }
 
-        switch (srec.second.otype)
-        {
-            case t_str:
-                f.setOption(srec.first, option(STR(getTextcontrol(xControlContainer,
-                                                                  srec.second.controlName))));
-                break;
-            case t_bool:
-            {
-                bool val = getCheckBox(xControlContainer, srec.second.controlName) == 1;
-                f.setOption(srec.first, option(srec.second.invert ? !val : val));
-                break;
-            }
-            case t_dbl:
-                break;
-            case t_align:
-                f.setOption(srec.first,
-                            option((getCheckBox(xControlContainer, srec.second.controlName) == 1)
-                                       ? both
-                                       : none));
-                break;
-            case t_uint:
-                f.setOption(srec.first, option((unsigned)getNumericFieldPosInt(
+                        switch (srec.second.otype)
+                        {
+                            case t_str:
+                                f.setOption(srec.first,
+                                            option(STR(getTextcontrol(xControlContainer,
+                                                                      srec.second.controlName))));
+                                break;
+                            case t_bool:
+                            {
+                                bool val
+                                    = getCheckBox(xControlContainer, srec.second.controlName) == 1;
+                                f.setOption(srec.first, option(srec.second.invert ? !val : val));
+                                break;
+                            }
+                            case t_dbl:
+                                break;
+                            case t_align:
+                                f.setOption(srec.first, option((getCheckBox(xControlContainer,
+                                                                            srec.second.controlName)
+                                                                == 1)
+                                                                   ? both
+                                                                   : none));
+                                break;
+                            case t_uint:
+                                f.setOption(srec.first,
+                                            option((unsigned)getNumericFieldPosInt(
+                                                xControlContainer, srec.second.controlName)));
+                                break;
+                            case t_int:
+                                f.setOption(srec.first,
+                                            option((int)getNumericFieldInt(
+                                                xControlContainer, srec.second.controlName)));
+                                break;
+                            case t_exvec:
+                                break;
+                        }
+                    }
+                }
+
+                void Settingsmanager::setControlsFromLineOptions(
+                    const iFormulaLine& fLine,
+                    const Reference<XControlContainer>& xControlContainer,
+                    const bool force_global_option)
+                {
+                    for (const auto& srec : settings)
+                    {
+                        if ((!srec.second.controlName.isEmpty())
+                            && !hasControl(xControlContainer, srec.second.controlName))
+                        {
+                            MSG_INFO(1, "setControlsFromLineOptions: control does not exist: "
+                                            << STR(srec.second.controlName) << endline);
+                            continue;
+                        }
+                        else if (srec.second.controlName.isEmpty())
+                        {
+                            continue;
+                        }
+
+                        switch (srec.second.otype)
+                        {
+                            case t_str:
+                                if (srec.first == o_unitstr)
+                                {
+                                    if (fLine.hasOption(o_unitstr))
+                                        setTextcontrol(
+                                            xControlContainer, srec.second.controlName,
+                                            OUS8(*fLine.getOption(srec.first, false)
+                                                      .value.str)); // Only show local units here
+                                }
+                                else
+                                {
+                                    setTextcontrol(
+                                        xControlContainer, srec.second.controlName,
+                                        OUS8(*fLine.getOption(srec.first, force_global_option)
+                                                  .value.str));
+                                }
+                        }
+                    }
+
+                    void Settingsmanager::setControlsFromLineOptions(
+                        const iFormulaLine& fLine,
+                        const Reference<XControlContainer>& xControlContainer,
+                        const bool force_global_option)
+                    {
+                        for (const auto& srec : settings)
+                        {
+                            if ((srec.second.controlName.getLength() > 0)
+                                && !hasControl(xControlContainer, srec.second.controlName))
+                            {
+                                MSG_INFO(1, "setControlsFromLineOptions: control does not exist: "
+                                                << STR(srec.second.controlName) << endline);
+                                continue;
+                            }
+                            else if (srec.second.controlName.getLength() == 0)
+                            {
+                                continue;
+                            }
+
+                            switch (srec.second.otype)
+                            {
+                                case t_str:
+                                    if (srec.first == o_unitstr)
+                                    {
+                                        if (fLine.hasOption(o_unitstr))
+                                            setTextcontrol(
+                                                xControlContainer, srec.second.controlName,
+                                                OUS8(
+                                                    *fLine.getOption(srec.first, false)
+                                                         .value.str)); // Only show local units here
+                                    }
+                                    else
+                                    {
+                                        setTextcontrol(
+                                            xControlContainer, srec.second.controlName,
+                                            OUS8(*fLine.getOption(srec.first, force_global_option)
+                                                      .value.str));
+                                    }
+                                    break;
+                                case t_bool:
+                                {
+                                    bool val = fLine.getOption(srec.first, force_global_option)
+                                                   .value.boolean;
+                                    setCheckBox(xControlContainer, srec.second.controlName,
+                                                srec.second.invert ? !val : val);
+                                    break;
+                                }
+                                case t_dbl:
+                                    break;
+                                case t_align:
+                                    setCheckBox(
+                                        xControlContainer, srec.second.controlName,
+                                        fLine.getOption(srec.first, force_global_option).value.align
+                                            == both);
+                                    break;
+                                case t_uint:
+                                    setNumericFieldPosInt(
+                                        xControlContainer, srec.second.controlName,
+                                        fLine.getOption(srec.first, force_global_option)
+                                            .value.uinteger);
+                                    break;
+                                case t_int:
+                                    setNumericFieldInt(
+                                        xControlContainer, srec.second.controlName,
+                                        fLine.getOption(srec.first, force_global_option)
+                                            .value.integer);
+                                    break;
+                                case t_exvec:
+                                    break;
+                            }
+                        }
+                    }
+
+                    void Settingsmanager::setRegistryFromControls(
+                        const Reference<XHierarchicalPropertySet>& xProperties,
+                        const Reference<XControlContainer>& xControlContainer)
+                    {
+                        for (const auto& srec : settings)
+                        {
+                            if (!hasControl(xControlContainer, srec.second.controlName))
+                            {
+                                MSG_INFO(1, "setRegistryFromControls: control does not exist: "
+                                                << STR(srec.second.controlName) << endline);
+                                continue;
+                            }
+
+                            switch (srec.second.otype)
+                            {
+                                case t_str:
+                                    xProperties->setHierarchicalPropertyValue(
+                                        srec.second.propertyName,
+                                        com::sun::star::uno::Any(getTextcontrol(
                                             xControlContainer, srec.second.controlName)));
-                break;
-            case t_int:
-                f.setOption(srec.first, option((int)getNumericFieldInt(xControlContainer,
-                                                                       srec.second.controlName)));
-                break;
-            case t_exvec:
-                break;
-        }
-    }
-}
+                                    break;
+                                case t_align: // Same as boolean option
+                                case t_bool:
+                                    xProperties->setHierarchicalPropertyValue(
+                                        srec.second.propertyName,
+                                        com::sun::star::uno::Any(
+                                            getCheckBox(xControlContainer, srec.second.controlName)
+                                            == 1));
+                                    break;
+                                case t_dbl:
+                                    break;
+                                case t_uint:
+                                    xProperties->setHierarchicalPropertyValue(
+                                        srec.second.propertyName,
+                                        com::sun::star::uno::Any(getNumericFieldPosInt(
+                                            xControlContainer, srec.second.controlName)));
+                                    break;
+                                case t_int:
+                                    xProperties->setHierarchicalPropertyValue(
+                                        srec.second.propertyName,
+                                        com::sun::star::uno::Any(getNumericFieldInt(
+                                            xControlContainer, srec.second.controlName)));
+                                    break;
+                                case t_exvec:
+                                    break;
+                            }
+                        }
+                    }
 
-void Settingsmanager::setControlsFromLineOptions(
-    const iFormulaLine& fLine, const Reference<XControlContainer>& xControlContainer,
-    const bool force_global_option)
-{
-    for (const auto& srec : settings)
-    {
-        if ((srec.second.controlName.getLength() > 0)
-            && !hasControl(xControlContainer, srec.second.controlName))
-        {
-            MSG_INFO(1, "setControlsFromLineOptions: control does not exist: "
-                            << STR(srec.second.controlName) << endline);
-            continue;
-        }
-        else if (srec.second.controlName.getLength() == 0)
-        {
-            continue;
-        }
+                    void Settingsmanager::setControlsFromRegistry(
+                        const Reference<XHierarchicalPropertySet>& xProperties,
+                        const Reference<XControlContainer>& xControlContainer)
+                    {
+                        for (const auto& srec : settings)
+                        {
+                            if (!hasControl(xControlContainer, srec.second.controlName))
+                            {
+                                MSG_INFO(1, "setControlsFromRegistry: control does not exist: "
+                                                << STR(srec.second.controlName) << endline);
+                                continue;
+                            }
 
-        switch (srec.second.otype)
-        {
-            case t_str:
-                if (srec.first == o_unitstr)
-                {
-                    if (fLine.hasOption(o_unitstr))
-                        setTextcontrol(xControlContainer, srec.second.controlName,
-                                       OUS8(*fLine.getOption(srec.first, false)
-                                                 .value.str)); // Only show local units here
-                }
-                else
-                {
-                    setTextcontrol(
-                        xControlContainer, srec.second.controlName,
-                        OUS8(*fLine.getOption(srec.first, force_global_option).value.str));
-                }
-                break;
-            case t_bool:
-            {
-                bool val = fLine.getOption(srec.first, force_global_option).value.boolean;
-                setCheckBox(xControlContainer, srec.second.controlName,
-                            srec.second.invert ? !val : val);
-                break;
-            }
-            case t_dbl:
-                break;
-            case t_align:
-                setCheckBox(xControlContainer, srec.second.controlName,
-                            fLine.getOption(srec.first, force_global_option).value.align == both);
-                break;
-            case t_uint:
-                setNumericFieldPosInt(
-                    xControlContainer, srec.second.controlName,
-                    fLine.getOption(srec.first, force_global_option).value.uinteger);
-                break;
-            case t_int:
-                setNumericFieldInt(xControlContainer, srec.second.controlName,
-                                   fLine.getOption(srec.first, force_global_option).value.integer);
-                break;
-            case t_exvec:
-                break;
-        }
-    }
-}
+                            switch (srec.second.otype)
+                            {
+                                case t_str:
+                                    setTextcontrol(xControlContainer, srec.second.controlName,
+                                                   xProperties->getHierarchicalPropertyValue(
+                                                       srec.second.propertyName));
+                                    break;
+                                case t_align: // Same as boolean option
+                                case t_bool:
+                                {
+                                    sal_Bool value = true;
+                                    Any Avalue = xProperties->getHierarchicalPropertyValue(
+                                        srec.second.propertyName);
+                                    Avalue >>= value;
+                                    setCheckBox(xControlContainer, srec.second.controlName, value);
+                                    break;
+                                }
+                                case t_dbl:
+                                    break;
+                                case t_uint:
+                                {
+                                    long value = 0; // Must use long for the Any cast!
+                                    Any Avalue = xProperties->getHierarchicalPropertyValue(
+                                        srec.second.propertyName);
+                                    Avalue >>= value;
+                                    setNumericFieldPosInt(xControlContainer,
+                                                          srec.second.controlName, value);
+                                    break;
+                                }
+                                case t_int:
+                                {
+                                    sal_Int32 value = 0;
+                                    Any Avalue = xProperties->getHierarchicalPropertyValue(
+                                        srec.second.propertyName);
+                                    Avalue >>= value;
+                                    setNumericFieldInt(xControlContainer, srec.second.controlName,
+                                                       value);
+                                    break;
+                                }
+                                case t_exvec:
+                                    break;
+                            }
+                        }
+                    }
 
-void Settingsmanager::setRegistryFromControls(
-    const Reference<XHierarchicalPropertySet>& xProperties,
-    const Reference<XControlContainer>& xControlContainer)
-{
-    for (const auto& srec : settings)
-    {
-        if (!hasControl(xControlContainer, srec.second.controlName))
-        {
-            MSG_INFO(1, "setRegistryFromControls: control does not exist: "
-                            << STR(srec.second.controlName) << endline);
-            continue;
-        }
+                    void Settingsmanager::setStatementsFromControls(
+                        const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                        const Reference<XNamedGraph>& xGraph,
+                        const Reference<XControlContainer>& xControlContainer)
+                    {
+                        for (const auto& srec : settings)
+                        {
+                            if (!hasControl(xControlContainer, srec.second.controlName))
+                            {
+                                MSG_INFO(1, "setStatementsFromControls: control does not exist: "
+                                                << STR(srec.second.controlName) << endline);
+                                continue;
+                            }
 
-        switch (srec.second.otype)
-        {
-            case t_str:
-                xProperties->setHierarchicalPropertyValue(
-                    srec.second.propertyName, com::sun::star::uno::Any(getTextcontrol(
-                                                  xControlContainer, srec.second.controlName)));
-                break;
-            case t_align: // Same as boolean option
-            case t_bool:
-                xProperties->setHierarchicalPropertyValue(
-                    srec.second.propertyName,
-                    com::sun::star::uno::Any(getCheckBox(xControlContainer, srec.second.controlName)
-                                             == 1));
-                break;
-            case t_dbl:
-                break;
-            case t_uint:
-                xProperties->setHierarchicalPropertyValue(
-                    srec.second.propertyName, com::sun::star::uno::Any(getNumericFieldPosInt(
-                                                  xControlContainer, srec.second.controlName)));
-                break;
-            case t_int:
-                xProperties->setHierarchicalPropertyValue(
-                    srec.second.propertyName, com::sun::star::uno::Any(getNumericFieldInt(
-                                                  xControlContainer, srec.second.controlName)));
-                break;
-            case t_exvec:
-                break;
-        }
-    }
-}
+                            switch (srec.second.otype)
+                            {
+                                case t_str:
+                                    updateStatement(
+                                        mxCC, xModel, xGraph, srec.second.statementName,
+                                        getTextcontrol(xControlContainer, srec.second.controlName));
+                                    break;
+                                case t_align: // Same as boolean option
+                                case t_bool:
+                                    updateStatement(
+                                        mxCC, xModel, xGraph, srec.second.statementName,
+                                        (getCheckBox(xControlContainer, srec.second.controlName)
+                                         == 1)
+                                            ? OU("true")
+                                            : OU("false"));
+                                    break;
+                                case t_dbl:
+                                    break;
+                                case t_uint:
+                                    updateStatement(
+                                        mxCC, xModel, xGraph, srec.second.statementName,
+                                        OUSTRINGNUMBER(getNumericFieldPosInt(
+                                            xControlContainer, srec.second.controlName)));
+                                    break;
+                                case t_int:
+                                    updateStatement(
+                                        mxCC, xModel, xGraph, srec.second.statementName,
+                                        OUSTRINGNUMBER(getNumericFieldInt(
+                                            xControlContainer, srec.second.controlName)));
+                                    break;
+                                case t_exvec:
+                                    break;
+                            }
+                        }
+                    }
 
-void Settingsmanager::setControlsFromRegistry(
-    const Reference<XHierarchicalPropertySet>& xProperties,
-    const Reference<XControlContainer>& xControlContainer)
-{
-    for (const auto& srec : settings)
-    {
-        if (!hasControl(xControlContainer, srec.second.controlName))
-        {
-            MSG_INFO(1, "setControlsFromRegistry: control does not exist: "
-                            << STR(srec.second.controlName) << endline);
-            continue;
-        }
+                    void Settingsmanager::setControlsFromStatements(
+                        const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                        const Reference<XNamedGraph>& xGraph,
+                        const Reference<XControlContainer>& xControlContainer)
+                    {
+                        for (const auto& srec : settings)
+                        {
+                            if (!hasControl(xControlContainer, srec.second.controlName))
+                            {
+                                MSG_INFO(1, "setControlsFromStatements: control does not exist: "
+                                                << STR(srec.second.controlName) << endline);
+                                continue;
+                            }
 
-        switch (srec.second.otype)
-        {
-            case t_str:
-                setTextcontrol(xControlContainer, srec.second.controlName,
-                               xProperties->getHierarchicalPropertyValue(srec.second.propertyName));
-                break;
-            case t_align: // Same as boolean option
-            case t_bool:
-            {
-                sal_Bool value = true;
-                Any Avalue = xProperties->getHierarchicalPropertyValue(srec.second.propertyName);
-                Avalue >>= value;
-                setCheckBox(xControlContainer, srec.second.controlName, value);
-                break;
-            }
-            case t_dbl:
-                break;
-            case t_uint:
-            {
-                long value = 0; // Must use long for the Any cast!
-                Any Avalue = xProperties->getHierarchicalPropertyValue(srec.second.propertyName);
-                Avalue >>= value;
-                setNumericFieldPosInt(xControlContainer, srec.second.controlName, value);
-                break;
-            }
-            case t_int:
-            {
-                sal_Int32 value = 0;
-                Any Avalue = xProperties->getHierarchicalPropertyValue(srec.second.propertyName);
-                Avalue >>= value;
-                setNumericFieldInt(xControlContainer, srec.second.controlName, value);
-                break;
-            }
-            case t_exvec:
-                break;
-        }
-    }
-}
-
-void Settingsmanager::setStatementsFromControls(
-    const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-    const Reference<XNamedGraph>& xGraph, const Reference<XControlContainer>& xControlContainer)
-{
-    for (const auto& srec : settings)
-    {
-        if (!hasControl(xControlContainer, srec.second.controlName))
-        {
-            MSG_INFO(1, "setStatementsFromControls: control does not exist: "
-                            << STR(srec.second.controlName) << endline);
-            continue;
-        }
-
-        switch (srec.second.otype)
-        {
-            case t_str:
-                updateStatement(mxCC, xModel, xGraph, srec.second.statementName,
-                                getTextcontrol(xControlContainer, srec.second.controlName));
-                break;
-            case t_align: // Same as boolean option
-            case t_bool:
-                updateStatement(mxCC, xModel, xGraph, srec.second.statementName,
-                                (getCheckBox(xControlContainer, srec.second.controlName) == 1)
-                                    ? OU("true")
-                                    : OU("false"));
-                break;
-            case t_dbl:
-                break;
-            case t_uint:
-                updateStatement(mxCC, xModel, xGraph, srec.second.statementName,
-                                OUSTRINGNUMBER(getNumericFieldPosInt(xControlContainer,
-                                                                     srec.second.controlName)));
-                break;
-            case t_int:
-                updateStatement(
-                    mxCC, xModel, xGraph, srec.second.statementName,
-                    OUSTRINGNUMBER(getNumericFieldInt(xControlContainer, srec.second.controlName)));
-                break;
-            case t_exvec:
-                break;
-        }
-    }
-}
-
-void Settingsmanager::setControlsFromStatements(
-    const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
-    const Reference<XNamedGraph>& xGraph, const Reference<XControlContainer>& xControlContainer)
-{
-    for (const auto& srec : settings)
-    {
-        if (!hasControl(xControlContainer, srec.second.controlName))
-        {
-            MSG_INFO(1, "setControlsFromStatements: control does not exist: "
-                            << STR(srec.second.controlName) << endline);
-            continue;
-        }
-
-        switch (srec.second.otype)
-        {
-            case t_str:
-                setTextcontrol(xControlContainer, srec.second.controlName,
-                               getStatementString(mxCC, xModel, xGraph, srec.second.statementName));
-                break;
-            case t_align: // Same as boolean option
-            case t_bool:
-                setCheckBox(xControlContainer, srec.second.controlName,
-                            getStatementBool(mxCC, xModel, xGraph, srec.second.statementName));
-                break;
-            case t_dbl:
-                break;
-            case t_uint:
-                setNumericFieldPosInt(
-                    xControlContainer, srec.second.controlName,
-                    getStatementPosInt(mxCC, xModel, xGraph, srec.second.statementName));
-                break;
-            case t_int:
-                setNumericFieldInt(
-                    xControlContainer, srec.second.controlName,
-                    getStatementInt(mxCC, xModel, xGraph, srec.second.statementName));
-                break;
-            case t_exvec:
-                break;
-        }
-    }
-}
+                            switch (srec.second.otype)
+                            {
+                                case t_str:
+                                    setTextcontrol(xControlContainer, srec.second.controlName,
+                                                   getStatementString(mxCC, xModel, xGraph,
+                                                                      srec.second.statementName));
+                                    break;
+                                case t_align: // Same as boolean option
+                                case t_bool:
+                                    setCheckBox(xControlContainer, srec.second.controlName,
+                                                getStatementBool(mxCC, xModel, xGraph,
+                                                                 srec.second.statementName));
+                                    break;
+                                case t_dbl:
+                                    break;
+                                case t_uint:
+                                    setNumericFieldPosInt(
+                                        xControlContainer, srec.second.controlName,
+                                        getStatementPosInt(mxCC, xModel, xGraph,
+                                                           srec.second.statementName));
+                                    break;
+                                case t_int:
+                                    setNumericFieldInt(xControlContainer, srec.second.controlName,
+                                                       getStatementInt(mxCC, xModel, xGraph,
+                                                                       srec.second.statementName));
+                                    break;
+                                case t_exvec:
+                                    break;
+                            }
+                        }
+                    }

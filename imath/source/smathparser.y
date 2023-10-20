@@ -20,8 +20,7 @@
 %require "3.0.0"
 %defines
 %define api.prefix {imath}
-%define parser_class_name {smathparser}
-%expect 1
+%define api.parser.class {smathparser}%expect 1
 %define parse.trace
 
 %{
@@ -342,14 +341,16 @@ GiNaC::unitvec unitConversions() {
       for (const auto& u : units)
         msg::info() <<  "Unit GLOBAL: " << u << endline;
 
-  it_option = line_options->find(o_units);
-  if (it_option != line_options->end()) { // There are units local to this line
-    for (const auto& o : *(it_option->second.value.exvec))
-      units.append(o);
+  if (line_options != nullptr) {
+    it_option = line_options->find(o_units);
+    if (it_option != line_options->end()) { // There are units local to this line
+      for (const auto& o : *(it_option->second.value.exvec))
+        units.append(o);
 
-    if (msg::info().checkprio(3))
-      for (const auto& u : *(it_option->second.value.exvec))
-        msg::info() <<  "Unit LOCAL: " << u << endline;
+      if (msg::info().checkprio(3))
+        for (const auto& u : *(it_option->second.value.exvec))
+          msg::info() <<  "Unit LOCAL: " << u << endline;
+    }
   }
 
   return compiler->create_conversions(units, true);
@@ -616,32 +617,32 @@ input:   %empty
 
 usertext: STRING  {
             $$ = new std::vector<std::shared_ptr<textItem>>;
-            $$->push_back(std::make_shared<textItemString>(*$1));
+            $$->push_back(std::make_shared<textItem>(*$1));
             delete($1);
             yyla.value.str=NULL; /* Shouldn't delete($1) do that job? */
           }
           | OPERATOR {
 						$$ = new std::vector<std::shared_ptr<textItem>>;
-						$$->push_back(std::make_shared<textItemOperator>(*$1));
+						$$->push_back(std::make_shared<textItem>(*$1, true));
 						delete($1);
 					}
 					| MAGIC ex MAGIC {
 						$$ = new std::vector<std::shared_ptr<textItem>>;
-						$$->push_back(std::make_shared<textItemExpression>(*$2));
+						$$->push_back(std::make_shared<textItem>(*$2));
 						delete($2);
 					}
           | NEWLINE {
             $$ = new std::vector<std::shared_ptr<textItem>>;
-            $$->push_back(std::make_shared<textItemNewline>());
+            $$->push_back(std::make_shared<textItem>(OU("newline")));
           }
-          | usertext STRING   { $1->push_back(std::make_shared<textItemString>(*$2)); $$ = $1; delete($2); yyla.value.str = NULL; }
-          | usertext OPERATOR { $1->push_back(std::make_shared<textItemOperator>(*$2)); $$ = $1; delete($2); }
+          | usertext STRING   { $1->push_back(std::make_shared<textItem>(*$2)); $$ = $1; delete($2); yyla.value.str = NULL; }
+          | usertext OPERATOR { $1->push_back(std::make_shared<textItem>(*$2, true)); $$ = $1; delete($2); }
 					| usertext MAGIC ex MAGIC {
-						$1->push_back(std::make_shared<textItemExpression>(*$3));
+						$1->push_back(std::make_shared<textItem>(*$3));
 						$$ = $1;
 						delete($3);
 					}
-          | usertext NEWLINE  { $1->push_back(std::make_shared<textItemNewline>()); $$ = $1; }
+          | usertext NEWLINE  { $1->push_back(std::make_shared<textItem>(OU("newline"))); $$ = $1; }
 ;
 
 end:        '\n' {

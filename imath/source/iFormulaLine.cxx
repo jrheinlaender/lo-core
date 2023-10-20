@@ -21,7 +21,6 @@
 #include <ginac/operators.h>
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
-#include <imath/alignblock.hxx>
 #include <imath/equation.hxx>
 #include <imath/func.hxx>
 #include <imath/settingsmanager.hxx>
@@ -29,7 +28,6 @@
 #include <imath/iFormulaLine.hxx>
 #else
 #include "msgdriver.hxx"
-#include "alignblock.hxx"
 #include "equation.hxx"
 #include "func.hxx"
 #include "settingsmanager.hxx"
@@ -39,37 +37,6 @@
 #include "operands.hxx"
 
 using namespace GiNaC;
-
-// textItem implementation
-std::shared_ptr<textItem> textItem::clone() const {
-  return std::make_shared<textItem>(*this);
-}
-
-OUString textItem::alignedText(const iFormulaNodeExpression& l) const {
-  (void)l;
-  if (_text.trim() == OU(""))
-    return OU("\"") + _text + OU("\""); // Probably a trailing space, put in quotes to show the problem
-  else
-    return _text;
-}
-
-OUString textItemOperator::alignedText(const iFormulaNodeExpression& l) const {
-  (void)l;
-  return OU("{} #{} ") + _text.toAsciiUpperCase() + OU(" {}# ");
-}
-
-OUString textItemOperator::unalignedText(const iFormulaNodeExpression& l) const {
-  (void)l;
-  return _text.toAsciiUpperCase();
-}
-
-std::shared_ptr<textItem> textItemExpression::clone() const {
-  return std::make_shared<textItemExpression>(*this);
-}
-
-OUString textItemExpression::alignedText(const iFormulaNodeExpression& l) const {
-  return l.printEx(_expr);
-}
 
 // iFormulaLine implementation =================================================
 iFormulaLine::iFormulaLine(std::vector<OUString>&& formulaParts) :
@@ -365,6 +332,7 @@ iFormulaNodeStmPosvardef::iFormulaNodeStmPosvardef(std::shared_ptr<optionmap> g_
 // NodeStmClearall
 iFormulaNodeStmClearall::iFormulaNodeStmClearall(std::shared_ptr<optionmap> g_options) :
     iFormulaNodeStatement(g_options) {
+  //  TODO out = {compiler->getSym("all_symbols")};
 }
 
 // NodeStmDelete
@@ -472,7 +440,7 @@ OUString iFormulaNodeExpression::printEx(const expression& e) const {
 } // printEx()
 
 std::string iFormulaNodeExpression::getGraphLabel() const {
-  if (_label.getLength() == 0)
+  if (_label.isEmpty())
     return iFormulaLine::getGraphLabel();
   return "@" + STR(_label) + "@";
 }
@@ -484,9 +452,8 @@ iFormulaNodeText::iFormulaNodeText(const GiNaC::unitvec&& unitConversions, std::
     _textlist(std::move(textlist))
 {
   for (const auto& p : _textlist) {
-    std::shared_ptr<textItemExpression> item = std::dynamic_pointer_cast<textItemExpression>(p);
-    if (item != nullptr) {
-      auto in1 = collectSymbols(item->getExpression());
+    if (p->isExpression()) {
+      auto in1 = collectSymbols(p->getExpression());
       in.insert(in1.begin(), in1.end());
     }
   }
@@ -501,44 +468,52 @@ iFormulaLine_ptr iFormulaNodeText::clone() const {
   return std::make_shared<iFormulaNodeText>(*this);
 }
 
-void iFormulaNodeText::display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) {
-  (void)xModel;
-  (void)prev_lhs;
-  // Do we align and chain?
-  bool autoalign = (getOption(o_eqalign).value.align == both);
-  alignedText.setAutochain(getOption(o_eqchain).value.boolean);
+std::vector<std::vector<OUString>> iFormulaNodeText::display(const Reference<XModel>&) const {
+  std::vector<std::vector<OUString>> result;
+  if (_textlist.empty()) return result;
 
-  // Iterate through the different components of the text
-  bool found_operator = false;
-  displayedLhs = OU("");
+  std::vector<OUString> line;
+  OUString text("");
 
-  for (const auto& c : _textlist) {
-    if (!autoalign || block_alignment) {
-      if (!found_operator && c->isOperator()) {
-        displayedLhs = unalignedText;
-        found_operator = true;
+  for (const auto& textPortion : _textlist) {
+    if (textPortion->isNewline()) {
+      text += OU(" newline");
+      line.emplace_back(text);
+      result.emplace_back(line);
+      line = std::vector<OUString>();
+      text = OU("");
+    } else if (textPortion->isOperator()) {
+      // Operators go in a column by themselves
+      if (text.getLength() > 0)
+        line.emplace_back(text);
+      line.emplace_back(OU("{}") + textPortion->getText().toAsciiUpperCase() + OU("{}")); // The two empty bracket pairs are required when aligning operators in a matrix
+      text = OU("");
+    } else if (textPortion->isExpression()) {
+      // Expressions and equations go in 1 or 3 columns by themselves
+      if (text.getLength() > 0)
+        line.emplace_back(text);
+
+      if (is_a<equation>(textPortion->getExpression())) {
+        const equation& eq = ex_to<equation>(textPortion->getExpression());
+        line.emplace_back(OU("{alignr ") + printEx(eq.lhs()) + OU("}"));
+        line.emplace_back(OU("{}") + OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim() + OU("{}"));
+        line.emplace_back(OU("{alignl ") + printEx(eq.rhs()) + OU("}"));
+        text = OU("");
+      } else {
+        line.emplace_back(printEx(textPortion->getExpression()));
+        text = OU("");
       }
-      unalignedText += c->unalignedText(*this);
-    } else if (c->isNewline()) {
-      alignedText.newline();
     } else {
-      alignedText.addTextItem(*c, *this);
+      // Append to previous text
+      text += textPortion->getText();
     }
   }
-}
 
-unsigned iFormulaNodeText::countLinesWithOperators(bool& have_operator) const {
-  unsigned result = 0;
-
-  for (const auto& c : _textlist) {
-    if (c->isNewline() && have_operator) {
-      result++;
-      have_operator = false;
-    } else if (c->isOperator()) {
-      have_operator = true;
-    }
-  }
+  // Clean up remainders
+  if (!text.isEmpty())
+    line.emplace_back(text);
+  if (!line.empty())
+    result.emplace_back(line);
 
   return result;
 }
@@ -553,33 +528,18 @@ iFormulaNodeEx::iFormulaNodeEx(
   in = collectSymbols(_expr);
 }
 
-void iFormulaNodeEx::display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) {
-  (void)xModel;
-  (void)prev_lhs;
-  displayedLhs = OU("");
-  if (_hide) return;
+std::vector<std::vector<OUString>> iFormulaNodeEx::display(const Reference<XModel>&) const {
+  std::vector<std::vector<OUString>> result;
+  if (_hide) return result;
+  std::vector<OUString> line;
 
-  // Is raw formatting possible?
-  OUString what = (autoformat_required()) ?
+  OUString what = (autoformat_required() ?
                     printEx(_expr) : // autoformat
-                    printFormula(); // preserve user formatting changing decimal separator according to locale
-  displayedLhs = what;
+                    printFormula()); // preserve user formatting changing decimal separator according to locale
 
-  if (getOption(o_showlabels).value.boolean)
-    what = OU("\"(") + _label + OU(")\"~") + what;
-
-  // Should the expression/equation be added to the alignblock?
-  bool autoalign = (getOption(o_eqalign).value.align == both);
-  MSG_INFO(3,  "autoalign: " << (autoalign ? "true" : "false") << endline);
-
-  if (autoalign && !block_alignment) { // add to alignment block
-    // The alignl implicitly assumes that expressions always appear on the right hand side of an operator
-    alignedText.addTextItem(textItemString(OU("{alignl ") + what + OU("}")), *this);
-  } else {
-    alignedText.finish();
-    unalignedText = what;
-  }
+  line.emplace_back(OU("{alignl ") + what + OU("}"));
+  result.emplace_back(line);
+  return result;
 }
 
 // Node Value
@@ -615,28 +575,19 @@ OUString iFormulaNodePrintval::getCommand() const {
   return OU("PRINT") + (_algebraic ? OU("AVAL") : OU("VAL")) + (_with ? OU("WITH") : OU(""));
 }
 
-void iFormulaNodePrintval::display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) {
-  (void)xModel;
-  // This node is never hidden
-  displayedLhs = (autoformat_required() ?
+std::vector<std::vector<OUString>> iFormulaNodePrintval::display(const Reference<XModel>&) const {
+  std::vector<std::vector<OUString>> result;
+  std::vector<OUString> line;
+
+  OUString what = (autoformat_required() ?
      printEx(_lh) :
-     adjustLocale(replaceString(_formulaParts[(_with ? 1 : 0)], OU("\n%%ii+"), OU("")))
-  );
-  OUString rhs = printEx(_expr); // The RHS is always calculated and therefore auto-formatted
-  // TODO: What about _label?
+     adjustLocale(replaceString(_formulaParts[(_with ? 1 : 0)], OU("\n%%ii+"), OU(""))));
+  line.emplace_back(OU("{alignr ") + what + OU("}"));
+  line.emplace_back(OU("{}={}"));
+  line.emplace_back(OU("{alignl ") + printEx(_expr) + OU("}")); // The RHS is always calculated and therefore auto-formatted
 
-  if ((getOption(o_eqalign).value.align == both) && !block_alignment) { // add to alignment block
-    alignedText.setAutochain(getOption(o_eqchain).value.boolean); // Chaining only happens inside alignment blocks
-    alignedText.addEquation(displayedLhs, OU("="), rhs);
-  } else {
-    alignedText.finish();
-
-    if (getOption(o_eqchain).value.boolean && prev_lhs.equals(displayedLhs))
-      unalignedText = OU("{} = ") + rhs;
-    else
-      unalignedText = displayedLhs + OU(" = ") + rhs;
-  }
+  result.emplace_back(line);
+  return result;
 }
 
 // Node Explainval
@@ -653,12 +604,12 @@ iFormulaLine_ptr iFormulaNodeExplainval::clone() const {
   return std::make_shared<iFormulaNodeExplainval>(*this);
 }
 
-void iFormulaNodeExplainval::display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) {
-  (void)xModel;
-  displayedLhs = (autoformat_required() ? printEx(_lh) : adjustLocale(replaceString(_formulaParts[0], OU("\n%%ii+"), OU(""))));
+std::vector<std::vector<OUString>> iFormulaNodeExplainval::display(const Reference<XModel>&) const {
+  std::vector<std::vector<OUString>> result;
+  std::vector<OUString> line;
+
+  OUString lhs = (autoformat_required() ? printEx(_lh) : adjustLocale(replaceString(_formulaParts[0], OU("\n%%ii+"), OU(""))));
   OUString rhs = printEx(_expr); // The RHS is always calculated and therefore auto-formatted
-  // TODO: What about _label?
 
   // Prepare the definition string
   exmap variables; // Cannot use exhashmap because subs() doesn't accept it
@@ -672,42 +623,29 @@ void iFormulaNodeExplainval::display(const Reference< XModel >& xModel,
   for (const auto& r : replacements)
     defstring = std::regex_replace(defstring, std::regex(r.first), r.second);
 
-  if (_hide) displayedLhs = OUS8(defstring);
-
-  if ((getOption(o_eqalign).value.align == both) && !block_alignment) { // add to alignment block
-    alignedText.setAutochain(getOption(o_eqchain).value.boolean); // Chaining only happens inside alignment blocks
-    if (_hide) {
-      alignedText.addEquation(displayedLhs, OU("="), rhs);
-    } else if (_definition.is_equal(_lh)) {
-      alignedText.addEquation(displayedLhs, OU("="), OUS8(defstring));
-      alignedText.addTextItem(textItemOperator("="), *this);
-      alignedText.addTextItem(textItemString(rhs), *this);
-    } else {
-      alignedText.addEquation(displayedLhs, OU("="), printEx(_definition));
-      alignedText.addTextItem(textItemOperator("="), *this);
-      alignedText.addTextItem(textItemString(OUS8(defstring)), *this);
-      alignedText.addTextItem(textItemOperator("="), *this);
-      alignedText.addTextItem(textItemString(rhs), *this);
-    }
+  // Display
+  if (_hide) {
+    line.emplace_back(OU("{alignr ") + OUS8(defstring) + OU("}"));
+    line.emplace_back(OU("{}={}"));
+    line.emplace_back(OU("{alignl ") + rhs + OU("}"));
+  } else if (_definition.is_equal(_lh)) {
+    line.emplace_back(OU("{alignr ") + lhs + OU("}"));
+    line.emplace_back(OU("{}={}"));
+    line.emplace_back(OUS8(defstring));
+    line.emplace_back(OU("{}={}"));
+    line.emplace_back(OU("{alignl ") + rhs + OU("}"));
   } else {
-    alignedText.finish();
-    if (_hide) {
-      if (getOption(o_eqchain).value.boolean && prev_lhs.equals(displayedLhs))
-        unalignedText = OU("{} = ") + rhs;
-      else
-        unalignedText = displayedLhs + OU("{} = ") + rhs;
-    } else if (_definition.is_equal(_lh)) {
-      if (getOption(o_eqchain).value.boolean && prev_lhs.equals(displayedLhs))
-        unalignedText = OU("{} = ") + OUS8(defstring) + OU(" = ") + rhs;
-      else
-        unalignedText = displayedLhs + OU(" = ") + OUS8(defstring) + OU(" = ") + rhs;
-    } else {
-      if (getOption(o_eqchain).value.boolean && prev_lhs.equals(displayedLhs))
-        unalignedText = OU("{} = ") + printEx(_definition) + OU(" = ") + OUS8(defstring) + OU(" = ") + rhs;
-      else
-        unalignedText = displayedLhs + OU(" = ") + printEx(_definition) + OU(" = ") + OUS8(defstring) + OU(" = ") + rhs;
-    }
+    line.emplace_back(OU("{alignr ") + lhs + OU("}"));
+    line.emplace_back(OU("{}={}"));
+    line.emplace_back(printEx(_definition));
+    line.emplace_back(OU("{}={}"));
+    line.emplace_back(OUS8(defstring));
+    line.emplace_back(OU("{}={}"));
+    line.emplace_back(OU("{alignl ") + rhs + OU("}"));
   }
+
+  result.emplace_back(line);
+  return result;
 }
 
 // Node Eq
@@ -737,39 +675,33 @@ OUString iFormulaNodeEq::print() const {
   return OU("%%ii @") + _label + OU("@ ") + printOptions() + getCommand() + (_hide ? OU("* ") : OU(" ")) + getFormula();
 }
 
-void iFormulaNodeEq::display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) {
-  (void)xModel;
-  displayedLhs = OU("");
-  if (_hide) return;
-
-  // Is raw formatting possible?
-  OUString what = (autoformat_required()) ?
-                    printEx(_expr) : // autoformat
-                    printFormula(); // preserve user formatting changing decimal separator according to locale
-
+std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XModel>&) const {
+  std::vector<std::vector<OUString>> result;
+  if (_hide) return result;
+  std::vector<OUString> line;
 
   const equation& eq = ex_to<equation>(_expr);
   OUString oper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim();
-  int alignpos = what.toAsciiUpperCase().indexOf(oper); // TODO: This is error-prone, better get operator position from parser
-  displayedLhs = what.copy(0, alignpos).trim();
+  OUString lhs;
+  OUString rhs;
 
-  if (getOption(o_showlabels).value.boolean)
-      what = OU("\"(") + _label + OU(")\"~") + what;
-
-  // Should the expression/equation be added to the alignblock?
-  if ((getOption(o_eqalign).value.align == both) && !block_alignment) { // add to alignment block
-    alignedText.setAutochain(getOption(o_eqchain).value.boolean); // Chaining only happens inside alignment blocks
-    alignedText.addEquation(displayedLhs, oper, what.copy(alignpos + oper.getLength()));
+   if (autoformat_required()) {
+    const equation& eq = ex_to<equation>(_expr);
+    lhs = printEx(eq.lhs());
+    rhs = printEx(eq.rhs());
   } else {
-    alignedText.finish();
-
-    // Omit lhs at the beginning of the result line if the previous line has the identical lhs
-    if (getOption(o_eqchain).value.boolean && prev_lhs.equals(displayedLhs))
-      unalignedText = OU("{} ") + what.copy(alignpos + oper.getLength());
-    else
-      unalignedText = what;
+    OUString textEq = printFormula();
+    int alignpos = textEq.toAsciiUpperCase().indexOf(oper); // TODO: Formulas with operator signs within stringEx might bring confusion
+    lhs = textEq.copy(0, alignpos).trim();
+    rhs = textEq.copy(alignpos + oper.getLength()).trim();
   }
+
+  line.emplace_back(OU("{alignr ") + lhs + OU("}"));
+  line.emplace_back(OU("{}") + oper + OU("{}"));
+  line.emplace_back(OU("{alignl ") + rhs + OU("}"));
+
+  result.emplace_back(line);
+  return result;
 }
 
 // Node Const

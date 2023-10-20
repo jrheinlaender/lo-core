@@ -1849,9 +1849,9 @@ bool checkTextmodeFormula(const Reference< XTextContent >& (formula)) {
 
   // Look for non-whitespace to the left and right of the anchor point, inside the paragraph where the anchor point is
   xCursor->gotoStartOfParagraph(true);
-  if (xCursor->getString().trim().getLength() > 0) return true; // Text exists before the formula
+  if (!xCursor->getString().trim().isEmpty()) return true; // Text exists before the formula
   xCursor->gotoEndOfParagraph (true);
-  return (xCursor->getString().trim().getLength() > 0);
+  return (!xCursor->getString().trim().isEmpty());
 }
 
 // Iterate through all formulas of the document IN THEIR TEXTUAL ORDER. The list supplied by getEmbeddedObjects() is only in this order after
@@ -2000,7 +2000,7 @@ OUString getTextFieldContent(const Reference< XTextDocument >& xDoc, const OUStr
      Any aDependentTextFields = xTextFieldMaster->getPropertyValue(OU("DependentTextFields"));
      Sequence< Reference< XDependentTextField > > xDependentTextFields;
      aDependentTextFields >>= xDependentTextFields;
-     if (xDependentTextFields.getLength() > 0) {
+     if (!xDependentTextFields.isEmpty()) {
       MSG_INFO(0, "Representation of text field is '" << STR(xDependentTextFields[0]->getPresentation(false)) << "'" << endline);
       return xDependentTextFields[0]->getPresentation(false);
     }
@@ -2522,7 +2522,7 @@ std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary)
 
   do {
     OUString token = str.getToken(0, boundary, idx);
-    if (token.getLength() > 0)
+    if (!token.isEmpty())
       result.emplace_back(token);
   } while (idx >= 0);
 
@@ -2589,7 +2589,7 @@ OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>
 
     for (const auto& e: symbols)
     {
-        if (result.getLength() > 0)
+        if (!result.isEmpty())
             result += ",";
         if (GiNaC::is_a<GiNaC::symbol>(e))
         {

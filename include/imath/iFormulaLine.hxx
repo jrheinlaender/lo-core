@@ -75,50 +75,24 @@ typedef std::shared_ptr<iFormulaNodeExpression> iExpression_ptr;
 
 class IMATH_DLLPUBLIC textItem {
 public:
-  textItem(const OUString& t = OU("")) : _text(t) {};
-  textItem(const std::string& t) : _text(OUS8(t)) {};
+  textItem(const OUString& t, const bool op = false) : _text(t.trim()), _expr(GiNaC::_expr0), _newline(t.trim().equalsAsciiL("newline", 7)), _operator(op), _expression(false) {}
+  textItem(const std::string& t, const bool op = false) : _text(OUS8(t).trim()), _expr(GiNaC::_expr0), _newline(OUS8(t).trim().equalsAsciiL("newline", 7)), _operator(op), _expression(false) {}
+  textItem(const GiNaC::expression& e) : _text(OU("")), _expr(e), _newline(false), _operator(false), _expression(false) {}
   textItem(const textItem&) = default; // Required to avoid compiler warning
-  virtual ~textItem() {}; // Required to avoid compiler warning
-  virtual std::shared_ptr<textItem> clone() const;
-  virtual bool isNewline() const { return false; }
-  virtual bool isOperator() const { return false; }
-  virtual OUString alignedText(const iFormulaNodeExpression& l) const;
-  virtual OUString unalignedText(const iFormulaNodeExpression& l) const { return alignedText(l); }
-  virtual unsigned alignedBreaks() const { return 0; }
-  virtual OUString alignedLhs() const { return OU(""); }
-protected:
-  OUString _text;
-};
-class IMATH_DLLPUBLIC textItemString : public textItem {
-public:
-  textItemString(const OUString& s) : textItem(s) {};
-  textItemString(const std::string& s) : textItem(s) {};
-  OUString alignedLhs() const override { return _text; }
-};
-class IMATH_DLLPUBLIC textItemOperator : public textItem {
-public:
-  textItemOperator(const std::string& o) : textItem(o) {};
-  bool isOperator() const override { return true; }
-  OUString alignedText(const iFormulaNodeExpression& l) const override;
-  OUString unalignedText(const iFormulaNodeExpression& l) const override;
-  unsigned alignedBreaks() const override { return 1; }
-};
-class IMATH_DLLPUBLIC textItemNewline : public textItem {
-public:
-  textItemNewline() : textItem(OU("newline")) {};
-  bool isNewline() const override { return true; }
-};
-class IMATH_DLLPUBLIC textItemExpression : public textItem {
-public:
-  textItemExpression(const GiNaC::expression& e) : _expr(e) {};
-  virtual std::shared_ptr<textItem> clone() const override;
-  OUString alignedText(const iFormulaNodeExpression& l) const override;
+  ~textItem() {}; // Required to avoid compiler warning
+  std::shared_ptr<textItem> clone() const { return std::make_shared<textItem>(*this); }
+  bool isNewline() const { return _newline; }
+  bool isOperator() const { return _operator; }
+  bool isExpression() const { return _expression; }
+  OUString getText() const { return _text; }
   GiNaC::expression getExpression() const { return _expr; }
 private:
+  OUString _text;
   GiNaC::expression _expr;
+  bool _newline;
+  bool _operator;
+  bool _expression;
 };
-
-class alignblock;
 
 /// Stores one text line of an iFormula with its type
 // Possible line formats:
@@ -160,8 +134,8 @@ public:
   /// Build the raw text of the line from its components
   virtual OUString print() const;
 
-  /// Display the formula on the controller or onto the aligned / unaligned text
-  virtual void display(const Reference< XModel >&, OUString&, const OUString&, alignblock&, const bool) { /* Nothing to display */ };
+  /// Display the formula on the controller (charts) or return a list of display lines
+  virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const { return {}; /* By default, nothing is displayed */ };
 
   // Properties
   /// Set and get the line's global options
@@ -411,9 +385,6 @@ public:
   /// Print an expression with options and units of the node
   OUString printEx(const GiNaC::expression& e) const;
 
-  // Note that the displayedLhs is set by display() and is always empty before
-  virtual OUString getDisplayedLhs() const { return displayedLhs; }
-  virtual unsigned countLinesWithOperators(bool& have_operator) const { have_operator = false; return 0; }
   virtual bool canHaveOptions() const override { return true; }
   virtual bool isExpression() const override { return true; }
 
@@ -424,7 +395,6 @@ protected:
   GiNaC::expression _expr;
   bool _hide;
   GiNaC::unitvec _unitconv;
-  OUString displayedLhs; // Remember the displayed LHS (up to the operator, if there is one), for chaining of formulas
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeText : public iFormulaNodeExpression {
@@ -435,9 +405,7 @@ public:
   iFormulaNodeText(const iFormulaNodeText& other);
   virtual iFormulaLine_ptr clone() const override;
 
-  virtual void display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) override;
-  virtual unsigned countLinesWithOperators(bool& have_operator) const override;
+  virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;
 
   virtual OUString getCommand() const { return OU("TEXT"); }
   virtual bool isExpression() const override { return false; }
@@ -456,8 +424,7 @@ public:
     const GiNaC::expression& expr, const bool hide
   );
 
-  virtual void display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) override;
+  virtual std::vector<std::vector<OUString>> display(const Reference<XModel>& xModel) const override;
 
   virtual OUString getCommand() const override { return OU("EXDEF"); }
   virtual formulaType getSelectionType() const override { return formulaTypeExpression; }
@@ -473,7 +440,6 @@ public:
   );
   virtual iFormulaLine_ptr clone() const override;
 
-  virtual unsigned countLinesWithOperators(bool& have_operator) const { have_operator = true; return 0; }
   virtual bool canHaveOptions() const override { return true; }
   virtual bool isExpression() const { return true; }
 
@@ -492,8 +458,7 @@ public:
   );
   virtual iFormulaLine_ptr clone() const override;
 
-  virtual void display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) override;
+  virtual std::vector<std::vector<OUString>> display(const Reference<XModel>& xModel) const override;
 
   virtual OUString getCommand() const override;
   virtual formulaType getSelectionType() const override { return formulaTypePrintval; }
@@ -513,8 +478,7 @@ public:
   );
   virtual iFormulaLine_ptr clone() const override;
 
-  virtual void display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) override;
+  virtual std::vector<std::vector<OUString>> display(const Reference<XModel>& xModel) const override;
 
   virtual OUString getCommand() const override { return OU("EXPLAINVAL"); }
   virtual formulaType getSelectionType() const override { return formulaTypeExplainval; }
@@ -534,12 +498,10 @@ public:
   virtual ~iFormulaNodeEq() {};
 
   virtual OUString print() const override;
-  virtual void display(const Reference< XModel >& xModel,
-    OUString& unalignedText, const OUString& prev_lhs, alignblock& alignedText, const bool block_alignment) override;
+  virtual std::vector<std::vector<OUString>> display(const Reference<XModel>& xModel) const override;
 
   virtual OUString getCommand() const override { return OU("EQDEF"); }
   virtual formulaType getSelectionType() const override { return formulaTypeEquation; }
-  virtual unsigned countLinesWithOperators(bool& have_operator) const { have_operator = true; return 0; }
   virtual bool canHaveOptions() const override { return true; }
   virtual bool isExpression() const { return true; }
   virtual depType dependencyType() const override { return depInOut; }

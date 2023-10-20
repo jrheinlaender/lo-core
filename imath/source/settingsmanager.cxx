@@ -259,8 +259,8 @@ void Settingsmanager::initializeOptionmap(const Reference<XComponentContext>& mx
                                           const Reference<XNamedGraph>& xGraph, const Reference<XHierarchicalPropertySet>& xProperties,
                                           std::shared_ptr<optionmap> o, const bool hasMasterDoc) {
   for (const auto& srec : settings) {
-    if (srec.second.propertyName.getLength() == 0 || srec.second.statementName.getLength() == 0) {
-            if (srec.second.formulaOptionName.getLength() > 0)
+    if (srec.second.propertyName.isEmpty() || srec.second.statementName.isEmpty()) {
+            if (!srec.second.formulaOptionName.isEmpty())
                 MSG_INFO(1, "initializeOptionmap: " << STR(srec.second.formulaOptionName) << " is not defined" << endline);
             // otherwise silently ignore (options for internal usage only)
       continue;
@@ -272,7 +272,7 @@ void Settingsmanager::initializeOptionmap(const Reference<XComponentContext>& mx
           if (hasStatement(mxCC, xModel, xGraph, srec.second.statementName)) {
             OUString localStatement = getStatementString(mxCC, xModel, xGraph, srec.second.statementName);
             if (srec.first == o_unitstr && (*o)[srec.first].value.str != nullptr)
-                (*o)[srec.first].value.str->append(((o->at(srec.first).value.str->size() > 0 && localStatement.getLength() > 0) ? "; " : "") +
+                (*o)[srec.first].value.str->append(((o->at(srec.first).value.str->size() > 0 && !localStatement.isEmpty()) ? "; " : "") +
                                                    STR(localStatement));
             else
               (*o)[srec.first] = option(STR(localStatement));
@@ -377,10 +377,10 @@ void Settingsmanager::setLineOptionsFromControls(iFormulaLine& f, const Referenc
 void Settingsmanager::setControlsFromLineOptions(const iFormulaLine& fLine, const Reference<XControlContainer>& xControlContainer,
                                                  const bool force_global_option) {
   for (const auto& srec : settings) {
-    if ((srec.second.controlName.getLength() > 0) && !hasControl(xControlContainer, srec.second.controlName)) {
+    if ((!srec.second.controlName.isEmpty()) && !hasControl(xControlContainer, srec.second.controlName)) {
       MSG_INFO(1, "setControlsFromLineOptions: control does not exist: " << STR(srec.second.controlName)<< endline);
       continue;
-    } else if (srec.second.controlName.getLength() == 0) {
+    } else if (srec.second.controlName.isEmpty()) {
       continue;
     }
 

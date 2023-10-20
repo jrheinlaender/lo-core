@@ -64,7 +64,6 @@ $(eval $(call gb_Library_use_custom_headers,imath,\
 $(eval $(call gb_Library_use_sdk_api,imath))
 
 $(eval $(call gb_Library_add_exception_objects,imath,\
-    imath/source/alignblock \
     imath/source/differential \
     imath/source/eqc \
     imath/source/equation \

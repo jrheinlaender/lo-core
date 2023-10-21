@@ -24,6 +24,8 @@
  <toolbar:toolbaritem xlink:href=".uno:iMathInsertMatrix"/>
  <toolbar:toolbaritem xlink:href=".uno:iMathInsertUnit"/>
  <toolbar:toolbarseparator/>
+ <toolbar:toolbaritem xlink:href=".uno:iMathEditHide"/>
+ <toolbar:toolbaritem xlink:href=".uno:iMathEditShow"/>
  <toolbar:toolbaritem xlink:href=".uno:iMathInsertClearEquation"/>
  <toolbar:toolbaritem xlink:href=".uno:iMathInsertClearAll"/>
  <toolbar:toolbarseparator/>

@@ -12,7 +12,9 @@
 #include <rtl/ustring.hxx>
 
 // bitmaps for iMath GUI
-inline constexpr OUStringLiteral BMP_IMGUI_SHOW = u"starmath/res/lc_imathshow.png";
-inline constexpr OUStringLiteral BMP_IMGUI_HIDE = u"starmath/res/lc_imathhide.png";
+inline constexpr OUStringLiteral BMP_IMGUI_SHOW = u"starmath/res/lc_imatheditshow.png";
+inline constexpr OUStringLiteral BMP_IMGUI_HIDE = u"starmath/res/lc_imathedithide.png";
+inline constexpr OUStringLiteral BMP_IMGUI_SHOWLABEL = u"starmath/res/sc_imatheditshow.png";
+inline constexpr OUStringLiteral BMP_IMGUI_HIDELABEL = u"starmath/res/sc_imathedithide.png";
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab cinoptions=b1,g0,N-s cinkeys+=0=break: */

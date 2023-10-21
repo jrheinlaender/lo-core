@@ -44,6 +44,7 @@
 #include <cfgitem.hxx>
 #include <smediteng.hxx>
 #include <bitmaps.hlst>
+#include <logging.hxx>
 
 #include <com/sun/star/container/XChild.hpp>
 

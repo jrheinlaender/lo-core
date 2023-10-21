@@ -346,9 +346,7 @@ private:
     /// The parsed formula text split into lines
     std::list<iFormulaLine_ptr> mLines;
     /// Add result lines to the list of iFormulaLines
-    void addResultLines();
-    /// Count the number of lines of a certain type
-    bool align_makes_sense() const;
+    bool addResultLines();
 
     /// Initialize members once for the lifetime of the class
     static void ImStaticInitialization();

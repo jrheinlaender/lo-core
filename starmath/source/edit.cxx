@@ -226,6 +226,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
     , mSelected(false)
     , mNumClicks(0)
+    , mClickedColumn(-1)
     , mEditedColumn(-1)
 {
     if (!mxScrolledWindow || !mxFormulaList)
@@ -236,7 +237,6 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
 
     mxFormulaList->connect_key_release(LINK(this, ImGuiWindow, KeyReleaseHdl));
     mxFormulaList->connect_changed(LINK(this, ImGuiWindow, SelectHdl));
-    mxFormulaList->connect_mouse_press(LINK(this, ImGuiWindow, MousePressHdl));
     mxFormulaList->connect_mouse_release(LINK(this, ImGuiWindow, MouseReleaseHdl));
     mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
     mxFormulaList->set_selection_mode(SelectionMode::Single);
@@ -286,12 +286,6 @@ ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
     mSelected = true;
 }
 
-IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
-{
-    mNumClicks = rMEvt.GetClicks();
-    return false;
-}
-
 namespace {
     auto getLineIterator(std::list<std::shared_ptr<iFormulaLine>>& fLines, const unsigned lineId)
     {
@@ -331,20 +325,35 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
         return false;  // This  click selected a new entry
     }
 
-    Point mousePos = rMEvt.GetPosPixel();
-    tools::Rectangle cellArea = mxFormulaList->get_column_area(IMGUIWINDOW_COL_HIDDEN);
+    if (mEditedColumn > 0)
+        return false; // Ignore mouse clicks when a cell is being edited
+
+    mNumClicks = rMEvt.GetClicks();
+
+    mClickedColumn = -1;
     auto xIter(mxFormulaList->make_iterator());
     if (!mxFormulaList->get_selected(xIter.get()))
         return false; // No entry is selected
-    cellArea = cellArea.Intersection(mxFormulaList->get_row_area(*xIter));
 
-    if (mNumClicks == 1 && cellArea.Contains(mousePos))
+    Point mousePos = rMEvt.GetPosPixel();
+
+    for (int col = 0; col <= IMGUIWINDOW_COL_LAST; ++col)
     {
-        mNumClicks = 0;
+        tools::Rectangle cellArea = mxFormulaList->get_cell_area(*xIter, col);
+        if (cellArea.Contains(mousePos))
+        {
+            mClickedColumn = col;
+            break;
+        }
+    }
 
+    if (mNumClicks > 1)
+        return false; // We only handle single clicks here
         SmDocShell* pDoc = GetDoc();
         if (!pDoc) return false;
 
+    switch (mClickedColumn)
+    {
         auto fLines = pDoc->GetFormulaLines();
         auto itLine = getLineIterator(fLines, mxFormulaList->get_selected_id().toUInt64());
 
@@ -359,10 +368,26 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
             pDoc->SetImText(makeNewFormula(fLines));
             ResetModel();
             return true;
+        // Note: Text columns are handled in EditedEntryHdl
+        case IMGUIWINDOW_COL_LABEL:
+        case IMGUIWINDOW_COL_TYPE:
+        case IMGUIWINDOW_COL_FORMULA:
+        {
+            if (mxFormulaList->get_sensitive(*xIter, IMGUIWINDOW_COL_LABEL))
+            {
+                mEditedColumn = mClickedColumn;
+                SAL_INFO_LEVEL(3, "starmath.imath", "Editing detected in column " << mEditedColumn);
+            }
+            break;
         }
+        default:
+            return false;
     }
 
+    // Click was handled
     mNumClicks = 0;
+    mClickedColumn = -1;
+
     return false;
 }
 
@@ -383,27 +408,29 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
     auto fLines = pDoc->GetFormulaLines();
     auto itLine = getLineIterator(fLines, mxFormulaList->get_id(rIterString.first).toUInt64());
     if (itLine == fLines.end()) return true; // line number not found
-    if (editedColumn < 0) return true; // Just to be safe
 
-    switch (editedColumn)
     {
-        case IMGUIWINDOW_COL_LABEL:
+        switch (mEditedColumn)
         {
-            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
-            if (expr != nullptr)
-                expr->setLabel(rIterString.second);
-            break;
+            case IMGUIWINDOW_COL_LABEL:
+            {
+                iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+                if (expr != nullptr)
+                    expr->setLabel(rIterString.second);
+                break;
+            }
+            case IMGUIWINDOW_COL_FORMULA:
+                (*itLine)->setFormula(rIterString.second);
+                break;
         }
         case IMGUIWINDOW_COL_TYPE:
             //(*itLine)->setLabel(mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE));
             break;
-        case IMGUIWINDOW_COL_FORMULA:
-            (*itLine)->setFormula(rIterString.second);
-            break;
-    }
 
-    pDoc->SetImText(makeNewFormula(fLines));
+        pDoc->SetImText(makeNewFormula(fLines));
 
+finished:
+    mEditedColumn = -1;
     return true;
 }
 
@@ -415,14 +442,6 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
 
     SmDocShell* pDoc = GetDoc();
     if (!pDoc) return false;
-
-    // Find active cell (xIter, col)
-    auto xIter(mxFormulaList->make_iterator());
-    int col = 0;
-    if (!mxFormulaList->get_cursor(xIter.get(), col)) return false;
-    // We are only interested in certain columns here
-    if (col != IMGUIWINDOW_COL_FORMULA) return false;
-    mEditedColumn = col; // Save for storing editing result in EditedEntryHdl
 
     // TODO How do we get the changed text out of the GtkCellRendererText? The TreeView returns the old text
     std::cout << "Text=" << mxFormulaList->get_text(*xIter, col) << std::endl;

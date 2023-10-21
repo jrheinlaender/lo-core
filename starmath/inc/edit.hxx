@@ -212,9 +212,9 @@ private:
 
     DECL_LINK(SelectHdl, weld::TreeView&, void);
     bool mSelected;
-    DECL_LINK(MousePressHdl, const ::MouseEvent&, bool);
-    int mNumClicks;
     DECL_LINK(MouseReleaseHdl, const MouseEvent&, bool);
+    int mNumClicks;
+    int mClickedColumn;
     DECL_LINK(KeyReleaseHdl, const ::KeyEvent&, bool);
 
     DECL_LINK(EditingEntryHdl, const weld::TreeIter&, bool);

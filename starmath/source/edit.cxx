@@ -268,7 +268,6 @@ void ImGuiWindow::ResetModel()
     SmDocShell* pDoc = GetDoc();
     if (!pDoc) return;
 
-    int id = 0;
     int lineCount = 0;
 
     for (const auto& fLine : pDoc->GetFormulaLines())
@@ -277,7 +276,7 @@ void ImGuiWindow::ResetModel()
 
         mxFormulaList->append(xIter.get());
 
-        mxFormulaList->set_id(*xIter, OUString::number(id++));
+        mxFormulaList->set_id(*xIter, weld::toId(&fLine));
 
         iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
         if (expr != nullptr && !std::dynamic_pointer_cast<iFormulaNodeText>(fLine))
@@ -295,6 +294,7 @@ void ImGuiWindow::ResetModel()
             mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
             mxFormulaList->set_image(*xIter, "");
         }
+
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
 
@@ -314,22 +314,6 @@ IMPL_LINK_NOARG(ImGuiWindow, SelectHdl, weld::TreeView&, void)
 }
 
 namespace {
-    auto getLineIterator(std::list<std::shared_ptr<iFormulaLine>>& fLines, const unsigned lineId)
-    {
-        if (fLines.size() == 0) return fLines.end();
-        auto itLine = fLines.begin();
-        unsigned lineNum = 0;
-
-        for (; itLine != fLines.end(); ++itLine)
-        {
-            if ((*itLine)->getSelectionType() == formulaTypeResult) continue;
-            if (lineNum == lineId) break;
-            ++lineNum;
-        }
-
-        return itLine;
-    }
-
     OUString makeNewFormula(const std::list<std::shared_ptr<iFormulaLine>>& fLines)
     {
         OUString newFormula;
@@ -381,17 +365,23 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
 
     switch (mClickedColumn)
     {
-        auto fLines = pDoc->GetFormulaLines();
-        auto itLine = getLineIterator(fLines, mxFormulaList->get_selected_id().toUInt64());
 
-        if (itLine == fLines.end()) return false; // line number not found
+            auto fLines = pDoc->GetFormulaLines();
+            auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
         if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return false; // Text lines cannot be hidden
 
+            if (itLine == nullptr)
+                return false; // line number not found
         iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
         if (expr != nullptr)
         {
             expr->setHide(!expr->getHide());
             mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
+            auto fLines = pDoc->GetFormulaLines();
+            auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+
+            if (itLine == nullptr)
+                return false; // line number not found
             pDoc->SetImText(makeNewFormula(fLines));
             ResetModel();
             return true;
@@ -432,11 +422,13 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
     SmDocShell* pDoc = GetDoc();
     if (!pDoc) return true; // Returning false would pass the call on to the next handler
 
-    auto fLines = pDoc->GetFormulaLines();
-    auto itLine = getLineIterator(fLines, mxFormulaList->get_id(rIterString.first).toUInt64());
-    if (itLine == fLines.end()) return true; // line number not found
 
     {
+        auto fLines = pDoc->GetFormulaLines();
+        auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rIterString.first));
+        if (itLine == nullptr)
+            goto finished; // line number not found
+
         switch (mEditedColumn)
         {
             case IMGUIWINDOW_COL_LABEL:
@@ -500,9 +492,9 @@ IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void
     if (!pDoc) return;
 
     auto fLines = pDoc->GetFormulaLines();
-    auto itLine = getLineIterator(fLines, mxFormulaList->get_id(rRowCol.first).toUInt64());
+    auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rRowCol.first));
 
-    if (itLine == fLines.end()) return; // line number not found
+    if (itLine == nullptr) return; // line number not found
     if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return; // Text lines cannot be hidden
 
     iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);

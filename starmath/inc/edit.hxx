@@ -228,7 +228,9 @@ public:
 
     SmDocShell* GetDoc();
 
-    void Update();
+    // Rebuild the TreeView model from the document
+    void ResetModel();
+
     virtual void GrabFocus();
     bool HasFocus() const;
     // Is the page of this view current in the notebook?

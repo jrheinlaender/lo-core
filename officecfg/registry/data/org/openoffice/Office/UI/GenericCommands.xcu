@@ -7549,7 +7549,7 @@ bit 3 (0x8): #define UICOMMANDDESCRIPTION_PROPERTIES_TOGGLEBUTTON 8
       </node>
       <node oor:name=".uno:iMathWiki" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">iMath Help Online (Wiki)</value>
+          <value xml:lang="en-US">iMath Wiki</value>
         </prop>
         <prop oor:name="Properties" oor:type="xs:int">
           <value>1</value>
@@ -7557,7 +7557,7 @@ bit 3 (0x8): #define UICOMMANDDESCRIPTION_PROPERTIES_TOGGLEBUTTON 8
       </node>
       <node oor:name=".uno:iMathExamplesMenu" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
-          <value xml:lang="en-US">iMath Help</value>
+          <value xml:lang="en-US">Examples</value>
         </prop>
       </node>
       <node oor:name=".uno:iMathExampleAnalysis" oor:op="replace">

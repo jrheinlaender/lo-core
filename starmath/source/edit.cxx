@@ -262,12 +262,15 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
             mxFormulaList->set_toggle(*xIter, expr->getHide() ? TRISTATE_TRUE : TRISTATE_FALSE, IMGUIWINDOW_COL_HIDDEN);
             mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
+            option o = fLine->getOption(o_showlabels);
+            mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOWLABEL) : OUString(BMP_IMGUI_HIDELABEL), IMGUIWINDOW_COL_LABEL_HIDE);
             mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
         }
         else
         {
             // Note toggle remains invisible since we do not set a value
             mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
+            mxFormulaList->set_image(*xIter, "");
         }
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);

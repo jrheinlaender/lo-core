@@ -697,7 +697,17 @@ void SmDocShell::Compile()
             for (const auto& i : mLines)
                 SAL_INFO_LEVEL(0, "starmath.imath", i->printFormula());
 
-            addResultLines();
+            bool hasAlignment = addResultLines();
+
+            // Reduce column spacing for aligned equations. Note: This also reduces spaces in "normal" matrices
+            if (hasAlignment)
+            {
+                SmFormat aOldFormat  = GetFormat();
+                SmFormat aNewFormat( aOldFormat );
+                aNewFormat.SetDistance(DIS_MATRIXCOL, sal_Int16(10));
+                SetFormat( aNewFormat );
+            }
+
             OUString result;
 
             for (const auto& i : mLines)
@@ -943,124 +953,207 @@ void SmDocShell::ArrangeFormula()
     maAccText.clear();
 }
 
-// Note: Mostly copied from iFormula.cxx
-bool SmDocShell::align_makes_sense() const {
-  // If there are at least two operator signs in two different lines, aligning makes sense
-  bool have_operator = false;
-  unsigned count = 0;
+bool SmDocShell::addResultLines()
+{
+    SAL_INFO_LEVEL(2, "starmath.imath", "SmDocShell::addResultLines" << endline);
+    // Check if we must reserve space for labels
+    bool showlabels = false;
+    for (iFormulaLine_it i = mLines.begin(); i != mLines.end(); ++i)
+    {
+        iExpression_ptr p_expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*i);
 
-  for (const auto& i : mLines) {
-    iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(i);
-    if ((pExpr != nullptr) && !pExpr->getHide())
-      count += pExpr->countLinesWithOperators(have_operator);
-    if (count > 1) return true; // Avoid unnecessary iterations
-  }
+        if (p_expr != nullptr && (*i)->getOption(o_showlabels).value.boolean)
+        {
+            showlabels = true;
+            break;
+        }
+    }
+    SAL_INFO_LEVEL(3, "starmath.imath", "showlabels = " << (showlabels ? "true" : "false") << endline);
 
-  if (have_operator) count++; // Final line does not need newline
-  return count > 1;
-} // align_makes_sense()
+    // Find parent text document, if there is one
+    // A valid xModel is only required for the CHART statement
+    Reference<container::XChild> xModel(GetModel(), UNO_QUERY);
+    Reference<XModel> xParent;
+    if (xModel.is())
+        xParent = Reference<XModel>(xModel->getParent(), UNO_QUERY);
+    Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
+    if (!xTextDoc.is())
+        xParent.clear();
 
-void SmDocShell::addResultLines() {
-  SAL_INFO_LEVEL(2, "starmath.imath", "SmDocShell::addResultLines" << endline);
-  // Don't try to align one-line iFormulas!
-  bool do_not_align = !align_makes_sense();
-  SAL_INFO_LEVEL(3, "starmath.imath", "do_not_align = " << (do_not_align ? "true" : "false") << endline);
+    unsigned basefontheight = o3tl::convert(GetFormat().GetBaseSize().Height(), SmO3tlLengthUnit(), o3tl::Length::pt);
+    std::vector<std::vector<OUString>> resultMatrix; // Collect all result lines in a sort of matrix
+    std::vector<OUString> currentMatrixLine;
+    std::size_t columns(0);
+    bool autoalign(false);
+    bool autochain(false);
+    OUString lineLabel("");
+    OUString exLabel("");
+    OUString previousLhs("");
 
-  // Collects all the lines that should be aligned to one another
-  alignblock a;
+    for (auto line_it = mLines.begin(); line_it != mLines.end();)
+    {
+        const auto& line = *line_it;
+        iExpression_ptr p_expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(line);
 
-  // Insert result lines where appropriate
-  bool hasResult = false;
-  OUString resultText;
-  OUString prev_lhs = OU(""); // LHS of previous equation, for chaining
-  unsigned basefontheight = o3tl::convert(GetFormat().GetBaseSize().Height(), SmO3tlLengthUnit(), o3tl::Length::pt);
+        // Create result lines
+        line->setBasefontHeight(basefontheight);
+        std::vector<std::vector<OUString>> displayLines = line->display(xParent);
 
-  for (iFormulaLine_it i = mLines.begin(); i != mLines.end();) {
-    SAL_INFO_LEVEL(3, "starmath.imath",  "Line type = " << (*i)->getSelectionType() << endline);
-    // Echo iFormula text
-    if ((*i)->getOption(o_echoformula).value.boolean == true) {
-      if ((*i)->getSelectionType() != formulaTypeComment && (*i)->getSelectionType() != formulaTypeEmptyLine && (*i)->getSelectionType() != formulaTypeResult) {
-        OUString rtext = (*i)->print();
-        rtext = replaceString(rtext, OU("\""), OU("\\\""));
-        rtext = replaceString(rtext, OU("\n%%ii+"), OU("\" newline\"%%ii+"));
-        rtext = OU("\"") + rtext + OU("\" newline{}");
+        if (currentMatrixLine.empty())
+        {
+            // Extract options. Options remain valid until the next newline, thus we extract them only if we are starting a new result line
+            autoalign = line->getOption(o_eqalign).value.boolean;
+            autochain = line->getOption(o_eqchain).value.boolean;
 
-        if (i != mLines.begin()) {
-          iFormulaLine_it prev_it = i;
-          --prev_it;
-          if (prev_it != mLines.begin()) --prev_it;
-          if ((*prev_it)->getFormula().lastIndexOf(OU("\" newline{}")) < 0)
-            rtext = OU("{} newline ") + rtext;
+            // Extract label. This label is shown at the beginning of the result line in a column by itself
+            lineLabel = (p_expr != nullptr && line->getOption(o_showlabels).value.boolean)
+                ? OU("\"(") + p_expr->getLabel() + OU(")\"~")
+                : OU({});
+            MSG_INFO(3, "Extracted label '" << STR(lineLabel) << "'" << endline);
+        }
+        else
+        {
+            // Extract label for expression/equation in the middle of a result line
+            exLabel = (p_expr != nullptr && line->getOption(o_showlabels).value.boolean) ? p_expr->getLabel() : OU("");
         }
 
-        i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(rtext));
-        SAL_INFO_LEVEL(3, "starmath.imath", "Created echo line" << endline);
-        ++i;
-      }
-    }
+        // Move iterator to next formula line
+        ++line_it;
 
-    // Display the result of the line
-    (*i)->setBasefontHeight(basefontheight);
-    if ((*i)->isDisplayable()) {
-      if ((*i)->getSelectionType() == formulaTypeChart) {
-        // A valid xModel is only required for the CHART statement
-        Reference<container::XChild> xModel(GetModel(), UNO_QUERY);
-        Reference<XModel> xParent;
-        if (xModel.is())
-            xParent = Reference<XModel>(xModel->getParent(), UNO_QUERY);
-        Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
-        if (xTextDoc.is()) {
-            (*i)->display(xParent, resultText, prev_lhs, a, do_not_align); // For stand-alone formulas ignore CHART statement // TODO Implement for charts in presentations
+        // Concatenate result lines such that each result line ends with a newline
+        // Note: newlines are only ever found at the end of a resultLine
+        for (auto displayLine_it = displayLines.begin(); displayLine_it != displayLines.end(); )
+        {
+            auto& displayLine = *displayLine_it;
+
+            if (displayLine.empty())
+            {
+                ++displayLine_it;
+                continue;
+            }
+
+            // Option showlabels=true was used in an expression/equation in the middle of a line
+            if (!exLabel.isEmpty())
+                displayLine.front() = OU("{alignr \"(") + exLabel + OU(")\"}~") + displayLine.front();
+
+            if (currentMatrixLine.empty())
+                std::swap(currentMatrixLine, displayLine);
+            else
+                currentMatrixLine.insert(currentMatrixLine.end(), displayLine.begin(), displayLine.end());
+
+            // Move iterator to next result line
+            ++displayLine_it;
+
+            // Finish the result line either at a new line or after processing all formula lines
+            bool hasNewline = currentMatrixLine.back().trim().equalsAsciiL("newline", 7);
+            if (hasNewline || (line_it == mLines.end() && displayLine_it == displayLines.end()))
+            {
+                // Check for repeated left-hand-side
+                if (autochain && previousLhs.equals(currentMatrixLine.front()))
+                    currentMatrixLine.front() = OU("{}");
+                else
+                    previousLhs = currentMatrixLine.front();
+
+                // Add label if asked for
+                if (showlabels)
+                    currentMatrixLine.emplace(currentMatrixLine.begin(), lineLabel);
+
+                // Mark request for automatic alignment
+                if (hasNewline)
+                    currentMatrixLine.back() = (autoalign ? "y" : "n"); // Overwrite the newline because it is unnecessary
+                else
+                    currentMatrixLine.emplace_back(autoalign ? "y" : "n"); // This might be the case for the last formula line
+
+                // Count columns
+                columns = std::max(columns, currentMatrixLine.size() - 1); // But don't count alignment marker
+                MSG_INFO(3, "Number of columns " << columns << endline);
+
+                // Write line to matrix
+                resultMatrix.emplace_back(std::vector<OUString>());
+                std::swap(resultMatrix.back(), currentMatrixLine);
+            }
         }
-        hasResult = false; // CHART is displayable but has no textual result
-      } else {
-        (*i)->display(Reference< XModel>(), resultText, prev_lhs, a, do_not_align);
-        hasResult = true;
-      }
-      iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*i);
-      if (pExpr != nullptr && !(pExpr->getHide() && pExpr->getDisplayedLhs().getLength() == 0))
-        prev_lhs = pExpr->getDisplayedLhs();
-      SAL_INFO_LEVEL(3, "starmath.imath", "Line is displayable and has " << (hasResult ? "a" : "no") << " textual result" << endline);
+
+        // Add echo line after current formula line if asked for (note that the iterator has already been incremented and emplace() inserts the new element before it)
+        if (line->getOption(o_echoformula).value.boolean == true)
+        {
+            if (line->getSelectionType() != formulaTypeComment && line->getSelectionType() != formulaTypeEmptyLine && line->getSelectionType() != formulaTypeResult)
+            {
+                OUString rtext = line->print();
+                rtext = replaceString(rtext, OU("\""), OU("\\\""));
+                rtext = replaceString(rtext, OU("\n%%ii+"), OU("\" newline\"%%ii+"));
+                rtext = OU("\"") + rtext + OU("\" newline{}");
+
+                line_it = mLines.emplace(line_it, std::make_shared<iFormulaNodeResult>(rtext));
+                ++line_it;
+                MSG_INFO(3, "Created echo line" << endline);
+            }
+        }
     }
 
-    // Point iterator to next element because emplace moves everything backwards
-    ++i;
+    // Add all result lines at the end
+    bool insideBlock = false;
+    bool hasAlignment = false;
 
-    // The following possibilities exist
-    // 1. We are not aligning (alignblock is empty). Insert the resultLine
-    // 2. We started a new alignblock. Neither block nor resultLine is inserted
-    // 3. We continued an existing alignblock. Neither block nor resultLine is inserted
-    // 4. We finished an alignblock. Insert the alignblock, and the resultLine, too
-    // 5. We have processed the last line. Insert the alignblock
-    // After emplacing lines, ensure that the iterator points to the line after the newly created line
-    if (a.isEmpty()) { // Case 1.
-      SAL_INFO_LEVEL(3, "starmath.imath", "Not aligning this line. There is " << (hasResult ? "a" : "no") << " textual result" << endline);
-      if (hasResult) {
-        i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
-        ++i;
-        resultText = OU("");
-        hasResult = false;
-      }
-    } else if (a.isFinished()) { // Case 4.
-      SAL_INFO_LEVEL(3, "starmath.imath", "Finishing alignblock with a result line" << endline);
-      i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(a.print()));
-      ++i;
-      if (hasResult) {
-        SAL_INFO_LEVEL(3, "starmath.imath", "... and inserting new result line" << endline);
-        i = mLines.emplace(i, std::make_shared<iFormulaNodeResult>(resultText));
-        ++i;
-        resultText = OU("");
-        hasResult = false;
-      }
-      a.clear();
-    } else if (i == mLines.end()) { // Case 5.
-      SAL_INFO_LEVEL(3, "starmath.imath", "Reached last line, inserting alignblock in a result line" << endline);
-      a.finish();
-      mLines.emplace_back(std::make_shared<iFormulaNodeResult>(a.print()));
-      i = mLines.end();
-      a.clear();
+    for (auto resultLine_it = resultMatrix.begin(); resultLine_it != resultMatrix.end(); )
+    {
+        auto& resultLine = *resultLine_it;
+
+        // Check for automatic alignment, and ignore the setting if there is only a single result line
+        autoalign = (resultLine.back() == OU("y")) && (resultMatrix.size() > 1);
+
+        if (autoalign)
+        {
+            if (!insideBlock)
+            {
+                // Start new alignment block
+                mLines.emplace_back(std::make_shared<iFormulaNodeResult>(OU("MATRIX {")));
+                insideBlock = true;
+                hasAlignment = true; // There is (at least) one aligned block in the result lines
+            }
+        }
+        else
+        {
+            if (insideBlock)
+            {
+                // Finish alignment block
+                mLines.emplace_back(std::make_shared<iFormulaNodeResult>(OU("}")));
+                insideBlock = false;
+            }
+        }
+
+        resultLine.pop_back(); // Remove alignment marker
+
+        OUString textLine("");
+        for (auto part_it = resultLine.begin(); part_it != resultLine.end(); )
+        {
+            textLine += *part_it;
+            ++part_it;
+            if (part_it != resultLine.end() && autoalign)
+                textLine += OU(" # ");
+        }
+
+        // Add empty columns as required
+        if (autoalign)
+        {
+            size_t col = resultLine.size();
+            while (columns > col++)
+                textLine += OU(" # {}");
+        }
+
+        // Move iterator to next line
+        ++resultLine_it;
+
+        if (autoalign && resultLine_it != resultMatrix.end())
+            textLine += OU(" ##");
+
+        mLines.emplace_back(std::make_shared<iFormulaNodeResult>(textLine));
     }
-  }
+
+    if (insideBlock)
+        mLines.emplace_back(std::make_shared<iFormulaNodeResult>(OU("}")));
+
+    return hasAlignment;
 }
 
 void SmDocShell::UpdateEditEngineDefaultFonts()

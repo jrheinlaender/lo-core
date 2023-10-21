@@ -243,12 +243,35 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
     mxFormulaList->set_selection_mode(SelectionMode::Single);
 
+    ResetModel();
+
     mxFormulaList->columns_autosize();
+
+ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
+{
+}
+
+// TODO Should we / Must we listen to the Broadcast emitted in SmDocShell::SetModified() ?
+void ImGuiWindow::ResetModel()
+{
+    // Remember the current selection
+    int currentSelection = 0;
+    auto  xIter = mxFormulaList->make_iterator();
+    if (mxFormulaList->get_iter_first(*xIter.get()))
+        do
+        {
+            if (mxFormulaList->is_selected(*xIter.get()))
+                break;
+            ++currentSelection;
+        } while (mxFormulaList->iter_next(*xIter.get()));
+
+    mxFormulaList->clear();
+
     SmDocShell* pDoc = GetDoc();
     if (!pDoc) return;
 
-    std::unique_ptr<weld::TreeIter> xIter = mxFormulaList->make_iterator();
     int id = 0;
+    int lineCount = 0;
 
     for (const auto& fLine : pDoc->GetFormulaLines())
     {
@@ -276,14 +299,18 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
         }
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
+
+        if (lineCount == currentSelection)
+            mxFormulaList->select(*xIter);
+        ++lineCount;
     }
 
     mxFormulaList->columns_autosize();
-    editedColumn = -1;
+
+    mSelected = false; // A row has already been selected
 }
 
 IMPL_LINK_NOARG(ImGuiWindow, SelectHdl, weld::TreeView&, void)
-ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
 {
     mSelected = true;
 }
@@ -430,6 +457,8 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
             break;
 
         pDoc->SetImText(makeNewFormula(fLines));
+        ResetModel();
+    }
 
 finished:
     mEditedColumn = -1;
@@ -461,6 +490,7 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
         (*itLine)->setFormula(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA));
 
     pDoc->SetImText(makeNewFormula(fLines));
+    ResetModel();
     */
 
     return false; // Let text editor handle the key
@@ -482,6 +512,7 @@ IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void
     {
         expr->setHide(mxFormulaList->get_toggle(rRowCol.first, rRowCol.second) == TRISTATE_TRUE);
         pDoc->SetImText(makeNewFormula(fLines));
+        ResetModel();
     }
 }
 

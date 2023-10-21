@@ -955,20 +955,19 @@ void SmDocShell::ArrangeFormula()
 
 bool SmDocShell::addResultLines()
 {
-    SAL_INFO_LEVEL(2, "starmath.imath", "SmDocShell::addResultLines" << endline);
+    SAL_INFO_LEVEL(2, "starmath.imath", "SmDocShell::addResultLines");
     // Check if we must reserve space for labels
     bool showlabels = false;
-    for (iFormulaLine_it i = mLines.begin(); i != mLines.end(); ++i)
+    for (const auto& line_it : mLines)
     {
-        iExpression_ptr p_expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*i);
-
-        if (p_expr != nullptr && (*i)->getOption(o_showlabels).value.boolean)
+        iExpression_ptr p_expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(line_it);
+        if (p_expr != nullptr && !p_expr->getHide() && line_it->getOption(o_showlabels).value.boolean)
         {
             showlabels = true;
             break;
         }
     }
-    SAL_INFO_LEVEL(3, "starmath.imath", "showlabels = " << (showlabels ? "true" : "false") << endline);
+    SAL_INFO_LEVEL(3, "starmath.imath", "showlabels = " << (showlabels ? "true" : "false"));
 
     // Find parent text document, if there is one
     // A valid xModel is only required for the CHART statement
@@ -1006,15 +1005,19 @@ bool SmDocShell::addResultLines()
             autochain = line->getOption(o_eqchain).value.boolean;
 
             // Extract label. This label is shown at the beginning of the result line in a column by itself
-            lineLabel = (p_expr != nullptr && line->getOption(o_showlabels).value.boolean)
-                ? OU("\"(") + p_expr->getLabel() + OU(")\"~")
-                : OU({});
-            MSG_INFO(3, "Extracted label '" << STR(lineLabel) << "'" << endline);
+            lineLabel = (p_expr != nullptr && line->getOption(o_showlabels).value.boolean) ? p_expr->getLabel() : "";
+            if (!lineLabel.isEmpty())
+                lineLabel = OU("\"(") + lineLabel + OU(")\"~");
+            else
+                lineLabel = OU("{}");
+
+            SAL_INFO_LEVEL(3, "starmath.imath", "Extracted line label '" << lineLabel << "'");
         }
         else
         {
             // Extract label for expression/equation in the middle of a result line
             exLabel = (p_expr != nullptr && line->getOption(o_showlabels).value.boolean) ? p_expr->getLabel() : OU("");
+            SAL_INFO_LEVEL(3, "starmath.imath", "Extracted in-line label '" << exLabel << "'");
         }
 
         // Move iterator to next formula line
@@ -1034,7 +1037,10 @@ bool SmDocShell::addResultLines()
 
             // Option showlabels=true was used in an expression/equation in the middle of a line
             if (!exLabel.isEmpty())
+            {
                 displayLine.front() = OU("{alignr \"(") + exLabel + OU(")\"}~") + displayLine.front();
+                exLabel = OU("");
+            }
 
             if (currentMatrixLine.empty())
                 std::swap(currentMatrixLine, displayLine);
@@ -1054,23 +1060,30 @@ bool SmDocShell::addResultLines()
                 else
                     previousLhs = currentMatrixLine.front();
 
-                // Add label if asked for
-                if (showlabels)
-                    currentMatrixLine.emplace(currentMatrixLine.begin(), lineLabel);
+                if (currentMatrixLine.size() > 1) {
+                    // Add label if asked for
+                    if (showlabels)
+                        currentMatrixLine.emplace(currentMatrixLine.begin(), lineLabel);
 
-                // Mark request for automatic alignment
-                if (hasNewline)
-                    currentMatrixLine.back() = (autoalign ? "y" : "n"); // Overwrite the newline because it is unnecessary
+                    // Mark request for automatic alignment
+                    if (hasNewline)
+                        currentMatrixLine.back() = (autoalign ? "y" : "n"); // Overwrite the newline because it is unnecessary
+                    else
+                        currentMatrixLine.emplace_back(autoalign ? "y" : "n"); // This might be the case for the last formula line
+
+                    // Count columns
+                    columns = std::max(columns, currentMatrixLine.size() - 1); // But don't count alignment marker
+                    SAL_INFO_LEVEL(3, "starmath.imath", "Number of columns " << columns);
+
+                    // Write line to matrix
+                    resultMatrix.emplace_back(std::vector<OUString>());
+                    std::swap(resultMatrix.back(), currentMatrixLine);
+                }
                 else
-                    currentMatrixLine.emplace_back(autoalign ? "y" : "n"); // This might be the case for the last formula line
-
-                // Count columns
-                columns = std::max(columns, currentMatrixLine.size() - 1); // But don't count alignment marker
-                MSG_INFO(3, "Number of columns " << columns << endline);
-
-                // Write line to matrix
-                resultMatrix.emplace_back(std::vector<OUString>());
-                std::swap(resultMatrix.back(), currentMatrixLine);
+                {
+                    // Empty line, e.g. hidden line
+                    currentMatrixLine.clear();
+                }
             }
         }
 
@@ -1086,7 +1099,7 @@ bool SmDocShell::addResultLines()
 
                 line_it = mLines.emplace(line_it, std::make_shared<iFormulaNodeResult>(rtext));
                 ++line_it;
-                MSG_INFO(3, "Created echo line" << endline);
+                SAL_INFO_LEVEL(3, "starmath.imath", "Created echo line");
             }
         }
     }

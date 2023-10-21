@@ -217,8 +217,10 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 
 #define IMGUIWINDOW_COL_HIDDEN 0
 #define IMGUIWINDOW_COL_LABEL 1
-#define IMGUIWINDOW_COL_TYPE 2
-#define IMGUIWINDOW_COL_FORMULA 3
+#define IMGUIWINDOW_COL_LABEL_HIDE 2
+#define IMGUIWINDOW_COL_TYPE 3
+#define IMGUIWINDOW_COL_FORMULA 4
+#define IMGUIWINDOW_COL_LAST 4
 
 ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     : rCmdBox(rMyCmdBoxWin)
@@ -361,31 +363,50 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
 
     if (mNumClicks > 1)
         return false; // We only handle single clicks here
-        SmDocShell* pDoc = GetDoc();
-        if (!pDoc) return false;
 
     switch (mClickedColumn)
     {
-
-            auto fLines = pDoc->GetFormulaLines();
-            auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
-        if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return false; // Text lines cannot be hidden
-
-            if (itLine == nullptr)
-                return false; // line number not found
-        iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
-        if (expr != nullptr)
+        case IMGUIWINDOW_COL_HIDDEN:
         {
-            expr->setHide(!expr->getHide());
-            mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
+            SmDocShell* pDoc = GetDoc();
+            if (!pDoc) return false;
+
             auto fLines = pDoc->GetFormulaLines();
             auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
 
             if (itLine == nullptr)
                 return false; // line number not found
+            if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return false; // Text lines cannot be hidden
+
+            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+            if (expr != nullptr)
+            {
+                expr->setHide(!expr->getHide());
+                mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
+                pDoc->SetImText(makeNewFormula(fLines));
+                ResetModel();
+            }
+            break;
+        }
+        case IMGUIWINDOW_COL_LABEL_HIDE:
+        {
+            SmDocShell* pDoc = GetDoc();
+            if (!pDoc) return false;
+
+            auto fLines = pDoc->GetFormulaLines();
+            auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+
+            if (itLine == nullptr)
+                return false; // line number not found
+
+            option o = (*itLine)->getOption(o_showlabels);
+            mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
+            (*itLine)->setOption(o_showlabels, !o.value.boolean);
             pDoc->SetImText(makeNewFormula(fLines));
             ResetModel();
-            return true;
+
+            break;
+        }
         // Note: Text columns are handled in EditedEntryHdl
         case IMGUIWINDOW_COL_LABEL:
         case IMGUIWINDOW_COL_TYPE:
@@ -417,18 +438,21 @@ IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)
 
 IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
-    if (mxFormulaList->get_text(rIterString.first) == rIterString.second)
-        return true; // Nothing changed
-
     SmDocShell* pDoc = GetDoc();
-    if (!pDoc) return true; // Returning false would pass the call on to the next handler
 
+    if (mxFormulaList->get_text(rIterString.first) == rIterString.second)
+        goto finished; // Nothing changed
+    if (!pDoc)
+        goto finished; // Returning false would pass the call on to the next handler
 
     {
         auto fLines = pDoc->GetFormulaLines();
         auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rIterString.first));
         if (itLine == nullptr)
             goto finished; // line number not found
+
+        if (mEditedColumn < 0)
+            goto finished; // Just to be safe
 
         switch (mEditedColumn)
         {

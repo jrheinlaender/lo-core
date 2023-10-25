@@ -299,7 +299,9 @@ void ImGuiWindow::ResetModel()
         }
 
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
+        mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
+        mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
 
         if (lineCount == currentSelection)
             mxFormulaList->select(*xIter);
@@ -463,13 +465,46 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     expr->setLabel(rIterString.second);
                 break;
             }
+            case IMGUIWINDOW_COL_TYPE:
+            {
+                SmDocShell* pDoc = GetDoc();
+                if (!pDoc)
+                    goto finished;
+                std::list<iFormulaLine_ptr>& fLines = pDoc->GetFormulaLines();
+                auto itLine = std::find(fLines.begin(), fLines.end(), pLine);
+                if (itLine == fLines.end())
+                    goto finished;
+
+                auto previousType = mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE);
+                OUString newType = rIterString.second;
+                SAL_INFO_LEVEL(1, "starmath.imath", "Changing line type from " << previousType << " to " << newType);
+
+                if (previousType == "EQDEF" && newType == "CONSTDEF")
+                {
+                    auto pEquation = std::dynamic_pointer_cast<iFormulaNodeEq>(pLine);
+                    std::shared_ptr<iFormulaNodeConst> pConstant = std::make_shared<iFormulaNodeConst>(std::move(*pEquation));
+                    itLine = fLines.erase(itLine);
+                    fLines.insert(itLine, pConstant);
+                }
+                else if (previousType == "CONSTDEF" && newType == "EQDEF")
+                {
+                    auto pConstant = std::dynamic_pointer_cast<iFormulaNodeConst>(pLine);
+                    std::shared_ptr<iFormulaNodeEq> pEquation = std::make_shared<iFormulaNodeEq>(std::move(*pConstant));
+                    itLine = fLines.erase(itLine);
+                    fLines.insert(itLine, pEquation);
+                }
+                else
+                {
+                    // TODO Reject all other type changes with an error message
+                    goto finished;
+                }
+
+                break;
+            }
             case IMGUIWINDOW_COL_FORMULA:
                 (*itLine)->setFormula(rIterString.second);
                 break;
         }
-        case IMGUIWINDOW_COL_TYPE:
-            //(*itLine)->setLabel(mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE));
-            break;
 
         pDoc->SetImText(makeNewFormula(fLines));
         ResetModel();

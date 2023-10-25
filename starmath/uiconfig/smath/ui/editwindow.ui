@@ -24,6 +24,10 @@
       <column type="gint"/>
       <!-- column-name Label_Sensitive -->
       <column type="gboolean"/>
+      <!-- column-name Type_Sensitive -->
+      <column type="gboolean"/>
+      <!-- column-name Formula_Sensitive -->
+      <column type="gboolean"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_formulatypes">
@@ -250,6 +254,7 @@
                             <property name="text-column">1</property>
                           </object>
                           <attributes>
+                            <attribute name="sensitive">10</attribute>
                             <attribute name="text">3</attribute>
                             <attribute name="weight">7</attribute>
                           </attributes>
@@ -266,6 +271,7 @@
                             <property name="editable">True</property>
                           </object>
                           <attributes>
+                            <attribute name="sensitive">11</attribute>
                             <attribute name="text">4</attribute>
                             <attribute name="weight">8</attribute>
                           </attributes>

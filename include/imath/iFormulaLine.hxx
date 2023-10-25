@@ -373,6 +373,8 @@ public:
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
+  iFormulaNodeExpression(iFormulaNodeExpression& other) = delete;
+  iFormulaNodeExpression(iFormulaNodeExpression&& other) noexcept = default;
   virtual iFormulaLine_ptr clone() const override;
 
   OUString getLabel() const { return _label; }
@@ -495,6 +497,8 @@ public:
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
+  iFormulaNodeEq(iFormulaNodeEq& other) = delete;
+  iFormulaNodeEq(iFormulaNodeEq&& other) : iFormulaNodeExpression(std::move(other)) {}
   virtual ~iFormulaNodeEq() {};
 
   virtual OUString print() const override;
@@ -514,6 +518,8 @@ public:
     std::vector<OUString>&& formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
+  iFormulaNodeConst(iFormulaNodeEq& other) = delete;
+  iFormulaNodeConst(iFormulaNodeEq&& other) : iFormulaNodeEq(std::move(other)) {}
 
   virtual OUString getCommand() const override { return OU("CONSTDEF"); }
   virtual formulaType getSelectionType() const override { return formulaTypeConstant; }

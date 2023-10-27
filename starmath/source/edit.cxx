@@ -318,21 +318,6 @@ IMPL_LINK_NOARG(ImGuiWindow, SelectHdl, weld::TreeView&, void)
     mSelected = true;
 }
 
-namespace {
-    OUString makeNewFormula(const std::list<std::shared_ptr<iFormulaLine>>& fLines)
-    {
-        OUString newFormula;
-
-        for (const auto& line : fLines)
-        {
-            if (line->getSelectionType() == formulaTypeResult) continue;
-            newFormula += line->print().copy(5) + "\n";
-        }
-
-        return newFormula;
-    }
-}
-
 IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
 {
     if (mSelected) {
@@ -370,8 +355,6 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
     {
         case IMGUIWINDOW_COL_HIDDEN:
         {
-            SmDocShell* pDoc = GetDoc();
-            if (!pDoc) return false;
 
             auto fLines = pDoc->GetFormulaLines();
             auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
@@ -385,16 +368,16 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
             {
                 expr->setHide(!expr->getHide());
                 mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
-                pDoc->SetImText(makeNewFormula(fLines));
+                SmDocShell* pDoc = GetDoc();
+                if (!pDoc)
+                    break;
+                pDoc->UpdateGuiText();
                 ResetModel();
             }
             break;
         }
         case IMGUIWINDOW_COL_LABEL_HIDE:
         {
-            SmDocShell* pDoc = GetDoc();
-            if (!pDoc) return false;
-
             auto fLines = pDoc->GetFormulaLines();
             auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
 
@@ -405,6 +388,10 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
             mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
             (*itLine)->setOption(o_showlabels, !o.value.boolean);
             pDoc->SetImText(makeNewFormula(fLines));
+            SmDocShell* pDoc = GetDoc();
+            if (!pDoc)
+                break;
+            pDoc->UpdateGuiText();
             ResetModel();
 
             break;
@@ -440,12 +427,9 @@ IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)
 
 IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
-    SmDocShell* pDoc = GetDoc();
 
     if (mxFormulaList->get_text(rIterString.first) == rIterString.second)
         goto finished; // Nothing changed
-    if (!pDoc)
-        goto finished; // Returning false would pass the call on to the next handler
 
     {
         auto fLines = pDoc->GetFormulaLines();
@@ -506,7 +490,10 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 break;
         }
 
-        pDoc->SetImText(makeNewFormula(fLines));
+        SmDocShell* pDoc = GetDoc();
+        if (!pDoc)
+            goto finished;
+        pDoc->UpdateGuiText();
         ResetModel();
     }
 

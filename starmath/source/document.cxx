@@ -1768,6 +1768,21 @@ void SmDocShell::UpdateImText()
     }
 }
 
+void SmDocShell::UpdateGuiText()
+{
+     OUString newFormula;
+
+    for (const auto& line : mLines)
+    {
+        if (line->getSelectionType() == formulaTypeResult) continue;
+        newFormula += line->print().copy(5) + "\n";
+        //std::cout << "New formula now\n" << newFormula << std::endl;
+    }
+
+    if (GetImText() != newFormula)
+        SetImText( newFormula );
+}
+
 
 bool SmDocShell::SaveAs( SfxMedium& rMedium )
 {

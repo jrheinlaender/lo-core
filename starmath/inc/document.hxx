@@ -194,8 +194,12 @@ public:
     // to replace chars that can not be saved with the document...
     void        ReplaceBadChars();
 
+    // Text in starmath tab was changed
     void        UpdateText();
+    // Text in iMath sourcecode tab was changed
     void        UpdateImText();
+    // Text in iMath GUI tab was changed
+    void        UpdateGuiText();
     void        SetText(const OUString& rBuffer);
     const OUString&  GetText() const { return maText; }
     void        SetImText(const OUString& rBuffer, const bool doCompile = true);

@@ -210,9 +210,7 @@ private:
     std::unique_ptr<weld::ScrolledWindow> mxScrolledWindow;
     std::unique_ptr<weld::TreeView> mxFormulaList;
 
-    DECL_LINK(SelectHdl, weld::TreeView&, void);
-    bool mSelected;
-    DECL_LINK(MouseReleaseHdl, const MouseEvent&, bool);
+    DECL_LINK(MousePressHdl, const MouseEvent&, bool);
     int mNumClicks;
     int mClickedColumn;
     DECL_LINK(KeyReleaseHdl, const ::KeyEvent&, bool);

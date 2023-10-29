@@ -227,7 +227,6 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mxNotebook(rBuilder.weld_notebook("notebook"))
     , mxScrolledWindow(rBuilder.weld_scrolled_window("iguiscrolledwindow", true))
     , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
-    , mSelected(false)
     , mNumClicks(0)
     , mClickedColumn(-1)
     , mEditedColumn(-1)
@@ -239,8 +238,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     mxFormulaList->enable_toggle_buttons(weld::ColumnToggleType::Check);
 
     mxFormulaList->connect_key_release(LINK(this, ImGuiWindow, KeyReleaseHdl));
-    mxFormulaList->connect_changed(LINK(this, ImGuiWindow, SelectHdl));
-    mxFormulaList->connect_mouse_release(LINK(this, ImGuiWindow, MouseReleaseHdl));
+    mxFormulaList->connect_mouse_press(LINK(this, ImGuiWindow, MousePressHdl));
     mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
     mxFormulaList->set_selection_mode(SelectionMode::Single);
 
@@ -309,34 +307,41 @@ void ImGuiWindow::ResetModel()
     }
 
     mxFormulaList->columns_autosize();
-
-    mSelected = false; // A row has already been selected
 }
 
-IMPL_LINK_NOARG(ImGuiWindow, SelectHdl, weld::TreeView&, void)
+// Note: This will detect the column where the mouse was pressed
+// Many UI functions will detect the column where the mouse was released instead
+// But that does not work for CellRendererCombo because the mouse release never makes it to our handler
+IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
 {
-    mSelected = true;
-}
-
-IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
-{
-    if (mSelected) {
-        mSelected = false;
-        mNumClicks = 0;
-        return false;  // This  click selected a new entry
-    }
+    SAL_INFO_LEVEL(1, "starmath.imath", "Mouse press handler with edited column=" << mEditedColumn);
 
     if (mEditedColumn > 0)
         return false; // Ignore mouse clicks when a cell is being edited
 
     mNumClicks = rMEvt.GetClicks();
 
-    mClickedColumn = -1;
-    auto xIter(mxFormulaList->make_iterator());
-    if (!mxFormulaList->get_selected(xIter.get()))
-        return false; // No entry is selected
-
+    // Detect clicked row and column
+    // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
+    // In that case the user must first select a line and then click again to take action in some column
     Point mousePos = rMEvt.GetPosPixel();
+    auto xIter(mxFormulaList->make_iterator());
+    mClickedColumn = -1;
+    mEditedColumn = -1;
+    int row = 0;
+
+    if (mxFormulaList->get_iter_first(*xIter.get()))
+        do
+        {
+            tools::Rectangle rowArea = mxFormulaList->get_row_area(*xIter);
+            if (rowArea.Contains(mousePos))
+                break;
+            ++row;
+        } while (mxFormulaList->iter_next(*xIter.get()));
+    else
+        return false; // User clicked somewhere else
+    SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in row " << row);
+    mxFormulaList->set_cursor(*xIter);
 
     for (int col = 0; col <= IMGUIWINDOW_COL_LAST; ++col)
     {
@@ -344,6 +349,7 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
         if (cellArea.Contains(mousePos))
         {
             mClickedColumn = col;
+            SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in column " << col);
             break;
         }
     }
@@ -398,14 +404,21 @@ IMPL_LINK(ImGuiWindow, MouseReleaseHdl, const MouseEvent&, rMEvt, bool)
         }
         // Note: Text columns are handled in EditedEntryHdl
         case IMGUIWINDOW_COL_LABEL:
-        case IMGUIWINDOW_COL_TYPE:
         case IMGUIWINDOW_COL_FORMULA:
         {
-            if (mxFormulaList->get_sensitive(*xIter, IMGUIWINDOW_COL_LABEL))
+            if (mxFormulaList->get_sensitive(*xIter, mClickedColumn))
             {
                 mEditedColumn = mClickedColumn;
-                SAL_INFO_LEVEL(3, "starmath.imath", "Editing detected in column " << mEditedColumn);
+                SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected in column " << mEditedColumn);
             }
+            else
+                SAL_INFO_LEVEL(1, "starmath.imath", "... but column " << mClickedColumn << " is not sensitive");
+            break;
+        }
+        case IMGUIWINDOW_COL_TYPE:
+        {
+            // Note: The get_sensitive() fails for CellRendererCombo
+            mEditedColumn = mClickedColumn;
             break;
         }
         default:

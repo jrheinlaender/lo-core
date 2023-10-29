@@ -361,19 +361,19 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     {
         case IMGUIWINDOW_COL_HIDDEN:
         {
+            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
 
-            auto fLines = pDoc->GetFormulaLines();
-            auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
-
-            if (itLine == nullptr)
+            if (ppLine == nullptr)
                 return false; // line number not found
-            if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return false; // Text lines cannot be hidden
+            if (std::dynamic_pointer_cast<iFormulaNodeText>(*ppLine))
+                return false; // Text lines cannot be hidden
 
-            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*ppLine);
             if (expr != nullptr)
             {
                 expr->setHide(!expr->getHide());
                 mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
+
                 SmDocShell* pDoc = GetDoc();
                 if (!pDoc)
                     break;
@@ -384,16 +384,15 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_LABEL_HIDE:
         {
-            auto fLines = pDoc->GetFormulaLines();
-            auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
-
-            if (itLine == nullptr)
+            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+            if (ppLine == nullptr)
                 return false; // line number not found
+            auto pLine = *ppLine;
 
-            option o = (*itLine)->getOption(o_showlabels);
+            option o = pLine->getOption(o_showlabels);
             mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
-            (*itLine)->setOption(o_showlabels, !o.value.boolean);
-            pDoc->SetImText(makeNewFormula(fLines));
+            pLine->setOption(o_showlabels, !o.value.boolean);
+
             SmDocShell* pDoc = GetDoc();
             if (!pDoc)
                 break;
@@ -445,19 +444,19 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
         goto finished; // Nothing changed
 
     {
-        auto fLines = pDoc->GetFormulaLines();
-        auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rIterString.first));
-        if (itLine == nullptr)
+        auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rIterString.first));
+        if (ppLine == nullptr)
             goto finished; // line number not found
+        iFormulaLine_ptr pLine = *ppLine;
 
         if (mEditedColumn < 0)
-            goto finished; // Just to be safe
+            goto finished;
 
         switch (mEditedColumn)
         {
             case IMGUIWINDOW_COL_LABEL:
             {
-                iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
+                iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
                 if (expr != nullptr)
                     expr->setLabel(rIterString.second);
                 break;
@@ -499,8 +498,12 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 break;
             }
             case IMGUIWINDOW_COL_FORMULA:
-                (*itLine)->setFormula(rIterString.second);
+            {
+                pLine->setFormula(rIterString.second);
                 break;
+            }
+            default:
+                goto finished;
         }
 
         SmDocShell* pDoc = GetDoc();

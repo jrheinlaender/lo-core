@@ -439,7 +439,6 @@ IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)
 
 IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
-
     if (mxFormulaList->get_text(rIterString.first) == rIterString.second)
         goto finished; // Nothing changed
 
@@ -471,29 +470,121 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 if (itLine == fLines.end())
                     goto finished;
 
-                auto previousType = mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE);
+                OUString previousType = mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE);
                 OUString newType = rIterString.second;
+                if (previousType.equals(newType))
+                    goto finished;
+                // VECTORDEF and MATRIXDEF have two different nodes
+                if (previousType == "VECTORDEF")
+                {
+                    auto pTest = std::dynamic_pointer_cast<iFormulaNodeStmVectordef>(pLine);
+                    if (pTest)
+                        previousType = "STMVECTOR";
+                }
+                else if (previousType == "MATRIXDEF")
+                {
+                    auto pTest = std::dynamic_pointer_cast<iFormulaNodeStmMatrixdef>(pLine);
+                    if (pTest)
+                        previousType = "STMMATRIX";
+                }
                 SAL_INFO_LEVEL(1, "starmath.imath", "Changing line type from " << previousType << " to " << newType);
 
-                if (previousType == "EQDEF" && newType == "CONSTDEF")
+                std::shared_ptr<iFormulaLine> pNew = nullptr;
+                if (previousType == "EQDEF")
                 {
-                    auto pEquation = std::dynamic_pointer_cast<iFormulaNodeEq>(pLine);
-                    std::shared_ptr<iFormulaNodeConst> pConstant = std::make_shared<iFormulaNodeConst>(std::move(*pEquation));
-                    itLine = fLines.erase(itLine);
-                    fLines.insert(itLine, pConstant);
+                    if (newType == "CONSTDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeConst>(pLine);
+                    else if (newType == "FUNCDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeFuncdef>(pLine);
+                    else if (newType == "VECTORDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
+                    else if (newType == "MATRIXDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
                 }
-                else if (previousType == "CONSTDEF" && newType == "EQDEF")
+                else if (previousType == "CONSTDEF")
                 {
-                    auto pConstant = std::dynamic_pointer_cast<iFormulaNodeConst>(pLine);
-                    std::shared_ptr<iFormulaNodeEq> pEquation = std::make_shared<iFormulaNodeEq>(std::move(*pConstant));
-                    itLine = fLines.erase(itLine);
-                    fLines.insert(itLine, pEquation);
+                    if (newType == "EQDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeEq>(pLine);
+                    else if (newType == "FUNCDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeFuncdef>(pLine);
+                    else if (newType == "VECTORDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeVectordef>(pLine);
+                    else if (newType == "MATRIXDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeMatrixdef>(pLine);
                 }
-                else
+                else if (previousType == "FUNCDEF")
                 {
+                    if (newType == "EQDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeEq>(pLine);
+                    else if (newType == "CONSTDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeConst>(pLine);
+                    else if (newType == "VECTORDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeVectordef>(pLine);
+                    else if (newType == "MATRIXDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeMatrixdef>(pLine);
+                }
+                else if (previousType == "VECTORDEF")
+                {
+                    if (newType == "EQDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeEq>(pLine);
+                    else if (newType == "CONSTDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeConst>(pLine);
+                    else if (newType == "FUNCDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeFuncdef>(pLine);
+                    else if (newType == "MATRIXDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeMatrixdef>(pLine);
+                }
+                else if (previousType == "FUNCDEF")
+                {
+                    if (newType == "EQDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeEq>(pLine);
+                    else if (newType == "CONSTDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeConst>(pLine);
+                    else if (newType == "VECTORDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeFuncdef>(pLine);
+                    else if (newType == "MATRIXDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeVectordef>(pLine);
+                }
+                else if (previousType == "EXDEF")
+                {
+                    if (newType == "PRINTVAL")
+                        pNew = iFormulaLine::move<iFormulaNodeEx, iFormulaNodePrintval>(pLine);
+                }
+                else if (previousType == "PRINTVAL")
+                {
+                    if (newType == "EXDEF")
+                        pNew = iFormulaLine::move<iFormulaNodePrintval, iFormulaNodeEx>(pLine);
+                }
+                else if (previousType == "REALVARDEF")
+                {
+                    if (newType == "POSVARDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeStmRealvardef, iFormulaNodeStmPosvardef>(pLine);
+                }
+                else if (previousType == "POSVARDEF")
+                {
+                    if (newType == "REALVARDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeStmPosvardef, iFormulaNodeStmRealvardef>(pLine);
+                }
+                else if (previousType == "STMVECTOR")
+                {
+                    if (newType == "MATRIXDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeStmVectordef, iFormulaNodeStmMatrixdef>(pLine);
+                }
+                else if (previousType == "STMMATRIX")
+                {
+                    if (newType == "VECTORDEF")
+                        pNew = iFormulaLine::move<iFormulaNodeStmMatrixdef, iFormulaNodeStmVectordef>(pLine);
+                }
+
+                if (pNew == nullptr)
+                {
+                    SAL_INFO_LEVEL(1, "starmath.imath", "Conversion not possible");
                     // TODO Reject all other type changes with an error message
                     goto finished;
                 }
+
+                itLine = fLines.erase(itLine);
+                fLines.insert(itLine, pNew);
 
                 break;
             }

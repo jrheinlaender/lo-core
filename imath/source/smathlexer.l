@@ -147,17 +147,9 @@ IDENTIFIER \%?{NAME}{DASH}*{SUBSUPERSCRIPT}*
 
 ATTRIBUTE acute|grave|check|breve|circle|vec|tilde|hat|bar|dot|widevec|widetilde|widehat|ddot|overline|underline|overstrike|dddot|bold|ital|font\ sans|font\ serif|font\ fixed|color\ black|color\ blue|color\ green|color\ red|color\ cyan|color\ magenta|color\ yellow|color\ teal|color\ silver|color\ gray|color\ maroon|color\ purple|color\ lime|color\ olive|color\ navy|color\ aqua|color\ fuchsia|phantom
 
-
-/* The following paragraph suffices to track locations accurately.  Each
-   time `yylex' is invoked, the begin position is moved onto the end
-   position.  Then when a pattern is matched, the end position is advanced
-   of its width.  In case it matched ends of lines, the end cursor is
-   adjusted, and each time blanks are matched, the begin cursor is moved
-   onto the end cursor to effectively ignore the blanks preceding tokens.
-   Comments would be treated equally.
-*/
 %{
-  #define YY_USER_ACTION  yylloc->columns(yyleng);
+  // Code run each time a pattern is matched. We only track columns, not lines, except inside include files
+  #define YY_USER_ACTION yylloc->columns(yyleng);
 %}
 
 /* define iMath parsing states */
@@ -171,6 +163,7 @@ ATTRIBUTE acute|grave|check|breve|circle|vec|tilde|hat|bar|dot|widevec|widetilde
 
 %%
 %{
+  // Code run each time yylex is called
   yylloc->step ();
 %}
 BEGIN(INITIAL);

@@ -107,9 +107,10 @@
 #endif
 };
 
-// enable parser tracing and verbose error messages.
+// enable parser tracing, verbose error messages and lookahead correction for better syntax error handling
 %debug
 %define parse.error verbose
+%define parse.lac full
 
 //  Return type declarations ----------------------------------------------
 %union {
@@ -155,6 +156,9 @@
   bool canonicalize_units;
   // Whether duplicate equation labels are automatically renumbered
   bool autorenumberduplicate;
+  // Error location and message
+  imath::location errorlocation;
+  OUString errormessage;
 
 // Utility function to mark the errorposition in a location
 const std::string locationstr(const imath::location& loc) {
@@ -354,6 +358,21 @@ GiNaC::unitvec unitConversions() {
   }
 
   return compiler->create_conversions(units, true);
+}
+
+void handle_error(imath::parserParameters& params, const std::shared_ptr<iFormulaLine>& l, const imath::location& loc) {
+  if (include_level == 0) {
+    params.lines->push_back(l);
+    params.lines->back()->markError(params.rawtext.trim(), errorlocation.begin.column, errorlocation.end.column, errormessage);
+  } else {
+    errormessage += ": At line " + OUString::number(loc.begin.line) + ", column " + OUString::number(loc.begin.column);
+    while (!locationstack.empty()) {
+      std::string parseString = *locationstack.top().begin.filename; // This is %%ii READFILE {"<file name>"}
+      errormessage = "Error in include file " + OUS8(parseString.substr(parseString.find("{\"") + 2, parseString.find("\"}") - parseString.find("{\"") - 2)) + "\n" + errormessage;
+      locationstack.pop();
+    }
+    params.lines->back()->markError(params.rawtext.trim(), params.rawtext.indexOfAsciiL("{\"", 2) + 2, params.rawtext.indexOfAsciiL("\"}", 2), errormessage);
+  }
 }
 
 #define GETARG(index) \
@@ -557,29 +576,33 @@ input:   %empty
               line->setOption(o.first, o.second); // Actually only option echo is relevant for statements
        } comment end
        | input options TEXT usertext { // User-defined text after %%ii {options} TEXT
-          std::vector<OUString> formulaParts = {OUS8(rawtext.substr(@4.begin.column-1, @4.end.column-@4.begin.column))}; // not GETARG because it trims the string
-          params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(), current_options, std::move(*$2), std::move(formulaParts), std::move(*$4)));
-          line = params.lines->back();
-		  line_options = nullptr;
+          if (include_level == 0) {
+            std::vector<OUString> formulaParts = {OUS8(rawtext.substr(@4.begin.column-1, @4.end.column-@4.begin.column))}; // not GETARG because it trims the string
+            params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(), current_options, std::move(*$2), std::move(formulaParts), std::move(*$4)));
+            line = params.lines->back();
+            line_options = nullptr;
+          }
           delete($2); delete($4);
        } comment end
        | input usertext { // user-defined text on a line by itself. The end removes 3 shift/reduce conflicts
-          std::vector<OUString> formulaParts = {GETARG(@2)};
-          params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(), current_options, optionmap(), std::move(formulaParts), std::move(*$2)));
-          line = params.lines->back();
-		  line_options = nullptr;
+          if (include_level == 0) {
+            std::vector<OUString> formulaParts = {GETARG(@2)};
+            params.lines->push_back(std::make_shared<iFormulaNodeText>(unitConversions(), current_options, optionmap(), std::move(formulaParts), std::move(*$2)));
+            line = params.lines->back();
+            line_options = nullptr;
+          }
           delete($2);
         } comment end
 	     | input expr comment end { /* all the work is done in expr */ }
        | input GENERATED end { /* ignore auto-generated lines */ }
        | input COMMENT { // comment
-         if (include_level == 0) { // Don't copy comments from include files!
-           std::vector<OUString> formulaParts = {OUS8(*$2)};
-           params.lines->push_back(std::make_shared<iFormulaNodeComment>(current_options, std::move(formulaParts)));
-           line = params.lines->back();
-		  line_options = nullptr;
-         }
-         delete($2);
+          if (include_level == 0) { // Don't copy comments from include files!
+            std::vector<OUString> formulaParts = {OUS8(*$2)};
+            params.lines->push_back(std::make_shared<iFormulaNodeComment>(current_options, std::move(formulaParts)));
+            line = params.lines->back();
+            line_options = nullptr;
+          }
+          delete($2);
        } end
        | input READFILE '{' STRING '}' { // We can't use the normal 'end' rule here because it will be called before the include file is parsed
          // TODO: Parse string as an Openoffice URL so that include files are system-independent? But then relative URLS must be possible!
@@ -587,8 +610,10 @@ input:   %empty
            std::vector<OUString> formulaParts = {OU("{"), GETARG(@4), OU("}")};
            params.lines->push_back(std::make_shared<iFormulaNodeStmReadfile>(current_options, std::move(formulaParts)));
            line = params.lines->back();
-		   line_options = nullptr;
+           line_options = nullptr;
          }
+         if (include_level > 0)
+          yyla.location.begin.filename = yyla.location.end.filename = new std::string("%%ii READFILE {\"" + *$4 + "\"}"); // The filename is only set once (for include_level == 0) in the initial-action
          ++include_level;
 	       locationstack.push(yyla.location);
 	       yyla.location = location();
@@ -601,17 +626,32 @@ input:   %empty
 	       MSG_INFO(0,  "Trying to open " << fpath << endline);
          if (!smathlexer::begin_include(fpath)) {
            MSG_INFO(3,  "File " << fpath << " not found" << endline);
-           --include_level; // Otherwise locationstr() will mention the include file
-           throw syntax_error(@4, "\nCould not open include file " + fpath);
+           errormessage = "Could not open include file " + OUS8(fpath);
+           locationstack.pop(); // Remove entry that was just created, and handle the rest
+            while (!locationstack.empty()) {
+              std::string parseString = *locationstack.top().begin.filename; // This is %%ii READFILE {"<file name>"}
+              errormessage = "Error in include file " + OUS8(parseString.substr(parseString.find("{\"") + 2, parseString.find("\"}") - parseString.find("{\"") - 2)) + "\n" + errormessage;
+              locationstack.pop();
+            }
+            params.lines->back()->markError(params.rawtext.trim(), params.rawtext.indexOfAsciiL("{\"", 2) + 2, params.rawtext.indexOfAsciiL("\"}", 2), errormessage);
+
+           delete($4);
+           YYABORT;
          }
 
 	       params.cacheable = false;
 	       delete ($4);
-	     } comment end
-       | input end { // Empty line
-          params.lines->push_back(std::make_shared<iFormulaNodeEmptyLine>(current_options));
-          line = params.lines->back();
-		  line_options = nullptr;
+	     }
+	     | input end { // Empty line
+          if (include_level == 0) {
+            params.lines->push_back(std::make_shared<iFormulaNodeEmptyLine>(current_options));
+            line = params.lines->back();
+            line_options = nullptr;
+          }
+       }
+       | input error {
+          handle_error(params, std::make_shared<iFormulaNodeError>(current_options, params.rawtext.trim()), @2);
+          YYABORT;
        }
 ;
 
@@ -1268,6 +1308,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
 
         delete($1); delete($2);
       }
+      | LABEL options EQDEF asterisk error {
+        std::vector<OUString> formulaParts = {GETARG(@5)};
+        handle_error(params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, std::move(*$2), std::move(formulaParts), OUS8(compiler->label_ns(*$1)), equation(_ex0, _ex0), $4), @5);
+        delete($1), delete($2);
+        YYABORT;
+      }
       | LABEL options CONSTDEF asterisk eq {
         std::string nslabel = check_label(*$1, @1);
         if (include_level == 0) {
@@ -1277,7 +1323,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
             std::move(formulaParts), OUS8(nslabel),
             *$5, $4));
           line = params.lines->back();
-		  line_options = nullptr;
+          line_options = nullptr;
           line->force_autoformat(must_autoformat);
         }
         must_autoformat = false;
@@ -1491,11 +1537,17 @@ eq:   ex '=' ex             { $$ = new expression(dynallocate<equation>(*$1, *$3
     | ex '<' '=' ex         { $$ = new expression(dynallocate<equation>(*$1, *$4, relational::less_or_equal, _expr0)); delete ($1); delete($4); }
     | ex EQUIV ex MOD ex { // Note: Writing '(' MOD ex ')' results in too many conflicts
 		if (!check_modulus(*$5)) {
-        error(@5, "Modulo must be a positive or gaussian integer");
+        errorlocation = @5;
+        errormessage = "Modulo must be a positive or gaussian integer";
+        YYERROR;
       } else if (is_a<numeric>(*$1) && !$1->info(info_flags::integer)) {
-        error(@1, "Left-hand expression must be integer");
+        errorlocation = @1;
+        errormessage = "Left-hand expression must be integer";
+        YYERROR;
       } else if (is_a<numeric>(*$3) && !$3->info(info_flags::integer)) {
-        error(@3, "Right-hand expression must be integer");
+        errorlocation = @3;
+        errormessage = "Right-hand expression must be integer";
+        YYERROR;
       } else {
         $$ = new expression(dynallocate<equation>(*$1, *$3, relational::equal, *$5));
       }
@@ -2409,5 +2461,8 @@ sizestr:    DIGITS
 /// The `error' member function registers the errors to the formula
 void imath::smathparser::error(const imath::location& l, const std::string& m) {
   while (!smathlexer::finish_include()) {} // Finish all include files
-  params.errormessage = OUS8(locationstr(l)) + "\n" + OUS8(m);
+  errorlocation = l;
+  --errorlocation.begin.column; // Reason for this is unknown ...
+  --errorlocation.end.column;
+  errormessage = OUS8(m);
 }

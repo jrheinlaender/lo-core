@@ -40,17 +40,17 @@ using namespace GiNaC;
 
 // iFormulaLine implementation =================================================
 iFormulaLine::iFormulaLine(std::vector<OUString>&& formulaParts) :
-    _formulaParts(std::move(formulaParts)) {
+    _formulaParts(std::move(formulaParts)), error(false) {
   MSG_INFO(3,  "Constructing iFormulaLine with formula" << endline);
 }
 
 iFormulaLine::iFormulaLine(std::shared_ptr<optionmap> g_options) :
-    global_options(g_options) {
+    global_options(g_options), error(false) {
   MSG_INFO(3,  "Constructing iFormulaLine with options" << endline);
 } // iFormulaLine()
 
 iFormulaLine::iFormulaLine(std::shared_ptr<optionmap> g_options, optionmap&& l_options, std::vector<OUString>&& formulaParts) :
-    global_options(g_options), options(std::move(l_options)), _formulaParts(std::move(formulaParts))
+    global_options(g_options), options(std::move(l_options)), _formulaParts(std::move(formulaParts)), error(false)
 {
   MSG_INFO(3,  "Constructing iFormulaLine with global and local options" << endline);
 } // iFormulaLine()
@@ -61,6 +61,20 @@ iFormulaLine_ptr iFormulaLine::clone() const {
 
 OUString iFormulaLine::print() const {
   return OU("%%ii ") + getCommand() + OU(" ") + getFormula();
+}
+
+std::vector<std::vector<OUString>> iFormulaLine::display(const Reference<XModel>&) const
+{
+    if (!error)
+        return {};
+    OUString errorPart = (_formulaParts[1].isEmpty() ? u"\u21B5" : _formulaParts[1]);
+
+    return
+    {
+          {"newline "}
+        , {_formulaParts[0] + "{}bold color red{\"" + errorPart.replace('"', u'\u201C') + "\"}{}" + _formulaParts[2], "newline"}
+        , {"\"" + _formulaParts[3] + "\""}
+    };
 }
 
 // We assume that all possible options have values in global_options
@@ -194,6 +208,20 @@ sal_Bool iFormulaLine::autoformat_required() const {
   return (!getOption(o_eqraw).value.boolean);
 }
 
+void iFormulaLine::markError(const OUString& compiledText, const int errorStart, const int errorEnd, const OUString& errorMessage)
+{
+    int _errorEnd = (errorEnd > compiledText.getLength() ? compiledText.getLength() : errorEnd);
+    OUString offendingText = compiledText.copy(errorStart, _errorEnd - errorStart);
+    int formulaStart = compiledText.getLength() - getFormula().getLength(); // Start of formula in compiled line
+
+    _formulaParts.clear();
+    _formulaParts.emplace_back(compiledText.copy(formulaStart, errorStart - formulaStart));
+    _formulaParts.emplace_back(offendingText.isEmpty() ? "\n" : offendingText);
+    _formulaParts.emplace_back(_errorEnd == compiledText.getLength() ? "" : compiledText.copy(_errorEnd));
+    _formulaParts.emplace_back(errorMessage);
+    error = true;
+}
+
 std::string iFormulaLine::getGraphLabel() const {
   // return node in dot language
   std::ostringstream address;
@@ -204,18 +232,42 @@ std::string iFormulaLine::getGraphLabel() const {
 }
 
 OUString iFormulaLine::getFormula() const {
-  OUString formula = OU("");
-  for (const auto& p : _formulaParts)
-    formula += p;
-  return formula;
+    OUString formula = OU("");
+
+    if (error)
+        return _formulaParts[0] + _formulaParts[1] + _formulaParts[2];
+
+    for (const auto& p : _formulaParts)
+        formula += p;
+
+    return formula;
+}
+
+OUString iFormulaLine::getErrorMessage() const {
+    if (!error || _formulaParts.size() <= 3)
+        return OU("");
+
+    return _formulaParts.at(3);
 }
 
 OUString iFormulaLine::printFormula() const {
-  return adjustLocale(replaceString(getFormula(), OU("\n%%ii+"), OU("")));
+    OUString formula;
+
+    if (error)
+    {
+        OUString errorPart = (_formulaParts[1].isEmpty() ? u"\u21B5" : _formulaParts[1]);
+        // TODO: A unmatched quote in _formulaParts[0] will mess up the formatting
+        formula = _formulaParts[0]  + OU("<span foreground='red' font='bold'>") + errorPart + OU("</span>") + _formulaParts[2];
+    }
+    else
+        formula = getFormula();
+
+    return adjustLocale(replaceString(formula, OU("\n%%ii+"), OU("")));
 }
 
 void iFormulaLine::setFormula(const OUString& f) {
-  _formulaParts = {f};
+    _formulaParts = {f};
+    error = false; // Assume the error was corrected (if not, it will come up again in the recalculation)
 }
 
 void iFormulaLine::setFormula(std::vector<OUString>&& formulaParts) {
@@ -262,6 +314,17 @@ iFormulaNodeResult::iFormulaNodeResult(const OUString& text) :
 
 OUString iFormulaNodeResult::print() const {
   return getFormula() + OU(" %%gg");
+}
+
+// NodeError
+iFormulaNodeError::iFormulaNodeError(std::shared_ptr<GiNaC::optionmap> g_options, const OUString& compiledText) :
+    iFormulaLine(g_options)
+{
+    _formulaParts = {compiledText.copy(5)}; // Drop the %%ii
+}
+
+OUString iFormulaNodeError::print() const {
+    return "%%ii " + getFormula();
 }
 
 // NodeStatement
@@ -469,6 +532,9 @@ iFormulaLine_ptr iFormulaNodeText::clone() const {
 }
 
 std::vector<std::vector<OUString>> iFormulaNodeText::display(const Reference<XModel>&) const {
+  if (error)
+      return iFormulaLine::display();
+
   std::vector<std::vector<OUString>> result;
   if (_textlist.empty()) return result;
 
@@ -529,6 +595,9 @@ iFormulaNodeEx::iFormulaNodeEx(
 }
 
 std::vector<std::vector<OUString>> iFormulaNodeEx::display(const Reference<XModel>&) const {
+  if (error)
+    return iFormulaLine::display();
+
   std::vector<std::vector<OUString>> result;
   if (_hide) return result;
   std::vector<OUString> line;
@@ -576,6 +645,9 @@ OUString iFormulaNodePrintval::getCommand() const {
 }
 
 std::vector<std::vector<OUString>> iFormulaNodePrintval::display(const Reference<XModel>&) const {
+  if (error)
+      return iFormulaLine::display();
+
   std::vector<std::vector<OUString>> result;
   std::vector<OUString> line;
 
@@ -605,6 +677,9 @@ iFormulaLine_ptr iFormulaNodeExplainval::clone() const {
 }
 
 std::vector<std::vector<OUString>> iFormulaNodeExplainval::display(const Reference<XModel>&) const {
+  if (error)
+      return iFormulaLine::display();
+
   std::vector<std::vector<OUString>> result;
   std::vector<OUString> line;
 
@@ -672,10 +747,13 @@ iFormulaNodeEq::iFormulaNodeEq(
 }
 
 OUString iFormulaNodeEq::print() const {
-  return OU("%%ii @") + _label + OU("@ ") + printOptions() + getCommand() + (_hide ? OU("* ") : OU(" ")) + getFormula();
+    return OU("%%ii @") + _label + OU("@ ") + printOptions() + getCommand() + (_hide ? OU("* ") : OU(" ")) + getFormula();
 }
 
 std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XModel>&) const {
+  if (error)
+      return iFormulaLine::display();
+
   std::vector<std::vector<OUString>> result;
   if (_hide) return result;
   std::vector<OUString> line;
@@ -686,7 +764,6 @@ std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XMode
   OUString rhs;
 
    if (autoformat_required()) {
-    const equation& eq = ex_to<equation>(_expr);
     lhs = printEx(eq.lhs());
     rhs = printEx(eq.rhs());
   } else {

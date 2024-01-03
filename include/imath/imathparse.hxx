@@ -60,9 +60,6 @@ namespace imath {
 
         /// List of formulas for which an update should be inserted
         std::list<OUString> updateFormulas;
-
-        /// Error string
-        OUString errormessage;
     };
 
     // Front-end to the parser

@@ -532,7 +532,6 @@ OUString SmDocShell::ImInitializeCompiler() {
     osl::FileBase::getSystemPathFromFileURL(shareURL, shareFolder);
     imath::parserParameters pParams;
 
-    // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all
     try {
         // Read referenced files
         auto files = splitString(references, ' ');
@@ -546,6 +545,7 @@ OUString SmDocShell::ImInitializeCompiler() {
         pParams.global_options = mpInitialOptions;
         pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >(); // TODO: Cached results are not used currently
 
+        // Read all files in one parser run
         for (const auto& f : files) {
             if (f.getLength() > 2)
                 pParams.rawtext += OU("%%ii READFILE {\"") + shareFolder + f.copy(2) + OU(".imath") + OU("\"}\n");
@@ -555,10 +555,12 @@ OUString SmDocShell::ImInitializeCompiler() {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(pParams.rawtext));
             if (imath::parse(pParams) != 0)
             {
+                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
                 delete pParams.cached_results;
-                return "Recalculation error in referenced files\n" + pParams.errormessage;
+                return mLines.back()->getErrorMessage();
             }
-            if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
+            if (mLines.size() > 0)
+                mpInitialOptions = mLines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
         }
 
         // units must be set AFTER units.imath is read, because the preferred units list might use user-defined units
@@ -571,13 +573,14 @@ OUString SmDocShell::ImInitializeCompiler() {
             // Recreate the global units expression vector, since this cannot be stored in the registry
             SAL_INFO_LEVEL(0, "starmath.imath", "Parsing default units\n" << STR(pParams.rawtext));
             pParams.rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
-            pParams.errormessage = "";
             // Result is stored in mpInitialOptions map under the keys o_unit and o_unitstr
-            if (imath::parse(pParams) != 0){
+            if (imath::parse(pParams) != 0) {
+                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
                 delete pParams.cached_results;
-                return "Recalculation error in global units\n" + pParams.errormessage;
+                return mLines.back()->getErrorMessage();
             }
-            if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions();
+            if (mLines.size() > 0)
+                mpInitialOptions = mLines.back()->getGlobalOptions();
         }
 
         // Read user include files
@@ -598,28 +601,30 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         if (!pParams.rawtext.equalsAscii("")) {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading user include files\n" << STR(pParams.rawtext));
-            pParams.errormessage = "";
             if (imath::parse(pParams) != 0)
             {
+                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
                 delete pParams.cached_results;
-                return "Recalculation error in user include files\n" + pParams.errormessage;
+                return mLines.back()->getErrorMessage();
             }
-            if (mLines.size() > 0) mpInitialOptions = mLines.back()->getGlobalOptions();
+            if (mLines.size() > 0)
+                mpInitialOptions = mLines.back()->getGlobalOptions();
         }
-
-        delete pParams.cached_results;
     } catch (Exception &e) {
-        // TODO: Show error message to user with parser location
-        SAL_WARN_LEVEL(-1, "starmath.imath", "Exception thrown while recalculating iMath include files\n" << e.Message);
+        SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.Message);
+        mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpInitialOptions, pParams.rawtext.trim()));
+        mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), e.Message);
         delete pParams.cached_results;
-        return "Recalculation error in iMath include files\n" + e.Message;
+        return e.Message;
     } catch (std::exception &e) {
-        // TODO: Show error message to user with parser location
-        SAL_WARN_LEVEL(-1, "starmath.imath", "std::exception thrown while recalculating iMath include files\n" << OUS8(e.what()));
+        SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.what());
+        mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpInitialOptions, pParams.rawtext.trim()));
+        mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), OUS(e.what()));
         delete pParams.cached_results;
-        return "Recalculation error in iMath include files\n" + OUS8(e.what());
+        return OUS8(e.what());
     }
 
+    delete pParams.cached_results;
     return "";
 }
 
@@ -631,10 +636,13 @@ void SmDocShell::Compile()
     }
     SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::Compile()\n'" << maImText << "'");
 
-    OUString error = ImInitializeCompiler();
-    if (error.getLength() > 0) {
+    OUString initError = ImInitializeCompiler();
+    if (initError.getLength() > 0) {
         // TODO: Publish it somewhere
-        SAL_WARN_LEVEL(-1, "starmath.imath", error);
+        // If there was a parser error, mLines.back() will be marked with it
+        mLines.clear();
+        mpCurrentCompiler = mpInitialCompiler;
+        mpCurrentOptions = mpInitialOptions;
         return;
     }
 

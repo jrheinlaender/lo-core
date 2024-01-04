@@ -662,200 +662,196 @@ void SmDocShell::Compile()
 
     // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = std::make_shared<eqc>(*mpInitialCompiler); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
+    mLines.clear();
+
     imath::parserParameters pParams;
+    pParams.xContext = comphelper::getProcessComponentContext();
+    pParams.xDocumentModel = GetDocumentModel();
+    pParams.copyPasteActive = false;
+    pParams.lines = &mLines;
+    pParams.compiler = mpCurrentCompiler;
+    pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >(); // TODO: Cached results not used yet
+    mpCurrentOptions = mpInitialOptions; // mpInitialOptions are not modified by the parser, copy is taken when OPTIONS keyword is encountered
 
-    // TODO Try to get rid of the try-catch block because the parser should not throw exceptions at all. Requires complete rework of exceptions in imath library
-    try {
-        mLines.clear();
+    // Compile line-by-line, creating error lines if necessary but handling all lines
+    sal_Int32 idx = 0;
 
-        pParams.xContext = comphelper::getProcessComponentContext();
-        pParams.xDocumentModel = GetDocumentModel();
-        pParams.rawtext = OU("");
-        pParams.copyPasteActive = false;
-        pParams.lines = &mLines;
-        pParams.compiler = mpCurrentCompiler;
-        pParams.global_options = mpInitialOptions; // mpInitialOptions are not modified by the parser, copy is taken when OPTIONS keyword is encountered
-        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >(); // TODO: Cached results not used yet
+    do {
+        OUString line = maImText.getToken(0, '\n', idx);
+        if (line.getLength() == 0)
+            continue;
+        pParams.rawtext = "%%ii " + line + OU("\n"); // TODO: Change parser to make this unnecessary
+        pParams.global_options = mpCurrentOptions;
 
-        // Add %%ii in front of every line
-        // TODO: Change parser to make this unnecessary
-        sal_Int32 idx = 0;
+        try {
+            std::cout << "Parsing '" << pParams.rawtext << "'" << std::endl;
+            if (imath::parse(pParams) > 0)
+                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
+        }
+        catch (Exception &e)
+        {
+            SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.Message);
+            mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions, pParams.rawtext.trim()));
+            mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), e.Message);
+        }
+        catch (std::exception &e)
+        {
+            SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.what());
+            mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions, pParams.rawtext.trim()));
+            mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), OUS(e.what()));
+        }
 
-        do {
-            OUString line = maImText.getToken(0, '\n', idx);
-            if (line.getLength() > 0)
-                pParams.rawtext += "%%ii " + line + OU("\n");
-        } while (idx >= 0);
+        mpCurrentOptions = mLines.back()->getGlobalOptions();
+    } while (idx >= 0);
 
-        if (imath::parse(pParams) != 0) {
-            pParams.errormessage = "Syntax error\n" + pParams.errormessage;
-            SAL_WARN_LEVEL(-1, "starmath.imath", pParams.errormessage);
-        } else if (mLines.size() > 0) {
-            mpCurrentOptions = mLines.back()->getGlobalOptions();
+    delete pParams.cached_results;
 
-            SAL_INFO_LEVEL(0, "starmath.imath", "Printing " << mLines.size() << " lines");
-            for (const auto& i : mLines)
-                SAL_INFO_LEVEL(0, "starmath.imath", i->printFormula());
+    if (mLines.size() > 0) {
+        SAL_INFO_LEVEL(0, "starmath.imath", "Printing " << mLines.size() << " lines");
+        for (const auto& i : mLines)
+            SAL_INFO_LEVEL(0, "starmath.imath", i->printFormula());
 
-            bool hasAlignment = addResultLines();
+        bool hasAlignment = addResultLines();
 
-            // Reduce column spacing for aligned equations. Note: This also reduces spaces in "normal" matrices
-            if (hasAlignment)
+        // Reduce column spacing for aligned equations. Note: This also reduces spaces in "normal" matrices
+        if (hasAlignment)
+        {
+            SmFormat aOldFormat  = GetFormat();
+            SmFormat aNewFormat( aOldFormat );
+            aNewFormat.SetDistance(DIS_MATRIXCOL, sal_Int16(10));
+            SetFormat( aNewFormat );
+        }
+
+        OUString result;
+
+        for (const auto& i : mLines)
+            if (i->getSelectionType() == formulaTypeResult)
+                result += i->print() + OU("\n");
+
+        SetText(result);
+
+        // Update properties
+        // Note: This must happen after print() because the displayedLhs is created in the iFormulaLine::display() method
+        maImTypeFirstLine = "";
+        maImTypeLastLine = "";
+        mImHidden = true;
+        std::shared_ptr<iFormulaLine> firstLine; // First expression or equation (of multi-line formula)
+        std::shared_ptr<iFormulaLine> lastLine; // Last expression or equation  (of multi-line formula)
+        std::vector<OUString> tempLabels; // Sequence does not appear to support appending of elements
+
+        for (const auto& l : mLines)
+        {
+            if (l->getSelectionType() == formulaTypeEquation)
             {
-                SmFormat aOldFormat  = GetFormat();
-                SmFormat aNewFormat( aOldFormat );
-                aNewFormat.SetDistance(DIS_MATRIXCOL, sal_Int16(10));
-                SetFormat( aNewFormat );
-            }
-
-            OUString result;
-
-            for (const auto& i : mLines)
-                if (i->getSelectionType() == formulaTypeResult)
-                    result += i->print() + OU("\n");
-
-            SetText(result);
-
-            // Update properties
-            // Note: This must happen after print() because the displayedLhs is created in the iFormulaLine::display() method
-            maImTypeFirstLine = "";
-            maImTypeLastLine = "";
-            mImHidden = true;
-            std::shared_ptr<iFormulaLine> firstLine; // First expression or equation (of multi-line formula)
-            std::shared_ptr<iFormulaLine> lastLine; // Last expression or equation  (of multi-line formula)
-            std::vector<OUString> tempLabels; // Sequence does not appear to support appending of elements
-
-            for (const auto& l : mLines)
-            {
-                if (l->getSelectionType() == formulaTypeEquation)
-                {
-                    maImTypeFirstLine = "equation";
-                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
-                    tempLabels.push_back(expr->getLabel());
-                    firstLine = l;
-                    break;
-                }
-                else if (l->getSelectionType() == formulaTypeExpression  || l->getSelectionType() == formulaTypeConstant)
-                {
-                    maImTypeFirstLine = "expression";
-                    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
-                    if (expr->getLabel().getLength() > 0)
-                        tempLabels.push_back(expr->getLabel());
-                    firstLine = l;
-                    break;
-                }
-            }
-
-            mImLabels = Sequence<OUString>(tempLabels.size());
-
-            for (size_t l = 0; l < tempLabels.size(); ++l)
-                mImLabels.getArray()[l] = tempLabels[l];
-
-            for (auto line = mLines.rbegin(); line != mLines.rend(); ++line)
-            {
-                if ((*line)->getSelectionType() == formulaTypeEquation)
-                {
-                    maImTypeLastLine = "equation";
-                    lastLine = *line;
-                    break;
-                }
-                else if ((*line)->getSelectionType() == formulaTypeExpression || (*line)->getSelectionType() == formulaTypeConstant)
-                {
-                    maImTypeLastLine = "expression";
-                    lastLine = *line;
-                    break;
-                }
-            }
-
-            for (const auto& l : mLines)
-            {
+                maImTypeFirstLine = "equation";
                 iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
-
-                if (expr != nullptr && !expr->getHide())
-                    mImHidden = false; // If one line is not hidden, the whole formula counts as not hidden
+                tempLabels.push_back(expr->getLabel());
+                firstLine = l;
+                break;
             }
+            else if (l->getSelectionType() == formulaTypeExpression  || l->getSelectionType() == formulaTypeConstant)
+            {
+                maImTypeFirstLine = "expression";
+                iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
+                if (expr->getLabel().getLength() > 0)
+                    tempLabels.push_back(expr->getLabel());
+                firstLine = l;
+                break;
+            }
+        }
 
-            // Set text mode if wished for and applicable
-            if (lastLine != nullptr && lastLine->getOption(o_autotextmode).value.boolean)
-                SetIFormulaPendingAction("checktextmode");
-            /* Note: This works but has no effect
-             * SmDocShell *pDocSh = static_cast < SmDocShell * > (GetObjectShell());
+        mImLabels = Sequence<OUString>(tempLabels.size());
+
+        for (size_t l = 0; l < tempLabels.size(); ++l)
+            mImLabels.getArray()[l] = tempLabels[l];
+
+        for (auto line = mLines.rbegin(); line != mLines.rend(); ++line)
+        {
+            if ((*line)->getSelectionType() == formulaTypeEquation)
+            {
+                maImTypeLastLine = "equation";
+                lastLine = *line;
+                break;
+            }
+            else if ((*line)->getSelectionType() == formulaTypeExpression || (*line)->getSelectionType() == formulaTypeConstant)
+            {
+                maImTypeLastLine = "expression";
+                lastLine = *line;
+                break;
+            }
+        }
+
+        for (const auto& l : mLines)
+        {
+            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
+
+            if (expr != nullptr && !expr->getHide())
+                mImHidden = false; // If one line is not hidden, the whole formula counts as not hidden
+        }
+
+        // Set text mode if wished for and applicable
+        if (lastLine != nullptr && lastLine->getOption(o_autotextmode).value.boolean)
+            SetIFormulaPendingAction("checktextmode");
+
+        /* Note: This works but has no effect
+            * SmDocShell *pDocSh = static_cast < SmDocShell * > (GetObjectShell());
              * SmFormat aFormat = pDocSh->GetFormat();
              * aFormat.SetTextmode(true); //checkTextmodeFormula(XTextContent)));
              * pDocSh->SetFormat( aFormat );
-             * pDocSh->SetVisArea( tools::Rectangle( Point(0, 0), pDocSh->GetSize() ) );
-             */
+            * pDocSh->SetVisArea( tools::Rectangle( Point(0, 0), pDocSh->GetSize() ) );
+            */
 
-            // Update dependencies
-            // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
-            std::set<GiNaC::expression, GiNaC::expr_is_less> inDep, outDep;
-            OUString inDepStr, outDepStr;
+        // Update dependencies
+        // TODO: Currently dependency tracking in iFormulaLine.cxx works on the compilation result, thus VAL(z) does not depend on z if it expands to a numeric value
+        std::set<GiNaC::expression, GiNaC::expr_is_less> inDep, outDep;
+        OUString inDepStr, outDepStr;
 
-            for (const auto& l : mLines)
+        for (const auto& l : mLines)
+        {
+            if (l->dependencyType() == depRecalc)
             {
-                if (l->dependencyType() == depRecalc)
-                {
-                    inDepStr = "all formulas";
-                    outDepStr = "all formulas";
-                    break;
-                }
-
-                for (const auto& dep : l->getIn())
-                    if (outDep.find(dep) == outDep.end()) // Avoid bogus incoming dependencies in multi-line formulas
-                        inDep.insert(dep);
-                outDep.merge(l->getOut());
+                inDepStr = "all formulas";
+                outDepStr = "all formulas";
+                break;
             }
 
-            if (outDepStr.getLength() == 0)
-            {
-                // Outgoing dependencies that have been removed will also influence the following formulas - thus they must be inserted again
-                // TODO: The way this is currently implemented means that outgoing dependencies will NEVER be removed at all!
-                for (const auto& oldDep : oldOutDep) {
-                    bool found = false;
-                    if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
-
-                    for (const auto& dep : outDep) {
-                        if (GiNaC::is_a<GiNaC::symbol>(dep) && GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() == GiNaC::ex_to<GiNaC::symbol>(dep).get_name()) {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found) {
-                        SAL_INFO_LEVEL(1, "starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
-                        outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
-                    }
-                }
-
-                inDepStr = makeSymbolString(inDep);
-                outDepStr = makeSymbolString(outDep);
-            }
-
-            SAL_INFO_LEVEL(1, "starmath.imath", "This formula depends on '" << inDepStr << "'");
-            SAL_INFO_LEVEL(1, "starmath.imath", "This formula modifies '" << outDepStr << "'");
-            SetIFormulaDependencyIn(inDepStr);
-            SetIFormulaDependencyOut(outDepStr);
+            for (const auto& dep : l->getIn())
+                if (outDep.find(dep) == outDep.end()) // Avoid bogus incoming dependencies in multi-line formulas
+                    inDep.insert(dep);
+            outDep.merge(l->getOut());
         }
 
-        delete pParams.cached_results;
-    } catch (Exception &e) {
-        error = "\"Compilation error\n" + e.Message + "\"";
-        delete pParams.cached_results;
-        SAL_WARN_LEVEL(-1, "starmath.imath", "Exception thrown while compiling user input\n" << STR(e.Message));
-    } catch (std::exception &e) {
-        error = OU("\"Compilation error\n") + OUS8(e.what())  + "\"";
-        delete pParams.cached_results;
-        SAL_WARN_LEVEL(-1, "starmath.imath", "std::exception thrown while compiling user input\n" << e.what());
+        if (outDepStr.getLength() == 0)
+        {
+            // Outgoing dependencies that have been removed will also influence the following formulas - thus they must be inserted again
+            // TODO: The way this is currently implemented means that outgoing dependencies will NEVER be removed at all!
+            for (const auto& oldDep : oldOutDep) {
+                bool found = false;
+                if (!GiNaC::is_a<GiNaC::symbol>(oldDep)) continue;
+
+                for (const auto& dep : outDep) {
+                    if (GiNaC::is_a<GiNaC::symbol>(dep) && GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() == GiNaC::ex_to<GiNaC::symbol>(dep).get_name()) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    SAL_INFO_LEVEL(1, "starmath.imath", "Outgoing dependency on '" << GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name() << "' was removed");
+                    outDep.insert(mpCurrentCompiler->getsym(GiNaC::ex_to<GiNaC::symbol>(oldDep).get_name()));
+                }
+            }
+
+            inDepStr = makeSymbolString(inDep);
+            outDepStr = makeSymbolString(outDep);
+        }
+
+        SAL_INFO_LEVEL(1, "starmath.imath", "This formula depends on '" << inDepStr << "'");
+        SAL_INFO_LEVEL(1, "starmath.imath", "This formula modifies '" << outDepStr << "'");
+        SetIFormulaDependencyIn(inDepStr);
+        SetIFormulaDependencyOut(outDepStr);
     }
 
-    if (!error.isEmpty()) {
-        if (!mLines.empty())
-            mpCurrentOptions = mLines.back()->getGlobalOptions();
-        else
-            mpCurrentOptions = mpInitialOptions;
-        // TODO: Show error in imath edit window, not in formula object
-        SetText(replaceString(error, "\n", "\"\nnewline\n\""));
-    }
 
     //setlocale(LC_NUMERIC, ""); // Reset to system locale
     SAL_INFO_LEVEL(0, "starmath.imath", "Recalculation finished" << endline);

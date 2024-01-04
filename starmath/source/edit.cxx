@@ -220,7 +220,8 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 #define IMGUIWINDOW_COL_LABEL_HIDE 2
 #define IMGUIWINDOW_COL_TYPE 3
 #define IMGUIWINDOW_COL_FORMULA 4
-#define IMGUIWINDOW_COL_LAST 4
+#define IMGUIWINDOW_COL_ERRMSG 5
+#define IMGUIWINDOW_COL_LAST 5
 
 ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     : rCmdBox(rMyCmdBoxWin)
@@ -300,6 +301,7 @@ void ImGuiWindow::ResetModel()
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+        mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row
 
         if (lineCount == currentSelection)
             mxFormulaList->select(*xIter);

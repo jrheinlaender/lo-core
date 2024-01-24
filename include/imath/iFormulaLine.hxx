@@ -162,7 +162,7 @@ public:
 
     // Textual output
     /// Print the formula as input by the user, without applying any formatting except decimal separator according to locale
-    OUString printFormula() const;
+    virtual OUString printFormula() const;
     OUString getFormula() const;
     void setFormula(const OUString& f);
     void setFormula(std::vector<OUString>&& formulaParts);
@@ -222,9 +222,9 @@ public:
     sal_Bool autoformat_required() const;
 
     /// Error position
-    void markError(const OUString& compiledText, const int errorStart, const int errorEnd,
-                   const OUString& errorMessage);
-    bool hasError() const { return error; }
+    virtual void markError(const OUString& compiledText, const int formulaStart,
+                           const int errorStart, const int errorEnd, const OUString& errorMessage);
+    bool hasError() const { return error == no_error; }
 
     // Dependency management
     virtual depType dependencyType() const { return depNone; }
@@ -250,7 +250,14 @@ protected:
     bool changed;
 
     /// Error status of this line
-    bool error;
+    enum
+    {
+        no_error,
+        general_error,
+        label_error,
+        option_error,
+        formula_error
+    } error;
 
     /// Dependency tracking
     std::set<GiNaC::expression, GiNaC::expr_is_less> in, out;
@@ -327,6 +334,222 @@ public:
                              std::vector<OUString>&& formulaParts);
     virtual OUString getCommand() const override { return (isBegin ? OU("BEGIN") : OU("END")); }
     virtual formulaType getSelectionType() const override { return formulaTypeNamespace; }
+
+private:
+    bool isBegin;
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmOptions : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmOptions(std::shared_ptr<GiNaC::optionmap> g_options,
+                           std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("OPTIONS"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeOptions; }
+    // dependencyType could be depRedisplay for all options except realroots
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmFunction : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmFunction(std::shared_ptr<GiNaC::optionmap> g_options,
+                            std::vector<OUString>&& formulaParts, const GiNaC::expression& f);
+    virtual OUString getCommand() const override { return OU("FUNCTION"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeFunctionDeclaration; }
+    // dependencyType recalc e.g. if function name was changed
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmUnitdef : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmUnitdef(std::shared_ptr<GiNaC::optionmap> g_options,
+                           std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("UNITDEF"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeUnit; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmPrefixdef : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmPrefixdef(std::shared_ptr<GiNaC::optionmap> g_options,
+                             std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("PREFIXDEF"); }
+    virtual formulaType getSelectionType() const override { return formulaTypePrefix; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmVectordef : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmVectordef(std::shared_ptr<GiNaC::optionmap> g_options,
+                             std::vector<OUString>&& formulaParts);
+    iFormulaNodeStmVectordef(const iFormulaNodeStatement& other) = delete;
+    iFormulaNodeStmVectordef(iFormulaNodeStatement&& other)
+        : iFormulaNodeStatement(std::move(other))
+    {
+    }
+    virtual OUString getCommand() const override { return OU("VECTORDEF"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeVectorDeclaration; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmMatrixdef : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmMatrixdef(std::shared_ptr<GiNaC::optionmap> g_options,
+                             std::vector<OUString>&& formulaParts);
+    iFormulaNodeStmMatrixdef(const iFormulaNodeStatement& other) = delete;
+    iFormulaNodeStmMatrixdef(iFormulaNodeStatement&& other)
+        : iFormulaNodeStatement(std::move(other))
+    {
+    }
+    virtual OUString getCommand() const override { return OU("MATRIXDEF"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeMatrixDeclaration; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmRealvardef : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmRealvardef(std::shared_ptr<GiNaC::optionmap> g_options,
+                              std::vector<OUString>&& formulaParts);
+    iFormulaNodeStmRealvardef(const iFormulaNodeStatement& other) = delete;
+    iFormulaNodeStmRealvardef(iFormulaNodeStatement&& other)
+        : iFormulaNodeStatement(std::move(other))
+    {
+    }
+    virtual OUString getCommand() const override { return OU("REALVARDEF"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeRealvar; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmPosvardef : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmPosvardef(std::shared_ptr<GiNaC::optionmap> g_options,
+                             std::vector<OUString>&& formulaParts);
+    iFormulaNodeStmPosvardef(const iFormulaNodeStatement& other) = delete;
+    iFormulaNodeStmPosvardef(iFormulaNodeStatement&& other)
+        : iFormulaNodeStatement(std::move(other))
+    {
+    }
+    virtual OUString getCommand() const override { return OU("POSVARDEF"); }
+    virtual formulaType getSelectionType() const override { return formulaTypePosvar; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmClearall : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmClearall(std::shared_ptr<GiNaC::optionmap> g_options);
+    virtual OUString getCommand() const override { return OU("CLEAREQUATIONS"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeClearall; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmDelete : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmDelete(std::shared_ptr<GiNaC::optionmap> g_options,
+                          std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("DELETE"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeDelete; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmUpdate : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmUpdate(std::shared_ptr<GiNaC::optionmap> g_options,
+                          std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("UPDATE"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeUpdate; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmTablecell : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmTablecell(std::shared_ptr<GiNaC::optionmap> g_options,
+                             std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("SETTABLECELL"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeTablecell; }
+    virtual depType dependencyType() const override { return depIn; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmCalccell : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmCalccell(std::shared_ptr<GiNaC::optionmap> g_options,
+                            std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("SETCALCCELLS"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeCalccell; }
+    virtual depType dependencyType() const override { return depIn; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmReadfile : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmReadfile(std::shared_ptr<GiNaC::optionmap> g_options,
+                            std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("READFILE"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeReadfile; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeStmChart : public iFormulaNodeStatement
+{
+public:
+    iFormulaNodeStmChart(std::shared_ptr<GiNaC::optionmap> g_options,
+                         std::vector<OUString>&& formulaParts);
+    virtual OUString getCommand() const override { return OU("CHART"); }
+    virtual formulaType getSelectionType() const override { return formulaTypeChart; }
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeExpression : public iFormulaLine
+{
+public:
+    iFormulaNodeExpression(const GiNaC::unitvec&& unitConversions,
+                           std::shared_ptr<GiNaC::optionmap> g_options,
+                           GiNaC::optionmap&& l_options, std::vector<OUString>&& formulaParts,
+                           const OUString& label, const GiNaC::expression& expr, const bool hide);
+    iFormulaNodeExpression(const iFormulaNodeExpression& other) = default;
+    iFormulaNodeExpression(iFormulaNodeExpression&& other) noexcept = default;
+    virtual iFormulaLine_ptr clone() const override;
+
+    OUString getLabel() const { return _label; }
+    void setLabel(const OUString& label) { _label = label; }
+    bool getHide() const { return _hide; }
+    void setHide(const bool hide) { _hide = hide; }
+    GiNaC::expression getExpression() const { return _expr; }
+
+    virtual OUString print() const override;
+    /// Print an expression with options and units of the node
+    OUString printEx(const GiNaC::expression& e) const;
+
+    virtual void markError(const OUString& compiledText, const int formulaStart,
+                           const int errorStart, const int errorEnd,
+                           const OUString& errorMessage) override;
+
+    virtual bool canHaveOptions() const override { return true; }
+    virtual bool isExpression() const override { return true; }
+
+    virtual std::string getGraphLabel() const override;
+    virtual depType dependencyType() const override { return depIn; }
+
+protected:
+    OUString _label;
+    GiNaC::expression _expr;
+    bool _hide;
+    GiNaC::unitvec _unitconv;
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeText : public iFormulaNodeExpression
+{
+public:
+    iFormulaNodeText(const GiNaC::unitvec&& unitConversions,
+                     std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap&& l_options,
+                     std::vector<OUString>&& formulaParts,
+                     std::vector<std::shared_ptr<textItem>>&& textlist);
+    iFormulaNodeText(const iFormulaNodeText& other);
+    virtual iFormulaLine_ptr clone() const override;
+
+    virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;
+
+    virtual OUString getCommand() const { return OU("TEXT"); }
+    virtual bool isExpression() const override { return false; }
+    virtual formulaType getSelectionType() const override { return formulaTypeText; }
 
 private:
     bool isBegin;

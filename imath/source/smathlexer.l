@@ -785,7 +785,7 @@ BEGIN(INITIAL);
 
         return (token::LABEL);
       }
-<II>@[^@]*@ {
+<II>@[^@]+@ {
         // an equation label
         std::string* label = new std::string(yytext);
         label->erase(0,1);

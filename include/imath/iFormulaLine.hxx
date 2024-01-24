@@ -132,7 +132,7 @@ public:
 
   // Textual output
   /// Print the formula as input by the user, without applying any formatting except decimal separator according to locale
-  OUString printFormula() const;
+  virtual OUString printFormula() const;
   OUString getFormula() const;
   void setFormula(const OUString& f);
   void setFormula(std::vector<OUString>&& formulaParts);
@@ -188,8 +188,8 @@ public:
   sal_Bool autoformat_required() const;
 
   /// Error position
-  void markError(const OUString& compiledText, const int errorStart, const int errorEnd, const OUString& errorMessage);
-  bool hasError() const { return error; }
+  virtual void markError(const OUString& compiledText, const int formulaStart, const int errorStart, const int errorEnd, const OUString& errorMessage);
+  bool hasError() const { return error == no_error; }
 
   // Dependency management
   virtual depType dependencyType() const { return depNone; }
@@ -215,7 +215,13 @@ protected:
   bool changed;
 
   /// Error status of this line
-  bool error;
+  enum {
+      no_error,
+      general_error,
+      label_error,
+      option_error,
+      formula_error
+  } error;
 
   /// Dependency tracking
   std::set<GiNaC::expression, GiNaC::expr_is_less> in, out;
@@ -424,6 +430,8 @@ public:
   virtual OUString print() const override;
   /// Print an expression with options and units of the node
   OUString printEx(const GiNaC::expression& e) const;
+
+  virtual void markError(const OUString& compiledText, const int formulaStart, const int errorStart, const int errorEnd, const OUString& errorMessage) override;
 
   virtual bool canHaveOptions() const override { return true; }
   virtual bool isExpression() const override { return true; }

@@ -15,28 +15,24 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <sstream>
 #ifdef INSIDE_SM
 #include <imath/imathparse.hxx>
 #else
 #include "imathparse.hxx"
 #endif
-#include <smathparser.hxx>
-
-namespace smathlexer {
-    /// Parser/lexer handling routines
-    void scan_begin(const std::string& input);
-    void scan_end();
-};
-
+#include <smathlexer.hxx>
 
 namespace imath
 {
-    int parse(parserParameters& params)
+    int imathparse::parse(parserParameters& params)
     {
+        std::istringstream input(STR(params.rawtext));
+        params.lexer = std::make_shared<smathlexer>();
+        params.lexer->scan_begin(input);
         smathparser parser(params);
-        smathlexer::scan_begin(STR(params.rawtext));
         int parse_result = parser.parse();
-        smathlexer::scan_end();
+        params.lexer->scan_end();
         return parse_result;
     }
 }

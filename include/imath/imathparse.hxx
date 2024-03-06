@@ -28,13 +28,10 @@
 
 namespace imath
 {
-// Prototype for the lexing function. This must match the declaration of lex_param at the top of smathparser.y
-#define YY_DECL                                                                                    \
-    imath::smathparser::token::yytokentype imathlex(                                               \
-        imath::smathparser::semantic_type* yylval, imath::smathparser::location_type* yylloc,      \
-        std::shared_ptr<eqc> compiler, unsigned include_level)
+class smathlexer;
 
-struct IMATH_DLLPUBLIC parserParameters
+// Front-end to the parser
+struct parserParameters
 {
     // Input
     /// Document access
@@ -67,6 +64,35 @@ struct IMATH_DLLPUBLIC parserParameters
 
 // Front-end to the parser
 IMATH_DLLPUBLIC int parse(parserParameters& params);
+std::shared_ptr<smathlexer> lexer;
+/// The parsed formula text split into lines
+std::list<iFormulaLine_ptr>& lines;
+/// The compiler
+std::shared_ptr<eqc> compiler;
+/// The options
+std::shared_ptr<GiNaC::optionmap> global_options;
+
+// Output
+/// The compiled equations of the iFormula are cacheable (saving time on re-compilation)
+bool cacheable; // TODO: Caching is not implemented yet
+/// The results of the last compilation (for cacheable iFormulas only)
+// Note: This is a pointer because the actual data is stored in the iFormula object
+std::vector<std::pair<std::string, GiNaC::expression>>* cached_results;
+
+/// List of formulas for which an update should be inserted
+std::list<OUString> updateFormulas;
+
+// Constructor (required to initalize reference to lines)
+parserParameters(std::list<iFormulaLine_ptr>& l)
+    : lines(l){};
+};
+
+class IMATH_DLLPUBLIC imathparse
+{
+public:
+    imathparse() {}
+    int parse(parserParameters& params);
+};
 }
 
 #endif

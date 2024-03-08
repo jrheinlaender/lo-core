@@ -530,7 +530,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/calc/");
     rtl::Bootstrap::expandMacros(shareURL);
     osl::FileBase::getSystemPathFromFileURL(shareURL, shareFolder);
-    imath::parserParameters pParams;
+    imath::parserParameters pParams(mLines);
 
     try {
         // Read referenced files
@@ -540,10 +540,9 @@ OUString SmDocShell::ImInitializeCompiler() {
         pParams.xDocumentModel = GetDocumentModel();
         pParams.rawtext = OU("");
         pParams.copyPasteActive = false; // TODO: Check if LO still crashes when a formula is changed during a copy+paste action
-        pParams.lines = &mLines;
         pParams.compiler = mpInitialCompiler;
         pParams.global_options = mpInitialOptions;
-        pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >(); // TODO: Cached results are not used currently
+        pParams.cached_results = nullptr; // Cached results are not useful for include files
 
         // Read all files in one parser run
         for (const auto& f : files) {
@@ -553,11 +552,16 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         if (!pParams.rawtext.equalsAscii("")) {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(pParams.rawtext));
-            if (imath::parse(pParams) != 0)
+            pParams.lines.clear();
+            imath::imathparse parser;
+            if (parser.parse(pParams) != 0)
             {
                 SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
-                delete pParams.cached_results;
-                return mLines.back()->getErrorMessage();
+                OUString error("");
+                for (const auto& l : mLines)
+                    if (l->hasError())
+                        error += l->getErrorMessage() + "\n";
+                return error;
             }
             if (mLines.size() > 0)
                 mpInitialOptions = mLines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
@@ -573,10 +577,11 @@ OUString SmDocShell::ImInitializeCompiler() {
             // Recreate the global units expression vector, since this cannot be stored in the registry
             SAL_INFO_LEVEL(0, "starmath.imath", "Parsing default units\n" << STR(pParams.rawtext));
             pParams.rawtext = OU("%%ii OPTIONS {units={") + units + OU("}}\n");
+            pParams.lines.clear();
+            imath::imathparse parser;
             // Result is stored in mpInitialOptions map under the keys o_unit and o_unitstr
-            if (imath::parse(pParams) != 0) {
+            if (parser.parse(pParams) != 0) {
                 SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
-                delete pParams.cached_results;
                 return mLines.back()->getErrorMessage();
             }
             if (mLines.size() > 0)
@@ -601,30 +606,28 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         if (!pParams.rawtext.equalsAscii("")) {
             SAL_INFO_LEVEL(0, "starmath.imath", "Reading user include files\n" << STR(pParams.rawtext));
-            if (imath::parse(pParams) != 0)
+            pParams.lines.clear();
+            imath::imathparse parser;
+            if (parser.parse(pParams) != 0)
             {
                 SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
-                delete pParams.cached_results;
-                return mLines.back()->getErrorMessage();
+                OUString error("");
+                for (const auto& l : mLines)
+                    if (l->hasError())
+                        error += l->getErrorMessage() + "\n";
+                return error;
             }
             if (mLines.size() > 0)
                 mpInitialOptions = mLines.back()->getGlobalOptions();
         }
     } catch (Exception &e) {
         SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.Message);
-        mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpInitialOptions, pParams.rawtext.trim()));
-        mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), e.Message);
-        delete pParams.cached_results;
         return e.Message;
     } catch (std::exception &e) {
         SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.what());
-        mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpInitialOptions, pParams.rawtext.trim()));
-        mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), OUS(e.what()));
-        delete pParams.cached_results;
         return OUS8(e.what());
     }
 
-    delete pParams.cached_results;
     return "";
 }
 
@@ -639,7 +642,6 @@ void SmDocShell::Compile()
     OUString initError = ImInitializeCompiler();
     if (initError.getLength() > 0) {
         // TODO: Publish it somewhere
-        // If there was a parser error, mLines.back() will be marked with it
         mLines.clear();
         mpCurrentCompiler = mpInitialCompiler;
         mpCurrentOptions = mpInitialOptions;
@@ -668,51 +670,78 @@ void SmDocShell::Compile()
     for (const auto& l : mLines) oldOutDep.merge(l->getOut());
     SAL_INFO_LEVEL(1, "starmath.imath", "This formula had old outgoing dependencies for '" << makeSymbolString(oldOutDep) << "'");
 
-    // Prepare compiler. Note: Since currentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
+    // Prepare compiler. Note: Since mpCurrentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = std::make_shared<eqc>(*mpInitialCompiler); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures
     mLines.clear();
 
-    imath::parserParameters pParams;
+    imath::parserParameters pParams(mLines);
     pParams.xContext = comphelper::getProcessComponentContext();
     pParams.xDocumentModel = GetDocumentModel();
     pParams.copyPasteActive = false;
-    pParams.lines = &mLines;
     pParams.compiler = mpCurrentCompiler;
-    pParams.cached_results = new std::vector<std::pair<std::string, GiNaC::expression> >(); // TODO: Cached results not used yet
+    pParams.cached_results = nullptr; // TODO: Cached results not used yet
     mpCurrentOptions = mpInitialOptions; // mpInitialOptions are not modified by the parser, copy is taken when OPTIONS keyword is encountered
 
     // Compile line-by-line, creating error lines if necessary but handling all lines
     sal_Int32 idx = 0;
 
-    do {
+    do
+    {
         OUString line = maImText.getToken(0, '\n', idx);
         if (line.getLength() == 0)
             continue;
         pParams.rawtext = "%%ii " + line + OU("\n"); // TODO: Change parser to make this unnecessary
         pParams.global_options = mpCurrentOptions;
+        bool reset_auto_renumber = false;
 
-        try {
-            std::cout << "Parsing '" << pParams.rawtext << "'" << std::endl;
-            if (imath::parse(pParams) > 0)
-                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
+        try
+        {
+            bool try_again;
+
+            do
+            {
+                imath::imathparse parser;
+                int parseResult = parser.parse(pParams);
+                try_again = false;
+
+                if (parseResult > 0)
+                {
+                    SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
+
+                    if (mLines.back()->getErrorMessage().indexOfAsciiL("Duplicate label:", 16) >= 0)
+                    {
+                        MSG_INFO(0, "Found duplication error" << endline);
+                    }
+                }
+            } while (try_again);
+
+            pParams.updateFormulas.clear();
         }
         catch (Exception &e)
         {
             SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.Message);
             mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions, pParams.rawtext.trim()));
-            mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), e.Message);
+            mLines.back()->markError(pParams.rawtext, 5, 5, pParams.rawtext.getLength(), e.Message);
         }
         catch (std::exception &e)
         {
             SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.what());
             mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions, pParams.rawtext.trim()));
-            mLines.back()->markError(pParams.rawtext.trim(), 0, pParams.rawtext.trim().getLength(), OUS(e.what()));
+            mLines.back()->markError(pParams.rawtext, 5, 5, pParams.rawtext.getLength(), OUS(e.what()));
         }
+
+        if (reset_auto_renumber)
+        {
+            std::shared_ptr<comphelper::ConfigurationChanges> batch(comphelper::ConfigurationChanges::create());
+            officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::set(false, batch);
+            batch->commit();
+        }
+
+        if (mLines.empty())
+            continue; // If the echo option is turned on, then a formula might start with a generated line (%%gg)
 
         mpCurrentOptions = mLines.back()->getGlobalOptions();
     } while (idx >= 0);
-
-    delete pParams.cached_results;
 
     if (mLines.size() > 0) {
         SAL_INFO_LEVEL(0, "starmath.imath", "Printing " << mLines.size() << " lines");
@@ -1024,6 +1053,10 @@ bool SmDocShell::addResultLines()
             SAL_INFO_LEVEL(3, "starmath.imath", "Extracted in-line label '" << exLabel << "'");
         }
 
+        // The error markup won't fit into the auto-aligned columns
+        if (line->hasError())
+            autoalign = false;
+
         // Move iterator to next formula line
         ++line_it;
 
@@ -1064,7 +1097,7 @@ bool SmDocShell::addResultLines()
                 else
                     previousLhs = currentMatrixLine.front();
 
-                if (currentMatrixLine.size() > 1) {
+                if ((hasNewline && currentMatrixLine.size() > 1) || (!hasNewline && currentMatrixLine.size() >= 1)) {
                     // Add label if asked for
                     if (showlabels)
                         currentMatrixLine.emplace(currentMatrixLine.begin(), lineLabel);
@@ -1077,7 +1110,6 @@ bool SmDocShell::addResultLines()
 
                     // Count columns
                     columns = std::max(columns, currentMatrixLine.size() - 1); // But don't count alignment marker
-                    SAL_INFO_LEVEL(3, "starmath.imath", "Number of columns " << columns);
 
                     // Write line to matrix
                     resultMatrix.emplace_back(std::vector<OUString>());
@@ -1134,7 +1166,7 @@ bool SmDocShell::addResultLines()
             if (insideBlock)
             {
                 // Finish alignment block
-                mLines.emplace_back(std::make_shared<iFormulaNodeResult>(OU("}")));
+                mLines.emplace_back(std::make_shared<iFormulaNodeResult>(OU("} newline")));
                 insideBlock = false;
             }
         }
@@ -1161,8 +1193,13 @@ bool SmDocShell::addResultLines()
         // Move iterator to next line
         ++resultLine_it;
 
-        if (autoalign && resultLine_it != resultMatrix.end())
-            textLine += OU(" ##");
+        if (resultLine_it != resultMatrix.end())
+        {
+            if (resultLine_it->back() == OU("y") && autoalign)
+                textLine += OU(" ##"); // Continue aligned matrix
+            else
+                textLine += OU(" newline"); // Finish normal line
+        }
 
         mLines.emplace_back(std::make_shared<iFormulaNodeResult>(textLine));
     }

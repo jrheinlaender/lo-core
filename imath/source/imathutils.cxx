@@ -2920,13 +2920,32 @@ void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUStri
     Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
     setCalcCellRangeExpression(xColumnRowRange, value);
 
-    if (!docIsLoaded)
+    for (; fp != fileParts.end() && pp != progParts.end(); ++fp, ++pp)
     {
-        Reference<XStorable> xStore(xCalcDoc, UNO_QUERY_THROW);
-        xStore->store();
-        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
-        xClose->close(true);
+        sal_Int32 num_file = fp->toInt32();
+        sal_Int32 num_prog = pp->toInt32();
+
+        if (num_file < num_prog)
+            return -1;
+        else if (num_file > num_prog)
+            return +1;
     }
+
+    int rem_file_idx = file.indexOf('~');
+    int rem_prog_idx = prog.indexOf('~');
+
+    if (rem_file_idx > 0 && rem_prog_idx > 0)
+    {
+        OUString rem_file = file.copy(rem_file_idx);
+        OUString rem_prog = prog.copy(rem_prog_idx);
+
+        if (rem_file < rem_prog)
+            return -1;
+        else if (rem_file < rem_prog)
+            return +1;
+    }
+
+    return 0;
 }
 
 Reference<XModel> checkDocumentLoaded(Reference<XDesktop>& xDesktop, const OUString& URL)

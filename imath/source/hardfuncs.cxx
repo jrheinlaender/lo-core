@@ -702,6 +702,10 @@ static ex vmax_eval(const ex& v)
     else
     {
         return unchanged;
+
+        numeric n = ex_to<numeric>(m.op(i));
+        if (n > result)
+            result = n;
     }
 }
 
@@ -760,6 +764,10 @@ static ex vmin_eval(const ex& v)
     else
     {
         return unchanged;
+
+        numeric n = ex_to<numeric>(m.op(i));
+        if (n < result)
+            result = n;
     }
 }
 

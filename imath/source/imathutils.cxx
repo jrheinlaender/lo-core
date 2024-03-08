@@ -2618,7 +2618,7 @@ int versionCompare(const OUString& file, const OUString& prog) {
   auto fp = fileParts.begin();
   auto pp = progParts.begin();
 
-  for (; fp != fileParts.end(), pp != progParts.end(); ++fp, ++pp) {
+  for (; fp != fileParts.end() && pp != progParts.end(); ++fp, ++pp) {
     sal_Int32 num_file = fp->toInt32();
     sal_Int32 num_prog = pp->toInt32();
 

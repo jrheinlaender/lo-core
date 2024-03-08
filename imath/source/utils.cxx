@@ -412,7 +412,7 @@ ex expand_real_powers::operator()(const ex &e) {
       for (const auto& i : the_basis) {
         result = result * check_double_power(i, the_exp);
       }
-      return std::move(result);
+      return result;
     } else if (is_a<power>(the_basis)) {
       return check_double_power(the_basis, the_exp);
     }
@@ -707,7 +707,7 @@ ex match_differentials::operator()(const ex& e) {
         const power& p = ex_to<power>(m);
         if (is_a<differential>(get_basis(p))) {
           if (is_negpower(p)) {
-            const differential& d = ex_to<differential>(get_basis(p));
+            differential d = ex_to<differential>(get_basis(p));
             // Move all grades of negdiffs into the power, so that same differentials will be grouped into a single power
             negdiffs *= dynallocate<power>(dynallocate<differential>(d.argument(), d.is_partial(), _ex1, d.get_parent(), false),
                                            d.get_grade() * _ex_1 * get_exp(p));

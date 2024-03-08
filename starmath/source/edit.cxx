@@ -274,34 +274,57 @@ void ImGuiWindow::ResetModel()
 
     for (const auto& fLine : pDoc->GetFormulaLines())
     {
-        if (fLine->getSelectionType() == formulaTypeResult) continue;
+        if (fLine->getSelectionType() == formulaTypeResult)
+            continue;
 
         mxFormulaList->append(xIter.get());
-
         mxFormulaList->set_id(*xIter, weld::toId(&fLine));
 
-        iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
-        if (expr != nullptr && !std::dynamic_pointer_cast<iFormulaNodeText>(fLine))
-        {
-            mxFormulaList->set_toggle(*xIter, expr->getHide() ? TRISTATE_TRUE : TRISTATE_FALSE, IMGUIWINDOW_COL_HIDDEN);
-            mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
-            option o = fLine->getOption(o_showlabels);
-            mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOWLABEL) : OUString(BMP_IMGUI_HIDELABEL), IMGUIWINDOW_COL_LABEL_HIDE);
-            mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
-        }
-        else
-        {
-            // Note toggle remains invisible since we do not set a value
-            mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
-            mxFormulaList->set_image(*xIter, "");
-        }
-
+        // Note on column layout, see gtkinst.cxx GtkInstanceTreeView::GtkInstanceTreeView()
+        // [data columns] id_column [text weight columns] [text sensitive columns]
+        // All liststore columns must have treeview columns, otherwise the count goes wrong
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
         mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row
+
+        switch (fLine->getSelectionType())
+        {
+            case formulaTypeEquation:
+            case formulaTypeExpression:
+            case formulaTypeConstant:
+            case formulaTypeFunctionDefinition:
+            case formulaTypeVectorDeclaration:
+            case formulaTypeMatrixDeclaration:
+            case formulaTypePrintval:
+            case formulaTypeExplainval:
+            {
+                iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
+
+                mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
+                mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
+                option o = fLine->getOption(o_showlabels);
+                mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOWLABEL) : OUString(BMP_IMGUI_HIDELABEL), IMGUIWINDOW_COL_LABEL_HIDE);
+                mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
+
+                break;
+            }
+            case formulaTypeError:
+            {
+                auto error = std::dynamic_pointer_cast<iFormulaNodeError>(fLine);
+
+                mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA); //+ OUString("<span foreground='blue' font='bold'>TEST</span>")
+
+                break;
+            }
+            default:
+            {
+                // Note toggle remains invisible since we do not set a value
+                mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
+                mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_LABEL_HIDE);
+            }
+        }
 
         if (lineCount == currentSelection)
             mxFormulaList->select(*xIter);

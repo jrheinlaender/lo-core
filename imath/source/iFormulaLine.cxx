@@ -246,8 +246,18 @@ OUString iFormulaLine::getFormula() const {
         case label_error:
             return _formulaParts[2];
         default:
-            return _formulaParts[0] + _formulaParts[1] + _formulaParts[2];
+        {
+            OUString formula = OU("");
+            for (const auto& p : _formulaParts)
+                formula += p;
+            return formula;
+        }
     }
+}
+
+void iFormulaLine::setFormula(const OUString& f) {
+  _formulaParts = {f};
+  error = no_error;
 }
 
 OUString iFormulaLine::getErrorMessage() const {

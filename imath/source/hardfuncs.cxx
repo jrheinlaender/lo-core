@@ -548,7 +548,7 @@ static ex vmax_eval(const ex& v) {
       if (!is_a<numeric>(m.op(i)))
         return unchanged;
 
-      const numeric& n = ex_to<numeric>(m.op(i));
+      numeric n = ex_to<numeric>(m.op(i));
       if (n > result)
         result = n;
     }
@@ -597,7 +597,7 @@ static ex vmin_eval(const ex& v) {
       if (!is_a<numeric>(m.op(i)))
         return unchanged;
 
-      const numeric& n = ex_to<numeric>(m.op(i));
+      numeric n = ex_to<numeric>(m.op(i));
       if (n < result)
         result = n;
     }

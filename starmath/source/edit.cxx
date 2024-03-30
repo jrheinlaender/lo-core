@@ -215,13 +215,15 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 {
 }
 
-#define IMGUIWINDOW_COL_HIDDEN 0
-#define IMGUIWINDOW_COL_LABEL 1
-#define IMGUIWINDOW_COL_LABEL_HIDE 2
-#define IMGUIWINDOW_COL_TYPE 3
-#define IMGUIWINDOW_COL_FORMULA 4
-#define IMGUIWINDOW_COL_ERRMSG 5
-#define IMGUIWINDOW_COL_LAST 5
+#define IMGUIWINDOW_COL_INSERT_BEFORE 0
+#define IMGUIWINDOW_COL_DELETE 1
+#define IMGUIWINDOW_COL_HIDE 2
+#define IMGUIWINDOW_COL_LABEL 3
+#define IMGUIWINDOW_COL_LABEL_HIDE 4
+#define IMGUIWINDOW_COL_TYPE 5
+#define IMGUIWINDOW_COL_FORMULA 6
+#define IMGUIWINDOW_COL_ERRMSG 7
+#define IMGUIWINDOW_COL_LAST 8
 
 ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     : rCmdBox(rMyCmdBoxWin)
@@ -283,6 +285,8 @@ void ImGuiWindow::ResetModel()
         // Note on column layout, see gtkinst.cxx GtkInstanceTreeView::GtkInstanceTreeView()
         // [data columns] id_column [text weight columns] [text sensitive columns]
         // All liststore columns must have treeview columns, otherwise the count goes wrong
+        mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_BEFORE, IMGUIWINDOW_COL_INSERT_BEFORE);
+        mxFormulaList->set_image(*xIter, BMP_IMGUI_DELETE, IMGUIWINDOW_COL_DELETE);
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
@@ -302,7 +306,6 @@ void ImGuiWindow::ResetModel()
             {
                 iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
 
-                mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
                 mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
                 option o = fLine->getOption(o_showlabels);
                 mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOWLABEL) : OUString(BMP_IMGUI_HIDELABEL), IMGUIWINDOW_COL_LABEL_HIDE);
@@ -315,6 +318,7 @@ void ImGuiWindow::ResetModel()
                 auto error = std::dynamic_pointer_cast<iFormulaNodeError>(fLine);
 
                 mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA); //+ OUString("<span foreground='blue' font='bold'>TEST</span>")
+            mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
 
                 break;
             }
@@ -384,7 +388,41 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
 
     switch (mClickedColumn)
     {
-        case IMGUIWINDOW_COL_HIDDEN:
+        case IMGUIWINDOW_COL_INSERT_BEFORE:
+        {
+            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+
+            if (ppLine == nullptr)
+                return false; // line number not found
+            auto pLine = *ppLine;
+
+            SmDocShell* pDoc = GetDoc();
+            if (!pDoc)
+                break;
+            pDoc->insertFormulaLineBefore(pLine, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
+            pDoc->UpdateGuiText();
+            ResetModel();
+
+            break;
+        }
+        case IMGUIWINDOW_COL_DELETE:
+        {
+            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+
+            if (ppLine == nullptr)
+                return false; // line number not found
+
+            SmDocShell* pDoc = GetDoc();
+            if (!pDoc)
+                break;
+            pDoc->eraseFormulaLine(*ppLine);
+            pDoc->UpdateGuiText();
+            pDoc->Compile();
+            ResetModel();
+
+            break;
+        }
+        case IMGUIWINDOW_COL_HIDE:
         {
             auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
 
@@ -397,7 +435,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (expr != nullptr)
             {
                 expr->setHide(!expr->getHide());
-                mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDDEN);
+                mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
 
                 SmDocShell* pDoc = GetDoc();
                 if (!pDoc)

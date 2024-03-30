@@ -932,6 +932,24 @@ void SmDocShell::SetImHidden(const bool h)
     mImHidden = h;
 }
 
+void SmDocShell::insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine)
+{
+    auto it = std::find(mLines.begin(), mLines.end(), pLine);
+    if (it == mLines.end())
+        return;
+
+    mLines.insert(it, std::move(pNewLine));
+}
+
+void SmDocShell::eraseFormulaLine(const iFormulaLine_ptr& pLine)
+{
+    auto it = std::find(mLines.begin(), mLines.end(), pLine);
+    if (it == mLines.end())
+        return;
+
+    mLines.erase(it);
+}
+
 void SmDocShell::ArrangeFormula()
 {
     if (mbFormulaArranged)

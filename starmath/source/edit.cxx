@@ -48,7 +48,7 @@
 
 using namespace com::sun::star::accessibility;
 using namespace com::sun::star;
-
+using fparts = std::initializer_list<OUString>; // Just a convenient shortcut
 
 void SmGetLeftSelectionPart(const ESelection &rSel,
                             sal_Int32 &nPara, sal_uInt16 &nPos)
@@ -500,6 +500,22 @@ IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)
     return true; // Allow editing (called for text and combo cell renderers)
 }
 
+OUString getLhs(const OUString& equation)
+{
+    auto idx = equation.indexOf("="); // Note: This does not handle inequalities
+    if (idx >= 0)
+        return equation.copy(0, idx);
+    return "x";
+}
+
+OUString getRhs(const OUString& equation)
+{
+    auto idx = equation.indexOf("="); // Note: This does not handle inequalities
+    if (idx >= 0)
+        return equation.copy(idx + 1);
+    return "x";
+}
+
 IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
     if (mxFormulaList->get_text(rIterString.first) == rIterString.second)
@@ -537,6 +553,8 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 OUString newType = rIterString.second;
                 if (previousType.equals(newType))
                     goto finished;
+                if (newType.equals("ERROR"))
+                    goto finished; // Changing the formula type to an error makes no sense
                 // VECTORDEF and MATRIXDEF have two different nodes
                 if (previousType == "VECTORDEF")
                 {
@@ -553,27 +571,51 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 SAL_INFO_LEVEL(1, "starmath.imath", "Changing line type from " << previousType << " to " << newType);
 
                 std::shared_ptr<iFormulaLine> pNew = nullptr;
+                OUString useEx("x"); // Use parts of the old type for the new type even if they are not 100% compatible
+                OUString useEq("E = m c^2");
+
                 if (previousType == "EQDEF")
                 {
                     if (newType == "CONSTDEF")
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeConst>(pLine);
                     else if (newType == "FUNCDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeFuncdef>(pLine);
+                    {
+                       iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
+                        pNew = std::make_shared<iFormulaNodeFuncdef>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(),
+                                                                     fparts({"f", "(", "x", ")", "=", getRhs(pLine->getFormula())}),
+                                                                     pExpr->getLabel(), GiNaC::equation(), pExpr->getHide());
+                    }
                     else if (newType == "VECTORDEF")
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
                     else if (newType == "MATRIXDEF")
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
+                    else
+                    {
+                        useEq = pLine->getFormula();
+                        useEx = getLhs(useEq);
+                    }
+
                 }
                 else if (previousType == "CONSTDEF")
                 {
                     if (newType == "EQDEF")
                         pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeEq>(pLine);
                     else if (newType == "FUNCDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeFuncdef>(pLine);
+                    {
+                       iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
+                        pNew = std::make_shared<iFormulaNodeFuncdef>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(),
+                                                                     fparts({"f", "(", "x", ")", "=", getRhs(pLine->getFormula())}),
+                                                                     pExpr->getLabel(), GiNaC::equation(), pExpr->getHide());
+                    }
                     else if (newType == "VECTORDEF")
                         pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeVectordef>(pLine);
                     else if (newType == "MATRIXDEF")
                         pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeMatrixdef>(pLine);
+                    else
+                    {
+                        useEq = pLine->getFormula();
+                        useEx = getLhs(useEq);
+                    }
                 }
                 else if (previousType == "FUNCDEF")
                 {
@@ -585,6 +627,11 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                         pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeVectordef>(pLine);
                     else if (newType == "MATRIXDEF")
                         pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeMatrixdef>(pLine);
+                    else
+                    {
+                        useEq = pLine->getFormula();
+                        useEx = getRhs(useEq);
+                    }
                 }
                 else if (previousType == "VECTORDEF")
                 {
@@ -593,61 +640,162 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "CONSTDEF")
                         pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeConst>(pLine);
                     else if (newType == "FUNCDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeFuncdef>(pLine);
+                    {
+                       iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
+                        pNew = std::make_shared<iFormulaNodeFuncdef>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(),
+                                                                     fparts({"f", "(", "x", ")", "=", getRhs(pLine->getFormula())}),
+                                                                     pExpr->getLabel(), GiNaC::equation(), pExpr->getHide());
+                    }
                     else if (newType == "MATRIXDEF")
                         pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeMatrixdef>(pLine);
+                    else
+                    {
+                        useEq = pLine->getFormula();
+                        useEx = getRhs(useEq);
+                    }
                 }
-                else if (previousType == "FUNCDEF")
+                else if (previousType == "MATRIXDEF")
                 {
                     if (newType == "EQDEF")
                         pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeEq>(pLine);
                     else if (newType == "CONSTDEF")
                         pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeConst>(pLine);
+                    else if (newType == "FUNCDEF")
+                    {
+                       iExpression_ptr pExpr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
+                        pNew = std::make_shared<iFormulaNodeFuncdef>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(),
+                                                                     fparts({"f", "(", "x", ")", "=", getRhs(pLine->getFormula())}),
+                                                                     pExpr->getLabel(), GiNaC::equation(), pExpr->getHide());
+                    }
                     else if (newType == "VECTORDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeFuncdef>(pLine);
-                    else if (newType == "MATRIXDEF")
                         pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeVectordef>(pLine);
+                    else
+                    {
+                        useEq = pLine->getFormula();
+                        useEx = getRhs(useEq);
+                    }
                 }
                 else if (previousType == "EXDEF")
                 {
                     if (newType == "PRINTVAL")
                         pNew = iFormulaLine::move<iFormulaNodeEx, iFormulaNodePrintval>(pLine);
+                    else
+                    {
+                        useEx = pLine->getFormula();
+                        useEq = useEx + " = 0";
+                    }
                 }
                 else if (previousType == "PRINTVAL")
                 {
                     if (newType == "EXDEF")
                         pNew = iFormulaLine::move<iFormulaNodePrintval, iFormulaNodeEx>(pLine);
+                    else
+                    {
+                        useEx = pLine->getFormula();
+                        useEq = useEx + " = 0";
+                    }
                 }
                 else if (previousType == "REALVARDEF")
                 {
                     if (newType == "POSVARDEF")
                         pNew = iFormulaLine::move<iFormulaNodeStmRealvardef, iFormulaNodeStmPosvardef>(pLine);
+                    else
+                    {
+                        useEx = pLine->getFormula();
+                        useEq = useEx + " = 0";
+                    }
                 }
                 else if (previousType == "POSVARDEF")
                 {
                     if (newType == "REALVARDEF")
                         pNew = iFormulaLine::move<iFormulaNodeStmPosvardef, iFormulaNodeStmRealvardef>(pLine);
+                    else
+                    {
+                        useEx = pLine->getFormula();
+                        useEq = useEx + " = 0";
+                    }
                 }
                 else if (previousType == "STMVECTOR")
                 {
                     if (newType == "MATRIXDEF")
                         pNew = iFormulaLine::move<iFormulaNodeStmVectordef, iFormulaNodeStmMatrixdef>(pLine);
+                    else
+                    {
+                        useEx = pLine->getFormula();
+                        useEq = useEx + " = 0";
+                    }
                 }
                 else if (previousType == "STMMATRIX")
                 {
                     if (newType == "VECTORDEF")
                         pNew = iFormulaLine::move<iFormulaNodeStmMatrixdef, iFormulaNodeStmVectordef>(pLine);
+                    else
+                    {
+                        useEx = pLine->getFormula();
+                        useEq = useEx + " = 0";
+                    }
                 }
 
                 if (pNew == nullptr)
                 {
-                    SAL_INFO_LEVEL(1, "starmath.imath", "Conversion not possible");
-                    // TODO Reject all other type changes with an error message
-                    goto finished;
+                    SAL_INFO_LEVEL(1, "starmath.imath", "Conversion not possible, replacing line with a default");
+                    auto uvec = GiNaC::unitvec();
+                    auto gopt = pLine->getGlobalOptions();
+                    if (newType == "EQDEF")
+                        pNew = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({useEq}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                    else if (newType == "EXDEF")
+                        pNew = std::make_shared<iFormulaNodeEx>(uvec, gopt, GiNaC::optionmap(), fparts({useEx}), "", GiNaC::expression(), false);
+                    else if (newType == "CONSTDEF")
+                        pNew = std::make_shared<iFormulaNodeConst>(uvec, gopt, GiNaC::optionmap(), fparts({OUString("C=") + useEx}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                    else if (newType == "FUNCTION")
+                        pNew = std::make_shared<iFormulaNodeStmFunction>(gopt, fparts({"{", "{none}", ",", "f", ",", useEx, "}"}), GiNaC::expression());
+                    else if (newType == "FUNCDEF")
+                        pNew = std::make_shared<iFormulaNodeFuncdef>(uvec, gopt, GiNaC::optionmap(), fparts({"f", "(", "x", ")", "=", useEx}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                    else if (newType == "VECTORDEF")
+                        pNew = std::make_shared<iFormulaNodeVectordef>(uvec, gopt, GiNaC::optionmap(), fparts({"vec v", "=", useEx}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                    else if (newType == "MATRIXDEF")
+                        pNew = std::make_shared<iFormulaNodeMatrixdef>(uvec, gopt, GiNaC::optionmap(), fparts({"bar M", "=", useEx}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                    else if (newType == "UNITDEF")
+                        pNew = std::make_shared<iFormulaNodeStmUnitdef>(gopt, fparts({"{", "\"\"", ",", "\%unit", "=", useEx, "}"}));
+                    else if (newType == "OPTIONS")
+                        pNew = std::make_shared<iFormulaNodeStmOptions>(gopt,fparts({""}));
+                    else if (newType == "CHART")
+                        pNew = std::make_shared<iFormulaNodeStmChart>(gopt, fparts({"{", "\"chartname\"", ",", useEx, ",", "0:10", ",", "y", ",", useEx, ",", "1", ",", "\"series\"", "}"}));
+                    else if (newType == "TEXT")
+                        pNew = std::make_shared<iFormulaNodeText>(uvec, gopt, GiNaC::optionmap(), fparts({"="}), std::vector<std::shared_ptr<textItem>>());
+                    else if (newType == "CLEAREQUATIONS")
+                        pNew = std::make_shared<iFormulaNodeStmClearall>(gopt);
+                    else if (newType == "DELETE")
+                        pNew = std::make_shared<iFormulaNodeStmDelete>(gopt, fparts({"{", "@__label__@", "}"}));
+                    else if (newType == "EXPLAINVAL")
+                        pNew = std::make_shared<iFormulaNodeExplainval>(uvec, gopt, GiNaC::optionmap(), fparts({useEx}), "", GiNaC::expression(), false, GiNaC::expression(), GiNaC::expression(), GiNaC::exhashmap<GiNaC::ex>());
+                    else if (newType == "PRINTVAL")
+                        pNew = std::make_shared<iFormulaNodePrintval>(uvec, gopt, GiNaC::optionmap(), fparts({useEx}), "", GiNaC::expression(), false, GiNaC::expression(), false, false);
+                    else if (newType == "READFILE")
+                        pNew = std::make_shared<iFormulaNodeStmReadfile>(gopt, fparts({"{", "\"filename\"", "}"}));
+                    else if (newType == "BEGIN_NS")
+                        pNew = std::make_shared<iFormulaNodeStmNamespace>(gopt, "BEGIN", fparts({"namespace"}));
+                    else if (newType == "END_NS")
+                        pNew = std::make_shared<iFormulaNodeStmNamespace>(gopt, "END", fparts({"namespace"}));
+                    else if (newType == "PREFIXDEF")
+                        pNew = std::make_shared<iFormulaNodeStmPrefixdef>(gopt, fparts({"{", "\%prefix", "=", useEx, "}"}));
+                    else if (newType == "REALVARDEF")
+                        pNew = std::make_shared<iFormulaNodeStmRealvardef>(gopt, fparts{"r_var"});
+                    else if (newType == "POSVARDEF")
+                        pNew = std::make_shared<iFormulaNodeStmPosvardef>(gopt, fparts{"p_var"});
+                    else if (newType == "UPDATE")
+                        pNew = std::make_shared<iFormulaNodeStmUpdate>(gopt, fparts{"\"Object1\""});
+                    else if (newType == "SETTABLECELL")
+                        pNew = std::make_shared<iFormulaNodeStmTablecell>(gopt, fparts({"{", "\"tablename\"", ",", "\"A1\"", ",", "1", "}"}));
+                    else if (newType == "SETCALCCELLS")
+                        pNew = std::make_shared<iFormulaNodeStmCalccell>(gopt, fparts({"{", "\"filename\"", ",", "\"tablename\"", ",", "\"A1\"", ",", "1", "}"}));
+                    else
+                        pNew = std::make_shared<iFormulaNodeError>(gopt, "Error");
                 }
 
-                itLine = fLines.erase(itLine);
-                fLines.insert(itLine, pNew);
+                pDoc->insertFormulaLineBefore(pLine, pNew);
+                pDoc->eraseFormulaLine(pLine);
+                std::cout << "New formula has " << (pNew->hasError() ? "" : "no ") << "error" << std::endl;
 
                 break;
             }

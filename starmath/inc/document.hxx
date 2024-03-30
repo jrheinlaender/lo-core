@@ -309,6 +309,11 @@ public:
     const std::list<iFormulaLine_ptr>& GetFormulaLines() const { return mLines; }
     std::list<iFormulaLine_ptr>& GetFormulaLines() { return mLines; }
 
+    /// Insert a formula with default contents
+    void insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine);
+    /// Erase a formula line
+    void eraseFormulaLine(const iFormulaLine_ptr& pLine);
+
 private:
     /// Name of the previous iFormula (OLE mode), empty if the formula is stand-alone or the first formula in a document
     OUString mPreviousFormula;

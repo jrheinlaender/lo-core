@@ -291,7 +291,7 @@ void ImGuiWindow::ResetModel()
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
-        mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row
+        mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row. Note: Column number must be set in .ui file
 
         if (typeid(*fLine) == typeid(iFormulaNodeEq) ||
             typeid(*fLine) == typeid(iFormulaNodeEx) ||
@@ -510,7 +510,7 @@ OUString getRhs(const OUString& equation)
 
 IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
-    if (mxFormulaList->get_text(rIterString.first) == rIterString.second)
+    if (mEditedColumn >= 0 && mxFormulaList->get_text(rIterString.first, mEditedColumn) == rIterString.second)
         goto finished; // Nothing changed
 
     {
@@ -535,10 +535,6 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
             {
                 SmDocShell* pDoc = GetDoc();
                 if (!pDoc)
-                    goto finished;
-                std::list<iFormulaLine_ptr>& fLines = pDoc->GetFormulaLines();
-                auto itLine = std::find(fLines.begin(), fLines.end(), pLine);
-                if (itLine == fLines.end())
                     goto finished;
 
                 OUString previousType = mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE);

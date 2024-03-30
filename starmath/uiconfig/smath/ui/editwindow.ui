@@ -101,7 +101,7 @@
         <col id="1" translatable="yes" context="formulatype|clear">Clear</col>
       </row>
       <row>
-        <col id="0">EXPLAIN</col>
+        <col id="0">EXPLAINVAL</col>
         <col id="1" translatable="yes" context="formulatype|explain">Explain</col>
       </row>
       <row>
@@ -143,6 +143,10 @@
       <row>
         <col id="0">SETCALCCELLS</col>
         <col id="1" translatable="yes" context="formulatype|calc_cell">Calc cell</col>
+      </row>
+      <row>
+        <col id="0">ERROR</col>
+        <col id="1" translatable="yes" context="formulatype|error">Error</col>
       </row>
     </data>
   </object>
@@ -247,7 +251,8 @@
                         <property name="spacing">6</property>
                         <property name="title" translatable="yes" context="editwindow|col_label">Label</property>
                         <child>
-                          <object class="GtkCellRendererText">
+                          <object class="GtkCellRendererText" id="label">
+                            <property name="alignment">center</property>
                             <property name="editable">True</property>
                           </object>
                           <attributes>

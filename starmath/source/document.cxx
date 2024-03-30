@@ -275,7 +275,6 @@ void SmDocShell::PreventFormulaClose(const bool prevent)
      * This method is disabled for now because it breaks insertion of charts as soon as the number of
      * formula objects in the document exceeds the officecfg::Office::Common::Cache::Writer::OLE_Objects value
      * Instead we adjust that value in sw/source/uibase/app/docsh.cxx so that no formulas are ever closed
-    return;
     SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::PreventFormulaClose(): " << (prevent ? "on" : "off"));
     const uno::Reference < util::XCloseBroadcaster > xCloseBroadcaster(GetModel(), UNO_QUERY);
     if (!xCloseBroadcaster.is()) return;

@@ -194,9 +194,6 @@ GiNaC::matrix make_matrix(const GiNaC::expression &e);
 /// Return the expression as an exvector object
 GiNaC::exvector make_exvector(const GiNaC::expression &e);
 
-/// Extract the numeric value from the expression, or throw an exception
-IMATH_DLLPUBLIC GiNaC::numeric get_val_from_ex(const GiNaC::ex &e);
-
 /// Convert a numeric to an unsigned integer (without plausibility testing!)
 IMATH_DLLPUBLIC unsigned numeric_to_uint(const GiNaC::numeric &n);
 

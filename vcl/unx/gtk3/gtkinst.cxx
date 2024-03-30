@@ -16369,6 +16369,33 @@ public:
         gtk_tree_path_free(path);
     }
 
+    OUString gtk_tree_model_lookup(GtkTreeModel* model, const int searchColumn, const OUString& searchStr, const int targetColumn) const
+    {
+        OUString result;
+        GtkTreeIter iter;
+
+        if (gtk_tree_model_get_iter_first(model, &iter))
+        {
+            OString aStr(OUStringToOString(searchStr, RTL_TEXTENCODING_UTF8).getStr());
+            do
+            {
+                gchar* pStr;
+                gtk_tree_model_get(model, &iter, searchColumn, &pStr, -1);
+                if (g_strcmp0(pStr, aStr.getStr()) == 0)
+                {
+                    g_free(pStr);
+                    gtk_tree_model_get(model, &iter, targetColumn, &pStr, -1);
+                    result = OUString(pStr, pStr ? strlen(pStr) : 0, RTL_TEXTENCODING_UTF8);
+                    g_free(pStr);
+                    break;
+                }
+                g_free(pStr);
+            } while (gtk_tree_model_iter_next(model, &iter));
+        }
+
+        return result;
+    }
+
     virtual OUString get_text(const weld::TreeIter& rIter, int col) const override
     {
         const GtkInstanceTreeIter& rGtkIter = static_cast<const GtkInstanceTreeIter&>(rIter);
@@ -16376,7 +16403,25 @@ public:
             col = m_nTextCol;
         else
             col = to_internal_model(col);
-        return get(rGtkIter.iter, col);
+        OUString result = get(rGtkIter.iter, col);
+
+        // Return id of user-readable text for comboboxes
+        // Note: There should be a property id-column, currently we use column 0 (hard-coded)
+        GtkCellRenderer* pCellRenderer = get_cell_renderer(col);
+        if (GTK_IS_CELL_RENDERER_COMBO(pCellRenderer))
+        {
+            GtkTreeModel* pComboBoxModel(nullptr); // TODO deprecated, use GListModel instead
+            gint textColumn(-1);
+            g_object_get(pCellRenderer, "model", &pComboBoxModel, "text-column", &textColumn, nullptr);
+            if (pComboBoxModel && textColumn != 0)
+            {
+                OUString text = gtk_tree_model_lookup(pComboBoxModel, textColumn, result, 0);
+                if (!text.isEmpty())
+                    return text;
+            }
+        }
+
+        return result;
     }
 
     virtual void set_text(const weld::TreeIter& rIter, const OUString& rText, int col) override
@@ -16386,7 +16431,26 @@ public:
             col = m_nTextCol;
         else
             col = to_internal_model(col);
-        set(rGtkIter.iter, col, rText);
+
+        auto text = rText;
+
+        // Replace id with user-readable text for comboboxes
+        // Note: There should be a property id-column, currently we use column 0 (hard-coded)
+        GtkCellRenderer* pCellRenderer = get_cell_renderer(col);
+        if (GTK_IS_CELL_RENDERER_COMBO(pCellRenderer))
+        {
+            GtkTreeModel* pComboBoxModel(nullptr); // TODO deprecated, use GListModel instead
+            gint textColumn(-1);
+            g_object_get(pCellRenderer, "model", &pComboBoxModel, "text-column", &textColumn, nullptr);
+            if (pComboBoxModel && textColumn != 0)
+            {
+                text = gtk_tree_model_lookup(pComboBoxModel, 0, rText, textColumn);
+                if (text.isEmpty())
+                    text = rText;
+            }
+        }
+
+        set(rGtkIter.iter, col, text);
     }
 
     virtual OUString get_id(const weld::TreeIter& rIter) const override

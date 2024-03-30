@@ -14541,12 +14541,6 @@ private:
     static void signalCellEdited(GtkCellRendererText* pCell, const gchar *path, const gchar *pNewText, gpointer widget)
     {
         GtkInstanceTreeView* pThis = static_cast<GtkInstanceTreeView*>(widget);
-
-        if (GTK_IS_CELL_RENDERER_COMBO(pCell)) {
-            void* pData = g_object_get_data(G_OBJECT(pCell), "g-lo-ComboBoxIdChanged");
-            pNewText = static_cast<const gchar*>(pData); // Replace user-visible text with internal ID
-        }
-
         pThis->signal_cell_edited(pCell, path, pNewText);
     }
 
@@ -14568,7 +14562,17 @@ private:
         gtk_tree_path_free(tree_path);
 
         OUString sText(pNewText, pNewText ? strlen(pNewText) : 0, RTL_TEXTENCODING_UTF8);
-        if (signal_editing_done(iter_string(aGtkIter, sText)))
+        OUString sId = sText;
+
+        // Pass the id instead of the text to the editing_done handler for comboboxes
+        if (GTK_IS_CELL_RENDERER_COMBO(pCell))
+        {
+            void* pData = g_object_get_data(G_OBJECT(pCell), "g-lo-ComboBoxIdChanged");
+            const gchar* pId(static_cast<const gchar*>(pData));
+            sId = OUString(pId, pId ? strlen(pId) : 0, RTL_TEXTENCODING_UTF8);
+        }
+
+        if (signal_editing_done(iter_string(aGtkIter, sId)))
         {
             void* pData = g_object_get_data(G_OBJECT(pCell), "g-lo-CellIndex");
             set(aGtkIter.iter, reinterpret_cast<sal_IntPtr>(pData), sText);
@@ -14631,9 +14635,9 @@ private:
         return modelcol;
     }
 
-    void set_column_editable(int nCol, bool bEditable)
+    GtkCellRenderer* get_cell_renderer(const int nCol) const
     {
-        nCol = to_internal_model(nCol);
+        GtkCellRenderer* result = nullptr;
 
         for (GList* pEntry = g_list_first(m_pColumns); pEntry; pEntry = g_list_next(pEntry))
         {
@@ -14645,12 +14649,22 @@ private:
                 void* pData = g_object_get_data(G_OBJECT(pCellRenderer), "g-lo-CellIndex");
                 if (reinterpret_cast<sal_IntPtr>(pData) == nCol)
                 {
-                    g_object_set(G_OBJECT(pCellRenderer), "editable", bEditable, "editable-set", true, nullptr);
+                    pRenderers = g_list_remove_link(pRenderers, pRenderer);
+                    result = pCellRenderer;
                     break;
                 }
             }
             g_list_free(pRenderers);
         }
+
+        return result;
+    }
+
+    void set_column_editable(int nCol, bool bEditable)
+    {
+        nCol = to_internal_model(nCol);
+        GtkCellRenderer* pCellRenderer = get_cell_renderer(nCol);
+        g_object_set(G_OBJECT(pCellRenderer), "editable", bEditable, "editable-set", true, nullptr);
     }
 
     static void signalRowDeleted(GtkTreeModel*, GtkTreePath*, gpointer widget)
@@ -15083,22 +15097,8 @@ public:
 
     virtual void set_centered_column(int nCol) override
     {
-        for (GList* pEntry = g_list_first(m_pColumns); pEntry; pEntry = g_list_next(pEntry))
-        {
-            GtkTreeViewColumn* pColumn = GTK_TREE_VIEW_COLUMN(pEntry->data);
-            GList *pRenderers = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(pColumn));
-            for (GList* pRenderer = g_list_first(pRenderers); pRenderer; pRenderer = g_list_next(pRenderer))
-            {
-                GtkCellRenderer* pCellRenderer = GTK_CELL_RENDERER(pRenderer->data);
-                void* pData = g_object_get_data(G_OBJECT(pCellRenderer), "g-lo-CellIndex");
-                if (reinterpret_cast<sal_IntPtr>(pData) == nCol)
-                {
-                    g_object_set(G_OBJECT(pCellRenderer), "xalign", 0.5, nullptr);
-                    break;
-                }
-            }
-            g_list_free(pRenderers);
-        }
+        GtkCellRenderer* pCellRenderer = get_cell_renderer(nCol);
+        g_object_set(G_OBJECT(pCellRenderer), "xalign", 0.5, nullptr);
     }
 
     virtual int get_column_width(int nColumn) const override

@@ -276,7 +276,7 @@ void ImGuiWindow::ResetModel()
 
     for (const auto& fLine : pDoc->GetFormulaLines())
     {
-        if (fLine->getSelectionType() == formulaTypeResult)
+        if (typeid(*fLine) == typeid(iFormulaNodeResult))
             continue;
 
         mxFormulaList->append(xIter.get());
@@ -293,41 +293,33 @@ void ImGuiWindow::ResetModel()
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
         mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row
 
-        switch (fLine->getSelectionType())
+        if (typeid(*fLine) == typeid(iFormulaNodeEq) ||
+            typeid(*fLine) == typeid(iFormulaNodeEx) ||
+            typeid(*fLine) == typeid(iFormulaNodeConst) ||
+            typeid(*fLine) == typeid(iFormulaNodeFuncdef) ||
+            typeid(*fLine) == typeid(iFormulaNodeVectordef) ||
+            typeid(*fLine) == typeid(iFormulaNodeMatrixdef) ||
+            typeid(*fLine) == typeid(iFormulaNodePrintval) ||
+            typeid(*fLine) == typeid(iFormulaNodeExplainval))
         {
-            case formulaTypeEquation:
-            case formulaTypeExpression:
-            case formulaTypeConstant:
-            case formulaTypeFunctionDefinition:
-            case formulaTypeVectorDeclaration:
-            case formulaTypeMatrixDeclaration:
-            case formulaTypePrintval:
-            case formulaTypeExplainval:
-            {
-                iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
-
-                mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
-                option o = fLine->getOption(o_showlabels);
-                mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOWLABEL) : OUString(BMP_IMGUI_HIDELABEL), IMGUIWINDOW_COL_LABEL_HIDE);
-                mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
-
-                break;
-            }
-            case formulaTypeError:
-            {
-                auto error = std::dynamic_pointer_cast<iFormulaNodeError>(fLine);
-
-                mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA); //+ OUString("<span foreground='blue' font='bold'>TEST</span>")
+            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
             mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
+            option o = fLine->getOption(o_showlabels);
+            mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOWLABEL) : OUString(BMP_IMGUI_HIDELABEL), IMGUIWINDOW_COL_LABEL_HIDE);
+            mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
+        }
+        else if (typeid(*fLine) == typeid(iFormulaNodeError))
+        {
+            auto error = std::dynamic_pointer_cast<iFormulaNodeError>(fLine);
 
-                break;
-            }
-            default:
-            {
-                // Note toggle remains invisible since we do not set a value
-                mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
-                mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_LABEL_HIDE);
-            }
+            mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
+        }
+        else
+        {
+            // Note toggle remains invisible since we do not set a value
+            mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
+            mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_LABEL_HIDE);
         }
 
         if (lineCount == currentSelection)

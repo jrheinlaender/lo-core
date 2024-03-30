@@ -764,7 +764,7 @@ void SmDocShell::Compile()
         OUString result;
 
         for (const auto& i : mLines)
-            if (i->getSelectionType() == formulaTypeResult)
+            if (typeid(*i) == typeid(iFormulaNodeResult))
                 result += i->print() + OU("\n");
 
         SetText(result);
@@ -780,7 +780,7 @@ void SmDocShell::Compile()
 
         for (const auto& l : mLines)
         {
-            if (l->getSelectionType() == formulaTypeEquation)
+            if (typeid(*l) == typeid(iFormulaNodeEq))
             {
                 maImTypeFirstLine = "equation";
                 iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
@@ -788,7 +788,7 @@ void SmDocShell::Compile()
                 firstLine = l;
                 break;
             }
-            else if (l->getSelectionType() == formulaTypeExpression  || l->getSelectionType() == formulaTypeConstant)
+            else if (typeid(*l) == typeid(iFormulaNodeEx) || typeid(*l) == typeid(iFormulaNodeConst))
             {
                 maImTypeFirstLine = "expression";
                 iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
@@ -806,13 +806,13 @@ void SmDocShell::Compile()
 
         for (auto line = mLines.rbegin(); line != mLines.rend(); ++line)
         {
-            if ((*line)->getSelectionType() == formulaTypeEquation)
+            if (typeid(**line) == typeid(iFormulaNodeEq))
             {
                 maImTypeLastLine = "equation";
                 lastLine = *line;
                 break;
             }
-            else if ((*line)->getSelectionType() == formulaTypeExpression || (*line)->getSelectionType() == formulaTypeConstant)
+            else if (typeid(**line) == typeid(iFormulaNodeEx) || typeid(**line) == typeid(iFormulaNodeConst))
             {
                 maImTypeLastLine = "expression";
                 lastLine = *line;
@@ -911,7 +911,7 @@ void SmDocShell::SetImHidden(const bool h)
         if (expr != nullptr && expr->getHide() != h)
             expr->setHide(h);
 
-        if (l->getSelectionType() == formulaTypeResult) continue;
+        if (typeid(*l) == typeid(iFormulaNodeResult)) continue;
 
         l->setBasefontHeight(basefontheight);
         OUString lineText = l->print();
@@ -1146,7 +1146,7 @@ bool SmDocShell::addResultLines()
         // Add echo line after current formula line if asked for (note that the iterator has already been incremented and emplace() inserts the new element before it)
         if (line->getOption(o_echoformula).value.boolean == true)
         {
-            if (line->getSelectionType() != formulaTypeComment && line->getSelectionType() != formulaTypeEmptyLine && line->getSelectionType() != formulaTypeResult)
+            if (typeid(*line) != typeid(iFormulaNodeComment) && typeid(*line) != typeid(iFormulaNodeEmptyLine) && typeid(*line) != typeid(iFormulaNodeResult))
             {
                 OUString rtext = line->print();
                 rtext = replaceString(rtext, OU("\""), OU("\\\""));
@@ -1835,7 +1835,7 @@ void SmDocShell::UpdateGuiText()
 
     for (const auto& line : mLines)
     {
-        if (line->getSelectionType() == formulaTypeResult) continue;
+        if (typeid(*line) == typeid(iFormulaNodeResult))  continue;
         newFormula += line->print().copy(5) + "\n";
         //std::cout << "New formula now\n" << newFormula << std::endl;
     }

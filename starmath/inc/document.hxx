@@ -305,6 +305,9 @@ public:
     //       and also gives headaches about persisting the mpCurrentCompiler
     void PreventFormulaClose(const bool prevent);
 
+    /// Get the next free equation label
+    OUString GetTempFormulaLabel() { return OUString("temp") + OUString::number(++lastTempLabel); }
+
     /// Get the formula lines to fill the edit view
     const std::list<iFormulaLine_ptr>& GetFormulaLines() const { return mLines; }
     std::list<iFormulaLine_ptr>& GetFormulaLines() { return mLines; }
@@ -377,6 +380,9 @@ private:
     bool mImHidden;
     /// List of all equation labels in this formula
     Sequence<OUString> mImLabels;
+
+    /// last (numeric) formula label
+    static sal_Int64 lastTempLabel;
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

@@ -12,6 +12,8 @@
 #include <rtl/ustring.hxx>
 
 // bitmaps for iMath GUI
+inline constexpr OUStringLiteral BMP_IMGUI_INSERT_BEFORE = u"starmath/res/lc_imatheditinsertbefore.png";
+inline constexpr OUStringLiteral BMP_IMGUI_DELETE = u"starmath/res/lc_imatheditdelete.png";
 inline constexpr OUStringLiteral BMP_IMGUI_SHOW = u"starmath/res/lc_imatheditshow.png";
 inline constexpr OUStringLiteral BMP_IMGUI_HIDE = u"starmath/res/lc_imathedithide.png";
 inline constexpr OUStringLiteral BMP_IMGUI_SHOWLABEL = u"starmath/res/sc_imatheditshow.png";

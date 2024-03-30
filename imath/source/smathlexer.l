@@ -322,7 +322,7 @@ BEGIN(INITIAL);
 <II>(?i:prefixdef)  { implicit_mul_might_follow = false; return (token::PREFIXDEF); }
 <II>(?i:vectordef)  { implicit_mul_might_follow = false; return (token::VECTORDEF); }
 <II>(?i:matrixdef)  { implicit_mul_might_follow = false; return (token::MATRIXDEF); }
-<II>(?i:raalvardef) { implicit_mul_might_follow = false; return (token::REALVARDEF); }
+<II>(?i:realvardef) { implicit_mul_might_follow = false; return (token::REALVARDEF); }
 <II>(?i:posvardef)  { implicit_mul_might_follow = false; return (token::POSVARDEF); }
 <II>(?i:clearequations) { return (token::CLEAREQUATIONS); }
 <II>(?i:delete)     { return (token::DELETE); }
@@ -725,7 +725,7 @@ BEGIN(INITIAL);
         last_token = token::BCLOSE;
         return (token_type(yytext[0]));
       }
-<II>\\\{|ldbracket|ld?line|lbrace|langle|lceil|lfloor|lline { /* Extended opening brackets */
+<II>\\\{|ldbracket|ld?line|lbrace|langle|lceil|lfloor { /* Extended opening brackets */
         CHECK_IMPLICIT_MUL(token::BOPEN)
         if (checkresult) return (token::IMPMUL);
         implicit_mul_might_follow = false;
@@ -733,7 +733,7 @@ BEGIN(INITIAL);
         yylval->emplace<std::string>(yytext);
         return (token::BOPEN);
       }
-<II>\\\}|rdbracket|rd?line|rbrace|rangle|rceil|rfloor|rline { /* Extended closing brackets */
+<II>\\\}|rdbracket|rd?line|rbrace|rangle|rceil|rfloor { /* Extended closing brackets */
         implicit_mul_might_follow = true;
         last_token = token::BCLOSE;
         yylval->emplace<std::string>(yytext);

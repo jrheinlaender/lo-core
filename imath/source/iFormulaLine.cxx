@@ -215,6 +215,8 @@ void iFormulaLine::markError(const OUString& compiledText, const int formulaStar
     // Note: compiledText always terminates with a newline, which we remove because it is added by iFormula::rebuildRawtext()
     int _errorEnd = (errorEnd > compiledText.getLength() - 1 ? compiledText.getLength() - 1 : errorEnd);
     OUString offendingText = compiledText.copy(errorStart, _errorEnd - errorStart);
+    if (errorMessage.indexOf("implicit multiplication") > 0)
+        offendingText = OUString(sal_Unicode(u'\u00D7')); // Unexpected implicit multiplication // TODO implement this independently of the text of the error message
 
     _formulaParts.clear();
     _formulaParts.emplace_back(compiledText.copy(formulaStart, errorStart - formulaStart));
@@ -246,12 +248,8 @@ OUString iFormulaLine::getFormula() const {
         case label_error:
             return _formulaParts[2];
         default:
-        {
-            OUString formula = OU("");
-            for (const auto& p : _formulaParts)
-                formula += p;
-            return formula;
-        }
+            // All other errors
+            return  _formulaParts[0] + _formulaParts[1] + _formulaParts [2];
     }
 }
 

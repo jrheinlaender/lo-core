@@ -107,6 +107,8 @@
   current_options = params.global_options;
   // Must the current line be auto-formatted?
   must_autoformat = false;
+  // Initialize stack
+  bracketstack = {};
   // Are we inside an include file (or a nested include file)?
   include_level = 0;
   canonicalize_units = true;
@@ -141,6 +143,8 @@
   optionmap line_options;
   // Must the current line be auto-formatted?
   bool must_autoformat;
+  // Stack of brackets to check match
+  std::stack<std::pair<std::string, std::string>> bracketstack;
   // Are we inside an include file (or a nested include file)?
   int include_level;
   // The raw text we are scanning (different from params.rawtext because that is OUString)
@@ -205,37 +209,38 @@ expression calcvalueofmatrix(const std::string& whatval, const ex& expr, const l
   return result;
 }
 
-bool checkbrackets(const std::string& left, const std::string& right) {
-  MSG_INFO(3,  "checkbrackets()" << endline);
-  std::string l = left.size()  > 4 ? left.substr(0,4)  : "";
-  std::string r = right.size() > 5 ? right.substr(0,5) : "";
-  //MSG_INFO(3, "LEFT: '" << l << "', RIGHT: '" << r << "'" << endline);
-  std::string lb = left;
-  std::string rb = right;
+// Check for matching brackets. If there is a mismatch, returns the expected closing bracket. Otherwise returns an empty string
+std::string checkbrackets(const std::string& sizing, const std::string& bracket) {
+  static const std::map<std::string, std::string> matches = {
+    {"(", ")"},
+    {"{", "}"},
+    {"[", "]"},
+    {"\\{", "\\}"},
+    {"ldbracket", "rdbracket"},
+    {"ldline", "rdline"},
+    {"lbrace", "rbrace"},
+    {"langle", "rangle"},
+    {"lceil", "rceil"},
+    {"lfloor", "rfloor"},
+    {"lline", "rline"}
+  };
+  MSG_INFO(3,  "checkbrackets() sizing=" << sizing << ", bracket=" << bracket << endline);
+  if (bracketstack.empty())
+    return "no bracket";
 
-  if (l == "left") {
-    if (!(r == "right")) return false;
-    lb = left.substr(4);
-    if (lb[0] == ' ') lb = lb.substr(1);
-  }
-  if (r == "right") {
-    if (!(l == "left")) return false;
-    rb = right.substr(5);
-    if (rb[0] == ' ') rb = rb.substr(1);
-  }
-  //MSG_INFO(3, "BRACKET: '" << lb << "', '" << rb << "'" << endline);
+  std::string expected_sizing("");
+  if (bracketstack.top().first == "left")
+    expected_sizing = "right";
 
-  if ((lb == "none") || (rb == "none")) return true;
+  auto it = matches.find(bracketstack.top().second);
+  if (it == matches.end())
+    return "no bracket";
 
-  if ((lb == "(")   && (rb != ")")) return false;
-  if ((lb == "{")   && (rb != "}")) return false;
-  if ((lb == "[")   && (rb != "]")) return false;
-  if ((lb == "\\{") && (rb != "\\}")) return false;
+  if (sizing != expected_sizing || it->second != bracket)
+    return expected_sizing + (expected_sizing.empty() ? "" : " ") + it->second;
 
-  if ((lb[0] == 'l') && (rb[0] == 'r')) // e.g. lline rline
-    if (! ((lb.size() > 1) && (rb.size() > 1) && (lb.substr(1) == rb.substr(1)))) return false;
-
-  return true;
+  bracketstack.pop();
+  return "";
 } // checkbrackets()
 
 bool check_anyvector(const ex& e) {
@@ -324,6 +329,7 @@ void handle_error(imath::parserParameters& params, const std::shared_ptr<iFormul
   if (include_level == 0) {
     params.lines.push_back(l);
     int fStart = formulaStart.begin.column - (params.rawtext[formulaStart.begin.column - 1] == ' ' ? 0 : 1); // Blank after keyword is added automatically in iFormulaLine::print()
+    if (errorlocation.begin.column < fStart) errorlocation.begin.column = fStart;
     params.lines.back()->markError(params.rawtext, fStart, errorlocation.begin.column, errorlocation.end.column, errormessage);
   } else {
     errormessage += ": At line " + OUString::number(errorlocation.begin.line) + ", column " + OUString::number(errorlocation.begin.column);
@@ -347,16 +353,11 @@ void handle_label_error(const imath::location& labelStart,const std::string& lab
 #define GETARG(index) \
 OUS8(rawtext.substr(index.begin.column-1, index.end.column-index.begin.column)).trim()
 
-#define MAKE_ERROR(location,message) {\
-errorlocation = location; \
-errormessage = message; \
-YYERROR; \
-}
 %}
 
 // Token declarations -------------------------------------------------------
 
-%token ENDSTRING               "end of input string"
+%token ENDSTRING               "end of line"
 %token NEWLINE                 "newline"
 // Basic tokens
 %token <std::string>  BOPEN    "left bracket"
@@ -470,6 +471,7 @@ YYERROR; \
 
 // Operator declarations ----------------------------------------------
 // Note that "bison -W" warns about most of these being useless, but they are here anyway, for reference
+// Lowest precedence
 %right EXDEF PRINTVALUE PRINTVALUEWITH
 %left  DOUBLEHASH
 %left ';' '#'
@@ -491,6 +493,7 @@ YYERROR; \
 %precedence '!'        /* faculty */
 %left '['         /* Matrix index */
 %nonassoc SIZE        /* font size specification */
+// Highest precedence
 
 // Print special types ----------------
 %printer { std::copy($$.begin(), $$.end(), std::ostream_iterator<std::string>(debug_stream(),"\n")); } <strvec>
@@ -578,7 +581,6 @@ input:   %empty
        | input error {
           auto loc = @2;
           loc.begin.column += 5; // Skip the %%i
-          errorlocation.begin.column += 5;
           handle_error(params, std::make_shared<iFormulaNodeError>(current_options, params.rawtext), loc);
           YYABORT;
        }
@@ -824,17 +826,17 @@ statement: OPTIONS options {
            }
            params.cacheable = false;
          }
+         | FUNCTION '{' error {
+           errormessage = OU("Function options must be enclosed in {}, empty options are represented by {none}");
+           handle_error(params, std::make_shared<iFormulaNodeStmFunction>(current_options, fparts({}), params.compiler->create_function("square")), @2);
+           YYABORT;
+         }
          | FUNCTION error {
-            handle_error(params, std::make_shared<iFormulaNodeStmFunction>(current_options, fparts({}), _ex0), @2);
+            handle_error(params, std::make_shared<iFormulaNodeStmFunction>(current_options, fparts({}), params.compiler->create_function("square")), @2);
             YYABORT;
           }
-         | UNITDEF '{' STRING ',' IDENTIFIER '=' ex '}' {
-           std::string name = $5;
-           if (name[0] == '%')
-             name.erase(0,1);
-           else
-             MAKE_ERROR(@5, "Unit name should start with '%'");
-           params.compiler->addUnit(name, $3, $7);
+         | UNITDEF '{' STRING ',' unitname '=' ex '}' {
+           params.compiler->addUnit($5, $3, $7);
 
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU("}")};
@@ -844,58 +846,13 @@ statement: OPTIONS options {
            }
 
            params.cacheable = false;
-         }
-         | UNITDEF '{' STRING ',' STRING '=' ex '}' {
-           std::string name = $5;
-           if (name[0] == '%')
-             MAKE_ERROR(@5, "Quoted unit name should not start with '%'");
-           params.compiler->addUnit(name, $3, $7);
-
-           if (include_level == 0) {
-             std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU("}")};
-             params.lines.push_back(std::make_shared<iFormulaNodeStmUnitdef>(current_options, std::move(formulaParts)));
-             line = params.lines.back();
-             line_options.clear();
-           }
-
-           params.cacheable = false;
-         }
-         | UNITDEF '{' STRING ',' UNIT '=' ex '}' {
-           MAKE_ERROR(@5, "Unit '" + OUS8($5) + "' already exists. Please choose a different name");
          }
          | UNITDEF error {
             handle_error(params, std::make_shared<iFormulaNodeStmUnitdef>(current_options, fparts({})), @2);
             YYABORT;
           }
-         | PREFIXDEF '{' IDENTIFIER '=' ex '}' {
-           std::string name = $3;
-           if (name[0] == '%')
-             name.erase(0,1);
-           else
-             MAKE_ERROR(@3, "Prefix name should start with '%'");
-
-           auto expr = $5;
-           if (!is_a<numeric>(expr))
-             MAKE_ERROR(@3, "Prefix must have a numeric value");
-
-           params.compiler->addPrefix(name, ex_to<numeric>(std::move(expr)));
-
-           if (include_level == 0) {
-             std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU("="), GETARG(@5), OU("}")};
-             params.lines.push_back(std::make_shared<iFormulaNodeStmPrefixdef>(current_options, std::move(formulaParts)));
-             line = params.lines.back();
-             line_options.clear();
-           }
-
-           params.cacheable = false;
-         }
-         | PREFIXDEF '{' UNIT '=' ex '}' {
-           // This rule exists to handle the SI short prefixes T(era) and m(illi) which correspond to units T(esla) and m(etre)
-           auto expr = $5;
-           if (!is_a<numeric>(expr))
-             MAKE_ERROR(@5, "Prefix must have a numeric value");
-
-           params.compiler->addPrefix($3, ex_to<numeric>(std::move(expr)));
+         | PREFIXDEF '{' prefixname '=' numeric_ex '}' {
+           params.compiler->addPrefix($3, ex_to<numeric>($5));
 
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU("="), GETARG(@5), OU("}")};
@@ -909,7 +866,7 @@ statement: OPTIONS options {
          | PREFIXDEF error {
             handle_error(params, std::make_shared<iFormulaNodeStmPrefixdef>(current_options, fparts({})), @2);
             YYABORT;
-          }
+         }
          | VECTORDEF vsymbol {
            if (include_level == 0) {
              params.lines.push_back(std::make_shared<iFormulaNodeStmVectordef>(current_options, fparts({GETARG(@2)})));
@@ -998,14 +955,16 @@ statement: OPTIONS options {
             handle_error(params, std::make_shared<iFormulaNodeStmUpdate>(current_options, fparts({})), @2);
             YYABORT;
           }
-         | CHART '{' STRING ',' ex ',' ex ',' ex ',' ex ',' uinteger ',' STRING '}' {
-           if (!checkHasChartsAndTables(params.xDocumentModel))
-             MAKE_ERROR(@1, "This document type does not support the CHART statement");
+         | CHART '{' STRING ',' colvec_ex ',' ex ',' colvec_ex ',' ex ',' uinteger ',' STRING '}' {
+           std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU("}")};
+           if (!checkHasChartsAndTables(params.xDocumentModel)) {
+             error(@1, "This document type does not support the CHART statement");
+             handle_error(params, std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)), @2);
+             YYABORT;
+           }
 
            if (!isGlobalDocument(params.xDocumentModel)) { // Access to chart data throws an exception for global documents
             expression vec1 = expression($9 / $11).evalm();
-            if (!is_a<matrix>(vec1) || ex_to<matrix>(vec1).cols() > 1)
-              MAKE_ERROR(@9, "Column vector expected");
             auto chartname = $3;
             auto xvector = $5;
             auto snum = $13;
@@ -1013,30 +972,29 @@ statement: OPTIONS options {
               setChartData(params.xDocumentModel, OUS8(chartname), ex_to<matrix>(vec1), std::move(snum));
             } else {
               expression vec2 = expression(std::move(xvector) / $7).evalm();
-              if (!is_a<matrix>(vec2) || ex_to<matrix>(vec2).cols() > 1)
-                MAKE_ERROR(@5, "Column vector expected");
               setChartData(params.xDocumentModel, OUS8(chartname), ex_to<matrix>(vec2), ex_to<matrix>(vec1), snum);
             }
             setSeriesDescription(params.xDocumentModel, OUS8(std::move(chartname)), OUS8($15), snum == 1 ? 1 : snum - 1);
            }
 
            if (include_level == 0) {
-             std::vector<OUString> formulaParts =
-               {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)));
              line = params.lines.back();
              line_options.clear();
            }
          }
-         | CHART '{' STRING ',' symbol '=' ex ',' ex ',' eq ',' ex ',' uinteger ',' STRING '}' {
-           if (!checkHasChartsAndTables(params.xDocumentModel))
-            MAKE_ERROR(@1, "This document type does not support the CHART statement")
+         | CHART '{' STRING ',' symbol '=' colvec_ex ',' ex ',' eq ',' ex ',' uinteger ',' STRING '}' {
+           std::vector<OUString> formulaParts =
+               {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
+           if (!checkHasChartsAndTables(params.xDocumentModel)) {
+             error(@1, "This document type does not support the CHART statement");
+             handle_error(params, std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)), @2);
+             YYABORT;
+           }
 
            if (!isGlobalDocument(params.xDocumentModel)) { // Access to chart data throws an exception for global documents
              auto units = $9;
              expression vec = expression($7 / units).evalm();
-             if (!is_a<matrix>(vec) || ex_to<matrix>(vec).cols() > 1)
-               MAKE_ERROR(@7, "Column vector expected");
              auto chartname = OUS8($3);
              auto sym = $5;
              auto snum = $15;
@@ -1045,22 +1003,23 @@ statement: OPTIONS options {
            }
 
            if (include_level == 0) {
-             std::vector<OUString> formulaParts =
-               {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)));
              line = params.lines.back();
              line_options.clear();
            }
          }
-         | CHART '{' STRING ',' symbol '=' ex ',' ex ',' ex ',' ex ',' uinteger ',' STRING '}' {
-           if (!checkHasChartsAndTables(params.xDocumentModel))
-            MAKE_ERROR(@1, "This document type does not support the CHART statement")
+         | CHART '{' STRING ',' symbol '=' colvec_ex ',' ex ',' ex ',' ex ',' uinteger ',' STRING '}' {
+           std::vector<OUString> formulaParts =
+               {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
+           if (!checkHasChartsAndTables(params.xDocumentModel)) {
+             error(@1, "This document type does not support the CHART statement");
+             handle_error(params, std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)), @2);
+             YYABORT;
+           }
 
            if (!isGlobalDocument(params.xDocumentModel)) { // Access to chart data throws an exception for global documents
              auto units = $9;
              expression vec = expression($7 / units).evalm();
-             if (!is_a<matrix>(vec) || ex_to<matrix>(vec).cols() > 1)
-               MAKE_ERROR(@7, "Column vector expected");
              auto chartname = OUS8($3);
              auto sym = $5;
              auto snum = $15;
@@ -1069,8 +1028,6 @@ statement: OPTIONS options {
            }
 
            if (include_level == 0) {
-             std::vector<OUString> formulaParts =
-               {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)));
              line = params.lines.back();
              line_options.clear();
@@ -1080,16 +1037,15 @@ statement: OPTIONS options {
             handle_error(params, std::make_shared<iFormulaNodeStmChart>(current_options, fparts({})), @2);
             YYABORT;
           }
-         | SETTABLECELL '{' ex ',' ex ',' ex '}' {
-           if (!checkHasChartsAndTables(params.xDocumentModel))
-            MAKE_ERROR(@1, "This document cannot hold any tables")
+         | SETTABLECELL '{' string_ex ',' ex ',' ex '}' {
+           std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
+           if (!checkHasChartsAndTables(params.xDocumentModel)) {
+             error(@1, "This document cannot hold any tables");
+             handle_error(params, std::make_shared<iFormulaNodeStmTablecell>(current_options, std::move(formulaParts)), @2);
+             YYABORT;
+           }
 
-            auto tname = $3;
-            if (!is_a<stringex>(tname))
-              MAKE_ERROR(@3, "Table name must be a string")
-
-					 OUString tableName(OUS8(ex_to<stringex>(tname).get_string()));
-
+           auto tableName = $3;
 					 auto cname = $5;
 					 auto values = $7;
 					 if (is_a<stringex>(cname) && !params.copyPasteActive) {
@@ -1098,8 +1054,11 @@ statement: OPTIONS options {
 						 const matrix& l = ex_to<matrix>(std::move(cname));
 						 if (is_a<matrix>(values)) {
 							 const matrix& v = ex_to<matrix>(values);
-							 if (l.rows() != v.rows() || (l.cols() != v.cols()))
-                MAKE_ERROR(@5, "Rows and columns of the matrix of values must match matrix of cell references")
+							 if (l.rows() != v.rows() || (l.cols() != v.cols())) {
+                 error(@5, "Rows and columns of the matrix of values must match matrix of cell references");
+                 handle_error(params, std::make_shared<iFormulaNodeStmTablecell>(current_options, std::move(formulaParts)), @2);
+                 YYABORT;
+               }
 						 }
 
 						 for (unsigned r = 0; r < l.rows(); ++r) {
@@ -1117,11 +1076,12 @@ statement: OPTIONS options {
 							 }
 						 }
 					 } else {
-             MAKE_ERROR(@5, "Cell reference must be a string or a list of strings")
+             error(@5, "Cell reference must be a string or a list of strings");
+             handle_error(params, std::make_shared<iFormulaNodeStmTablecell>(current_options, std::move(formulaParts)), @2);
+             YYABORT;
            }
 
            if (include_level == 0) {
-             std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmTablecell>(current_options, std::move(formulaParts)));
              line = params.lines.back();
              line_options.clear();
@@ -1133,22 +1093,12 @@ statement: OPTIONS options {
             handle_error(params, std::make_shared<iFormulaNodeStmTablecell>(current_options, fparts({})), @2);
             YYABORT;
           }
-         | SETCALCCELLS '{' ex ',' ex ',' ex ',' ex '}' {
-           auto fname = $3;
-           auto tname = $5;
-           auto cname = $7;
-					 if (!is_a<stringex>(fname))
-              MAKE_ERROR(@3, "File name must be a string")
-           else if (!is_a<stringex>(tname))
-              MAKE_ERROR(@5, "Table name must be a string")
-           else if (!is_a<stringex>(cname))
-              MAKE_ERROR(@7, "Cell reference must be a string");
-
+         | SETCALCCELLS '{' string_ex ',' string_ex ',' string_ex ',' ex '}' {
            Reference<XStorable> xStorable(params.xDocumentModel, UNO_QUERY_THROW);
            OUString documentURL = xStorable->getLocation();
            Reference< XComponentContext> componentContext = params.xContext;
-           OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(std::move(fname)).get_string()), documentURL, componentContext); // Handle relative paths in the URL
-           setCalcCellRange(componentContext, calcURL, OUS8(ex_to<stringex>(std::move(tname)).get_string()), OUS8(ex_to<stringex>(std::move(cname)).get_string()), $9);
+           OUString calcURL = makeURLFor($3, documentURL, componentContext); // Handle relative paths in the URL
+           setCalcCellRange(componentContext, calcURL, $5, $7, $9);
 
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
@@ -1162,6 +1112,44 @@ statement: OPTIONS options {
          | SETCALCCELLS error {
             handle_error(params, std::make_shared<iFormulaNodeStmCalccell>(current_options, fparts({})), @2);
             YYABORT;
+          }
+;
+
+%type <std::string> unitname "name of unit";
+unitname: IDENTIFIER {
+          $$ = $1;
+          if ($$[0] == '%') {
+             $$.erase(0,1);
+          } else {
+            error(@1, "Unit name should start with '%'");
+            YYERROR;
+          }
+        }
+        | STRING {
+          $$ = $1;
+          if ($$[0] == '%') {
+            error(@1, "Quoted unit name should not start with '%'");
+            YYERROR;
+          }
+        }
+        | UNIT {
+          error(@1, "Unit '" + $1 + "' already exists. Please choose a different name");
+          YYERROR;
+        }
+;
+%type <std::string> prefixname "name of prefix";
+prefixname: IDENTIFIER {
+            $$ = $1;
+            if ($$[0] == '%') {
+              $$.erase(0,1);
+            } else {
+              error(@1, "Prefix name should start with '%'");
+              YYERROR;
+            }
+          }
+          | UNIT {
+            // This rule exists to handle the SI short prefixes T(era) and m(illi) which correspond to units T(esla) and m(etre)
+            $$ = $1;
           }
 ;
 
@@ -1347,19 +1335,26 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         handle_error(params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), $4), @5);
         YYABORT;
       }
-      | LABEL options CONSTDEF asterisk eq {
+      | LABEL options CONSTDEF asterisk IDENTIFIER '=' ex {
+        auto label = $1;
         auto options = $2;
         auto hide = $4;
-        auto eq = $5;
+        auto eq = GiNaC::dynallocate<equation>(compiler->getsym($5), $7);
         std::string nslabel;
-        if (!check_label($1, nslabel)) {
+        if (!check_label(label, nslabel)) {
           handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), eq, hide), @5);
           YYABORT;
         }
-        params.compiler->register_constant(ex_to<equation>(std::move(eq))); // TODO: Label is unused - no equation is registered, just the value!
+        try {
+          params.compiler->register_constant(ex_to<equation>(std::move(eq))); // TODO: Label is unused - no equation is registered, just the value!
+        } catch(const std::exception& e) {
+          error(@7, e.what());
+          handle_error(params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), eq, hide), @5);
+          YYABORT;
+        }
 
         if (include_level == 0) {
-          params.lines.push_back(std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, std::move(options), fparts({GETARG(@5)}), OUS8(nslabel), eq, std::move(hide)));
+          params.lines.push_back(std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, std::move(options), fparts({GETARG(@5), "=", GETARG(@7)}), OUS8(nslabel), eq, std::move(hide)));
           line = params.lines.back();
           line_options.clear();
           line->force_autoformat(must_autoformat);
@@ -1368,26 +1363,34 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         must_autoformat = false;
         params.cacheable = false;
       }
-      | LABEL options CONSTDEF asterisk error {
-        handle_error(params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), $4), @5);
+      | LABEL options CONSTDEF '*' error {
+        // Note: Two rules are required for error handling (with and without the '*') otherwise the global errorhandling (input error) is hit instead
+        handle_error(params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), true), @5);
+        YYABORT;
+      }
+      | LABEL options CONSTDEF error {
+        handle_error(params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), false), @4);
         YYABORT;
       }
       | LABEL options FUNCDEF asterisk FUNC leftbracket ex rightbracket '=' ex {
-        if (!checkbrackets($6, $8))
-          MAKE_ERROR(@8, "Bracket type mismatch");
-
+        auto label = $1;
         auto options = $2;
         auto hide = $4;
         auto fname = $5;
         auto expr = $10;
         expression f = params.compiler->create_function(fname, {$7});
-				if (expr.has(params.compiler->create_function(fname)) || expr.has(f))
-          MAKE_ERROR(@10, "Recursive function definition");
+
+        std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
+				if (expr.has(params.compiler->create_function(fname)) || expr.has(f)) {
+          error(@10, "Recursive function definition");
+          handle_error(params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, std::move(options), std::move(formulaParts), OUS8(params.compiler->label_ns(label)), equation(_expr0, _expr0), std::move(hide)), @5);
+          YYABORT;
+        }
 
         params.compiler->define_function(std::move(fname), expr); // TODO: Should we check the arguments in $7 ?
         expression result = dynallocate<equation>(f, std::move(expr), relational::equal, _expr0);
         std::string nslabel;
-        if (!check_label($1, nslabel)) {
+        if (!check_label(label, nslabel)) {
           handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), result, hide), @5);
           YYABORT;
         }
@@ -1395,7 +1398,6 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           params.compiler->check_and_register(result, nslabel);
 
         if (include_level == 0) {
-          std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
           params.lines.push_back(std::make_shared<iFormulaNodeFuncdef>(
             unitConversions(), current_options, std::move(options),
             std::move(formulaParts), OUS8(nslabel),
@@ -1409,21 +1411,24 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         params.cacheable = false;
       }
       | LABEL options FUNCDEF asterisk FUNC leftbracket exvec rightbracket '=' ex {
-        if (!checkbrackets($6, $8))
-          MAKE_ERROR(@8, "Bracket type mismatch");
-
+        auto label = $1;
         auto options = $2;
         auto hide = $4;
         auto fname = $5;
         auto expr = $10;
         expression f = params.compiler->create_function(fname, $7);
-				if (expr.has(params.compiler->create_function(fname)) ||expr.has(f))
-          MAKE_ERROR(@10, "Recursive function definition");
+
+        std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
+				if (expr.has(params.compiler->create_function(fname)) ||expr.has(f)) {
+          error(@10, "Recursive function definition");
+          handle_error(params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, std::move(options), std::move(formulaParts), OUS8(params.compiler->label_ns(label)), equation(_expr0, _expr0), std::move(hide)), @5);
+          YYABORT;
+        }
 
         params.compiler->define_function(std::move(fname), expr); // TODO: Should we check the arguments in $7 ?
         expression result = dynallocate<equation>(f, std::move(expr), relational::equal, _expr0);
         std::string nslabel;
-        if (!check_label($1, nslabel)) {
+        if (!check_label(label, nslabel)) {
           handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), result, hide), @5);
           YYABORT;
         }
@@ -1431,7 +1436,6 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           params.compiler->check_and_register(result, nslabel);
 
         if (include_level == 0) {
-          std::vector<OUString> formulaParts = {GETARG(@5), GETARG(@6), GETARG(@7), GETARG(@8), OU("="), GETARG(@10)};
           params.lines.push_back(std::make_shared<iFormulaNodeFuncdef>(
             unitConversions(), current_options, std::move(options),
             std::move(formulaParts),OUS8(nslabel),
@@ -1444,8 +1448,12 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         must_autoformat = false;
         params.cacheable = false;
       }
-      | LABEL options FUNCDEF asterisk error {
-        handle_error(params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), $4), @5);
+      | LABEL options FUNCDEF '*' error {
+        handle_error(params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), true), @5);
+        YYABORT;
+      }
+      | LABEL options FUNCDEF error {
+        handle_error(params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), false), @4);
         YYABORT;
       }
       | LABEL options VECTORDEF asterisk vsymbol '=' ex {
@@ -1467,8 +1475,17 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
 
         params.cacheable = false;
       }
-      | LABEL options VECTORDEF asterisk error {
-        handle_error(params, std::make_shared<iFormulaNodeVectordef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), $4), @5);
+      | LABEL options VECTORDEF asterisk vsymbol {
+        error(@1, "Vector declaration may not have a label nor options. Please remove them");
+        handle_error(params, std::make_shared<iFormulaNodeStmVectordef>(current_options, fparts({GETARG(@5)})), @5);
+        YYABORT;
+      }
+      | LABEL options VECTORDEF '*' error {
+        handle_error(params, std::make_shared<iFormulaNodeVectordef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), true), @5);
+        YYABORT;
+      }
+      | LABEL options VECTORDEF error {
+        handle_error(params, std::make_shared<iFormulaNodeVectordef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), false), @4);
         YYABORT;
       }
       | LABEL options MATRIXDEF asterisk msymbol '=' ex {
@@ -1490,8 +1507,17 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
 
         params.cacheable = false;
       }
-      | LABEL options MATRIXDEF asterisk error {
-        handle_error(params, std::make_shared<iFormulaNodeMatrixdef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), $4), @5);
+      | LABEL options MATRIXDEF asterisk msymbol {
+        error(@1, "Matrix declaration may not have a label nor options. Please remove them");
+        handle_error(params, std::make_shared<iFormulaNodeStmMatrixdef>(current_options, fparts({GETARG(@5)})), @5);
+        YYABORT;
+      }
+      | LABEL options MATRIXDEF '*' error {
+        handle_error(params, std::make_shared<iFormulaNodeMatrixdef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), true), @5);
+        YYABORT;
+      }
+      | LABEL options MATRIXDEF error {
+        handle_error(params, std::make_shared<iFormulaNodeMatrixdef>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), false), @4);
         YYABORT;
       }
 ;
@@ -1524,22 +1550,16 @@ keyvallist: keyvalpair {
             }
 ;
 %type <std::pair<option_name, option>> keyvalpair "option";
-keyvalpair:   OPT_U '=' ex {
-              numeric v = get_val_from_ex($3);
-              if (!v.info(info_flags::nonnegint))
-                MAKE_ERROR(@3, "Option value must be an integer greater or equal to zero");
-              $$ = std::pair<option_name, option>($1, option((unsigned)v.to_int()));
+keyvalpair:   OPT_U '=' force_nonnegint_ex {
+              $$ = std::pair<option_name, option>($1, option($3));
 
               // Ensure that the precision setting takes effect for numeric calculations, not just for printing!
               // TODO: How do we put it back to what it was before, so that it remains local to this line?
               //if ($1 == o_precision)
               //  Digits = v.to_int() + 5;
             }
-            | OPT_I '=' ex {
-              numeric v = get_val_from_ex($3);
-              if (!v.info(info_flags::integer))
-                MAKE_ERROR(@3, "Option value must be an integer");
-              $$ = std::pair<option_name, option>($1, option(v.to_int()));
+            | OPT_I '=' force_int_ex {
+              $$ = std::pair<option_name, option>($1, option($3));
             }
             | OPT_S '=' STRING {
               $$ = std::pair<option_name, option>($1, option($3));
@@ -1607,29 +1627,40 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
     | ex '>' '=' ex         { $$ = dynallocate<equation>($1, $4, relational::greater_or_equal, _expr0); }
     | ex '<' '=' ex         { $$ = dynallocate<equation>($1, $4, relational::less_or_equal, _expr0); }
     | ex EQUIV ex MOD ex { // Note: Writing '(' MOD ex ')' results in too many conflicts
+      // Note: Defining an int_ex similar to numeric_ex etc. will not work because of shift/reduce conflicts, e.g.
+		  // ex EQUIV ex BMOD ex '+' ex
+		  // against
+		  // ex EQUIV ex BMOD ex '+' eq
+		  // Bison does not know whether to shift or to reduce when the '+' is encountered
       auto expr1 = $1;
       auto expr2 = $3;
       auto mod = $5;
-      if (is_a<numeric>(expr1) && !expr1.info(info_flags::integer))
-        MAKE_ERROR(@1, "Left-hand expression must be integer")
-      else if (is_a<numeric>(expr2) && !expr2.info(info_flags::integer))
-        MAKE_ERROR(@3, "Right-hand expression must be integer")
-      else if (!check_modulus(mod))
-        MAKE_ERROR(@5, "Modulo must be a positive or gaussian integer")
-      else
+      if (is_a<numeric>(expr1) && !expr1.info(info_flags::integer)) {
+        error(@1, "Left-hand expression must be integer");
+        YYERROR;
+      } else if (is_a<numeric>(expr2) && !expr2.info(info_flags::integer)) {
+        error(@3, "Right-hand expression must be integer");
+        YYERROR;
+      } else if (!check_modulus(mod)) {
+        error(@5, "Modulo must be a positive or gaussian integer");
+        YYERROR;
+      } else
         $$ = dynallocate<equation>(std::move(expr1), std::move(expr2), relational::equal, std::move(mod));
 		}
 		| ex EQUIV ex BMOD ex ')' {
       auto expr1 = $1;
       auto expr2 = $3;
       auto mod = $5;
-      if (is_a<numeric>(expr1) && !expr1.info(info_flags::integer))
-        MAKE_ERROR(@1, "Left-hand expression must be integer")
-      else if (is_a<numeric>(expr2) && !expr2.info(info_flags::integer))
-        MAKE_ERROR(@3, "Right-hand expression must be integer")
-      else if (!check_modulus(mod))
-        MAKE_ERROR(@5, "Modulo must be a positive or gaussian integer")
-      else
+      if (is_a<numeric>(expr1) && !expr1.info(info_flags::integer)) {
+        error(@1, "Left-hand expression must be integer");
+        YYERROR;
+      } else if (is_a<numeric>(expr2) && !expr2.info(info_flags::integer)) {
+        error(@3, "Right-hand expression must be integer");
+        YYERROR;
+      } else if (!check_modulus(mod)) {
+        error(@5, "Modulo must be a positive or gaussian integer");
+        YYERROR;
+      } else
         $$ = dynallocate<equation>(std::move(expr1), std::move(expr2), relational::equal, std::move(mod));
     }
     | LABEL { // An equation label referencing another equation
@@ -1668,23 +1699,15 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
       $$ = ex_to<equation>($3).pdiff($5, $7, true);
       must_autoformat = true;
     }
-    | INTEGRATE '(' eq ',' ex ',' ex ')' {
+    | INTEGRATE '(' eq ',' ex ',' symbol_ex ')' {
       auto var = $5;
       auto iconst = $7;
-		  if (!is_a<symbol>(iconst))
-        MAKE_ERROR(@7, "Integration constant must be a symbol");
       $$ = ex_to<equation>($3).integrate(var, ex_to<symbol>(iconst), var, ex_to<symbol>(iconst));
       must_autoformat = true;
     }
-    | INTEGRATE '(' eq ',' exvec ',' exvec ')' {
-      const exvector& vars = $5;
-      const exvector& constants = $7;
-      if (vars.size() > 2)
-        MAKE_ERROR(@5, "Second argument to INTEGRATE must be two variables");
-      if (constants.size() > 2)
-        MAKE_ERROR(@7, "Third argument to INTEGRATE must be two symbols");
-      if (!is_a<symbol>(constants[0]) || !is_a<symbol>(constants[1]))
-        MAKE_ERROR(@7, "Integration constants must be symbols");
+    | INTEGRATE '(' eq ',' two_ex ',' two_symbols ')' {
+      auto vars = $5;
+      auto constants = $7;
       $$ = ex_to<equation>($3).integrate(vars[0], ex_to<symbol>(constants[0]), vars[1], ex_to<symbol>(constants[1]));
       must_autoformat = true;
     }
@@ -1695,22 +1718,14 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
 		  $$ = ex_to<equation>($3).integrate(var, lower, upper, var, lower, upper);
       must_autoformat = true;
     }
-    | INTEGRATE '(' eq ',' exvec ',' exvec ',' exvec ')' {
-      const exvector& vars  = $5;
-      const exvector& lower = $7;
-      const exvector& upper = $9;
-      if (vars.size() > 2)
-        MAKE_ERROR(@5, "Second argument to INTEGRATE must be two variables");
-      if (lower.size() > 2)
-        MAKE_ERROR(@7, "Third argument to INTEGRATE must be two symbols");
-      if (upper.size() > 2)
-        MAKE_ERROR(@9, "Fourth argument to INTEGRATE must be two variables");
+    | INTEGRATE '(' eq ',' two_ex ',' two_ex ',' two_ex ')' {
+      auto vars  = $5;
+      auto lower = $7;
+      auto upper = $9;
       $$ = ex_to<equation>($3).integrate(vars[0], lower[0], upper[0], vars[1], lower[1], upper[1]);
       must_autoformat = true;
     }
     | leftbracket eq rightbracket {
-      if (!checkbrackets($1, $3))
-        MAKE_ERROR(@3, "Bracket type mismatch");
       $$ = $2;
     }
     | REVERSE eq {
@@ -1718,12 +1733,8 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
       must_autoformat = true;
     }
     | FUNC leftbracket eq rightbracket {
-      if (!checkbrackets($2, $4))
-        MAKE_ERROR(@4, "Bracket type mismatch");
       auto fname = $1;
       const equation& eq = ex_to<equation>($3);
-      if (!params.compiler->is_func(fname))
-        MAKE_ERROR(@1, "Argument must be a function name");
       MSG_INFO(1, "Applying function " << fname << " to " << eq << endline);
       $$ = dynallocate<equation>(params.compiler->create_function(fname, {eq.lhs()}), params.compiler->create_function(fname, {eq.rhs()}), eq.getop(), eq.getmod());
     }
@@ -1747,22 +1758,28 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
     | ex MINUSPLUS eq { $$ = $1 * $3 *expression( stringex("-+")); }
     | eq '*' eq    { $$ = ($1 * $3).evalm(); }
     | eq IMPMUL eq {
-      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false))
-        MAKE_ERROR(@3, "Implicit multiplication is not allowed in this expression");
+      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false)) {
+        error(@3, "Implicit multiplication is not allowed in this expression");
+        YYERROR;
+      }
       $$ = ($1 * $3).evalm();
     }
     | eq TIMES eq  { $$ = ($1 * $3).evalm(); }
     | eq '*' ex    { $$ = ($1 * $3).evalm(); }
     | eq IMPMUL ex {
-      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false))
-        MAKE_ERROR(@3, "Implicit multiplication is not allowed in this expression");
+      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false)) {
+        error(@3, "Implicit multiplication is not allowed in this expression");
+        YYERROR;
+      }
       $$ = ($1 * $3).evalm();
     }
     | eq TIMES ex  { $$ = ($1 * $3).evalm(); }
     | ex '*' eq    { $$ = ($1 * $3).evalm(); }
     | ex IMPMUL eq {
-      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false))
-        MAKE_ERROR(@3, "Implicit multiplication is not allowed in this expression");
+      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false)) {
+        error(@3, "Implicit multiplication is not allowed in this expression");
+        YYERROR;
+      }
       $$ = ($1 * $3).evalm();
     }
     | ex TIMES eq  { $$ = ($1 * $3).evalm(); }
@@ -1797,7 +1814,107 @@ eqlist:   eq            { $$ = lst{$1}; }
         | eqlist ';' eq { $$ = $1; $$.append($3); }
 ;
 
-%type <GiNaC::expression>  ex "expression";
+%type <int> force_int_ex "integer number";
+force_int_ex: ex {
+          expression expr = $1;
+          if (!is_a<numeric>(expr))
+            expr = expr.evalf();
+          if (!is_a<numeric>(expr) || !expr.info(info_flags::integer)) {
+            error(@1, "Expected integer");
+            YYERROR;
+          }
+          $$ = ex_to<numeric>(expr).to_int();
+        }
+;
+%type <unsigned> force_nonnegint_ex "non-negative integer";
+force_nonnegint_ex: ex {
+                expression expr = $1;
+                if (!is_a<numeric>(expr))
+                  expr = expr.evalf();
+                if (!is_a<numeric>(expr) || !expr.info(info_flags::nonnegint)) {
+                  error(@1, "Expected integer greater or equal to zero");
+                  YYERROR;
+                }
+                $$ = ex_to<numeric>(expr).to_int();
+              }
+;
+%type <GiNaC::expression> real_ex "real number";
+real_ex: ex {
+          $$ = $1;
+          if (!$$.info(info_flags::real)) {
+            error(@1, "Expected real number");
+            YYERROR;
+          }
+        }
+;
+%type <GiNaC::expression> numeric_ex "numeric";
+numeric_ex: ex {
+            $$ = $1;
+            if (!is_a<numeric>($$)) {
+              error(@1, "Expected numeric value");
+              YYERROR;
+            }
+          }
+;
+%type <GiNaC::expression> symbol_ex "symbol expression";
+symbol_ex: ex {
+            $$ = $1;
+            if (!is_a<symbol>($$)) {
+              error(@1, "Expected symbol");
+              YYERROR;
+            }
+          }
+;
+%type <GiNaC::expression> colvec_ex "column vector";
+colvec_ex: ex {
+            $$ = $1;
+            if (!is_a<matrix>($$) || ex_to<matrix>($$).cols() > 1) {
+              error(@1, "Expected column vector");
+              YYERROR;
+            }
+          }
+;
+%type <GiNaC::exvector> real_exvec "vector of real numbers";
+real_exvec: exvec {
+              $$ = $1;
+              for (unsigned s = 0; s < $$.size(); ++s) {
+                if (!$$[s].info(info_flags::real)) {
+                  error(@1, "Expected real number");
+                  YYERROR;
+                }
+              }
+            }
+;
+%type <GiNaC::exvector> two_symbols "two symbols";
+two_symbols: exvec {
+              $$ = $1;
+              if (!($$.size() == 2 && is_a<symbol>($$[0]) && is_a<symbol>($$[1]))) {
+                error(@1, "Expected two symbols");
+                YYERROR;
+              }
+            }
+;
+%type <GiNaC::exvector> two_ex "two expressions";
+two_ex: exvec {
+          $$ = $1;
+          if ($$.size() > 2) {
+            error(@1, "Expected vector of two expressions");
+            YYERROR;
+          }
+        }
+;
+%type <OUString> string_ex "string expression";
+string_ex: ex {
+            auto expr = $1;
+            if (!is_a<stringex>(expr)) {
+              error(@1, "Expected string");
+              YYERROR;
+            }
+            $$ = OUS8(ex_to<stringex>(std::move(expr)).get_string());
+          }
+;
+
+%type <GiNaC::expression> ex "expression";
 ex:   SUBST '(' ex ',' eqlist ')' {
         $$ = $3.subs($5).evalm();
         must_autoformat = true;
@@ -1854,26 +1971,22 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       $$ = series_to_poly($3.series($5, $7));
       must_autoformat = true;
     }
-    | TEXTFIELD '(' ex ')' {
-      if (!checkHasChartsAndTables(params.xDocumentModel))
-        MAKE_ERROR(@1, "This document cannot hold any text fields");
-      auto expr = $3;
-			if (!is_a<stringex>(expr))
-				MAKE_ERROR(@3, "Textfield name must be a string");
-
+    | TEXTFIELD '(' string_ex ')' {
+      if (!checkHasChartsAndTables(params.xDocumentModel)) {
+        error(@1, "This document cannot hold any text fields");
+        YYERROR;
+      }
       Reference< XTextDocument > xDoc(params.xDocumentModel, UNO_QUERY_THROW);
-      // TODO: Is the ) required here?
-      $$ = getExpressionFromString(getTextFieldContent(xDoc, OUS8(ex_to<stringex>(std::move(expr)).get_string())));
+      $$ = getExpressionFromString(getTextFieldContent(xDoc, $3));
       must_autoformat = true;
     }
-    | TABLECELL '(' ex ',' exvec_or_ex ')' {
-      auto tname = $3;
-			if (!is_a<stringex>(tname))
-				MAKE_ERROR(@3, "Table name must be a string");
-      if (!checkHasChartsAndTables(params.xDocumentModel))
-        MAKE_ERROR(@1, "This document cannot hold any tables");
+    | TABLECELL '(' string_ex ',' exvec_or_ex ')' {
+      if (!checkHasChartsAndTables(params.xDocumentModel)) {
+        error(@1, "This document cannot hold any tables");
+        YYERROR;
+      }
 
-      OUString tableName(OUS8(ex_to<stringex>(std::move(tname)).get_string()));
+      OUString tableName = $3;
       Reference< XTextDocument > xDoc(params.xDocumentModel, UNO_QUERY_THROW);
       auto expr = $5;
 
@@ -1897,23 +2010,19 @@ ex:   SUBST '(' ex ',' eqlist ')' {
 
 				$$ = std::move(m);
 			} else {
-				MAKE_ERROR(@5, "Cell reference must be a string or a list of strings");
+				error(@5, "Cell reference must be a string or a list of strings");
+				YYERROR;
 			}
 
 			params.cacheable = false; // Because changes in tables are not tracked by iMath
 			must_autoformat = true;
     }
-    | CALCCELL '(' ex ',' ex ',' ex ')' {
-      auto fname = $3;
-      auto tname = $5;
-      auto cname = $7;
-			if (!is_a<stringex>(fname) || !is_a<stringex>(tname) || !is_a<stringex>(cname))
-				MAKE_ERROR(@7, "File name, table name and cell reference must be a string");
+    | CALCCELL '(' string_ex ',' string_ex ',' string_ex ')' {
       Reference<XStorable> xStorable(params.xDocumentModel, UNO_QUERY_THROW);
       OUString documentURL = xStorable->getLocation();
       Reference< XComponentContext> componentContext = params.xContext;
-      OUString calcURL = makeURLFor(OUS8(ex_to<stringex>(std::move(fname)).get_string()), documentURL, componentContext); // Handle relative paths in the URL
-      $$ = calcCellRangeContent(componentContext, calcURL, OUS8(ex_to<stringex>(std::move(tname)).get_string()), OUS8(ex_to<stringex>(std::move(cname)).get_string()));
+      OUString calcURL = makeURLFor($3, documentURL, componentContext); // Handle relative paths in the URL
+      $$ = calcCellRangeContent(componentContext, calcURL, $5, $7);
       must_autoformat = true;
     }
     | symbol
@@ -1943,8 +2052,6 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | vector
     | matrix
     | leftbracket ex rightbracket {
-      if (!checkbrackets($1, $3))
-        MAKE_ERROR(@3, "Bracket type mismatch");
       $$ = $2;
     }
     | LHS '(' eq ')' {
@@ -1960,18 +2067,12 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     }
     | WILD { $$ = wild(); }
     | FUNC leftbracket ex rightbracket {
-      if (!checkbrackets($2, $4))
-        MAKE_ERROR(@4, "Bracket type mismatch");
       $$ = params.compiler->create_function($1, {$3}).evalm();
     }
     | FUNC leftbracket exvec rightbracket {
-      if (!checkbrackets($2, $4))
-        MAKE_ERROR(@4, "Bracket type mismatch");
       $$ = params.compiler->create_function($1, $3).evalm();
     }
     | FUNC leftbracket condition ';' exvec rightbracket { // Currently only ifelse() uses this format
-      if (!checkbrackets($2, $6))
-        MAKE_ERROR(@6, "Bracket type mismatch");
       exvector fargs({$3});
       auto list = $5;
       fargs.insert(fargs.end(), list.begin(), list.end());
@@ -1990,24 +2091,33 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       $$ = dynallocate<power>($7, 1 / $3);
     }
     | QUO '(' ex ',' ex ')' {
+      // Note: Using numeric_ex here gives conflicts with the following rule
       auto expr1 = $3;
       auto expr2 = $5;
-      if (!is_a<numeric>(expr1))
-        MAKE_ERROR(@3, "Expression must be a numeric");
-      if (!is_a<numeric>(expr2))
-        MAKE_ERROR(@5, "Expression must be a numeric");
-
+      if (!is_a<numeric>(expr1)) {
+        error(@3, "Expression must be a numeric");
+        YYERROR;
+      }
+      if (!is_a<numeric>(expr2)) {
+        error(@5, "Expression must be a numeric");
+        YYERROR;
+      }
       $$ = iquo(ex_to<numeric>(std::move(expr1)), ex_to<numeric>(std::move(expr2)));
       must_autoformat = true;
     }
     | QUO '(' ex ',' ex ',' symbol ')' {
+      // Note: Using polynomial_ex here is not possible because the symbol is required to determine the polynomial
       auto expr1 = $3;
       auto expr2 = $5;
       auto sym = $7;
-      if (!expr1.is_polynomial(sym))
-        MAKE_ERROR(@3, "Expression must be a polynomial in the given variable");
-      if (!expr2.is_polynomial(sym))
-        MAKE_ERROR(@5, "Expression must be a polynomial in the given variable");
+      if (!expr1.is_polynomial(sym)) {
+        error(@3, "Expression must be a polynomial in the given variable");
+        YYERROR;
+      }
+      if (!expr2.is_polynomial(sym)) {
+        error(@5, "Expression must be a polynomial in the given variable");
+        YYERROR;
+      }
 
       $$ = quo(std::move(expr1), std::move(expr2), std::move(sym));
       must_autoformat = true;
@@ -2015,11 +2125,14 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | REM '(' ex ',' ex ')' {
       auto expr1 = $3;
       auto expr2 = $5;
-      if (!is_a<numeric>(expr1))
-        MAKE_ERROR(@3, "Expression must be a numeric");
-      if (!is_a<numeric>(expr2))
-        MAKE_ERROR(@5, "Expression must be a numeric");
-
+      if (!is_a<numeric>(expr1)) {
+        error(@3, "Expression must be a numeric");
+        YYERROR;
+      }
+      if (!is_a<numeric>(expr2)) {
+        error(@5, "Expression must be a numeric");
+        YYERROR;
+      }
       $$ = irem(ex_to<numeric>(std::move(expr1)), ex_to<numeric>(std::move(expr2)));
       must_autoformat = true;
     }
@@ -2027,10 +2140,14 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       auto expr1 = $3;
       auto expr2 = $5;
       auto sym = $7;
-      if (!expr1.is_polynomial(sym))
-        MAKE_ERROR(@3, "Expression must be a polynomial in the given variable");
-      if (!expr2.is_polynomial(sym))
-        MAKE_ERROR(@5, "Expression must be a polynomial in the given variable");
+      if (!expr1.is_polynomial(sym)) {
+        error(@3, "Expression must be a polynomial in the given variable");
+        YYERROR;
+      }
+      if (!expr2.is_polynomial(sym)) {
+        error(@5, "Expression must be a polynomial in the given variable");
+        YYERROR;
+      }
 
       $$ = rem(std::move(expr1), std::move(expr2), std::move(sym));
       must_autoformat = true;
@@ -2129,8 +2246,10 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | ex '*' ex    { $$ = ($1 * $3).evalm(); }
     | ex IMPMUL ex {
       auto expr = $3;
-      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false) && !is_unit(expr))
-        MAKE_ERROR(@3, "Implicit multiplication is not allowed in this expression");
+      if (hasLineOption(o_implicitmul) && (getLineOption(o_implicitmul).value.boolean == false) && !is_unit(expr)) {
+        error(@3, "Implicit multiplication is not allowed in this expression");
+        YYERROR;
+      }
       $$ = ($1 * std::move(expr)).evalm();
     }
     | ex TIMES ex  {
@@ -2174,32 +2293,25 @@ ex:   SUBST '(' ex ',' eqlist ')' {
 
       must_autoformat = true;
     }
-    | ITERATE '(' eqlist ',' ex ',' ex ',' uinteger ')' { // One shift-reduce conflict if we write eq instead of eqlist
+    | ITERATE '(' eqlist ',' ex ',' real_ex ',' uinteger ')' { // One shift-reduce conflict if we write eq instead of eqlist
       // Iterate an equation
-      auto list = $3;
-      if (!is_a<equation>(list.op(0)))
-        MAKE_ERROR(@3, "Expected equation");
-      equation eq = ex_to<equation>(list.op(0));
+      equation eq = ex_to<equation>($3.op(0));
       matrix syms(1,1); syms(0,0) = eq.lhs();
       matrix exprs(1,1); exprs(0,0) = eq.rhs();
       matrix start(1,1); start(0,0) = $5;
       matrix conv(1,1); conv(0,0) = $7;
-      if (!conv(0,0).info(info_flags::real))
-        MAKE_ERROR(@7, "All convergence criteria must be real numbers");
 
       matrix result = params.compiler->iterate(syms, exprs, start, conv, $9);
       must_autoformat = true;
       $$ = result(0,0);
     }
-    | ITERATE '(' eqlist ',' exvec ',' exvec ',' uinteger ')' {
+    | ITERATE '(' eqlist ',' exvec ',' real_exvec ',' uinteger ')' {
       // Iterate a number of equations
       auto list = $3;
       size_t rows = list.nops();
       matrix syms ((unsigned int)rows, 1);
       matrix exprs((unsigned int)rows, 1);
       for (size_t eq = 0; eq < rows; ++eq) {
-        if (!is_a<equation>(list.op(eq)))
-          MAKE_ERROR(@3, "All elements must be equations");
         syms ((unsigned int)eq, 0) = ex_to<equation>(list.op(eq)).lhs();
         exprs((unsigned int)eq, 0) = ex_to<equation>(list.op(eq)).rhs();
       }
@@ -2209,16 +2321,14 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       matrix start((unsigned int)startlist.size(), 1);
       matrix conv((unsigned int)convlist.size(), 1);
       for (unsigned s = 0; s < startlist.size(); ++s) start(s, 0) = startlist[s];
-      for (unsigned s = 0; s < convlist.size(); ++s) {
-        if (!convlist[s].info(info_flags::real))
-          MAKE_ERROR(@7, "All convergence criteria must be real numbers");
+      for (unsigned s = 0; s < convlist.size(); ++s)
         conv(s, 0) = convlist[s];
-      }
 
       if ((start.rows() == rows) && (conv.rows() == rows)) {
         $$ = params.compiler->iterate(syms, exprs, start, conv, $9);
       } else {
-        MAKE_ERROR(@3, "All arguments must have the same number of elements");
+        error(@3, "All arguments must have the same number of elements");
+        YYERROR;
       }
       must_autoformat = true;
     }
@@ -2266,17 +2376,37 @@ left: %empty  { $$ = std::string(""); }
 right: %empty { $$ = std::string(""); }
       | RIGHT { $$ = $1; }
 ;
+%type <std::string> openbracket "'(', '{' or '['";
+openbracket:    '(' { $$ = std::string("("); }
+              | '{' { $$ = std::string("{"); }
+              | '[' { $$ = std::string("["); }
+              | BOPEN { $$ = $1; }
+;
+%type <std::string> closebracket "')', '}' or ']'";
+closebracket:   ')' { $$ = std::string(")"); }
+              | '}' { $$ = std::string("}"); }
+              | ']' { $$ = std::string("]"); }
+              | BCLOSE { $$ = $1; }
+;
 %type <std::string> leftbracket "opening bracket";
-leftbracket: left '('   { $$ = $1; $$ += '('; }
-           | left '{'   { $$ = $1; $$ += '{'; }
-           | left '['   { $$ = $1; $$ += '['; }
-           | left BOPEN { $$ = $1; $$ += ' ' + $2; }
+leftbracket:  left openbracket {
+                $$ = $1;
+                auto bracket = $2;
+                bracketstack.push({$$, bracket});
+                $$ += " " + std::move(bracket);
+              }
 ;
 %type <std::string> rightbracket "closing bracket";
-rightbracket: right ')'    { $$ = $1; $$ += ')'; }
-            | right '}'    { $$ = $1; $$ += '}'; }
-            | right ']'    { $$ = $1; $$ += ']'; }
-            | right BCLOSE { $$ = $1; $$ += ' ' + $2; }
+rightbracket: right closebracket {
+                $$ = $1;
+                auto bracket = $2;
+                auto expected = checkbrackets($$, bracket);
+                if (!expected.empty()) {
+                  error(@2, "Bracket mismatch: Found '" + bracket + "', expected '" + expected + "'");
+                  YYERROR;
+                }
+                $$ += " " + std::move(bracket);
+              }
 ;
 
 %type <GiNaC::expression> lowerbound "lower bound";
@@ -2343,6 +2473,7 @@ vector:   VSYMBOL { $$ = $1; }
           if (is_a<func>($$)) $$ = Functionmanager::create_hard("mindex", exprseq{std::move(sym), wild(), std::move(expr)}); // mindex::eval() changed nothing
         }
         | ex ':' ex {
+          // Note: Writing colvec_ex ':' ex produces 25 shift/reduce conflicts
           auto expr1 = $1;
           auto expr2 = $3;
           if (!is_a<matrix>(expr1)) {
@@ -2357,13 +2488,16 @@ vector:   VSYMBOL { $$ = $1; }
             MSG_INFO(2, "Resulting vector with auto step: " << $$ << endline);
           } else {
             // Create vector with user-defined step. Note that this will re-size an existing vector, to allow for b:e:s syntax
-            if (!is_a<matrix>(expr1) || ex_to<matrix>(expr1).cols() > 1)
-              MAKE_ERROR(@1, "Column vector expected");
+            if (!is_a<matrix>(expr1) || ex_to<matrix>(expr1).cols() > 1) {
+              error(@1, "Column vector expected");
+              YYERROR;
+            }
             matrix v = ex_to<matrix>(std::move(expr1));
             expression esize = (expression(v(v.rows()-1, 0) - v(0,0)) / expr2 + 1).evalf();
 
             if (!esize.info(info_flags::positive)) {
-              MAKE_ERROR(@3, "The number of vector elements resulting from the step must be a positive value");
+              error(@3, "The number of vector elements resulting from the step must be a positive value");
+              YYERROR;
             } else {
               unsigned size = numeric_to_uint(ex_to<numeric>(esize));
               if (ex_to<numeric>(esize).to_double() - size > 1E-2) size++; // TODO: The 1E-2 is arbitrary here
@@ -2376,8 +2510,6 @@ vector:   VSYMBOL { $$ = $1; }
           }
         }
         | leftbracket exvec rightbracket {
-          if (!checkbrackets($1, $3))
-            MAKE_ERROR(@3, "Bracket type mismatch");
           auto expr = $2;
           matrix& m = dynallocate<matrix>((unsigned int)expr.size(), 1);
           for (unsigned i = 0; i < expr.size(); ++i) m(i, 0) = expr[i];

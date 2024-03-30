@@ -320,17 +320,6 @@ matrix make_matrix(const expression &e) {
   }
 } // make_matrix()
 
-numeric get_val_from_ex(const ex &e) {
-  ex v;
-  if (!is_a<numeric>(e))
-    v = expression(e).evalf();
-  else
-    v = e;
-  if (!is_a<numeric>(v))
-    throw std::invalid_argument("Option requires a numeric value");
-  return (ex_to<numeric>(v));
-} // get_val_from_ex()
-
 unsigned numeric_to_uint(const numeric &n) {
   return std::round(n.to_double());
 }

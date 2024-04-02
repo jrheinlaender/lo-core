@@ -228,13 +228,12 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     : rCmdBox(rMyCmdBoxWin)
     , mxNotebook(rBuilder.weld_notebook("notebook"))
-    , mxScrolledWindow(rBuilder.weld_scrolled_window("iguiscrolledwindow", true))
     , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
     , mNumClicks(0)
     , mClickedColumn(-1)
     , mEditedColumn(-1)
 {
-    if (!mxScrolledWindow || !mxFormulaList)
+    if (!mxFormulaList)
         return;
 
     mxFormulaList->set_size_request(mxFormulaList->get_approximate_digit_width() * 60, mxFormulaList->get_height_rows(5));
@@ -813,33 +812,37 @@ finished:
 
 IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
 {
-    // Pass-through any key presses but use the trigger to update the iFormula
-    sal_Unicode cCharCode = rKEvt.GetCharCode();
-    (void)cCharCode;
-
     SmDocShell* pDoc = GetDoc();
-    if (!pDoc) return false;
+    if (!pDoc)
+        return false;
 
-    // TODO How do we get the changed text out of the GtkCellRendererText? The TreeView returns the old text
-    std::cout << "Text=" << mxFormulaList->get_text(*xIter, col) << std::endl;
-    /*
-    auto fLines = pDoc->GetFormulaLines();
-    auto itLine = getLineIterator(fLines, mxFormulaList->get_id(*xIter).toUInt64());
-    if (itLine == fLines.end()) return false; // line number not found
+    bool handled = false;
+    const vcl::KeyCode& rKeyCode = rKEvt.GetKeyCode();
 
-    if (col == IMGUIWINDOW_COL_LABEL)
+    switch (rKeyCode.GetModifier() | rKeyCode.GetCode())
     {
-        iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
-        if (expr != nullptr)
-            expr->setLabel(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_LABEL));
-    } else if (col == IMGUIWINDOW_COL_FORMULA)
-        (*itLine)->setFormula(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA));
+        case KEY_TAB:
+        {
+            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+            const auto& lines = pDoc->GetFormulaLines();
+            auto it = std::find(lines.begin(), lines.end(), *ppLine);
+            if (it == lines.end())
+                break;
 
-    pDoc->SetImText(makeNewFormula(fLines));
-    ResetModel();
-    */
+            while (++it != lines.end() && typeid(**it) == typeid(iFormulaNodeResult));
+            if (it == lines.end())
+            {
+                std::cout << "Last line" << std::endl;
+                pDoc->insertFormulaLineBefore(nullptr, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), (*ppLine)->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
+                pDoc->UpdateGuiText();
+                ResetModel();
+                handled = true;
+            }
+            break;
+        }
+    }
 
-    return false; // Let text editor handle the key
+    return handled;
 }
 
 IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void)

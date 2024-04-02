@@ -207,7 +207,6 @@ private:
     SmCmdBoxWindow& rCmdBox;
     std::unique_ptr<weld::Builder> mxBuilder;
     std::unique_ptr<weld::Notebook> mxNotebook;
-    std::unique_ptr<weld::ScrolledWindow> mxScrolledWindow;
     std::unique_ptr<weld::TreeView> mxFormulaList;
 
     DECL_LINK(MousePressHdl, const MouseEvent&, bool);

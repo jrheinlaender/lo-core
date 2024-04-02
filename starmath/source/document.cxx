@@ -935,6 +935,12 @@ void SmDocShell::SetImHidden(const bool h)
 
 void SmDocShell::insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine)
 {
+    if (pLine == nullptr)
+    {
+        mLines.push_back(std::move(pNewLine));
+        return;
+    }
+
     auto it = std::find(mLines.begin(), mLines.end(), pLine);
     if (it == mLines.end())
         return;

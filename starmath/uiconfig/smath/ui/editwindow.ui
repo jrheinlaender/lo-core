@@ -201,131 +201,124 @@
             <property name="double-buffered">False</property>
             <property name="shadow-type">etched-out</property>
             <child>
-              <object class="GtkViewport">
+              <object class="GtkTreeView" id="iformulalist">
                 <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="double-buffered">False</property>
+                <property name="can-focus">True</property>
+                <property name="model">liststore_formulalines</property>
+                <property name="tooltip-column">7</property>
+                <child internal-child="selection">
+                  <object class="GtkTreeSelection" id="Macro Library List-selection2"/>
+                </child>
                 <child>
-                  <object class="GtkTreeView" id="iformulalist">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="model">liststore_formulalines</property>
-                    <property name="tooltip-column">7</property>
-                    <child internal-child="selection">
-                      <object class="GtkTreeSelection" id="Macro Library List-selection2"/>
-                    </child>
+                  <object class="GtkTreeViewColumn" id="col_insertbefore">
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_insertbefore">
-                        <child>
-                          <object class="GtkCellRendererPixbuf" id="img_insertbefore"/>
-                          <attributes>
-                            <attribute name="pixbuf">0</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererPixbuf" id="img_insertbefore"/>
+                      <attributes>
+                        <attribute name="pixbuf">0</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_delete">
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_delete">
-                        <child>
-                          <object class="GtkCellRendererPixbuf" id="img_delete"/>
-                          <attributes>
-                            <attribute name="pixbuf">1</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererPixbuf" id="img_delete"/>
+                      <attributes>
+                        <attribute name="pixbuf">1</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_hide">
+                    <property name="spacing">6</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_hide">
-                        <property name="spacing">6</property>
-                        <child>
-                          <object class="GtkCellRendererPixbuf" id="img_hide"/>
-                          <attributes>
-                            <attribute name="pixbuf">2</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererPixbuf" id="img_hide"/>
+                      <attributes>
+                        <attribute name="pixbuf">2</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_label">
+                    <property name="resizable">True</property>
+                    <property name="spacing">6</property>
+                    <property name="title" translatable="yes" context="editwindow|col_label">Label</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_label">
-                        <property name="resizable">True</property>
-                        <property name="spacing">6</property>
-                        <property name="title" translatable="yes" context="editwindow|col_label">Label</property>
-                        <child>
-                          <object class="GtkCellRendererText" id="label">
-                            <property name="alignment">center</property>
-                            <property name="editable">True</property>
-                          </object>
-                          <attributes>
-                            <attribute name="sensitive">13</attribute>
-                            <attribute name="text">3</attribute>
-                            <attribute name="weight">9</attribute>
-                          </attributes>
-                        </child>
+                      <object class="GtkCellRendererText" id="label">
+                        <property name="alignment">center</property>
+                        <property name="editable">True</property>
                       </object>
+                      <attributes>
+                        <attribute name="sensitive">13</attribute>
+                        <attribute name="text">3</attribute>
+                        <attribute name="weight">9</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_label_hide">
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_label_hide">
-                        <child>
-                          <object class="GtkCellRendererPixbuf" id="label_hide">
-                            <property name="stock_size">2</property>
-                          </object>
-                          <attributes>
-                            <attribute name="pixbuf">4</attribute>
-                          </attributes>
-                        </child>
+                      <object class="GtkCellRendererPixbuf" id="label_hide">
+                        <property name="stock_size">2</property>
                       </object>
+                      <attributes>
+                        <attribute name="pixbuf">4</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_type">
+                    <property name="resizable">True</property>
+                    <property name="spacing">6</property>
+                    <property name="min-width">140</property>
+                    <property name="title" translatable="yes" context="editwindow|col_type">Type</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_type">
-                        <property name="resizable">True</property>
-                        <property name="spacing">6</property>
-                        <property name="min-width">140</property>
-                        <property name="title" translatable="yes" context="editwindow|col_type">Type</property>
-                        <child>
-                          <object class="GtkCellRendererCombo">
-                            <property name="editable">True</property>
-                            <property name="has-entry">False</property>
-                            <property name="model">liststore_formulatypes</property>
-                            <property name="text-column">1</property>
-                          </object>
-                          <attributes>
-                            <attribute name="sensitive">14</attribute>
-                            <attribute name="text">5</attribute>
-                            <attribute name="weight">10</attribute>
-                          </attributes>
-                        </child>
+                      <object class="GtkCellRendererCombo">
+                        <property name="editable">True</property>
+                        <property name="has-entry">False</property>
+                        <property name="model">liststore_formulatypes</property>
+                        <property name="text-column">1</property>
                       </object>
+                      <attributes>
+                        <attribute name="sensitive">14</attribute>
+                        <attribute name="text">5</attribute>
+                        <attribute name="weight">10</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_formula">
+                    <property name="resizable">True</property>
+                    <property name="spacing">6</property>
+                    <property name="title" translatable="yes" context="editwindow|col_formula">Formula</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_formula">
-                        <property name="resizable">True</property>
-                        <property name="spacing">6</property>
-                        <property name="title" translatable="yes" context="editwindow|col_formula">Formula</property>
-                        <child>
-                          <object class="GtkCellRendererText">
-                            <property name="editable">True</property>
-                          </object>
-                          <attributes>
-                            <attribute name="sensitive">15</attribute>
-                            <attribute name="markup">6</attribute>
-                            <attribute name="weight">11</attribute>
-                          </attributes>
-                        </child>
+                      <object class="GtkCellRendererText">
+                        <property name="editable">True</property>
                       </object>
+                      <attributes>
+                        <attribute name="sensitive">15</attribute>
+                        <attribute name="markup">6</attribute>
+                        <attribute name="weight">11</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_errmsg">
+                    <property name="visible">False</property>
+                    <property name="title" translatable="yes" context="editwindow|col_errmsg">Error message</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_errmsg">
-                        <property name="visible">False</property>
-                        <property name="title" translatable="yes" context="editwindow|col_errmsg">Error message</property>
-                        <child>
-                          <object class="GtkCellRendererText"/>
-                          <attributes>
-                            <attribute name="sensitive">16</attribute>
-                            <attribute name="text">7</attribute>
-                            <attribute name="weight">12</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererText"/>
+                      <attributes>
+                        <attribute name="sensitive">16</attribute>
+                        <attribute name="text">7</attribute>
+                        <attribute name="weight">12</attribute>
+                      </attributes>
                     </child>
                   </object>
                 </child>

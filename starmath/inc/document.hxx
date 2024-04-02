@@ -312,7 +312,7 @@ public:
     const std::list<iFormulaLine_ptr>& GetFormulaLines() const { return mLines; }
     std::list<iFormulaLine_ptr>& GetFormulaLines() { return mLines; }
 
-    /// Insert a formula with default contents
+    /// Insert a formula with default contents. If pLine is nullptr, append to the end
     void insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine);
     /// Erase a formula line
     void eraseFormulaLine(const iFormulaLine_ptr& pLine);

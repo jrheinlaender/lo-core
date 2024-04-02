@@ -199,7 +199,7 @@
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="double-buffered">False</property>
-            <property name="shadow-type">in</property>
+            <property name="shadow-type">etched-out</property>
             <child>
               <object class="GtkViewport">
                 <property name="visible">True</property>

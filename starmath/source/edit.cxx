@@ -282,7 +282,7 @@ void ImGuiWindow::ResetModel()
         mxFormulaList->append(xIter.get());
         mxFormulaList->set_id(*xIter, weld::toId(&fLine));
 
-        // Note on column layout, see gtkinst.cxx GtkInstanceTreeView::GtkInstanceTreeView()
+        // Note: On column layout, see gtkinst.cxx GtkInstanceTreeView::GtkInstanceTreeView()
         // [data columns] id_column [text weight columns] [text sensitive columns]
         // All liststore columns must have treeview columns, otherwise the count goes wrong
         mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_BEFORE, IMGUIWINDOW_COL_INSERT_BEFORE);
@@ -317,7 +317,7 @@ void ImGuiWindow::ResetModel()
         }
         else
         {
-            // Note toggle remains invisible since we do not set a value
+            // Note: Toggle remains invisible since we do not set a value
             mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
             mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_LABEL_HIDE);
         }
@@ -778,7 +778,10 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "SETCALCCELLS")
                         pNew = std::make_shared<iFormulaNodeStmCalccell>(gopt, fparts({"{", "\"filename\"", ",", "\"tablename\"", ",", "\"A1\"", ",", "1", "}"}));
                     else
-                        pNew = std::make_shared<iFormulaNodeError>(gopt, "Error");
+                    {
+                        pNew = std::make_shared<iFormulaNodeError>(gopt, pLine->print());
+                        pNew->markError(pLine->print() + "\n", 5, 5, pLine->print().getLength() - 4, "Invalid formula type");
+                    }
                 }
 
                 pDoc->insertFormulaLineBefore(pLine, pNew);

@@ -353,6 +353,45 @@ void ImGuiWindow::ResetModel()
 
     mxFormulaList->columns_autosize();
 
+    if (mpOptionsDialog != nullptr)
+        mpOptionsDialog->setFormulaLinePointer(GetSelectedLine());
+}
+
+// Utility method for mouse click handlers
+bool getClickedCell(std::unique_ptr<weld::TreeView>& treeview, const MouseEvent& rMEvt, int& row, int& column, const int lastColumn) {
+    Point mousePos = rMEvt.GetPosPixel();
+    auto xIter(treeview->make_iterator());
+    row = 0;
+    column = 0;
+
+    if (treeview->get_iter_first(*xIter.get()))
+        do
+        {
+            tools::Rectangle rowArea = treeview->get_row_area(*xIter);
+            if (rowArea.Contains(mousePos))
+                break;
+            ++row;
+        } while (treeview->iter_next(*xIter.get()));
+    else
+        return false; // User clicked somewhere else
+    if (row >= treeview->n_children())
+        return false;
+    SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in row " << row);
+
+    for (int col = 0; col <= lastColumn; ++col)
+    {
+        tools::Rectangle cellArea = treeview->get_cell_area(*xIter, col);
+        if (cellArea.Contains(mousePos))
+        {
+            column = col;
+            SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in column " << col);
+            break;
+        }
+    }
+
+    return true;
+}
+
 // Note: This will detect the column where the mouse was pressed
 // Many UI functions will detect the column where the mouse was released instead
 // But that does not work for CellRendererCombo because the mouse release never makes it to our handler
@@ -363,56 +402,26 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     if (mEditedColumn > 0)
         return false; // Ignore mouse clicks when a cell is being edited
 
-    if (mpOptionsDialog != nullptr)
-        mpOptionsDialog->setFormulaLinePointer(GetSelectedLine());
-}
-    mNumClicks = rMEvt.GetClicks();
-
     // Detect clicked row and column
     // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
     // In that case the user must first select a line and then click again to take action in some column
-    Point mousePos = rMEvt.GetPosPixel();
-    auto xIter(mxFormulaList->make_iterator());
-    mClickedColumn = -1;
-    mEditedColumn = -1;
     int row = 0;
-
-    if (mxFormulaList->get_iter_first(*xIter.get()))
-        do
-        {
-            tools::Rectangle rowArea = mxFormulaList->get_row_area(*xIter);
-            if (rowArea.Contains(mousePos))
-                break;
-            ++row;
-        } while (mxFormulaList->iter_next(*xIter.get()));
-    else
+    if (!getClickedCell(mxFormulaList, rMEvt, row, mClickedColumn, IMGUIWINDOW_COL_LAST))
         return false; // User clicked somewhere else
-    SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in row " << row);
-    mxFormulaList->set_cursor(*xIter);
 
-    for (int col = 0; col <= IMGUIWINDOW_COL_LAST; ++col)
-    {
-        tools::Rectangle cellArea = mxFormulaList->get_cell_area(*xIter, col);
-        if (cellArea.Contains(mousePos))
-        {
-            mClickedColumn = col;
-            SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in column " << col);
-            break;
-        }
-    }
-
-    if (mNumClicks > 1)
+    if (rMEvt.GetClicks() > 1)
         return false; // We only handle single clicks here
+
+    // Ensure that the clicked line is selected
+    mxFormulaList->select(row);
 
     switch (mClickedColumn)
     {
         case IMGUIWINDOW_COL_INSERT_BEFORE:
         {
-            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
-
-            if (ppLine == nullptr)
+            auto pLine = GetSelectedLine();
+            if (pLine == nullptr)
                 return false; // line number not found
-            auto pLine = *ppLine;
 
             SmDocShell* pDoc = GetDoc();
             if (!pDoc)
@@ -423,9 +432,8 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_DELETE:
         {
-            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
-
-            if (ppLine == nullptr)
+            auto pLine = GetSelectedLine();
+            if (pLine == nullptr)
                 return false; // line number not found
 
             SmDocShell* pDoc = GetDoc();
@@ -437,18 +445,17 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_HIDE:
         {
-            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
-
-            if (ppLine == nullptr)
+            auto pLine = GetSelectedLine();
+            if (pLine == nullptr)
                 return false; // line number not found
-            if (std::dynamic_pointer_cast<iFormulaNodeText>(*ppLine))
+            if (std::dynamic_pointer_cast<iFormulaNodeText>(pLine))
                 return false; // Text lines cannot be hidden
 
-            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*ppLine);
+            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
             if (expr != nullptr)
             {
                 expr->setHide(!expr->getHide());
-                mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
+                mxFormulaList->set_image(row, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
 
                 SmDocShell* pDoc = GetDoc();
                 if (!pDoc)
@@ -475,13 +482,12 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_LABEL_HIDE:
         {
-            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
-            if (ppLine == nullptr)
-                return false; // line number not found
-            auto pLine = *ppLine;
+            auto pLine = GetSelectedLine();
+            if (pLine == nullptr || !pLine->isExpression())
+                return false; // line number not found or line type cannot have labels
 
             option o = pLine->getOption(o_showlabels);
-            mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
+            mxFormulaList->set_image(row, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
             pLine->setOption(o_showlabels, !o.value.boolean);
 
             SmDocShell* pDoc = GetDoc();
@@ -495,7 +501,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         case IMGUIWINDOW_COL_LABEL:
         case IMGUIWINDOW_COL_FORMULA:
         {
-            if (mxFormulaList->get_sensitive(*xIter, mClickedColumn))
+            if (mxFormulaList->get_sensitive(row, mClickedColumn))
             {
                 mEditedColumn = mClickedColumn;
                 SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected in column " << mEditedColumn);
@@ -554,11 +560,11 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
         goto finished; // Nothing changed
 
     {
-        auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rIterString.first));
-        if (ppLine == nullptr)
+        auto pLine = GetSelectedLine();
+        if (pLine == nullptr)
             goto finished; // line number not found
-        iFormulaLine_ptr pLine = *ppLine;
 
+        SAL_INFO_LEVEL(1, "starmath.imath", "Edited string=" + rIterString.second + " in column " << mEditedColumn);
         if (mEditedColumn < 0)
             goto finished;
 
@@ -830,8 +836,6 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 pDoc->UpdateGuiText();
                 break;
             }
-            default:
-                goto finished;
         }
     }
 
@@ -853,17 +857,16 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
     {
         case KEY_TAB:
         {
-            auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+            auto pLine = GetSelectedLine();
             const auto& lines = pDoc->GetFormulaLines();
-            auto it = std::find(lines.begin(), lines.end(), *ppLine);
+            auto it = std::find(lines.begin(), lines.end(), pLine);
             if (it == lines.end())
                 break;
 
             while (++it != lines.end() && typeid(**it) == typeid(iFormulaNodeResult));
             if (it == lines.end())
             {
-                std::cout << "Last line" << std::endl;
-                pDoc->insertFormulaLineBefore(nullptr, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), (*ppLine)->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
+                pDoc->insertFormulaLineBefore(nullptr, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
                 pDoc->UpdateGuiText();
                 handled = true;
             }
@@ -1193,6 +1196,14 @@ SmDocShell * ImGuiWindow::GetDoc()
 {
     SmViewShell *pView = rCmdBox.GetView();
     return pView ? pView->GetDoc() : nullptr;
+}
+
+iFormulaLine_ptr ImGuiWindow::GetSelectedLine()
+{
+    auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+    if (ppLine == nullptr)
+        return nullptr; // line not found
+    return *ppLine;
 }
 
 EditView * AbstractEditWindow::GetEditView() const

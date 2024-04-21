@@ -78,6 +78,9 @@ public:
   // Return information
   bool info(unsigned inf) const override;
 
+  /// Calculate the hash value of the unit
+  unsigned calchash(void) const override;
+
   using basic::normal; // Fixes weird linking error on LO internal build
 
 private:
@@ -89,6 +92,10 @@ private:
 
   /// The canonical form of the unit, expressed in the base units
   expression canonical;
+
+  /// unique serial number for comparison and hash
+  unsigned serial;
+  static unsigned next_serial;
 };
 
 class IMATH_DLLPUBLIC Unit_unarchiver {

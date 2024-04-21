@@ -208,7 +208,9 @@ public:
     }
 };
 
+class iFormulaLine;
 class ImGuiOptionsDialog;
+
 class ImGuiWindow
 {
 private:
@@ -234,6 +236,7 @@ public:
 
     weld::Window* GetFrameWeld() const;
     SmDocShell* GetDoc();
+    std::shared_ptr<iFormulaLine> GetSelectedLine();
 
     // Rebuild the TreeView model from the document
     void ResetModel();

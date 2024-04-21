@@ -404,8 +404,6 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (!pDoc)
                 break;
             pDoc->insertFormulaLineBefore(pLine, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
-            pDoc->UpdateGuiText();
-            ResetModel();
 
             break;
         }
@@ -419,10 +417,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             SmDocShell* pDoc = GetDoc();
             if (!pDoc)
                 break;
-            pDoc->eraseFormulaLine(*ppLine);
-            pDoc->UpdateGuiText();
-            pDoc->Compile();
-            ResetModel();
+            pDoc->eraseFormulaLine(pLine);
 
             break;
         }
@@ -445,7 +440,6 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 if (!pDoc)
                     break;
                 pDoc->UpdateGuiText();
-                ResetModel();
             }
             break;
         }
@@ -480,7 +474,6 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (!pDoc)
                 break;
             pDoc->UpdateGuiText();
-            ResetModel();
 
             break;
         }
@@ -538,6 +531,11 @@ OUString getRhs(const OUString& equation)
 
 IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
+    SAL_INFO_LEVEL(1, "starmath.imath", "EditedEntryHdl, old string=" + mxFormulaList->get_text(rIterString.first, mEditedColumn));
+    SmDocShell* pDoc = GetDoc();
+    if (!pDoc)
+        goto finished;
+
     if (mEditedColumn >= 0 && mxFormulaList->get_text(rIterString.first, mEditedColumn) == rIterString.second)
         goto finished; // Nothing changed
 
@@ -561,10 +559,6 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
             }
             case IMGUIWINDOW_COL_TYPE:
             {
-                SmDocShell* pDoc = GetDoc();
-                if (!pDoc)
-                    goto finished;
-
                 OUString previousType = mxFormulaList->get_text(rIterString.first, IMGUIWINDOW_COL_TYPE);
                 OUString newType = rIterString.second;
                 if (previousType.equals(newType))
@@ -813,25 +807,18 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 }
 
                 pDoc->insertFormulaLineBefore(pLine, pNew);
-                pDoc->eraseFormulaLine(pLine);
-                std::cout << "New formula has " << (pNew->hasError() ? "" : "no ") << "error" << std::endl;
-
+                pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
                 break;
             }
             case IMGUIWINDOW_COL_FORMULA:
             {
                 pLine->setFormula(rIterString.second);
+                pDoc->UpdateGuiText();
                 break;
             }
             default:
                 goto finished;
         }
-
-        SmDocShell* pDoc = GetDoc();
-        if (!pDoc)
-            goto finished;
-        pDoc->UpdateGuiText();
-        ResetModel();
     }
 
 finished:
@@ -864,7 +851,6 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
                 std::cout << "Last line" << std::endl;
                 pDoc->insertFormulaLineBefore(nullptr, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), (*ppLine)->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
                 pDoc->UpdateGuiText();
-                ResetModel();
                 handled = true;
             }
             break;

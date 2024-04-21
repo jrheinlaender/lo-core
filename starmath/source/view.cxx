@@ -2177,7 +2177,12 @@ void SmViewShell::Notify( SfxBroadcaster& , const SfxHint& rHint )
     {
         case SfxHintId::ModeChanged:
         case SfxHintId::DocChanged:
-            GetViewFrame().GetBindings().InvalidateAll(false);
+        {
+            GetViewFrame()->GetBindings().InvalidateAll(false);
+            auto pGuiWindow = GetGuiWindow();
+            if (pGuiWindow)
+                pGuiWindow->ResetModel();
+        }
         break;
         default:
         break;

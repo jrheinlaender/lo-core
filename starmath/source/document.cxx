@@ -312,7 +312,17 @@ void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
     maImText = rBuffer;
 
     if (doCompile && maImText.getLength() > 0)
+    {
+        bool bIsEnabled = IsEnableSetModified();
+        if( bIsEnabled )
+            EnableSetModified( false );
+
         Compile();
+
+        if ( bIsEnabled )
+            EnableSetModified( bIsEnabled );
+        SetModified();
+    }
 }
 
 void SmDocShell::SetPreviousFormula(const OUString& aName)
@@ -766,7 +776,7 @@ void SmDocShell::Compile()
             if (typeid(*i) == typeid(iFormulaNodeResult))
                 result += i->print() + OU("\n");
 
-        SetText(result);
+        SetText(result); // This takes care of marking the document as modified etc.
 
         // Update properties
         // Note: This must happen after print() because the displayedLhs is created in the iFormulaLine::display() method
@@ -899,8 +909,6 @@ void SmDocShell::SetImHidden(const bool h)
 {
     if (mImHidden == h) return;
 
-    OUString oldImText = maImText;
-    maImText = OU("");
     unsigned basefontheight = o3tl::convert(GetFormat().GetBaseSize().Height(), SmO3tlLengthUnit(), o3tl::Length::pt);
 
     for (auto& l : mLines)
@@ -913,33 +921,23 @@ void SmDocShell::SetImHidden(const bool h)
         if (typeid(*l) == typeid(iFormulaNodeResult)) continue;
 
         l->setBasefontHeight(basefontheight);
-        OUString lineText = l->print();
-
-        if (maImText.getLength() > 0)
-            maImText += "\n";
-        maImText += lineText.copy(4).trim(); // Drop leading %%ii
     }
 
-    SAL_INFO_LEVEL(2, "starmath.imath", "Rebuilt ImText: '" << maImText << "'");
+    SAL_INFO_LEVEL(2, "starmath.imath", "Set formula hidden");
+    mImHidden = h;
+    UpdateGuiText();
+}
 
 const GiNaC::expression& SmDocShell::GetUnit(const OUString& unitname) const
 {
     return mpCurrentCompiler->getUnit(STR(unitname));
 }
-    if (!maImText.equals(oldImText))
-    {
-        if (h)
-            SetText("");
-        else
-            Compile();
-    }
 
 const std::vector<std::string> SmDocShell::GetAllUnitNames() const {
     if (mpCurrentCompiler != nullptr)
         return mpCurrentCompiler->getUnitnames();
 
     return {};
-    mImHidden = h;
 }
 
 void SmDocShell::insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine)
@@ -955,6 +953,9 @@ void SmDocShell::insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormula
         return;
 
     mLines.insert(it, std::move(pNewLine));
+
+    // Note: Not calling this because all cases that use this method call it anysway
+    //UpdateGuiText();
 }
 
 void SmDocShell::eraseFormulaLine(const iFormulaLine_ptr& pLine)
@@ -964,6 +965,8 @@ void SmDocShell::eraseFormulaLine(const iFormulaLine_ptr& pLine)
         return;
 
     mLines.erase(it);
+
+    UpdateGuiText();
 }
 
 void SmDocShell::ArrangeFormula()
@@ -1845,7 +1848,7 @@ void SmDocShell::UpdateImText()
 
 void SmDocShell::UpdateGuiText()
 {
-     OUString newFormula;
+    OUString newFormula;
 
     for (const auto& line : mLines)
     {
@@ -1856,6 +1859,8 @@ void SmDocShell::UpdateGuiText()
 
     if (GetImText() != newFormula)
         SetImText( newFormula );
+    else
+        SAL_INFO_LEVEL(0, "starmath.imath", "Formula unchanged, not updating GUI");
 }
 
 
@@ -2347,6 +2352,24 @@ void SmDocShell::FillClass(SvGlobalName* pClassName,
     }
 }
 
+// Methods changing iFormulaLines:
+// SetImHidden() calls UpdateGuiText()
+// insertFormulaLineBefore() currently does not call UpdateGuiText()
+// eraseFormulaLine() calls UpdateGuiText()
+// ImGuiWindow MousePressHdl IMGUIWINDOW_COL_HIDE and IMGUIWINDOW_COL_LABEL_HIDE calls UpdateGuiText()
+// ImGuiWindow EditedEntryHdl calls UpdateGuiText() directly or indirectly via eraseFormulaLine()
+// ImGuiWindow KeyReleaseHdl calls insertFormulaLineBefore() and UpdateGuiText()
+// ImGuiOptionsDialog multiple handlers call UpdateGuiText()
+// ImEditWindow constructor calls Compile(): Hack to compile the formula immediately after it was openend
+
+// Update chain when an iFormulaLine was changed:
+// UpdateGuiText() rebuilds ImText and calls SetImText()
+// SetImText() blocks SetModified(), calls Compile() and then calls SetModified()
+// Compile() rebuilds the iFormulaLines and calls SetText()
+// SetText() blocks SetModified(), calls Parse() and then calls SetFormulaArranged() and SetModified()
+// SetModified() broadcasts DocChanged
+// SmViewShell::Notify() catches the DocChanged broadcast and calls ImGuiWindow::ResetModel()
+// ImGuiWindow::ResetModel() sets the formula line pointer for the ImGuiOptionsDialog
 void SmDocShell::SetModified(bool bModified)
 {
     if( IsEnableSetModified() )

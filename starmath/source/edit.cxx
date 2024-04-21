@@ -267,6 +267,16 @@ weld::Window* ImGuiWindow::GetFrameWeld() const
     return rCmdBox.GetFrameWeld();
 }
 
+namespace
+{
+    static const std::vector<std::type_index> nodesWithHide = {
+        typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
+        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval), typeid(iFormulaNodePrintval)
+    };
+    static const std::vector<std::type_index> nodesWithoutFormula = {
+        typeid(iFormulaNodeStmClearall), typeid(iFormulaNodeStmReadfile), typeid(iFormulaNodeStmOptions), typeid(iFormulaNodeStmDelete)
+    };
+}
 
 void ImGuiWindow::ResetModel()
 {
@@ -287,10 +297,6 @@ void ImGuiWindow::ResetModel()
     if (!pDoc) return;
 
     int lineCount = 0;
-    std::vector<std::type_index> nodesWithoutFormula = {
-        typeid(iFormulaNodeStmClearall), typeid(iFormulaNodeStmReadfile), typeid(iFormulaNodeStmOptions), typeid(iFormulaNodeStmDelete)
-    };
-    std::vector<std::type_index> nodesWithHide = {
         typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
         typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval), typeid(iFormulaNodePrintval)
     };
@@ -370,6 +376,10 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     if (mEditedColumn > 0)
         return false; // Ignore mouse clicks when a cell is being edited
 
+    SmDocShell* pDoc = GetDoc();
+        if (!pDoc)
+            return false;
+
     // Detect clicked row and column
     // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
     // In that case the user must first select a line and then click again to take action in some column
@@ -382,42 +392,27 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
 
     // Ensure that the clicked line is selected
     mxFormulaList->select(row);
+    auto pLine = GetSelectedLine();
+    if (pLine == nullptr)
+        return false; // line number not found
 
     switch (mClickedColumn)
     {
         case IMGUIWINDOW_COL_INSERT_BEFORE:
         {
-            auto pLine = GetSelectedLine();
-            if (pLine == nullptr)
-                return false; // line number not found
-
-            SmDocShell* pDoc = GetDoc();
-            if (!pDoc)
-                break;
             pDoc->insertFormulaLineBefore(pLine, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
 
             break;
         }
         case IMGUIWINDOW_COL_DELETE:
         {
-            auto pLine = GetSelectedLine();
-            if (pLine == nullptr)
-                return false; // line number not found
-
-            SmDocShell* pDoc = GetDoc();
-            if (!pDoc)
-                break;
-            pDoc->eraseFormulaLine(pLine);
-
+            pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
             break;
         }
         case IMGUIWINDOW_COL_HIDE:
         {
-            auto pLine = GetSelectedLine();
-            if (pLine == nullptr)
-                return false; // line number not found
-            if (std::dynamic_pointer_cast<iFormulaNodeText>(pLine))
-                return false; // Text lines cannot be hidden
+            if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*pLine)) == nodesWithHide.end())
+                return false; // Line cannot be hidden
 
             iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
             if (expr != nullptr)
@@ -425,17 +420,13 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 expr->setHide(!expr->getHide());
                 mxFormulaList->set_image(row, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
 
-                SmDocShell* pDoc = GetDoc();
-                if (!pDoc)
-                    break;
                 pDoc->UpdateGuiText();
             }
             break;
         }
         case IMGUIWINDOW_COL_OPTIONS:
         {
-            auto pLine = GetSelectedLine();
-            if (pLine == nullptr || !pLine->canHaveOptions())
+            if (!pLine->canHaveOptions())
                 return false;
 
             mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine, lastOptionsPage);
@@ -451,17 +442,13 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_LABEL_HIDE:
         {
-            auto pLine = GetSelectedLine();
-            if (pLine == nullptr || !pLine->isExpression())
-                return false; // line number not found or line type cannot have labels
+            if (!pLine->isExpression())
+                return false; // Line type cannot have labels
 
             option o = pLine->getOption(o_showlabels);
             mxFormulaList->set_image(row, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
             pLine->setOption(o_showlabels, !o.value.boolean);
 
-            SmDocShell* pDoc = GetDoc();
-            if (!pDoc)
-                break;
             pDoc->UpdateGuiText();
 
             break;

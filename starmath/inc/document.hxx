@@ -312,6 +312,10 @@ public:
     const std::list<iFormulaLine_ptr>& GetFormulaLines() const { return mLines; }
     std::list<iFormulaLine_ptr>& GetFormulaLines() { return mLines; }
 
+    // Interface to the compiler
+    const GiNaC::expression& GetUnit(const OUString& unitname) const;
+    const std::vector<std::string> GetAllUnitNames() const;
+
     /// Insert a formula with default contents. If pLine is nullptr, append to the end
     void insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine);
     /// Erase a formula line

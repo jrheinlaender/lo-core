@@ -44,6 +44,9 @@
 #include <bitmaps.hlst>
 #include <logging.hxx>
 
+#include "imath/option.hxx"
+#include "imath/printing.hxx"
+#include "imath/unit.hxx"
 #include <com/sun/star/container/XChild.hpp>
 
 using namespace com::sun::star::accessibility;
@@ -218,17 +221,19 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 #define IMGUIWINDOW_COL_INSERT_BEFORE 0
 #define IMGUIWINDOW_COL_DELETE 1
 #define IMGUIWINDOW_COL_HIDE 2
-#define IMGUIWINDOW_COL_LABEL 3
-#define IMGUIWINDOW_COL_LABEL_HIDE 4
-#define IMGUIWINDOW_COL_TYPE 5
-#define IMGUIWINDOW_COL_FORMULA 6
-#define IMGUIWINDOW_COL_ERRMSG 7
-#define IMGUIWINDOW_COL_LAST 8
+#define IMGUIWINDOW_COL_OPTIONS 3
+#define IMGUIWINDOW_COL_LABEL 4
+#define IMGUIWINDOW_COL_LABEL_HIDE 5
+#define IMGUIWINDOW_COL_TYPE 6
+#define IMGUIWINDOW_COL_FORMULA 7
+#define IMGUIWINDOW_COL_ERRMSG 8
+#define IMGUIWINDOW_COL_LAST 9
 
 ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     : rCmdBox(rMyCmdBoxWin)
     , mxNotebook(rBuilder.weld_notebook("notebook"))
     , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
+    , mpOptionsDialog(nullptr)
     , mNumClicks(0)
     , mClickedColumn(-1)
     , mEditedColumn(-1)
@@ -251,6 +256,12 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
 ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
 {
 }
+
+weld::Window* ImGuiWindow::GetFrameWeld() const
+{
+    return rCmdBox.GetFrameWeld();
+}
+
 
 // TODO Should we / Must we listen to the Broadcast emitted in SmDocShell::SetModified() ?
 void ImGuiWindow::ResetModel()
@@ -327,7 +338,6 @@ void ImGuiWindow::ResetModel()
     }
 
     mxFormulaList->columns_autosize();
-}
 
 // Note: This will detect the column where the mouse was pressed
 // Many UI functions will detect the column where the mouse was released instead
@@ -339,6 +349,9 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     if (mEditedColumn > 0)
         return false; // Ignore mouse clicks when a cell is being edited
 
+    if (mpOptionsDialog != nullptr)
+        mpOptionsDialog->setFormulaLinePointer(GetSelectedLine());
+}
     mNumClicks = rMEvt.GetClicks();
 
     // Detect clicked row and column
@@ -434,6 +447,22 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 pDoc->UpdateGuiText();
                 ResetModel();
             }
+            break;
+        }
+        case IMGUIWINDOW_COL_OPTIONS:
+        {
+            auto pLine = GetSelectedLine();
+            if (pLine == nullptr || !pLine->canHaveOptions())
+                return false;
+
+            mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine);
+            // Position dialog at bottom center so that it does not hide the formula display
+            auto dialogSize = mpOptionsDialog->getDialog()->get_size();
+            auto parentSize = GetFrameWeld()->get_size();
+            auto parentPos = GetFrameWeld()->get_position();
+            mpOptionsDialog->getDialog()->window_move(parentPos.X() + parentSize.Width()/2 - dialogSize.Width()/2, parentPos.Y() + parentSize.Height() - dialogSize.Height());
+            mpOptionsDialog->run();
+            mpOptionsDialog = nullptr;
             break;
         }
         case IMGUIWINDOW_COL_LABEL_HIDE:
@@ -845,24 +874,292 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
     return handled;
 }
 
+ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, iFormulaLine_ptr pLine)
+    : GenericDialogController(pParent, "modules/smath/ui/iformulaoptionsdialog.ui", "FormulaOptionsDialog"), mpGuiWindow(pGuiWindow)
+    , mxAutoformat  (m_xBuilder->weld_check_button("autoformat"))
+    , mxAutoalign   (m_xBuilder->weld_check_button("autoalign"))
+    , mxAutochain   (m_xBuilder->weld_check_button("autochain"))
+    , mxAutofraction(m_xBuilder->weld_check_button("autofraction"))
+    , mxMintextsize (m_xBuilder->weld_metric_spin_button("mintextsize", FieldUnit::POINT))
+    , mxAutotextmode(m_xBuilder->weld_check_button("autotextmode"))
+
+    , mxAllunits     (m_xBuilder->weld_combo_box("allunits"))
+    , mxActiveunits  (m_xBuilder->weld_tree_view("activeunits"))
+    , mxSuppressunits(m_xBuilder->weld_check_button("suppressunits"))
+
+    , mxPrecision    (m_xBuilder->weld_spin_button ("precision"))
+    , mxFixed        (m_xBuilder->weld_check_button("fixed"))
+    , mxFixedexponent(m_xBuilder->weld_spin_button ("fixedexponent"))
+    , mxMinposexp    (m_xBuilder->weld_spin_button ("minposexp"))
+    , mxMaxnegexp    (m_xBuilder->weld_spin_button ("maxnegexp"))
+
+    , mxInhibitunderflow(m_xBuilder->weld_check_button("inhibitunderflow"))
+    , mxAllowimplicit   (m_xBuilder->weld_check_button("allowimplicit"))
+    , mxEvalrealroots   (m_xBuilder->weld_check_button("evalrealroots"))
+
+    , mxDiffline(m_xBuilder->weld_radio_button("diff_line"))
+    , mxDiffdot (m_xBuilder->weld_radio_button("diff_dot"))
+    , mxDiffdfdt(m_xBuilder->weld_radio_button("diff_dfdt"))
+
+    , mxEchoformula(m_xBuilder->weld_check_button("echoformula"))
+
+    , mpLine(pLine)
 IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void)
 {
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
     SmDocShell* pDoc = GetDoc();
     if (!pDoc) return;
 
+    mxAutoformat->set_active  (!mpLine->getOption(o_eqraw).value.boolean);
+    mxAutoalign->set_active   (mpLine->getOption(o_eqalign).value.boolean);
+    mxAutochain->set_active   (mpLine->getOption(o_eqchain).value.boolean);
+    mxAutofraction->set_active(mpLine->getOption(o_autofraction).value.boolean);
+    mxMintextsize->set_value  (mpLine->getOption(o_minimumtextsize).value.uinteger, FieldUnit::POINT);
+    mxAutotextmode->set_active(mpLine->getOption(o_autotextmode).value.boolean);
+    mxAutoformat->connect_toggled  (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+    mxAutoalign->connect_toggled   (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+    mxAutochain->connect_toggled   (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+    mxAutofraction->connect_toggled(LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+    mxMintextsize->connect_value_changed(LINK(this, ImGuiOptionsDialog, MetricSpinButtonModifyHdl));
+    mxAutotextmode->connect_toggled(LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+
+    // Fill dropdown with all existing units TODO Strictly speaking we should get the compiler state after mpLine was compiled
+    for (const auto& unit : pDoc->GetAllUnitNames())
+    {
+        if (unit == "unknown")
+            continue;
+        mxAllunits->append_text(OUS8(unit));
+    }
+    mxAllunits->connect_changed(LINK(this, ImGuiOptionsDialog, ComboBoxHdl));
+    // Fill list of global and local units specific to this line. The first unit in the list has highest priority
+    // Note: Working on o_unitstr instead does not give the user-friendly names of the units
+    GiNaC::exvector globalUnits = *pLine->getOption(o_units, true).value.exvec;
+    auto xIter = mxActiveunits->make_iterator();
+    for (const auto& unit : globalUnits)
+    {
+        mxActiveunits->insert(0, xIter.get());
+        mxActiveunits->set_text(*xIter, OUS8(GiNaC::ex_to<GiNaC::Unit>(unit).get_name()), 0);
+        mxActiveunits->set_text(*xIter, "global", 1);
+    }
+    GiNaC::exvector localUnits  = *pLine->getOption(o_units).value.exvec;
+    if (*pLine->getOption(o_unitstr, true).value.str == *pLine->getOption(o_unitstr).value.str)
+        localUnits.clear(); // getOption() returns the global option value if there is no local value
+    for (const auto& unit : localUnits)
+    {
+        mxActiveunits->insert(0, xIter.get());
+        mxActiveunits->set_text(*xIter, OUS8(GiNaC::ex_to<GiNaC::Unit>(unit).get_name()), 0);
+        mxActiveunits->set_text(*xIter, "local", 1);
+        mxActiveunits->set_image(*xIter, BMP_IMGUI_DELETE, 2);
+    }
+    mxActiveunits->set_selection_mode(SelectionMode::Multiple);
+    mxActiveunits->connect_row_activated(LINK(this, ImGuiOptionsDialog, DoubleClickHdl));
+    mxActiveunits->connect_mouse_press(LINK(this, ImGuiOptionsDialog, MousePressHdl));
+    mxSuppressunits->set_active(mpLine->getOption(o_suppress_units).value.boolean);
+    mxSuppressunits->connect_toggled(LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+
+    mxPrecision->set_value    (mpLine->getOption(o_precision).value.uinteger);
+    mxFixed->set_active       (!mpLine->getOption(o_fixeddigits).value.boolean);
+    mxFixedexponent->set_value(mpLine->getOption(o_exponent).value.integer);
+    mxMinposexp->set_value    (mpLine->getOption(o_lowsclimit).value.integer);
+    mxMaxnegexp->set_value    (mpLine->getOption(o_highsclimit).value.integer);
+    mxPrecision->connect_value_changed    (LINK(this, ImGuiOptionsDialog, SpinButtonModifyHdl));
+    mxFixed->connect_toggled              (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+    mxFixedexponent->connect_value_changed(LINK(this, ImGuiOptionsDialog, SpinButtonModifyHdl));
+    mxMinposexp->connect_value_changed    (LINK(this, ImGuiOptionsDialog, SpinButtonModifyHdl));
+    mxMaxnegexp->connect_value_changed    (LINK(this, ImGuiOptionsDialog, SpinButtonModifyHdl));
+
+    mxInhibitunderflow->set_active(mpLine->getOption(o_underflow).value.boolean);
+    mxAllowimplicit->set_active   (mpLine->getOption(o_implicitmul).value.boolean);
+    mxEvalrealroots->set_active   (mpLine->getOption(o_evalf_real_roots).value.boolean);
+
+    mxDiffline->set_active(*mpLine->getOption(o_difftype).value.str == "line");
+    mxDiffdot->set_active (*mpLine->getOption(o_difftype).value.str == "dot");
+    mxDiffdfdt->set_active(*mpLine->getOption(o_difftype).value.str == "dfdt");
+    mxDiffline->connect_toggled(LINK(this, ImGuiOptionsDialog, RadioButtonModifyHdl));
+    mxDiffdot->connect_toggled(LINK(this, ImGuiOptionsDialog, RadioButtonModifyHdl));
+    mxDiffdfdt->connect_toggled(LINK(this, ImGuiOptionsDialog, RadioButtonModifyHdl));
+
+    mxEchoformula->set_active(mpLine->getOption(o_echoformula).value.boolean);
+    mxEchoformula->connect_toggled(LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+}
+
+ImGuiOptionsDialog::~ImGuiOptionsDialog()
+{
+}
+
+IMPL_LINK(ImGuiOptionsDialog, CheckBoxClickHdl, weld::Toggleable&, rCheckBox, void )
+{
+    if (!mpLine)
+        return;
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
+
+    if (&rCheckBox == mxAutoformat.get())
+        mpLine->setOption(o_eqraw, !rCheckBox.get_active());
+    else if (&rCheckBox == mxAutoalign.get())
+        mpLine->setOption(o_eqalign, rCheckBox.get_active());
+    else if (&rCheckBox == mxAutochain.get())
+        mpLine->setOption(o_eqchain, rCheckBox.get_active());
+    else if (&rCheckBox == mxAutofraction.get())
+        mpLine->setOption(o_autofraction, rCheckBox.get_active());
+    else if (&rCheckBox == mxAutotextmode.get())
+        mpLine->setOption(o_autotextmode, rCheckBox.get_active());
+    else if (&rCheckBox == mxSuppressunits.get())
+        mpLine->setOption(o_suppress_units, rCheckBox.get_active());
+    else if (&rCheckBox == mxFixed.get())
+        mpLine->setOption(o_fixeddigits, !rCheckBox.get_active());
+    else if (&rCheckBox == mxInhibitunderflow.get())
+        mpLine->setOption(o_underflow, !rCheckBox.get_active());
+    else if (&rCheckBox == mxAllowimplicit.get())
+        mpLine->setOption(o_implicitmul, !rCheckBox.get_active());
+    else if (&rCheckBox == mxEvalrealroots.get())
+        mpLine->setOption(o_evalf_real_roots, !rCheckBox.get_active());
+    else if (&rCheckBox == mxEchoformula.get())
+        mpLine->setOption(o_echoformula, !rCheckBox.get_active());
+
+    mpLine = nullptr;
+    pDoc->UpdateGuiText(); // This invalidates mpLine in SmDocShell::Compile()
+}
+
+IMPL_LINK(ImGuiOptionsDialog, SpinButtonModifyHdl, weld::SpinButton&, rEdit, void)
+{
+    if (!mpLine)
+        return;
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
+
+    if (&rEdit == mxPrecision.get())
+        mpLine->setOption(o_precision, (unsigned)rEdit.get_value());
+    else if (&rEdit == mxFixedexponent.get())
+        mpLine->setOption(o_exponent, (int)rEdit.get_value());
+    else if (&rEdit == mxMinposexp.get())
+        mpLine->setOption(o_highsclimit, (int)rEdit.get_value());
+    else if (&rEdit == mxMaxnegexp.get())
+        mpLine->setOption(o_lowsclimit, (int)rEdit.get_value());
+
+    mpLine = nullptr;
+    pDoc->UpdateGuiText(); // This invalidates mpLine
+}
+
+IMPL_LINK(ImGuiOptionsDialog, MetricSpinButtonModifyHdl, weld::MetricSpinButton&, rEdit, void)
+{
+    if (!mpLine)
+        return;
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
+
+    if (&rEdit == mxMintextsize.get())
+        mpLine->setOption(o_minimumtextsize, (unsigned)rEdit.get_value(FieldUnit::POINT));
+
+    mpLine = nullptr;
+    pDoc->UpdateGuiText(); // This invalidates mpLine
+}
+
+IMPL_LINK(ImGuiOptionsDialog, RadioButtonModifyHdl, weld::Toggleable&, rButton, void)
+{
+    if (!mpLine)
+        return;
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
+
+    if (&rButton == mxDiffline.get() && rButton.get_active())
+        mpLine->setOption(o_difftype, "line" );
+    else if (&rButton == mxDiffdot.get() && rButton.get_active())
+        mpLine->setOption(o_difftype, "dot" );
+    else if (&rButton == mxDiffdfdt.get() && rButton.get_active())
+        mpLine->setOption(o_difftype, "dfdt" );
+
+    mpLine = nullptr;
+    pDoc->UpdateGuiText(); // This invalidates mpLine
+}
     auto fLines = pDoc->GetFormulaLines();
     auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rRowCol.first));
 
-    if (itLine == nullptr) return; // line number not found
-    if (std::dynamic_pointer_cast<iFormulaNodeText>(*itLine)) return; // Text lines cannot be hidden
+void setUnits(const std::unique_ptr<weld::TreeView>& treeview, iFormulaLine_ptr& pLine, ImGuiWindow* pGuiWindow)
+{
+    SmDocShell* pDoc = pGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
 
-    iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(*itLine);
-    if (expr != nullptr)
+    std::string unitstring;
+    auto xIter = treeview->make_iterator();
+
+    if (treeview->get_iter_first(*xIter.get()))
+        do
+        {
+           if (treeview->get_text(*xIter, 1) == "local")
+               unitstring += " \"" + STR(treeview->get_text(*xIter, 0)) + "\"";
+        } while (treeview->iter_next(*xIter.get()));
+
+    pLine->setOption(o_unitstr, unitstring);
+    pLine = nullptr;
+    pDoc->UpdateGuiText();
+}
+
+IMPL_LINK(ImGuiOptionsDialog, ComboBoxHdl, weld::ComboBox&, rCombobox, void)
+{
+    if (!mpLine)
+        return;
+
+    auto xIter = mxActiveunits->make_iterator();
+    mxActiveunits->insert(0, xIter.get());
+    mxActiveunits->set_text(*xIter, mxAllunits->get_active_text(), 0);
+    mxActiveunits->set_text(*xIter, "local", 1);
+    mxActiveunits->set_image(*xIter, BMP_IMGUI_DELETE, 2);
+    mxAllunits->set_active(-1);
+
+    setUnits(mxActiveunits, mpLine, mpGuiWindow);
+}
+
+IMPL_LINK_NOARG(ImGuiOptionsDialog, DoubleClickHdl, weld::TreeView&, bool)
+{
+    if (!mpLine)
+        return false;
+
+    std::unique_ptr<weld::TreeIter> xIter(mxActiveunits->make_iterator());
+    if (mxActiveunits->get_selected(xIter.get()) && mxActiveunits->get_text(*xIter, 1) == "local")
     {
+        mxActiveunits->remove(*xIter);
+        setUnits(mxActiveunits, mpLine, mpGuiWindow);
+        return true;
         expr->setHide(mxFormulaList->get_toggle(rRowCol.first, rRowCol.second) == TRISTATE_TRUE);
         pDoc->SetImText(makeNewFormula(fLines));
         ResetModel();
     }
+
+    return false;
+}
+
+IMPL_LINK(ImGuiOptionsDialog, MousePressHdl, const MouseEvent&, rMEvt, bool)
+{
+    if (!rMEvt.IsLeft() || rMEvt.GetClicks() > 1)
+        return false;
+
+    if (!mpLine)
+        return false;
+
+    int row;
+    int column;
+    if (!getClickedCell(mxActiveunits, rMEvt, row, column, 2))
+        return false;
+
+    if (mxActiveunits->get_text(row, 1) == "global" || column != 2)
+        return false;
+
+    mxActiveunits->remove(row);
+    setUnits(mxActiveunits, mpLine, mpGuiWindow);
+
+    return true;
 }
 
 weld::Window* AbstractEditWindow::GetFrameWeld() const

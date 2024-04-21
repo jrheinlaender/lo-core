@@ -19,107 +19,136 @@
 #include <imath/unit.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/printing.hxx>
+#include <imath/utils.hxx>
 #else
 #include "unit.hxx"
 #include "msgdriver.hxx"
 #include "printing.hxx"
+#include "utils.hxx"
 #endif
 
-namespace GiNaC {
+namespace GiNaC
+{
+GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(
+    Unit, basic,
+    print_func<print_context>(&Unit::do_print).print_func<imathprint>(&Unit::do_print_imath));
 
-GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(Unit, basic, print_func<print_context>(&Unit::do_print).print_func<imathprint>(&Unit::do_print_imath));
+unsigned Unit::next_serial = 0;
 
 // Required constructors and destructors and other GiNaC-specific methods
-  Unit::Unit() {
+Unit::Unit()
+    : name("")
+    , printname("")
+    , serial(next_serial++)
+{
     MSG_INFO(3, "Constructing empty unit" << endline);
-  }
+}
 
-  Unit::Unit(const std::string& n, const std::string& pn, const expression& cex) : name(n), printname(pn), canonical(cex) {
+Unit::Unit(const std::string& n, const std::string& pn, const expression& cex)
+    : name(n)
+    , printname(pn)
+    , canonical(cex)
+    , serial(next_serial++)
+{
 #ifndef _MSC_VER
     // Build with MSVC crashes on outputting cex = numeric(0) when initialising the base SI units
-    MSG_INFO(3, "Constructing unit with name " << n << " and printname " << pn << " and expression " << ex(cex) << endline);
+    MSG_INFO(3, "Constructing unit with name " << n << " and printname " << pn << " and expression "
+                                               << ex(cex) << endline);
 #endif
-  }
+}
 
 #ifdef DEBUG_CONSTR_DESTR
-  Unit::~Unit() {
-    MSG_INFO(3, "Destructing unit " << name << endline);
-  }
+Unit::~Unit() { MSG_INFO(3, "Destructing unit " << name << endline); }
 
-  Unit::Unit(const Unit& other) : name(other.name), printname(other.printname), canonical(other.canonical) {
+Unit::Unit(const Unit& other)
+    : name(other.name)
+    , printname(other.printname)
+    , canonical(other.canonical)
+{
     MSG_INFO(3, "Copying unit from " << other.name << endline);
-  }
+}
 
-  Unit& Unit::operator=(const Unit& other) {
+Unit& Unit::operator=(const Unit& other)
+{
     MSG_INFO(3, "Assigning unit from " << other << endline);
     name = other.name;
     printname = other.printname;
     canonical = other.canonical;
     return *this;
-  }
+}
 #endif
 
 Unit_unarchiver::Unit_unarchiver() {}
 Unit_unarchiver::~Unit_unarchiver() {}
 
-  int Unit::compare_same_type(const basic &other) const {
-    const Unit &o = static_cast<const Unit &>(other);
-    int cmpval = name.compare(o.name);
+int Unit::compare_same_type(const basic& other) const
+{
+    GINAC_ASSERT(is_a<Unit>(other));
+    const Unit& o = static_cast<const Unit&>(other);
+    if (serial == o.serial)
+        return 0;
+    return serial < o.serial ? -1 : 1;
+}
 
-     if (cmpval == 0)
-      return 0;
-    else if (cmpval < 0)
-      return -1;
-    else
-      return 1;
-  }
-
-  void Unit::do_print(const print_context &c, unsigned level) const {
+void Unit::do_print(const print_context& c, unsigned level) const
+{
     (void)level;
     c.s << "[" << (printname == "" ? name : printname) << "]";
-  }
+}
 
-  void Unit::do_print_imath(const imathprint &c, unsigned level) const {
+void Unit::do_print_imath(const imathprint& c, unsigned level) const
+{
     (void)level;
     std::string thename = (printname == "" ? name : printname);
 
-    if (thename[0] == '{') { // smath unit definition
-      c.s << thename;
-    } else { // protect the name with quotes
-      c.s << "\"" + thename + "\"";
+    if (thename[0] == '{')
+    { // smath unit definition
+        c.s << thename;
     }
-  }
+    else
+    { // protect the name with quotes
+        c.s << "\"" + thename + "\"";
+    }
+}
 
-bool Unit::info(unsigned inf) const {
-  switch (inf) {
-    case info_flags::symbol:
-    case info_flags::polynomial:
-    case info_flags::integer_polynomial:
-    case info_flags::cinteger_polynomial:
-    case info_flags::rational_polynomial:
-    case info_flags::crational_polynomial:
-    case info_flags::rational_function:
-    case info_flags::expanded:
+bool Unit::info(unsigned inf) const
+{
+    switch (inf)
+    {
+        case info_flags::symbol:
+        case info_flags::polynomial:
+        case info_flags::integer_polynomial:
+        case info_flags::cinteger_polynomial:
+        case info_flags::rational_polynomial:
+        case info_flags::crational_polynomial:
+        case info_flags::rational_function:
+        case info_flags::expanded:
             return true;
-    case info_flags::real:
-    case info_flags::positive:
-    case info_flags::nonnegative:
+        case info_flags::real:
+        case info_flags::positive:
+        case info_flags::nonnegative:
             return true;
-    case info_flags::has_indices:
+        case info_flags::has_indices:
             return false;
-  }
-  return inherited::info(inf);
+    }
+    return inherited::info(inf);
 }
 
-expression Unit::get_canonical() const {
-  if (canonical.is_equal(_expr0))
-    return *this;
-  else
-    return canonical;
+unsigned Unit::calchash(void) const
+{
+    unsigned seed = make_hash_seed(typeid(*this));
+    hashvalue = golden_ratio_hash(seed ^ serial);
+    setflag(status_flags::hash_calculated);
+    return hashvalue;
 }
 
-bool Unit::is_base() const {
-  return canonical.is_equal(_expr0);
+expression Unit::get_canonical() const
+{
+    if (canonical.is_equal(_expr0))
+        return *this;
+    else
+        return canonical;
 }
 
+bool Unit::is_base() const { return canonical.is_equal(_expr0); }
 }

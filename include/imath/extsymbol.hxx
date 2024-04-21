@@ -60,7 +60,7 @@ public:
   ex real_part() const override;
   ex imag_part() const override;
 
-  inline unsigned get_domain() const { return _domain; }
+  inline unsigned get_domain() const override { return _domain; }
   inline void set_domain(const unsigned d) { _domain = d; }
   inline void make_complex() { _domain = domain::complex; }
   inline void make_real()    { _domain = domain::real; }

@@ -247,6 +247,8 @@ OUString iFormulaLine::getFormula() const {
         }
         case label_error:
             return _formulaParts[2];
+        case general_error:
+            return _formulaParts[0];
         default:
             // All other errors
             return  _formulaParts[0] + _formulaParts[1] + _formulaParts [2];

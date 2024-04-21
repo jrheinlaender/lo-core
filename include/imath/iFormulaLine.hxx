@@ -237,7 +237,7 @@ public:
 
   virtual OUString print() const override;
 
-  virtual bool canHaveOptions() const { return true; } // Actually only option echo is relevant
+  virtual bool canHaveOptions() const override { return true; } // Actually only option echo is relevant
   virtual bool isDisplayable() const override { return false; }
   virtual depType dependencyType() const override { return depRecalc; }
 };
@@ -399,7 +399,7 @@ public:
   virtual OUString printFormula() const override;
   virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;
 
-  virtual OUString getCommand() const { return OU("TEXT"); }
+  virtual OUString getCommand() const override { return OU("TEXT"); }
   virtual bool isExpression() const override { return false; }
 
   virtual void markError(const OUString& compiledText, const int formulaStart, const int errorStart, const int errorEnd, const OUString& errorMessage) override;
@@ -437,7 +437,7 @@ public:
   virtual iFormulaLine_ptr clone() const override;
 
   virtual bool canHaveOptions() const override { return true; }
-  virtual bool isExpression() const { return true; }
+  virtual bool isExpression() const override { return true; }
 
 protected:
   GiNaC::expression _lh;
@@ -500,7 +500,7 @@ public:
 
   virtual OUString getCommand() const override { return OU("EQDEF"); }
   virtual bool canHaveOptions() const override { return true; }
-  virtual bool isExpression() const { return true; }
+  virtual bool isExpression() const override { return true; }
   virtual depType dependencyType() const override { return depInOut; }
 };
 

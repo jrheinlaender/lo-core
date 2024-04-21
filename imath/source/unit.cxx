@@ -19,22 +19,26 @@
 #include <imath/unit.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/printing.hxx>
+#include <imath/utils.hxx>
 #else
 #include "unit.hxx"
 #include "msgdriver.hxx"
 #include "printing.hxx"
+#include "utils.hxx"
 #endif
 
 namespace GiNaC {
 
 GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(Unit, basic, print_func<print_context>(&Unit::do_print).print_func<imathprint>(&Unit::do_print_imath));
 
+unsigned Unit::next_serial = 0;
+
 // Required constructors and destructors and other GiNaC-specific methods
-  Unit::Unit() {
+  Unit::Unit() : name(""), printname(""), serial(next_serial++) {
     MSG_INFO(3, "Constructing empty unit" << endline);
   }
 
-  Unit::Unit(const std::string& n, const std::string& pn, const expression& cex) : name(n), printname(pn), canonical(cex) {
+  Unit::Unit(const std::string& n, const std::string& pn, const expression& cex) : name(n), printname(pn), canonical(cex), serial(next_serial++) {
 #ifndef _MSC_VER
     // Build with MSVC crashes on outputting cex = numeric(0) when initialising the base SI units
     MSG_INFO(3, "Constructing unit with name " << n << " and printname " << pn << " and expression " << ex(cex) << endline);
@@ -63,15 +67,10 @@ Unit_unarchiver::Unit_unarchiver() {}
 Unit_unarchiver::~Unit_unarchiver() {}
 
   int Unit::compare_same_type(const basic &other) const {
+    GINAC_ASSERT(is_a<Unit>(other));
     const Unit &o = static_cast<const Unit &>(other);
-    int cmpval = name.compare(o.name);
-
-     if (cmpval == 0)
-      return 0;
-    else if (cmpval < 0)
-      return -1;
-    else
-      return 1;
+        if (serial==o.serial) return 0;
+        return serial < o.serial ? -1 : 1;
   }
 
   void Unit::do_print(const print_context &c, unsigned level) const {
@@ -109,6 +108,13 @@ bool Unit::info(unsigned inf) const {
             return false;
   }
   return inherited::info(inf);
+}
+
+unsigned Unit::calchash(void) const {
+    unsigned seed = make_hash_seed(typeid(*this));
+        hashvalue = golden_ratio_hash(seed ^ serial);
+        setflag(status_flags::hash_calculated);
+        return hashvalue;
 }
 
 expression Unit::get_canonical() const {

@@ -326,6 +326,7 @@ GiNaC::unitvec unitConversions() {
 
 // Note: handle_error() assumes that global variables errormessage and errorlocation have been set properly
 void handle_error(imath::parserParameters& params, const std::shared_ptr<iFormulaLine>& l, const imath::location& formulaStart) {
+  MSG_INFO(1, "handle_error() from " << errorlocation.begin.column << " to " << errorlocation.end.column << endline);
   if (include_level == 0) {
     params.lines.push_back(l);
     int fStart = formulaStart.begin.column - (params.rawtext[formulaStart.begin.column - 1] == ' ' ? 0 : 1); // Blank after keyword is added automatically in iFormulaLine::print()
@@ -580,6 +581,7 @@ input:   %empty
        }
        | input error {
           auto loc = @2;
+          MSG_INFO(1, "Global error between " << errorlocation.begin.column << " and " << errorlocation.end.column << endline);
           loc.begin.column += 5; // Skip the %%i
           handle_error(params, std::make_shared<iFormulaNodeError>(current_options, params.rawtext), loc);
           YYABORT;
@@ -2102,6 +2104,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
         error(@5, "Expression must be a numeric");
         YYERROR;
       }
+
       $$ = iquo(ex_to<numeric>(std::move(expr1)), ex_to<numeric>(std::move(expr2)));
       must_autoformat = true;
     }
@@ -2656,6 +2659,7 @@ sizestr:    DIGITS
 // Note: This function is called after throwing a syntax error, and then the parser finishes and returns a value > 0
 // But we want to continue with YYERROR, thus no syntax errors should be thrown
 void imath::smathparser::error(const imath::location& l, const std::string& m) {
+  MSG_INFO(1, "Handling syntax error between " << l.begin.column << " and " << l.end.column);
   errorlocation = l;
   --errorlocation.begin.column; // Reason for this is unknown ...
   --errorlocation.end.column;

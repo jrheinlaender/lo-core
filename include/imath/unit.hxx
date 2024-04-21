@@ -27,76 +27,84 @@
 #include "expression.hxx"
 #include "printing.hxx"
 
-namespace GiNaC {
-
+namespace GiNaC
+{
 IMATH_DLLPUBLIC extern const expression _expr0;
 
 /// Extends GiNaC to handle physical units
-class Unit : public basic {
-  GINAC_DECLARE_REGISTERED_CLASS(Unit, basic)
+class Unit : public basic
+{
+    GINAC_DECLARE_REGISTERED_CLASS(Unit, basic)
 
 public:
-  /**
+    /**
    * Construct a Unit with the given name.
    * @param n A string with the name of the unit
    * @param pn A string with the print name of the unit
    * @param cex An expression with the canonical form of the unit, expressed in the SI base units. If this is zero, the unit is assumed to be a base unit
    */
-  Unit(const std::string& n, const std::string& pn, const expression& cex = _expr0);
+    Unit(const std::string& n, const std::string& pn, const expression& cex = _expr0);
 
 #ifdef DEBUG_CONSTR_DESTR
-  ~Unit();
-  Unit(const Unit& other);
-  Unit& operator=(const Unit& other);
+    ~Unit();
+    Unit(const Unit& other);
+    Unit& operator=(const Unit& other);
 #endif
 
-  /**
+    /**
    * Print the unit in a GiNaC print context.
    * @param c The print context (e.g., print_latex)
    * @param level Unused, for consistency with GiNaC print methods
    */
-  void do_print(const print_context &c, unsigned level = 0) const;
-  void do_print_imath(const imathprint &c, unsigned level) const;
+    void do_print(const print_context& c, unsigned level = 0) const;
+    void do_print_imath(const imathprint& c, unsigned level) const;
 
-  /**
+    /**
    * Return the name of the unit
    * @returns A string with the name of the unit
    */
-  inline std::string get_name() const { return(name); }
+    inline std::string get_name() const { return (name); }
 
-  /// Return printname of the unit
-  inline std::string get_printname() const { return(printname); }
+    /// Return printname of the unit
+    inline std::string get_printname() const { return (printname); }
 
-  /// Return the printname, and if that is not set, the unit name
-  inline std::string get_unitname() const { return printname.empty() ? name : printname; }
+    /// Return the printname, and if that is not set, the unit name
+    inline std::string get_unitname() const { return printname.empty() ? name : printname; }
 
-  /// Return the canonical form of the unit
-  expression get_canonical() const;
+    /// Return the canonical form of the unit
+    expression get_canonical() const;
 
-  bool is_base() const;
+    bool is_base() const;
 
-  // Return information
-  bool info(unsigned inf) const override;
+    // Return information
+    bool info(unsigned inf) const override;
 
-  using basic::normal; // Fixes weird linking error on LO internal build
+    /// Calculate the hash value of the unit
+    unsigned calchash(void) const override;
+
+    using basic::normal; // Fixes weird linking error on LO internal build
 
 private:
-  /// The name of the unit
-  std::string name;
+    /// The name of the unit
+    std::string name;
 
-  /// The name to be used for printing
-  std::string printname;
+    /// The name to be used for printing
+    std::string printname;
 
-  /// The canonical form of the unit, expressed in the base units
-  expression canonical;
+    /// The canonical form of the unit, expressed in the base units
+    expression canonical;
+
+    /// unique serial number for comparison and hash
+    unsigned serial;
+    static unsigned next_serial;
 };
 
-class IMATH_DLLPUBLIC Unit_unarchiver {
+class IMATH_DLLPUBLIC Unit_unarchiver
+{
 public:
-  Unit_unarchiver();
-  ~Unit_unarchiver();
+    Unit_unarchiver();
+    ~Unit_unarchiver();
 };
 static Unit_unarchiver Unit_unarchiver_instance;
-
 }
 #endif

@@ -214,6 +214,9 @@ private:
     std::unique_ptr<weld::TreeView> mxFormulaList;
     std::unique_ptr<ImGuiOptionsDialog> mpOptionsDialog;
 
+    // The last tab selected by the user in the formula options dialog
+    int lastOptionsPage;
+
     DECL_LINK(MousePressHdl, const MouseEvent&, bool);
     int mNumClicks;
     int mClickedColumn;

@@ -238,6 +238,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mxNotebook(rBuilder.weld_notebook("notebook"))
     , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
     , mpOptionsDialog(nullptr)
+    , lastOptionsPage(0)
     , mNumClicks(0)
     , mClickedColumn(-1)
     , mEditedColumn(-1)
@@ -437,13 +438,14 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (pLine == nullptr || !pLine->canHaveOptions())
                 return false;
 
-            mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine);
+            mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine, lastOptionsPage);
             // Position dialog at bottom center so that it does not hide the formula display
             auto dialogSize = mpOptionsDialog->getDialog()->get_size();
             auto parentSize = GetFrameWeld()->get_size();
             auto parentPos = GetFrameWeld()->get_position();
             mpOptionsDialog->getDialog()->window_move(parentPos.X() + parentSize.Width()/2 - dialogSize.Width()/2, parentPos.Y() + parentSize.Height() - dialogSize.Height());
             mpOptionsDialog->run();
+            lastOptionsPage = mpOptionsDialog->getCurrentPage();
             mpOptionsDialog = nullptr;
             break;
         }

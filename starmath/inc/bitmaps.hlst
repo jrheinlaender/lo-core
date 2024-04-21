@@ -17,6 +17,7 @@ inline constexpr OUStringLiteral BMP_IMGUI_DELETE = u"starmath/res/lc_imatheditd
 inline constexpr OUStringLiteral BMP_IMGUI_SHOW = u"starmath/res/lc_imatheditshow.png";
 inline constexpr OUStringLiteral BMP_IMGUI_HIDE = u"starmath/res/lc_imathedithide.png";
 inline constexpr OUStringLiteral BMP_IMGUI_OPTIONS = u"starmath/res/lc_imatheditoptions.png";
+inline constexpr OUStringLiteral BMP_IMGUI_OPTIONS_LOCAL = u"starmath/res/lc_imatheditoptionslocal.png";
 inline constexpr OUStringLiteral BMP_IMGUI_SHOWLABEL = u"starmath/res/sc_imatheditshow.png";
 inline constexpr OUStringLiteral BMP_IMGUI_HIDELABEL = u"starmath/res/sc_imathedithide.png";
 

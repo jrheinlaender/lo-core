@@ -19,6 +19,7 @@
 
 #include <starmath.hrc>
 #include <helpids.h>
+#include <typeindex>
 
 #include <vcl/commandevent.hxx>
 #include <vcl/event.hxx>
@@ -283,6 +284,13 @@ void ImGuiWindow::ResetModel()
     if (!pDoc) return;
 
     int lineCount = 0;
+    std::vector<std::type_index> nodesWithoutFormula = {
+        typeid(iFormulaNodeStmClearall), typeid(iFormulaNodeStmReadfile), typeid(iFormulaNodeStmOptions), typeid(iFormulaNodeStmDelete)
+    };
+    std::vector<std::type_index> nodesWithHide = {
+        typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
+        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval), typeid(iFormulaNodePrintval)
+    };
 
     for (const auto& fLine : pDoc->GetFormulaLines())
     {
@@ -297,39 +305,45 @@ void ImGuiWindow::ResetModel()
         // All liststore columns must have treeview columns, otherwise the count goes wrong
         mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_BEFORE, IMGUIWINDOW_COL_INSERT_BEFORE);
         mxFormulaList->set_image(*xIter, BMP_IMGUI_DELETE, IMGUIWINDOW_COL_DELETE);
+        mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_HIDE); // Note: Toggle remains invisible until we set a value
+        mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_OPTIONS); // Note: image columns do not implement set_sensitive()
+        mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL);
+        mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_LABEL_HIDE); // Note: Toggle remains invisible until we set a value
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
-        mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
-        mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
-        mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row. Note: Column number must be set in .ui file
+        mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
+        mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row. Note: Column number is hard-coded in .ui file
 
-        if (typeid(*fLine) == typeid(iFormulaNodeEq) ||
-            typeid(*fLine) == typeid(iFormulaNodeEx) ||
-            typeid(*fLine) == typeid(iFormulaNodeConst) ||
-            typeid(*fLine) == typeid(iFormulaNodeFuncdef) ||
-            typeid(*fLine) == typeid(iFormulaNodeVectordef) ||
-            typeid(*fLine) == typeid(iFormulaNodeMatrixdef) ||
-            typeid(*fLine) == typeid(iFormulaNodePrintval) ||
-            typeid(*fLine) == typeid(iFormulaNodeExplainval))
+        if (std::find(nodesWithoutFormula.begin(), nodesWithoutFormula.end(), typeid(*fLine)) == nodesWithoutFormula.end())
         {
-            iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
+        }
+        if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*fLine)) != nodesWithHide.end())
+        {
+            auto expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
             mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
+        }
+        if (fLine->isExpression())
+        {
+            auto expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
+            mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_LABEL);
             option o = fLine->getOption(o_showlabels);
             mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOWLABEL) : OUString(BMP_IMGUI_HIDELABEL), IMGUIWINDOW_COL_LABEL_HIDE);
-            mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
         }
+        if (fLine->canHaveOptions())
+        {
+            mxFormulaList->set_image(*xIter, OUString(BMP_IMGUI_OPTIONS), IMGUIWINDOW_COL_OPTIONS);
+        }
+        {
+
+        }
+        {
         else if (typeid(*fLine) == typeid(iFormulaNodeError))
         {
             auto error = std::dynamic_pointer_cast<iFormulaNodeError>(fLine);
-
             mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
-        }
-        else
-        {
-            // Note: Toggle remains invisible since we do not set a value
-            mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL); // Make Label read-only
-            mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_LABEL_HIDE);
         }
 
         if (lineCount == currentSelection)

@@ -323,6 +323,7 @@ void ImGuiWindow::ResetModel()
         mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
         mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row. Note: Column number is hard-coded in .ui file
 
+        // Generic settings
         if (std::find(nodesWithoutFormula.begin(), nodesWithoutFormula.end(), typeid(*fLine)) == nodesWithoutFormula.end())
         {
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
@@ -344,6 +345,35 @@ void ImGuiWindow::ResetModel()
         if (fLine->canHaveOptions())
         {
             mxFormulaList->set_image(*xIter, OUString(BMP_IMGUI_OPTIONS), IMGUIWINDOW_COL_OPTIONS);
+
+        // Settings for specific formula types
+        if (typeid(*fLine) == typeid(iFormulaNodeStmReadfile))
+        {
+            // Remove surrounding curly braces and quotes TODO Remove braces from the grammar, they are unnecessary
+            OUString filename = fLine->getFormula().trim();
+            mxFormulaList->set_text(*xIter, filename.copy(2, filename.getLength() - 4) , IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+        }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmOptions))
+        {
+            OUString options = fLine->printOptions().trim();
+            if (options.getLength() > 2)
+                options = options.copy(1, options.getLength() - 2);
+            else
+                options = "";
+            mxFormulaList->set_text(*xIter, options, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
+        }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmDelete))
+        {
+            OUString labels = fLine->getFormula().trim();
+            if (labels.getLength() > 2)
+                labels = labels.copy(1, labels.getLength() - 2);
+            else
+                labels = "";
+            mxFormulaList->set_text(*xIter, labels , IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
+        }
         }
         {
 
@@ -461,6 +491,17 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             {
                 mEditedColumn = mClickedColumn;
                 SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected in column " << mEditedColumn);
+            }
+            else if (typeid(*pLine) == typeid(iFormulaNodeStmOptions))
+            {
+                mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine, lastOptionsPage);
+                // Position dialog at bottom center so that it does not hide the formula display
+                auto dialogSize = mpOptionsDialog->getDialog()->get_size();
+                auto parentSize = GetFrameWeld()->get_size();
+                auto parentPos = GetFrameWeld()->get_position();
+                mpOptionsDialog->getDialog()->window_move(parentPos.X() + parentSize.Width()/2 - dialogSize.Width()/2, parentPos.Y() + parentSize.Height() - dialogSize.Height());
+                mpOptionsDialog->run();
+                mpOptionsDialog = nullptr;
             }
             else
                 SAL_INFO_LEVEL(1, "starmath.imath", "... but column " << mClickedColumn << " is not sensitive");
@@ -761,7 +802,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "PRINTVAL")
                         pNew = std::make_shared<iFormulaNodePrintval>(uvec, gopt, GiNaC::optionmap(), fparts({useEx}), "", GiNaC::expression(), false, GiNaC::expression(), false, false);
                     else if (newType == "READFILE")
-                        pNew = std::make_shared<iFormulaNodeStmReadfile>(gopt, fparts({"{", "\"filename\"", "}"}));
+                        pNew = std::make_shared<iFormulaNodeStmReadfile>(gopt, fparts({"{", "\"filename.imath\"", "}"}));
                     else if (newType == "BEGIN_NS")
                         pNew = std::make_shared<iFormulaNodeStmNamespace>(gopt, "BEGIN", fparts({"namespace"}));
                     else if (newType == "END_NS")
@@ -791,7 +832,10 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
             }
             case IMGUIWINDOW_COL_FORMULA:
             {
-                pLine->setFormula(rIterString.second);
+                if (typeid(*pLine) == typeid(iFormulaNodeStmReadfile))
+                    pLine->setFormula("{\"" + rIterString.second + "\"}");
+                else
+                    pLine->setFormula(rIterString.second);
                 pDoc->UpdateGuiText();
                 break;
             }

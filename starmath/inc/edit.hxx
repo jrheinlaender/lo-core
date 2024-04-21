@@ -202,7 +202,9 @@ public:
     bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_IMTXT) : false; }
 };
 
+class iFormulaLine;
 class ImGuiOptionsDialog;
+
 class ImGuiWindow
 {
 private:
@@ -228,6 +230,7 @@ public:
 
     weld::Window* GetFrameWeld() const;
     SmDocShell* GetDoc();
+    std::shared_ptr<iFormulaLine> GetSelectedLine();
 
     // Rebuild the TreeView model from the document
     void ResetModel();

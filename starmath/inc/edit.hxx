@@ -21,6 +21,7 @@
 
 #include <svx/weldeditview.hxx>
 #include <vcl/idle.hxx>
+#include "vcl/weld.hxx"
 
 class SmDocShell;
 class SmViewShell;
@@ -201,6 +202,7 @@ public:
     bool IsCurrent() const override { return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_IMTXT) : false; }
 };
 
+class ImGuiOptionsDialog;
 class ImGuiWindow
 {
 private:
@@ -208,6 +210,7 @@ private:
     std::unique_ptr<weld::Builder> mxBuilder;
     std::unique_ptr<weld::Notebook> mxNotebook;
     std::unique_ptr<weld::TreeView> mxFormulaList;
+    std::unique_ptr<ImGuiOptionsDialog> mpOptionsDialog;
 
     DECL_LINK(MousePressHdl, const MouseEvent&, bool);
     int mNumClicks;
@@ -223,6 +226,7 @@ public:
     ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder);
     virtual ~ImGuiWindow() COVERITY_NOEXCEPT_FALSE;
 
+    weld::Window* GetFrameWeld() const;
     SmDocShell* GetDoc();
 
     // Rebuild the TreeView model from the document
@@ -232,6 +236,57 @@ public:
     bool HasFocus() const;
     // Is the page of this view current in the notebook?
     bool IsCurrent() const { return mxNotebook ? (mxNotebook->get_current_page() == SM_EDITWINDOW_TAB_IMGUI) : false; }
+};
+
+class ImGuiOptionsDialog final : public weld::GenericDialogController
+{
+    std::unique_ptr<weld::CheckButton> mxAutoformat;
+    std::unique_ptr<weld::CheckButton> mxAutoalign;
+    std::unique_ptr<weld::CheckButton> mxAutochain;
+    std::unique_ptr<weld::CheckButton> mxAutofraction;
+    std::unique_ptr<weld::MetricSpinButton> mxMintextsize;
+    std::unique_ptr<weld::CheckButton> mxAutotextmode;
+
+    std::unique_ptr<weld::ComboBox> mxAllunits;
+    std::unique_ptr<weld::TreeView> mxActiveunits;
+    std::unique_ptr<weld::CheckButton> mxSuppressunits;
+
+    std::unique_ptr<weld::SpinButton> mxPrecision;
+    std::unique_ptr<weld::CheckButton> mxFixed;
+    std::unique_ptr<weld::SpinButton> mxFixedexponent;
+    std::unique_ptr<weld::SpinButton> mxMinposexp;
+    std::unique_ptr<weld::SpinButton> mxMaxnegexp;
+
+    std::unique_ptr<weld::CheckButton> mxInhibitunderflow;
+    std::unique_ptr<weld::CheckButton> mxAllowimplicit;
+    std::unique_ptr<weld::CheckButton> mxEvalrealroots;
+
+    std::unique_ptr<weld::RadioButton> mxDiffline;
+    std::unique_ptr<weld::RadioButton> mxDiffdot;
+    std::unique_ptr<weld::RadioButton> mxDiffdfdt;
+
+    std::unique_ptr<weld::CheckButton> mxEchoformula;
+
+    DECL_LINK(CheckBoxClickHdl, weld::Toggleable&, void);
+    DECL_LINK(SpinButtonModifyHdl, weld::SpinButton&, void);
+    DECL_LINK(MetricSpinButtonModifyHdl, weld::MetricSpinButton&, void);
+    DECL_LINK(RadioButtonModifyHdl, weld::Toggleable&, void);
+    DECL_LINK(ComboBoxHdl, weld::ComboBox&, void);
+    DECL_LINK(DoubleClickHdl, weld::TreeView&, bool);
+    DECL_LINK(MousePressHdl, const MouseEvent&, bool);
+
+public:
+    ImGuiOptionsDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, std::shared_ptr<iFormulaLine> pLine);
+    virtual ~ImGuiOptionsDialog() override;
+
+    // The model was reset, update the line pointer
+    void setFormulaLinePointer(std::shared_ptr<iFormulaLine> pLine) { mpLine = pLine; }
+
+private:
+    // The formula line for this options dialog
+    std::shared_ptr<iFormulaLine> mpLine;
+    // The parent edit window
+    ImGuiWindow* mpGuiWindow;
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

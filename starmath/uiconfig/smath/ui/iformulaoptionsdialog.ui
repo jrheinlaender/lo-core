@@ -1,0 +1,715 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.40.0 -->
+<interface domain="sm">
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkAdjustment" id="adjustment_exponent">
+    <property name="lower">-100000</property>
+    <property name="upper">100000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_maxexp">
+    <property name="lower">-100000</property>
+    <property name="upper">100000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_minexp">
+    <property name="lower">-100000</property>
+    <property name="upper">100000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_mintextsize">
+    <property name="lower">1</property>
+    <property name="upper">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">5</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment_precision">
+    <property name="upper">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkTreeStore" id="treestore_activeunits">
+    <columns>
+      <!-- column-name Unit -->
+      <column type="gchararray"/>
+      <!-- column-name Scope -->
+      <column type="gchararray"/>
+      <!-- column-name Delete -->
+      <column type="GdkPixbuf"/>
+      <!-- column-name id -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkDialog" id="FormulaOptionsDialog">
+    <property name="can-focus">False</property>
+    <property name="border-width">6</property>
+    <property name="title" translatable="yes" context="formulaoptionsdialog|FormulaOptionsDialog">Alignment</property>
+    <property name="resizable">False</property>
+    <property name="modal">True</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="dialog-vbox3">
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">12</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="dialog-action_area3">
+            <property name="can-focus">False</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="ok">
+                <property name="label" translatable="yes" context="stock">_OK</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="can-default">True</property>
+                <property name="has-default">True</property>
+                <property name="receives-default">True</property>
+                <property name="use-underline">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="pack-type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkNotebook">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <child>
+              <!-- n-columns=1 n-rows=6 -->
+              <object class="GtkGrid" id="grid_appearance">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkCheckButton" id="autoformat">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|Autoformat">Automatic formatting</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|AutoformatTooltip">Should formulas be automatically formatted? If false, formulas are printed exactly as they were typed. This of course is only possible for original formulas, not for formulas obtained by symbolic operations.</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="autoalign">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|Autoalign">Automatic alignment</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|AutoalignTooltip">Should multi-line formulas be automatically aligned  at the equation symbol? Consecutive formulas must be merged into a single object for this option to have any effect.</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="autochain">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|Autochain">Automatic chaining</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|AutochainTooltip">Should multi-line formulas omit the left hand side of an equation if it is identical to the previous line's left hand side? Consecutive formulas must be merged into a single object for this option to have any effect.</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="autofraction">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|Autofraction">Automatic fraction sizing</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|AutofractionTooltip">Should  the text size in cascaded fractions be automatically diminished?</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <!-- n-columns=2 n-rows=1 -->
+                  <object class="GtkGrid">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|MinFractionTextSizeTooltip">Minimum text size in points that will  be used for cascaded fractions. </property>
+                    <child>
+                      <object class="GtkLabel" id="label_mintextsize">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="margin-start">23</property>
+                        <property name="margin-end">10</property>
+                        <property name="label" translatable="yes" context="formulaoptionsdialog|MinFractionTextSize">Minimum text size</property>
+                        <accessibility>
+                          <relation type="label-for" target="mintextsize"/>
+                        </accessibility>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="mintextsize">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="halign">center</property>
+                        <property name="activates-default">True</property>
+                        <property name="max-width-chars">1</property>
+                        <property name="truncate-multiline">True</property>
+                        <property name="adjustment">adjustment_mintextsize</property>
+                        <accessibility>
+                          <relation type="labelled-by" target="label_mintextsize"/>
+                        </accessibility>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">0</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="autotextmode">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|Autotextmode">Automatic text mode</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|AutotextmodeTooltip">Should formulas that are not on a line by themselves automatically have the text mode flag set on them?</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">5</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label_appearance">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="formulaoptionsdialog|Appearance">Appearance</property>
+              </object>
+              <packing>
+                <property name="tab-fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <!-- n-columns=1 n-rows=3 -->
+              <object class="GtkGrid" id="grid_units">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkCheckButton" id="suppressunits">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|SuppressUnits">Suppress unit display</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|SuppressUnitsTooltip">Should units be suppressed when printing formulas or evaluation results? Note that calculations will always be made with units. This option simply suppresses unit display.</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkFrame" id="frame_units">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|PreferredUnitsTooltip1">Units which should be used for printing quantities, in descending precedence. The topmost unit will be used first. Complex units that depend on simpler units should be specified with higher precedence.</property>
+                    <property name="label-xalign">0</property>
+                    <property name="shadow-type">none</property>
+                    <child>
+                      <!-- n-columns=2 n-rows=2 -->
+                      <object class="GtkGrid">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|PreferredUnitsTooltip2">Units that should be used for printing quantities. If no units are given here, the SI base units are used, unless default units where specified in the document settings. The order in which the units are listed is important: Simple units should be specified first, more complex ones that depend on the simpler units afterwards. </property>
+                        <child>
+                          <object class="GtkComboBoxText" id="allunits">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="margin-start">10</property>
+                            <property name="hexpand">True</property>
+                            <accessibility>
+                              <relation type="labelled-by" target="label_allunits"/>
+                            </accessibility>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkTreeView" id="activeunits">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="model">treestore_activeunits</property>
+                            <child internal-child="selection">
+                              <object class="GtkTreeSelection"/>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="col_unit">
+                                <property name="title" translatable="yes" context="formulaoptionsdialog|UnitColumn">Unit</property>
+                                <property name="expand">True</property>
+                                <child>
+                                  <object class="GtkCellRendererText" id="activeunit_name"/>
+                                  <attributes>
+                                    <attribute name="text">0</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="col_scope">
+                                <property name="title" translatable="yes" context="formulaoptionsdialog|ScopeColumn">Scope</property>
+                                <property name="expand">True</property>
+                                <child>
+                                  <object class="GtkCellRendererText" id="activeunit_scope"/>
+                                  <attributes>
+                                    <attribute name="text">1</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="col_delete">
+                                <child>
+                                  <object class="GtkCellRendererPixbuf" id="activeunit_delete"/>
+                                  <attributes>
+                                    <attribute name="pixbuf">2</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">1</property>
+                            <property name="width">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="label_allunits">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="margin-end">10</property>
+                            <property name="label" translatable="yes" context="formulaoptionsdialog|SelectUnit">Select unit to add</property>
+                            <accessibility>
+                              <relation type="label-for" target="allunits"/>
+                            </accessibility>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                    <child type="label">
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes" context="formulaoptionsdialog|ActiveUnits">Active units</property>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
+              <packing>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label_units">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="formulaoptionsdialog|Units">Units</property>
+              </object>
+              <packing>
+                <property name="position">1</property>
+                <property name="tab-fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <!-- n-columns=2 n-rows=5 -->
+              <object class="GtkGrid" id="grid_numbers">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="column-spacing">10</property>
+                <child>
+                  <object class="GtkLabel" id="label_precision">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|Precision">Precision</property>
+                    <accessibility>
+                      <relation type="label-for" target="precision"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_minposexp">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|MinPosExponent">Min. pos. exponent</property>
+                    <accessibility>
+                      <relation type="label-for" target="minposexp"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_maxnegexp">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|MaxNegExponent">Max. neg. exponent</property>
+                    <accessibility>
+                      <relation type="label-for" target="maxnegexp"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="precision">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|PrecisionTooltip">Precision to be used for printing floating point numbers. The precision is the number of digits printed. If the result has more digits, they will be rounded away. The option "fixed point notation" influences the interpretation of the precision. </property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustment_precision</property>
+                    <accessibility>
+                      <relation type="labelled-by" target="label_precision"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="minposexp">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|MinPosExponentTooltip">The minimum positive exponent to use for printing floating point numbers. For example, if this value is 4, then numbers less than 10,000 (10E4) will be printed without an exponent.</property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustment_minexp</property>
+                    <accessibility>
+                      <relation type="labelled-by" target="label_minposexp"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="maxnegexp">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|MaxNegExponentTooltip">The maximum negative exponent to use for printing floating point numbers. For example, if this value is 4, then numbers larger or equal to 0.001 (10E-3) will be printed without an exponent.</property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustment_maxexp</property>
+                    <accessibility>
+                      <relation type="labelled-by" target="label_maxnegexp"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="fixed">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|FixedPoint">Fixed point notation</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|FixedPointTooltip">Should floating point numbers be printed with a fixed number of digits after the decimal marker (checkbox marked)? Or should they be printed with a fixed number of significant digits, not counting leading zeros (checkbox not marked)?</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
+                    <property name="width">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_fixedexponent">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|FixedExponent">Fixed exponent</property>
+                    <accessibility>
+                      <relation type="label-for" target="fixedexponent"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="fixedexponent">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|FixedExponentTooltip">All numbers will be printed in scientific notation with the given exponent. An exponent of suppresses this behaviour. </property>
+                    <property name="input-purpose">digits</property>
+                    <property name="adjustment">adjustment_exponent</property>
+                    <accessibility>
+                      <relation type="labelled-by" target="label_fixedexponent"/>
+                    </accessibility>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label_numbers">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="formulaoptionsdialog|Numbers">Numbers</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+                <property name="tab-fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <!-- n-columns=1 n-rows=3 -->
+              <object class="GtkGrid" id="grid_calculation">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkCheckButton" id="inhibitunderflow">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|InhibitUnderflow">Inhibit underflow exceptions</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|InhibitUnderflowTooltip">Should underflow exceptions be silently ignored? In this case numbers smaller than the underflow limit will be treated as zero.</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="allowimplicit">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|ImplicitMultiplication">Allow implicit multiplication</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|ImplicitMultiplicationTooltip">Should a multiplication symbol be inferred between two adjacent variabels, e.g. 'y = a x^2 + b x + c'? Turning off implicit multiplication forces the notation of multiplication with e.g. 'cdot'.</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="evalrealroots">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|EvalRealRoots">Evaluate to real roots</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|EvalRealRootsTooltip">Should real nth roots be returned as the result of VAL where the base is negative? By default, the root on the principal branch is returned, which is complex for negative bases. For example, the third root of -1 would be returned as '1/2 + 1/2 * sqrt(3) * I'. </property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="position">3</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label_calculation">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="formulaoptionsdialog|Calculation">Calculation</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+                <property name="tab-fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="box_diffs">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|DifftypeTooltip">How should differentials be printed? With an apostrophe after the variable name 'f'', with a dot on top of the variable name 'dot f' or as 'df / dt'?</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkRadioButton" id="diff_line">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|DifftypeLine">Line (f')</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="diff_dot">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|DifftypeDot">Dot</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                    <property name="group">diff_line</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="diff_dfdt">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|DifftypeDfdt">df/dt</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="active">True</property>
+                    <property name="draw-indicator">True</property>
+                    <property name="group">diff_line</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="position">4</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label_diffs">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="formulaoptionsdialog|Differentials">Differentials</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+                <property name="tab-fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="box_info">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkCheckButton" id="echoformula">
+                    <property name="label" translatable="yes" context="formulaoptionsdialog|EchoFormula">Echo formula</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="tooltip-text" translatable="yes" context="formulaoptionsdialog|EchoFormulaTooltip">Should the formula source text be echoed before the printed formula? This is mostly useful for debugging. </property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="position">5</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label_information">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="formulaoptionsdialog|Information">Information</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+                <property name="tab-fill">False</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-5">ok</action-widget>
+    </action-widgets>
+    <child internal-child="accessible">
+      <object class="AtkObject" id="FormulaOptionsDialog-atkobject">
+        <property name="AtkObject::accessible-description" translatable="yes" context="alignmentdialog|extended_tip|AlignmentDialog">You can define the alignment of multi-line formulas as well as formulas with several elements in one line.</property>
+      </object>
+    </child>
+  </object>
+</interface>

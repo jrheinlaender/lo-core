@@ -17,11 +17,14 @@
  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
  */
 
+#include <vcl/event.hxx>
+
 #include <strings.hrc>
 #include <smmod.hxx>
 #include <utility.hxx>
 #include <dialog.hxx>
 #include <view.hxx>
+#include <logging.hxx>
 
 #include <comphelper/lok.hxx>
 #include <sfx2/lokcomponenthelpers.hxx>
@@ -240,6 +243,40 @@ SmFace & operator *= (SmFace &rFace, const Fraction &rFrac)
     rFace.SetSize(Size(tools::Long(rFaceSize.Width() * rFrac),
                        tools::Long(rFaceSize.Height() * rFrac)));
     return rFace;
+}
+
+bool getClickedCell(std::unique_ptr<weld::TreeView>& treeview, const MouseEvent& rMEvt, int& row, int& column, const int lastColumn) {
+    Point mousePos = rMEvt.GetPosPixel();
+    auto xIter(treeview->make_iterator());
+    row = 0;
+    column = 0;
+
+    if (treeview->get_iter_first(*xIter.get()))
+        do
+        {
+            tools::Rectangle rowArea = treeview->get_row_area(*xIter);
+            if (rowArea.Contains(mousePos))
+                break;
+            ++row;
+        } while (treeview->iter_next(*xIter.get()));
+    else
+        return false; // User clicked somewhere else
+    if (row >= treeview->n_children())
+        return false;
+    SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in row " << row);
+
+    for (int col = 0; col <= lastColumn; ++col)
+    {
+        tools::Rectangle cellArea = treeview->get_cell_area(*xIter, col);
+        if (cellArea.Contains(mousePos))
+        {
+            column = col;
+            SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in column " << col);
+            break;
+        }
+    }
+
+    return true;
 }
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

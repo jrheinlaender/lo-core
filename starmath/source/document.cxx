@@ -305,7 +305,7 @@ void SmDocShell::PreventFormulaClose(const bool prevent)
 
 void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 {
-    SAL_INFO_LEVEL(2, "starmath.imath", "SetImText\n'" << rBuffer << "'");
+    SAL_INFO_LEVEL(0, "starmath.imath", "SetImText\n'" << rBuffer << "' with doCompile=" << doCompile);
     if (rBuffer == maImText)
         return;
 
@@ -648,6 +648,9 @@ void SmDocShell::Compile()
         SAL_WARN_LEVEL(-1, "starmath.imath", "iMath cannot be used because an iMath extension is still installed");
         return;
     }
+    if (maImText.isEmpty())
+        return;
+
     SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::Compile()\n'" << maImText << "'");
 
     OUString initError = ImInitializeCompiler();
@@ -1572,8 +1575,6 @@ void SmDocShell::ImStaticInitialization() {
         return;
     }
 
-    MSG_INFO(0, "SmDocShell::SmDocShell with iMath version=" << SM_MOD()->GetConfig()->GetDefaultImSyntaxVersion());
-
     // Find decimal separator character from the Office locale and store it for iMath compilation
     // TODO: Re-initialize if the locale is changed?
     // TODO: utl::ConfigManager::getUILocale()
@@ -1854,7 +1855,6 @@ void SmDocShell::UpdateGuiText()
     {
         if (typeid(*line) == typeid(iFormulaNodeResult))  continue;
         newFormula += line->print().copy(5) + "\n";
-        //std::cout << "New formula now\n" << newFormula << std::endl;
     }
 
     if (GetImText() != newFormula)

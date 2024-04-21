@@ -48,6 +48,8 @@
 #include "imath/option.hxx"
 #include "imath/printing.hxx"
 #include "imath/unit.hxx"
+#include <imath/iFormulaLine.hxx>
+
 #include <com/sun/star/container/XChild.hpp>
 
 using namespace com::sun::star::accessibility;
@@ -202,6 +204,7 @@ ImEditWindow::ImEditWindow(SmCmdBoxWindow &rMyCmdBoxWin, weld::Builder& rBuilder
     OSL_ENSURE( pEditEngine, "EditEngine missing" );
 
     // TODO The wish is to compile the Math formula after it has been opened (in stand-alone Math) Is there a better place/way?
+    // mathmlimport.cxx creates a document and cals SetImText(). But later another SmDocShell() is constructed (copied?) and SetImText() is never called on it, so compilation is not triggered
     if (SmDocShell *pDoc = GetDoc()) {
         // Check for stand-alone formula
         Reference<com::sun::star::container::XChild> xChild(pDoc->GetModel(), UNO_QUERY);
@@ -264,7 +267,6 @@ weld::Window* ImGuiWindow::GetFrameWeld() const
 }
 
 
-// TODO Should we / Must we listen to the Broadcast emitted in SmDocShell::SetModified() ?
 void ImGuiWindow::ResetModel()
 {
     // Remember the current selection
@@ -574,7 +576,10 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
             {
                 iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
                 if (expr != nullptr)
+                {
                     expr->setLabel(rIterString.second);
+                    pDoc->UpdateGuiText();
+                }
                 break;
             }
             case IMGUIWINDOW_COL_TYPE:
@@ -907,13 +912,10 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     , mxEchoformula(m_xBuilder->weld_check_button("echoformula"))
 
     , mpLine(pLine)
-IMPL_LINK(ImGuiWindow, ToggleHdl, const weld::TreeView::iter_col&, rRowCol, void)
 {
     SmDocShell* pDoc = mpGuiWindow->GetDoc();
     if (!pDoc)
         return;
-    SmDocShell* pDoc = GetDoc();
-    if (!pDoc) return;
 
     mxAutoformat->set_active  (!mpLine->getOption(o_eqraw).value.boolean);
     mxAutoalign->set_active   (mpLine->getOption(o_eqalign).value.boolean);
@@ -1085,8 +1087,6 @@ IMPL_LINK(ImGuiOptionsDialog, RadioButtonModifyHdl, weld::Toggleable&, rButton, 
     mpLine = nullptr;
     pDoc->UpdateGuiText(); // This invalidates mpLine
 }
-    auto fLines = pDoc->GetFormulaLines();
-    auto itLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(rRowCol.first));
 
 void setUnits(const std::unique_ptr<weld::TreeView>& treeview, iFormulaLine_ptr& pLine, ImGuiWindow* pGuiWindow)
 {
@@ -1135,9 +1135,6 @@ IMPL_LINK_NOARG(ImGuiOptionsDialog, DoubleClickHdl, weld::TreeView&, bool)
         mxActiveunits->remove(*xIter);
         setUnits(mxActiveunits, mpLine, mpGuiWindow);
         return true;
-        expr->setHide(mxFormulaList->get_toggle(rRowCol.first, rRowCol.second) == TRISTATE_TRUE);
-        pDoc->SetImText(makeNewFormula(fLines));
-        ResetModel();
     }
 
     return false;

@@ -247,9 +247,6 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     if (!mxFormulaList)
         return;
 
-    mxFormulaList->set_size_request(mxFormulaList->get_approximate_digit_width() * 60, mxFormulaList->get_height_rows(5));
-    mxFormulaList->enable_toggle_buttons(weld::ColumnToggleType::Check);
-
     mxFormulaList->connect_key_release(LINK(this, ImGuiWindow, KeyReleaseHdl));
     mxFormulaList->connect_mouse_press(LINK(this, ImGuiWindow, MousePressHdl));
     mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
@@ -293,8 +290,6 @@ void ImGuiWindow::ResetModel()
             ++currentSelection;
         } while (mxFormulaList->iter_next(*xIter.get()));
 
-    mxFormulaList->clear();
-
     SmDocShell* pDoc = GetDoc();
     if (!pDoc) return;
 
@@ -303,7 +298,10 @@ void ImGuiWindow::ResetModel()
         mpOptionsDialog->setFormulaLinePointer(nullptr);
     if (mpLabelDialog != nullptr)
         mpLabelDialog->setFormulaLinePointer(nullptr);
+
     // Note: freeze() and thaw() will break the selection at the end of the loop, and the options dialog callbacks
+    mxFormulaList->clear();
+
     int lineCount = 0;
         typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
         typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval), typeid(iFormulaNodePrintval)
@@ -335,7 +333,7 @@ void ImGuiWindow::ResetModel()
         if (std::find(nodesWithoutFormula.begin(), nodesWithoutFormula.end(), typeid(*fLine)) == nodesWithoutFormula.end())
         {
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
-            mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULA);
         }
         if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*fLine)) != nodesWithHide.end())
         {
@@ -352,7 +350,7 @@ void ImGuiWindow::ResetModel()
         }
         if (fLine->canHaveOptions())
         {
-            mxFormulaList->set_image(*xIter, OUString(BMP_IMGUI_OPTIONS), IMGUIWINDOW_COL_OPTIONS);
+            mxFormulaList->set_image(*xIter, fLine->hasOptions() ? OUString(BMP_IMGUI_OPTIONS_LOCAL) : OUString(BMP_IMGUI_OPTIONS), IMGUIWINDOW_COL_OPTIONS);
 
         // Settings for specific formula types
         if (typeid(*fLine) == typeid(iFormulaNodeStmReadfile))
@@ -451,6 +449,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         {
             pDoc->insertFormulaLineBefore(pLine, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
 
+            pDoc->UpdateGuiText();
             break;
         }
         case IMGUIWINDOW_COL_DELETE:
@@ -542,9 +541,8 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     return false;
 }
 
-IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, rIter, bool)
+IMPL_LINK_NOARG(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, bool)
 {
-    (void)rIter;
     return true; // Allow editing (called for text and combo cell renderers)
 }
 

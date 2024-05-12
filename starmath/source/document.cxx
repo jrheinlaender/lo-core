@@ -305,7 +305,6 @@ void SmDocShell::PreventFormulaClose(const bool prevent)
 
 void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)
 {
-    SAL_INFO_LEVEL(0, "starmath.imath", "SetImText\n'" << rBuffer << "' with doCompile=" << doCompile);
     if (rBuffer == maImText)
         return;
 
@@ -903,7 +902,6 @@ void SmDocShell::Compile()
         SetIFormulaDependencyOut(outDepStr);
     }
 
-
     //setlocale(LC_NUMERIC, ""); // Reset to system locale
     SAL_INFO_LEVEL(0, "starmath.imath", "Recalculation finished" << endline);
 }
@@ -982,7 +980,6 @@ std::vector<std::string> SmDocShell::GetAllLabels(iFormulaLine_ptr pLine) const 
     std::sort(result.begin(), result.end());
 
     return result;
-    return {};
 }
 
 void SmDocShell::insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine)

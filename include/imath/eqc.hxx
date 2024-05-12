@@ -236,6 +236,9 @@ public:
   /// Prepend the namespace to the expression label. If check is true, try the current namespace first and then the global namespace
   std::string exlabel_ns(const std::string& label, const bool check = false) const;
 
+  /// Return a list of all currently defined equation labels
+  std::vector<std::string> getLabels() const;
+
   /**
   Request a new symbol from the eqc. A GiNaC symbol is created with this name. If a variable with this name
   already exists, return the Ginac symbol representing it

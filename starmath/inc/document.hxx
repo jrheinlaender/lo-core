@@ -315,6 +315,8 @@ public:
     // Interface to the compiler
     const GiNaC::expression& GetUnit(const OUString& unitname) const;
     const std::vector<std::string> GetAllUnitNames() const;
+    /// Get all equation labels before the given line
+    std::vector<std::string> GetAllLabels(iFormulaLine_ptr pLine) const;
 
     /// Insert a formula with default contents. If pLine is nullptr, append to the end
     void insertFormulaLineBefore(const iFormulaLine_ptr& pLine, iFormulaLine_ptr pNewLine);

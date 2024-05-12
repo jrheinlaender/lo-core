@@ -606,6 +606,15 @@ bool is_internal(const std::string& varname) {
     }
   }
 
+  std::vector<std::string> eqc::getLabels() const {
+      std::vector<std::string> result;
+
+      for (const auto& rec : equations)
+          result.push_back(rec.first);
+
+      return result;
+  }
+
   symrec::symrec(const symtype t, const std::string& varname, const symprop p) : sym(dynallocate<extsymbol>(varname)), type(t) {
     MSG_INFO(3, "Constructing symrec from " << varname  << endline);
     sym.add_reference(); // otherwise the symbol will be deallocated after we pass it out...

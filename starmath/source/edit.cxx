@@ -303,6 +303,7 @@ void ImGuiWindow::ResetModel()
         mpOptionsDialog->setFormulaLinePointer(nullptr);
     if (mpLabelDialog != nullptr)
         mpLabelDialog->setFormulaLinePointer(nullptr);
+    // Note: freeze() and thaw() will break the selection at the end of the loop, and the options dialog callbacks
     int lineCount = 0;
         typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
         typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval), typeid(iFormulaNodePrintval)

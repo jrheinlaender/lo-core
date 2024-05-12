@@ -2437,15 +2437,15 @@ IMPL_LINK(ImGuiOptionsDialog, MousePressHdl, const MouseEvent&, rMEvt, bool)
     if (!mpLine)
         return false;
 
-    int row;
+    auto xIter = mxActiveunits->make_iterator();
     int column;
-    if (!getClickedCell(mxActiveunits, rMEvt, row, column, 2))
+    if (!getClickedCell(mxActiveunits, rMEvt, *xIter, column, 2))
         return false;
 
-    if (mxActiveunits->get_text(row, 1) == "global" || column != 2)
+    if (mxActiveunits->get_text(*xIter, 1) == "global" || column != 2)
         return false;
 
-    mxActiveunits->remove(row);
+    mxActiveunits->remove(*xIter);
     setUnits(mxActiveunits, mpLine, mpGuiWindow);
 
     return true;

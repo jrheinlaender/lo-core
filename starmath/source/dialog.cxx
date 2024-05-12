@@ -2223,9 +2223,9 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     mxMintextsize->connect_value_changed(LINK(this, ImGuiOptionsDialog, MetricSpinButtonModifyHdl));
     mxAutotextmode->connect_toggled(LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
 
-    // Fill dropdown with all existing units TODO Strictly speaking we should get the compiler state after mpLine was compiled
-    for (const auto& unit : pDoc->GetAllUnitNames())
+    // Fill dropdown with all existing units
     mxAllunits->freeze();
+    for (const auto& unit : pDoc->GetAllUnitNames(mpLine))
     {
         if (unit == "unknown")
             continue;

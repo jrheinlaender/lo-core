@@ -423,15 +423,15 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     // Detect clicked row and column
     // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
     // In that case the user must first select a line and then click again to take action in some column
-    int row = 0;
-    if (!getClickedCell(mxFormulaList, rMEvt, row, mClickedColumn, IMGUIWINDOW_COL_LAST))
+    auto xIter = mxFormulaList->make_iterator();
+    if (!getClickedCell(mxFormulaList, rMEvt, *xIter, mClickedColumn, IMGUIWINDOW_COL_LAST))
         return false; // User clicked somewhere else
 
     if (rMEvt.GetClicks() > 1)
         return false; // We only handle single clicks here
 
     // Ensure that the clicked line is selected
-    mxFormulaList->select(row);
+    mxFormulaList->select(*xIter);
     auto pLine = GetSelectedLine();
     if (pLine == nullptr)
         return false; // line number not found
@@ -458,7 +458,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (expr != nullptr)
             {
                 expr->setHide(!expr->getHide());
-                mxFormulaList->set_image(row, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
+                mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
 
                 pDoc->UpdateGuiText();
             }
@@ -486,7 +486,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 return false; // Line type cannot have labels
 
             option o = pLine->getOption(o_showlabels);
-            mxFormulaList->set_image(row, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
+            mxFormulaList->set_image(*xIter, o.value.boolean ? OUString(BMP_IMGUI_SHOW) : OUString(BMP_IMGUI_HIDE), IMGUIWINDOW_COL_LABEL_HIDE);
             pLine->setOption(o_showlabels, !o.value.boolean);
 
             pDoc->UpdateGuiText();
@@ -497,7 +497,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         case IMGUIWINDOW_COL_LABEL:
         case IMGUIWINDOW_COL_FORMULA:
         {
-            if (mxFormulaList->get_sensitive(row, mClickedColumn))
+            if (mxFormulaList->get_sensitive(*xIter, mClickedColumn))
             {
                 mEditedColumn = mClickedColumn;
                 SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected in column " << mEditedColumn);

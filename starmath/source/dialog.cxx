@@ -2225,16 +2225,19 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
 
     // Fill dropdown with all existing units TODO Strictly speaking we should get the compiler state after mpLine was compiled
     for (const auto& unit : pDoc->GetAllUnitNames())
+    mxAllunits->freeze();
     {
         if (unit == "unknown")
             continue;
         mxAllunits->append_text(OUS8(unit));
     }
+    mxAllunits->thaw();
     mxAllunits->connect_changed(LINK(this, ImGuiOptionsDialog, ComboBoxHdl));
     // Fill list of global and local units specific to this line. The first unit in the list has highest priority
     // Note: Working on o_unitstr instead does not give the user-friendly names of the units
     GiNaC::exvector globalUnits = *pLine->getOption(o_units, true).value.exvec;
     auto xIter = mxActiveunits->make_iterator();
+    mxActiveunits->freeze();
     for (const auto& unit : globalUnits)
     {
         mxActiveunits->insert(0, xIter.get());
@@ -2251,6 +2254,7 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
         mxActiveunits->set_text(*xIter, "local", 1);
         mxActiveunits->set_image(*xIter, BMP_IMGUI_DELETE, 2);
     }
+    mxActiveunits->thaw();
     mxActiveunits->set_selection_mode(SelectionMode::Multiple);
     mxActiveunits->connect_row_activated(LINK(this, ImGuiOptionsDialog, DoubleClickHdl));
     mxActiveunits->connect_mouse_press(LINK(this, ImGuiOptionsDialog, MousePressHdl));
@@ -2404,10 +2408,12 @@ IMPL_LINK(ImGuiOptionsDialog, ComboBoxHdl, weld::ComboBox&, rCombobox, void)
         return;
 
     auto xIter = mxActiveunits->make_iterator();
+    mxActiveunits->freeze();
     mxActiveunits->insert(0, xIter.get());
     mxActiveunits->set_text(*xIter, mxAllunits->get_active_text(), 0);
     mxActiveunits->set_text(*xIter, "local", 1);
     mxActiveunits->set_image(*xIter, BMP_IMGUI_DELETE, 2);
+    mxActiveunits->thaw();
     mxAllunits->set_active(-1);
 
     setUnits(mxActiveunits, mpLine, mpGuiWindow);

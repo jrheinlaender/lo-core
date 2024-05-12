@@ -405,6 +405,14 @@ void ImGuiWindow::ResetModel()
     if (mpLabelDialog != nullptr)
         mpLabelDialog->setFormulaLinePointer(GetSelectedLine());
 }
+
+// Utility function for positioning dialogs at bottom center so that it does not hide the formula display
+void positionImGuiDialog(weld::Dialog* dialog, weld::Window* window)
+{
+    auto dialogSize = dialog->get_size();
+    auto parentSize = window->get_size();
+    auto parentPos = window->get_position();
+    dialog->window_move(parentPos.X() + parentSize.Width()/2 - dialogSize.Width()/2, parentPos.Y() + parentSize.Height() - dialogSize.Height());
 }
 
 // Note: This will detect the column where the mouse was pressed
@@ -471,11 +479,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 return false;
 
             mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine, lastOptionsPage);
-            // Position dialog at bottom center so that it does not hide the formula display
-            auto dialogSize = mpOptionsDialog->getDialog()->get_size();
-            auto parentSize = GetFrameWeld()->get_size();
-            auto parentPos = GetFrameWeld()->get_position();
-            mpOptionsDialog->getDialog()->window_move(parentPos.X() + parentSize.Width()/2 - dialogSize.Width()/2, parentPos.Y() + parentSize.Height() - dialogSize.Height());
+            positionImGuiDialog(mpOptionsDialog->getDialog(), GetFrameWeld());
             mpOptionsDialog->run();
             lastOptionsPage = mpOptionsDialog->getCurrentPage();
             mpOptionsDialog = nullptr;
@@ -506,11 +510,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             else if (typeid(*pLine) == typeid(iFormulaNodeStmOptions))
             {
                 mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine, lastOptionsPage);
-                // Position dialog at bottom center so that it does not hide the formula display
-                auto dialogSize = mpOptionsDialog->getDialog()->get_size();
-                auto parentSize = GetFrameWeld()->get_size();
-                auto parentPos = GetFrameWeld()->get_position();
-                mpOptionsDialog->getDialog()->window_move(parentPos.X() + parentSize.Width()/2 - dialogSize.Width()/2, parentPos.Y() + parentSize.Height() - dialogSize.Height());
+                positionImGuiDialog(mpOptionsDialog->getDialog(), GetFrameWeld());
                 mpOptionsDialog->run();
                 mpOptionsDialog = nullptr;
             }

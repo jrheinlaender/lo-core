@@ -314,7 +314,9 @@ public:
 
     // Interface to the compiler
     const GiNaC::expression& GetUnit(const OUString& unitname) const;
-    const std::vector<std::string> GetAllUnitNames() const;
+
+    /// Get all unit names before the given line
+    std::vector<std::string> GetAllUnitNames(iFormulaLine_ptr pLine) const;
     /// Get all equation labels before the given line
     std::vector<std::string> GetAllLabels(iFormulaLine_ptr pLine) const;
 

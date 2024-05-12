@@ -315,6 +315,7 @@ public:
     iFormulaNodeStmUnitdef(std::shared_ptr<GiNaC::optionmap> g_options,
                            std::vector<OUString> formulaParts);
     virtual OUString getCommand() const override { return OU("UNITDEF"); }
+    OUString getUnitname() const;
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStmPrefixdef : public iFormulaNodeStatement
@@ -390,6 +391,9 @@ public:
     iFormulaNodeStmDelete(std::shared_ptr<GiNaC::optionmap> g_options,
                           std::vector<OUString> formulaParts);
     virtual OUString getCommand() const override { return OU("DELETE"); }
+
+    void addLabel(const OUString& label);
+    void removeLabel(const OUString& label);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStmUpdate : public iFormulaNodeStatement

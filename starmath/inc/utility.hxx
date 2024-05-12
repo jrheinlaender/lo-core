@@ -128,6 +128,6 @@ inline o3tl::Length SmO3tlLengthUnit()
 }
 
 // Utility method for mouse click handlers in tree views with multiple columns
-bool getClickedCell(std::unique_ptr<weld::TreeView>& treeview, const MouseEvent& rMEvt, int& row, int& column, const int lastColumn);
+bool getClickedCell(std::unique_ptr<weld::TreeView>& treeview, const MouseEvent& rMEvt, weld::TreeIter& rIter, int& column, const int lastColumn);
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

@@ -939,7 +939,28 @@ const GiNaC::expression& SmDocShell::GetUnit(const OUString& unitname) const
 const std::vector<std::string> SmDocShell::GetAllUnitNames() const {
     if (mpCurrentCompiler != nullptr)
         return mpCurrentCompiler->getUnitnames();
+}
 
+std::vector<std::string> SmDocShell::GetAllLabels(iFormulaLine_ptr pLine) const {
+    std::vector<std::string> result;
+
+    if (mpInitialCompiler != nullptr)
+        result = mpInitialCompiler->getLabels();
+
+    for (const auto& l : mLines) {
+        if (l == pLine)
+            break;
+
+        if (l->isExpression())
+        {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeExpression>(l);
+            result.push_back(STR(line->getLabel()));
+        }
+    }
+
+    std::sort(result.begin(), result.end());
+
+    return result;
     return {};
 }
 

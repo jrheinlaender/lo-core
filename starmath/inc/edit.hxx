@@ -204,6 +204,7 @@ public:
 
 class iFormulaLine;
 class ImGuiOptionsDialog;
+class ImGuiLabelDialog;
 
 class ImGuiWindow
 {
@@ -212,7 +213,9 @@ private:
     std::unique_ptr<weld::Builder> mxBuilder;
     std::unique_ptr<weld::Notebook> mxNotebook;
     std::unique_ptr<weld::TreeView> mxFormulaList;
+    // Required for callbacks after something was edited
     std::unique_ptr<ImGuiOptionsDialog> mpOptionsDialog;
+    std::unique_ptr<ImGuiLabelDialog> mpLabelDialog;
 
     // The last tab selected by the user in the formula options dialog
     int lastOptionsPage;

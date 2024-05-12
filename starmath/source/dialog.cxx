@@ -2319,8 +2319,7 @@ IMPL_LINK(ImGuiOptionsDialog, CheckBoxClickHdl, weld::Toggleable&, rCheckBox, vo
     else if (&rCheckBox == mxEchoformula.get())
         mpLine->setOption(o_echoformula, !rCheckBox.get_active());
 
-    mpLine = nullptr;
-    pDoc->UpdateGuiText(); // This invalidates mpLine in SmDocShell::Compile()
+    pDoc->UpdateGuiText();
 }
 
 IMPL_LINK(ImGuiOptionsDialog, SpinButtonModifyHdl, weld::SpinButton&, rEdit, void)
@@ -2341,8 +2340,7 @@ IMPL_LINK(ImGuiOptionsDialog, SpinButtonModifyHdl, weld::SpinButton&, rEdit, voi
     else if (&rEdit == mxMaxnegexp.get())
         mpLine->setOption(o_lowsclimit, (int)rEdit.get_value());
 
-    mpLine = nullptr;
-    pDoc->UpdateGuiText(); // This invalidates mpLine
+    pDoc->UpdateGuiText();
 }
 
 IMPL_LINK(ImGuiOptionsDialog, MetricSpinButtonModifyHdl, weld::MetricSpinButton&, rEdit, void)
@@ -2357,8 +2355,7 @@ IMPL_LINK(ImGuiOptionsDialog, MetricSpinButtonModifyHdl, weld::MetricSpinButton&
     if (&rEdit == mxMintextsize.get())
         mpLine->setOption(o_minimumtextsize, (unsigned)rEdit.get_value(FieldUnit::POINT));
 
-    mpLine = nullptr;
-    pDoc->UpdateGuiText(); // This invalidates mpLine
+    pDoc->UpdateGuiText();
 }
 
 IMPL_LINK(ImGuiOptionsDialog, RadioButtonModifyHdl, weld::Toggleable&, rButton, void)
@@ -2377,8 +2374,7 @@ IMPL_LINK(ImGuiOptionsDialog, RadioButtonModifyHdl, weld::Toggleable&, rButton, 
     else if (&rButton == mxDiffdfdt.get() && rButton.get_active())
         mpLine->setOption(o_difftype, "dfdt" );
 
-    mpLine = nullptr;
-    pDoc->UpdateGuiText(); // This invalidates mpLine
+    pDoc->UpdateGuiText();
 }
 
 void setUnits(const std::unique_ptr<weld::TreeView>& treeview, iFormulaLine_ptr& pLine, ImGuiWindow* pGuiWindow)
@@ -2455,5 +2451,242 @@ IMPL_LINK(ImGuiOptionsDialog, MousePressHdl, const MouseEvent&, rMEvt, bool)
     return true;
 }
 
+void insertLabelIntoTree(weld::TreeView& treeview, const OUString& xLabel, const OUString& icon) {
+    OUString label = xLabel.replaceAll("::", ":"); // Real namespaces have '::', but legacy labels use ':' instead
+    if (label.startsWith(":"))
+        label = label.copy(1);
+    int idx = 0;
+    std::vector<OUString> labelparts;
+    do
+    {
+        labelparts.emplace_back(label.getToken(0, ':', idx).trim());
+    } while (idx >= 0);
+
+    std::unique_ptr<weld::TreeIter> xIter = nullptr; // TODO It doesn't seem possible to test for xIter = the toplevel iterator
+    for (const auto& labelpart : labelparts)
+    {
+        // Search for existing node
+        bool found = false;
+        auto node_iter = treeview.make_iterator();
+        if (xIter != nullptr)
+            treeview.copy_iterator(*xIter, *node_iter);
+        bool result;
+        if (xIter == nullptr)
+            result = treeview.get_iter_first(*node_iter);
+        else
+            result = treeview.iter_children(*node_iter);
+
+        if (result)
+            do
+            {
+                if ((found = (treeview.get_text(*node_iter) == labelpart)))
+                    break;
+            }
+            while (treeview.iter_next_sibling(*node_iter));
+
+        if (found)
+        {
+            if (xIter == nullptr)
+                xIter = std::move(node_iter);
+            else
+                treeview.copy_iterator(*node_iter, *xIter);
+            continue;
+        }
+
+        auto xChild = treeview.make_iterator();
+        treeview.insert(xIter != nullptr ? xIter.get() : nullptr, -1, &labelpart, nullptr, nullptr, nullptr, false, xChild.get());
+        treeview.set_text(*xChild, labelpart, 0);
+        if (labelpart == labelparts.back())
+            treeview.set_id(*xChild, xLabel);
+            treeview.set_image(*xChild, icon, 1);
+        if (xIter == nullptr)
+            xIter = std::move(xChild);
+        else
+            treeview.copy_iterator(*xChild, *xIter);
+    }
+}
+
+ImGuiLabelDialog::ImGuiLabelDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, iFormulaLine_ptr pLine)
+    : GenericDialogController(pParent, "modules/smath/ui/iformulalabeldialog.ui", "FormulaLabelDialog")
+    , mxAdd        (m_xBuilder->weld_button("button_add"))
+    , mxRemove     (m_xBuilder->weld_button("button_remove"))
+    , mxSelectLabel(m_xBuilder->weld_tree_view("all_labels"))
+    , mxLabels     (m_xBuilder->weld_tree_view("labels"))
+    , mpLine(pLine)
+    , mpGuiWindow(pGuiWindow)
+{
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
+
+    mxAdd->connect_clicked(LINK(this, ImGuiLabelDialog, ButtonAddHdl));
+    mxRemove->connect_clicked(LINK(this, ImGuiLabelDialog, ButtonRemoveHdl));
+
+    // Fill treeview with all existing labels
+    mxSelectLabel->freeze();
+    for (const auto& label : pDoc->GetAllLabels(mpLine))
+        insertLabelIntoTree(*mxSelectLabel, OUS8(label), BMP_IMGUI_PLUS);
+    mxSelectLabel->thaw();
+    mxSelectLabel->set_selection_mode(SelectionMode::Single);
+    mxSelectLabel->connect_row_activated(LINK(this, ImGuiLabelDialog, DoubleClickHdl));
+    mxSelectLabel->connect_mouse_press(LINK(this, ImGuiLabelDialog, MousePressAddHdl));
+
+    // Fill treeview with list of formula's labels
+    auto xIter = mxLabels->make_iterator();
+    mxLabels->freeze();
+    OUString labels = pLine->getFormula().trim();
+    labels = labels.copy(1, labels.getLength() - 2); // Remove curly braces
+    labels = labels.replace('@', ' ');
+    int idx = 0;
+    do {
+        OUString label = labels.getToken(0, ';', idx).trim();
+        if (label.isEmpty())
+            continue;
+
+        insertLabelIntoTree(*mxLabels, label, BMP_IMGUI_MINUS);
+    } while (idx >= 0);
+    mxLabels->thaw();
+    mxLabels->set_selection_mode(SelectionMode::Single);
+    mxLabels->connect_row_activated(LINK(this, ImGuiLabelDialog, DoubleClickHdl));
+    mxLabels->connect_mouse_press(LINK(this, ImGuiLabelDialog, MousePressRemoveHdl));
+}
+
+ImGuiLabelDialog::~ImGuiLabelDialog()
+{
+}
+
+OUString getLabelFromTree(const weld::TreeView& treeview, const std::unique_ptr<weld::TreeIter>& xIter)
+{
+    if (xIter == nullptr)
+    {
+        std::unique_ptr<weld::TreeIter> xIterSelect(treeview.make_iterator());
+        if (!treeview.get_selected(xIterSelect.get()))
+            return "";
+
+        return treeview.get_id(*xIterSelect);
+    }
+
+    return treeview.get_id(*xIter);
+}
+
+void ImGuiLabelDialog::addLabel(const std::unique_ptr<weld::TreeIter>& xIter) {
+    std::unique_ptr<weld::TreeIter> xIterSelect(mxSelectLabel->make_iterator());
+
+    OUString text = getLabelFromTree(*mxSelectLabel, xIter);
+
+    if (text.isEmpty())
+        return;
+
+    insertLabelIntoTree(*mxLabels, text, BMP_IMGUI_MINUS);
+    mxSelectLabel->unselect_all();
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
+
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmDelete>(mpLine);
+    line->addLabel(text);
+
+    pDoc->UpdateGuiText();
+}
+
+void ImGuiLabelDialog::removeLabel(const std::unique_ptr<weld::TreeIter>& xIter) {
+    auto childIter = mxLabels->make_iterator();
+
+    if (xIter == nullptr)
+    {
+        if (!mxLabels->get_selected(childIter.get()))
+            return;
+    }
+    else
+        mxLabels->copy_iterator(*xIter, *childIter);
+    OUString text = getLabelFromTree(*mxLabels, childIter);
+    if (text.isEmpty())
+        return;
+
+    auto parentIter = mxLabels->make_iterator();
+    do
+    {
+        mxLabels->copy_iterator(*childIter, *parentIter);
+        bool hasParent = mxLabels->iter_parent(*parentIter);
+        mxLabels->remove(*childIter);
+        if (!hasParent)
+            break;
+        mxLabels->copy_iterator(*parentIter, *childIter);
+    }
+    while (!mxLabels->iter_has_child(*childIter));
+
+    mxLabels->unselect_all();
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (!pDoc)
+        return;
+
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmDelete>(mpLine);
+    line->removeLabel(text);
+
+    pDoc->UpdateGuiText();
+}
+
+IMPL_LINK_NOARG(ImGuiLabelDialog, ButtonAddHdl, weld::Button&, void)
+{
+    addLabel(nullptr);
+}
+
+IMPL_LINK_NOARG(ImGuiLabelDialog, ButtonRemoveHdl, weld::Button&, void)
+{
+    removeLabel(nullptr);
+}
+
+IMPL_LINK(ImGuiLabelDialog, DoubleClickHdl, weld::TreeView&, rTreeview, bool)
+{
+    if (!mpLine)
+        return false;
+
+    if (&rTreeview == mxSelectLabel.get())
+        addLabel(nullptr);
+    else if (&rTreeview == mxLabels.get())
+        removeLabel(nullptr);
+
+    return true;
+}
+
+IMPL_LINK(ImGuiLabelDialog, MousePressAddHdl, const MouseEvent&, rMEvt, bool)
+{
+    if (!rMEvt.IsLeft() || rMEvt.GetClicks() > 1)
+        return false;
+
+    if (!mpLine)
+        return false;
+
+    auto xIter = mxSelectLabel->make_iterator();
+    int column;
+    if (getClickedCell(mxSelectLabel, rMEvt, *xIter, column, 1) && column == 1) {
+        addLabel(xIter);
+        mxSelectLabel->unselect_all();
+        return true;
+    }
+
+    return false;
+}
+
+IMPL_LINK(ImGuiLabelDialog, MousePressRemoveHdl, const MouseEvent&, rMEvt, bool)
+{
+    if (!rMEvt.IsLeft() || rMEvt.GetClicks() > 1)
+        return false;
+
+    if (!mpLine)
+        return false;
+
+    auto xIter = mxLabels->make_iterator();
+    int column;
+    if (getClickedCell(mxLabels, rMEvt, *xIter, column, 1) && column == 1) {
+        removeLabel(xIter);
+        mxLabels->unselect_all();
+        return true;
+    }
+
+    return false;
+}
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

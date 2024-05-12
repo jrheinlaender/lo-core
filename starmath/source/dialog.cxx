@@ -47,6 +47,7 @@
 #include <smmod.hxx>
 #include <symbol.hxx>
 #include <view.hxx>
+#include <logging.hxx>
 
 #include "imath/unit.hxx"
 
@@ -2173,7 +2174,7 @@ void SmSymDefineDialog::SelectChar(sal_Unicode cChar)
 /**************************************************************************/
 
 ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, iFormulaLine_ptr pLine, const int page)
-    : GenericDialogController(pParent, "modules/smath/ui/iformulaoptionsdialog.ui", "FormulaOptionsDialog"), mpGuiWindow(pGuiWindow)
+    : GenericDialogController(pParent, "modules/smath/ui/iformulaoptionsdialog.ui", "FormulaOptionsDialog")
     , mxNotebook(m_xBuilder->weld_notebook("notebook"))
     , mxAutoformat  (m_xBuilder->weld_check_button("autoformat"))
     , mxAutoalign   (m_xBuilder->weld_check_button("autoalign"))
@@ -2203,6 +2204,7 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     , mxEchoformula(m_xBuilder->weld_check_button("echoformula"))
 
     , mpLine(pLine)
+    , mpGuiWindow(pGuiWindow)
 {
     SmDocShell* pDoc = mpGuiWindow->GetDoc();
     if (!pDoc)
@@ -2402,7 +2404,7 @@ void setUnits(const std::unique_ptr<weld::TreeView>& treeview, iFormulaLine_ptr&
     pDoc->UpdateGuiText();
 }
 
-IMPL_LINK(ImGuiOptionsDialog, ComboBoxHdl, weld::ComboBox&, rCombobox, void)
+IMPL_LINK_NOARG(ImGuiOptionsDialog, ComboBoxHdl, weld::ComboBox&, void)
 {
     if (!mpLine)
         return;
@@ -2503,8 +2505,10 @@ void insertLabelIntoTree(weld::TreeView& treeview, const OUString& xLabel, const
         treeview.insert(xIter != nullptr ? xIter.get() : nullptr, -1, &labelpart, nullptr, nullptr, nullptr, false, xChild.get());
         treeview.set_text(*xChild, labelpart, 0);
         if (labelpart == labelparts.back())
+        {
             treeview.set_id(*xChild, xLabel);
             treeview.set_image(*xChild, icon, 1);
+        }
         if (xIter == nullptr)
             xIter = std::move(xChild);
         else
@@ -2597,6 +2601,7 @@ void ImGuiLabelDialog::addLabel(const std::unique_ptr<weld::TreeIter>& xIter) {
 }
 
 void ImGuiLabelDialog::removeLabel(const std::unique_ptr<weld::TreeIter>& xIter) {
+    SAL_INFO_LEVEL(1, "starmath.imath", "Removing label");
     auto childIter = mxLabels->make_iterator();
 
     if (xIter == nullptr)

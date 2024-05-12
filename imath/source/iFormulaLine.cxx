@@ -63,6 +63,16 @@ OUString iFormulaLine::print() const {
   return OU("%%ii ") + getCommand() + OU(" ") + getFormula();
 }
 
+int countQuotes(const OUString& str)
+{
+    int quote_count = 0;
+    int quote_idx = -1; ;
+    while (quote_idx < str.getLength() && (quote_idx = str.indexOf("\"", quote_idx + 1)) >= 0)
+        ++quote_count;
+
+    return quote_count;
+}
+
 std::vector<std::vector<OUString>> iFormulaLine::display(const Reference<XModel>&) const
 {
     if (error == no_error)
@@ -70,10 +80,31 @@ std::vector<std::vector<OUString>> iFormulaLine::display(const Reference<XModel>
 
     OUString errorPart = (_formulaParts[1].isEmpty() ? OUString(sal_Unicode(u'\u21B5')) : _formulaParts[1]);
 
+    // Double unmatched quotes (there seems to be no way to actually display quotes in starmath syntax ?!)
+    OUString fPart0;
+    OUString fPart2;
+    if (countQuotes(_formulaParts[0]) > 0)
+    {
+        auto quote_idx = _formulaParts[0].lastIndexOf("\"");
+        fPart0 = _formulaParts[0].replaceAt(quote_idx, 1, OUString(u'\u201C'));
+    }
+    else
+        fPart0 = _formulaParts[0];
+    std::cout << "fPart0=" << fPart0 << std::endl;
+
+    if (countQuotes(_formulaParts[2]) > 0)
+    {
+        auto quote_idx = _formulaParts[2].indexOf("\"");
+        fPart2 = _formulaParts[2].replaceAt(quote_idx, 1, OUString(u'\u201C'));
+    }
+    else
+        fPart2 = _formulaParts[2];
+    std::cout << "fPart2=" << fPart2 << std::endl;
+
     return
     {
         {"newline "},
-        {_formulaParts[0] + "{}bold color red{\"" + errorPart.replace('"', u'\u201C') + "\"}{}" + _formulaParts[2], "{}newline "},
+        {fPart0 + "{}bold color red{\"" + errorPart.replace('"', u'\u201C') + "\"}{}" + fPart2, "{}newline "},
         {"color blue{\"" + _formulaParts[3] + "\"}", "newline "}
     };
 }
@@ -271,7 +302,6 @@ OUString iFormulaLine::printFormula() const {
     OUString formula;
 
     if (error == formula_error)
-        // TODO: A unmatched quote in _formulaParts[0] will mess up the formatting
         formula = _formulaParts[0]  + OU("<span foreground='red' font='bold'>") + (_formulaParts[1].isEmpty() ? OUString(sal_Unicode(u'\u21B5')) : _formulaParts[1]) + OU("</span>") + _formulaParts[2];
     else
         formula = getFormula();
@@ -365,6 +395,10 @@ iFormulaNodeStmUnitdef::iFormulaNodeStmUnitdef(std::shared_ptr<optionmap> g_opti
   // TODO: unit -> out?
 }
 
+OUString iFormulaNodeStmUnitdef::getUnitname() const {
+    return (_formulaParts.size() > 3 ? _formulaParts[3] : "");
+}
+
 // NodeStmPrefixdef
 iFormulaNodeStmPrefixdef::iFormulaNodeStmPrefixdef(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
@@ -403,6 +437,30 @@ iFormulaNodeStmClearall::iFormulaNodeStmClearall(std::shared_ptr<optionmap> g_op
 // NodeStmDelete
 iFormulaNodeStmDelete::iFormulaNodeStmDelete(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
+}
+
+void iFormulaNodeStmDelete::addLabel(const OUString& label) {
+    OUString& labels = _formulaParts.at(1);
+    if (labels.indexOf(label) < 0)
+        labels += ";@" + label + "@";
+}
+
+void iFormulaNodeStmDelete::removeLabel(const OUString& label) {
+    OUString& labels = _formulaParts.at(1);
+    int pos_begin = labels.indexOf(OUString("@" + label));
+    if (pos_begin >= 0)
+    {
+        int pos_end = labels.indexOfAsciiL(";", 1, pos_begin);
+        if (pos_begin > 3)
+            --pos_begin; // Include preceding ';' (shortest beginning of the label list is '{@x@;...')
+        if (pos_end < 0)
+            labels = labels.copy(0, pos_begin);
+        else
+            labels = labels.replaceAt(pos_begin, pos_end - pos_begin, OUString(""));
+
+        if (labels.isEmpty())
+            labels = "@__label__@"; // Dummy to avoid errors
+    }
 }
 
 // NodeStmUpdate

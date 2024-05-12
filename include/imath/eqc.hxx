@@ -38,46 +38,49 @@ class Unitmanager;
 #define VALLABEL "__eqc-val-label__"
 
 /// Possible types of symbols
-enum symtype {
-  t_variable, // A user-defined variable
-  t_constant, // A constant, i.e., a variable with a fixed value
-  t_function, // A user-defined function
-  t_none      // Variable is not defined in the compiler
+enum symtype
+{
+    t_variable, // A user-defined variable
+    t_constant, // A constant, i.e., a variable with a fixed value
+    t_function, // A user-defined function
+    t_none // Variable is not defined in the compiler
 };
-enum symprop {
-  p_complex,  // This is the standard for symbols
-  p_vector,   // A vector (only used by getsymtype, for iMath)
-  p_matrix,   // A matrix/tensor (only used by getsymtype, for iMath)
-  p_real,     // A real-valued variable (that is, not complex)
-  p_pos       // A positive-valued variable (that is, not complex and greater than zero)
+enum symprop
+{
+    p_complex, // This is the standard for symbols
+    p_vector, // A vector (only used by getsymtype, for iMath)
+    p_matrix, // A matrix/tensor (only used by getsymtype, for iMath)
+    p_real, // A real-valued variable (that is, not complex)
+    p_pos // A positive-valued variable (that is, not complex and greater than zero)
 };
 
 /// Storage for equations and the result of the last substitution
-struct eqrec {
-  /// The equation
-  GiNaC::expression eq;
+struct eqrec
+{
+    /// The equation
+    GiNaC::expression eq;
 
-  /// The equation label
-  std::string label;
-  /// The label of the previous equation
-  std::string prevlabel;
+    /// The equation label
+    std::string label;
+    /// The label of the previous equation
+    std::string prevlabel;
 
-  /// Check for automatic label
-  bool is_automatic() const;
+    /// Check for automatic label
+    bool is_automatic() const;
 
-  /// The result of the last substitution of assignments - lhs
-  GiNaC::expression subsed_lhs;
-  /// The result of the last substitution of assignments - rhs
-  GiNaC::expression subsed_rhs;
+    /// The result of the last substitution of assignments - lhs
+    GiNaC::expression subsed_lhs;
+    /// The result of the last substitution of assignments - rhs
+    GiNaC::expression subsed_rhs;
 
-  /// Create a new eqrec for the equation e and the label l and the previous label pl
-  eqrec(const GiNaC::expression &e, const std::string& l, const std::string& pl);
+    /// Create a new eqrec for the equation e and the label l and the previous label pl
+    eqrec(const GiNaC::expression& e, const std::string& l, const std::string& pl);
 
 #ifdef DEBUG_CONSTR_DESTR
-  eqrec();
-  eqrec(const eqrec& other);
-  eqrec& operator=(const eqrec& other);
-  ~eqrec();
+    eqrec();
+    eqrec(const eqrec& other);
+    eqrec& operator=(const eqrec& other);
+    ~eqrec();
 #endif
 };
 
@@ -87,80 +90,82 @@ struct eqrec {
  */
 // TODO: Create a subclass variable of class symbol for this purpose!
 // Or enhance class func to handle symbols as special functions
-class symrec {
+class symrec
+{
 private:
-  /// The symbol representing the variable
-  GiNaC::extsymbol& sym;
+    /// The symbol representing the variable
+    GiNaC::extsymbol& sym;
 
-  /// Indicates whether the symbol is a variable, constant or function
-  symtype type;
-  /// Indicates whether the symbol is a vector, matrix, complex number, real number or positive number
-  symprop prop;
+    /// Indicates whether the symbol is a variable, constant or function
+    symtype type;
+    /// Indicates whether the symbol is a vector, matrix, complex number, real number or positive number
+    symprop prop;
 
 public:
-  /**
+    /**
   An expression for storing the value of the symbol. This needs to be an expression
   because most values will be quantities.
   **/
-  GiNaC::expression val;
-  GiNaC::expression aval; // Value not reduced to floats, cf. AVAL etc.
+    GiNaC::expression val;
+    GiNaC::expression aval; // Value not reduced to floats, cf. AVAL etc.
 
-  /// A list of equations that define the value of this symbol
-  std::list<eqrec*> assignments;
+    /// A list of equations that define the value of this symbol
+    std::list<eqrec*> assignments;
 
-  /// Create a new symrec
-  symrec(const symtype t, const std::string& varname, const symprop p);
+    /// Create a new symrec
+    symrec(const symtype t, const std::string& varname, const symprop p);
 
-  /// Assignment operator
-  symrec& operator=(const symrec& other);
+    /// Assignment operator
+    symrec& operator=(const symrec& other);
 
 #ifdef DEBUG_CONSTR_DESTR
-  symrec();
-  symrec(const symrec& other);
-  ~symrec();
+    symrec();
+    symrec(const symrec& other);
+    ~symrec();
 #endif
 
-  /// Change the symbol type
-  void setsymtype(const symtype t) { type = t; }
+    /// Change the symbol type
+    void setsymtype(const symtype t) { type = t; }
 
-  /// Change the symbol properties
-  void setsymprop(const symprop p);
+    /// Change the symbol properties
+    void setsymprop(const symprop p);
 
-  /// Return the symbol
-  inline const GiNaC::extsymbol& getsym() const { return sym; }
+    /// Return the symbol
+    inline const GiNaC::extsymbol& getsym() const { return sym; }
 
-  /// Return the symbol type
-  inline const symtype& getsymtype() const { return type; }
+    /// Return the symbol type
+    inline const symtype& getsymtype() const { return type; }
 
-  /// Return the symbol properties
-  inline const symprop& getsymprop() const { return prop; }
+    /// Return the symbol properties
+    inline const symprop& getsymprop() const { return prop; }
 
-  /// Return the name of the symbol
-  inline std::string get_name() const { return sym.get_name(); }
+    /// Return the name of the symbol
+    inline std::string get_name() const { return sym.get_name(); }
 
-  /// Set the value of the symbol to unknown
-  void make_unknown();
+    /// Set the value of the symbol to unknown
+    void make_unknown();
 
-  /// Return true if the symbol has a value
-  bool has_value() const;
+    /// Return true if the symbol has a value
+    bool has_value() const;
 };
 
 /// Used to store all equations, variables and constants encountered during processing.
-class IMATH_DLLPUBLIC eqc {
+class IMATH_DLLPUBLIC eqc
+{
 public:
-  /**
+    /**
   Constructs an empty eqc
   **/
-  eqc();
-  /// Copy-constructor with deep copy of members
-  eqc(const eqc& other);
+    eqc();
+    /// Copy-constructor with deep copy of members
+    eqc(const eqc& other);
 
-  /// Prevent shallow copies
-  eqc(eqc&& other) noexcept = delete;
-  eqc& operator=(const eqc& other) = delete;
-  eqc& operator=(eqc&& other) noexcept = delete;
+    /// Prevent shallow copies
+    eqc(eqc&& other) noexcept = delete;
+    eqc& operator=(const eqc& other) = delete;
+    eqc& operator=(eqc&& other) noexcept = delete;
 
-  /**
+    /**
   Register this equation with the compiler. An exception is thrown if
   the specified label already exists. It is always made the 'PREVIOUS' equation.
   The equation is always registered so that it can be accessed as the 'PREVIOUS' equation.
@@ -170,18 +175,18 @@ public:
   @param l (optional) The label for the equation (if none is given one will be created automatically)
   @exception invalid_argument(The equation label already exists), logic_error(equation redefines constant)
   **/
-  void check_and_register (const GiNaC::expression &eq, const std::string& l = "");
+    void check_and_register(const GiNaC::expression& eq, const std::string& l = "");
 
-  /**
+    /**
   Remove the equation referenced by the given label (this basically has the effect that the
   equation never existed)
   @param which The label of the equation to be removed
   @exception invalid_argument(The equation label does not exist)
   **/
-  void deleq(const std::string &which);
-  void deleq(std::map<const std::string, eqrec>::iterator& which);
+    void deleq(const std::string& which);
+    void deleq(std::map<const std::string, eqrec>::iterator& which);
 
-  /**
+    /**
   Register a constant with the eqc.
   The difference to registering an equation is:
   @li \\constant equations are not added to the list of equations
@@ -197,46 +202,52 @@ public:
   assignments and then checked to ensure that it represents a quantity.
   @exception invalid_argument
   **/
-  void register_constant (const GiNaC::expression &eq);
+    void register_constant(const GiNaC::expression& eq);
 
-  /// Register a function with the compiler
-  void register_function (const std::string &n, const GiNaC::exvector &args, const unsigned hints, const std::string& printname = "");
+    /// Register a function with the compiler
+    void register_function(const std::string& n, const GiNaC::exvector& args, const unsigned hints,
+                           const std::string& printname = "");
 
-  /// Define a function that is already registered with the compiler
-  void define_function(const std::string &n, const GiNaC::expression &def);
+    /// Define a function that is already registered with the compiler
+    void define_function(const std::string& n, const GiNaC::expression& def);
 
-  /// Create a user-defined function
-  GiNaC::expression create_function(const std::string& n, const GiNaC::exprseq &args = GiNaC::exprseq()) const;
-  GiNaC::expression create_function(const std::string& n, GiNaC::exprseq &&args) const;
+    /// Create a user-defined function
+    GiNaC::expression create_function(const std::string& n,
+                                      const GiNaC::exprseq& args = GiNaC::exprseq()) const;
+    GiNaC::expression create_function(const std::string& n, GiNaC::exprseq&& args) const;
 
-  /// Indirect access to the Unitmanager to enable copy-on-write
-  void addUnit(const std::string &uname, const std::string& pname, const GiNaC::expression &other_units);
-  void addPrefix(const std::string &prefixname, const GiNaC::numeric &pvalue);
-  GiNaC::expression canonicalizeUnits(const GiNaC::expression &e) const;
-  bool isUnit(const std::string &uname);
-  const GiNaC::expression& getUnit(const std::string &uname) const;
-  GiNaC::expression getCanonicalizedUnit(const std::string& uname) const;
-  std::vector<std::string> getUnitnames() const;
-  GiNaC::unitvec create_conversions(const GiNaC::lst& e, const bool always = false);
+    /// Indirect access to the Unitmanager to enable copy-on-write
+    void addUnit(const std::string& uname, const std::string& pname,
+                 const GiNaC::expression& other_units);
+    void addPrefix(const std::string& prefixname, const GiNaC::numeric& pvalue);
+    GiNaC::expression canonicalizeUnits(const GiNaC::expression& e) const;
+    bool isUnit(const std::string& uname);
+    const GiNaC::expression& getUnit(const std::string& uname) const;
+    GiNaC::expression getCanonicalizedUnit(const std::string& uname) const;
+    std::vector<std::string> getUnitnames() const;
+    GiNaC::unitvec create_conversions(const GiNaC::lst& e, const bool always = false);
 
-  /*
+    /*
    * Register an expression so that it can be retrieved by its label
      @param eq The equation to check and register
      @param l The label for the expression (if none is given one will be created automatically)
    **/
-  void register_expression (const GiNaC::expression &ex, const std::string& l);
+    void register_expression(const GiNaC::expression& ex, const std::string& l);
 
-  /// Begin and end a namespace. Namespaces are prepended to equation labels and variables
-  void begin_namespace(const std::string& ns);
-  void end_namespace(const std::string& ns);
-  /// Prepend the namespace to the variable name
-  std::string varname_ns(const std::string& varname) const;
-  /// Prepend the namespace to the equation label. If check is true, try the current namespace first and then the global namespace
-  std::string label_ns(const std::string& label, const bool check = false) const;
-  /// Prepend the namespace to the expression label. If check is true, try the current namespace first and then the global namespace
-  std::string exlabel_ns(const std::string& label, const bool check = false) const;
+    /// Begin and end a namespace. Namespaces are prepended to equation labels and variables
+    void begin_namespace(const std::string& ns);
+    void end_namespace(const std::string& ns);
+    /// Prepend the namespace to the variable name
+    std::string varname_ns(const std::string& varname) const;
+    /// Prepend the namespace to the equation label. If check is true, try the current namespace first and then the global namespace
+    std::string label_ns(const std::string& label, const bool check = false) const;
+    /// Prepend the namespace to the expression label. If check is true, try the current namespace first and then the global namespace
+    std::string exlabel_ns(const std::string& label, const bool check = false) const;
 
-  /**
+    /// Return a list of all currently defined equation labels
+    std::vector<std::string> getLabels() const;
+
+    /**
   Request a new symbol from the eqc. A GiNaC symbol is created with this name. If a variable with this name
   already exists, return the Ginac symbol representing it
 
@@ -245,38 +256,38 @@ public:
   @returns The Ginac symbol created for this variable, or the existing symbol, if this variable already
   exists.
   **/
-  // The GiNaC constant Pi is returned directly when the symbol with name %pi is requested.
-  // The same is valid for the symbol with name %e and i
-  GiNaC::expression getsym (const std::string& varname, const symprop p = p_complex);
-  GiNaC::expression* getsymp (const std::string& varname, const symprop p = p_complex);
+    // The GiNaC constant Pi is returned directly when the symbol with name %pi is requested.
+    // The same is valid for the symbol with name %e and i
+    GiNaC::expression getsym(const std::string& varname, const symprop p = p_complex);
+    GiNaC::expression* getsymp(const std::string& varname, const symprop p = p_complex);
 
-  /// Return the type of the variable with this name
-  symtype getsymtype(const std::string& varname);
-  /// Return the properties of the variable with this name
-  symprop getsymprop(const std::string& varname);
+    /// Return the type of the variable with this name
+    symtype getsymtype(const std::string& varname);
+    /// Return the properties of the variable with this name
+    symprop getsymprop(const std::string& varname);
 
-  /// Allow setting the symbol properties after creation (important for persisted symbols)
-  void setsymprop(const std::string& varname, const symprop p);
+    /// Allow setting the symbol properties after creation (important for persisted symbols)
+    void setsymprop(const std::string& varname, const symprop p);
 
-  /**
+    /**
     Check whether the string is a valid equation label, that is, an equation with that
     label has been registered.
     @param s The string to check for
     @returns A boolean indicating whether an equation with this label exists
   **/
-  bool is_label(const std::string &s)const;
-  bool is_expression_label(const std::string &s) const;
+    bool is_label(const std::string& s) const;
+    bool is_expression_label(const std::string& s) const;
 
-  /// Check whether the string is the label of a library equation
-  bool is_lib(const std::string &s) const;
+    /// Check whether the string is the label of a library equation
+    bool is_lib(const std::string& s) const;
 
-  /// Check whether the string contains the namespace separator (::) and the namespace is not the current namespace
-  bool is_external_ns(const std::string &s) const;
+    /// Check whether the string contains the namespace separator (::) and the namespace is not the current namespace
+    bool is_external_ns(const std::string& s) const;
 
-  /// Check whether the string is the name of a function
-  bool is_func(const std::string &fname) const;
+    /// Check whether the string is the name of a function
+    bool is_func(const std::string& fname) const;
 
-  /**
+    /**
   Check whether a given symbol has a value (i.e., a quantity). Throws an exception if the symbol
   is not registered with the compiler.
 
@@ -284,18 +295,18 @@ public:
   @returns A boolean indicating whether the symbol has a value
   @exception range_error(Symbol is not registered with the compiler)
   **/
-  bool has_value(const GiNaC::symbol& v) const;
+    bool has_value(const GiNaC::symbol& v) const;
 
-  /**
+    /**
   Return the assignment that defines the value of this variable
 
   @params s The symbol
   @returns An expression containing the assignment
   @exception range_error(Symbol is not registered with the compiler)
   **/
-  GiNaC::expression get_assignment(const GiNaC::symbol& s) const;
+    GiNaC::expression get_assignment(const GiNaC::symbol& s) const;
 
-  /**
+    /**
   Return the stored value of this symbol without going through all the hassle of find_values()
   This assumes that has_value(s) returned true!
 
@@ -303,9 +314,9 @@ public:
   @returns The value of the symbol
   @exception range_error(Symbol is not registered with the compiler)
   **/
-  GiNaC::expression get_value(const GiNaC::symbol &s) const;
+    GiNaC::expression get_value(const GiNaC::symbol& s) const;
 
-  /**
+    /**
   A wrapper function for find_values(). Searches for an equation defining the symbol, substitutes as many
   known values as possible on the right hand side of this equation, tries to reduce the resulting expression
   to a numeric by calling evalf(), and returns the result. This result can be a quantity
@@ -320,42 +331,46 @@ public:
   @returns An expression containing the value
   @exception invalid_argument
   **/
-  GiNaC::expression find_value_of(const GiNaC::symbol &var, const GiNaC::lst &assgn = GiNaC::lst(), const bool tofloat = true);
+    GiNaC::expression find_value_of(const GiNaC::symbol& var,
+                                    const GiNaC::lst& assgn = GiNaC::lst(),
+                                    const bool tofloat = true);
 
-  /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
+    /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
   the value is no quantity.
   @param var The variable for which the quantity is requested
   @param assignments An optional expression containing an equation or a list of equations
   @returns An expression containing the quantity
   @exception invalid_argument
   **/
-  GiNaC::expression find_quantity_of(const GiNaC::symbol &var, const GiNaC::lst &assgn = GiNaC::lst());
+    GiNaC::expression find_quantity_of(const GiNaC::symbol& var,
+                                       const GiNaC::lst& assgn = GiNaC::lst());
 
-  /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
+    /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
   the value is no numeric.
   @param var The variable for which the numeric value is requested
   @param assignments An optional expression containing an equation or a list of equations
   @returns A numeric containing the value
   @exception invalid_argument
   **/
-  GiNaC::numeric find_numval_of(const GiNaC::symbol &var, const GiNaC::lst &assgn = GiNaC::lst());
+    GiNaC::numeric find_numval_of(const GiNaC::symbol& var, const GiNaC::lst& assgn = GiNaC::lst());
 
-  /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
+    /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
   the value is no unit (or a multiplication of units and powers of units).
   @param var The variable for which the units are requested
   @param assignments An optional expression containing an equation or a list of equations
   @returns An expression containing the units
   @exception invalid_argument
   **/
-  GiNaC::expression find_units_of(const GiNaC::symbol &var, const GiNaC::lst &assgn = GiNaC::lst());
+    GiNaC::expression find_units_of(const GiNaC::symbol& var,
+                                    const GiNaC::lst& assgn = GiNaC::lst());
 
-  /** Scan the expression for symbols and return a map from the symbols to their values
+    /** Scan the expression for symbols and return a map from the symbols to their values
   @param e The expression
   @returns A map from the symbols to their values
   **/
-  GiNaC::exhashmap<GiNaC::ex> find_variable_values(const GiNaC::expression& e) const;
+    GiNaC::exhashmap<GiNaC::ex> find_variable_values(const GiNaC::expression& e) const;
 
-  /** Iterate an expression until it converges. The user is responsible to ensure convergence. Also, it is highly recommended to iterate
+    /** Iterate an expression until it converges. The user is responsible to ensure convergence. Also, it is highly recommended to iterate
   numeric expressions only (that is, expressions that always evaluate to a numeric).
   @param syms The symbols (variables) to iterate
   @param exprs The expressions (expressed in the symbols) that are used to find the value of the symbols for the next iteration
@@ -364,47 +379,49 @@ public:
   @param maxiter The maximum number of iterations, if no convergence happens
   All matrix parameters are assumed to have one column only and to have the same number of rows. All convergence criteria are assumed to be real numbers
   **/
-  GiNaC::matrix iterate(const GiNaC::matrix& syms, const GiNaC::matrix& exprs, const GiNaC::matrix& start, const GiNaC::matrix& conv, const unsigned maxiter = 10);
+    GiNaC::matrix iterate(const GiNaC::matrix& syms, const GiNaC::matrix& exprs,
+                          const GiNaC::matrix& start, const GiNaC::matrix& conv,
+                          const unsigned maxiter = 10);
 
-  /**
+    /**
   Deletes all equations and all variables that are not constants.
   **/
-  void clear();
+    void clear();
 
-  /**
+    /**
   Deletes all equations and all variables. This is equivalent to destroying the eqc object and constructing
   a new one.
   @param persist_symbols If true, symbols accessed with getsym() will be consistent across compilation runs.
   This allows caching of compiled equations
   **/
-  void clearall(const bool persist_symbols = false);
+    void clearall(const bool persist_symbols = false);
 
-  /// Print information about the compiler onto a stream
-  void print(std::ostream &os) const;
+    /// Print information about the compiler onto a stream
+    void print(std::ostream& os) const;
 
-  /// Dump information about variables and their values onto the stream
-  void dumpvars(std::ostream & os);
+    /// Dump information about variables and their values onto the stream
+    void dumpvars(std::ostream& os);
 
-  /**
+    /**
   Looks up an equation by its label. Throws an exception if the label does not exist.
   @param label The equation label
   @returns The equation registered under this label
   @exception range_error
   **/
-  const GiNaC::expression& at(const std::string &label) const;
-  /**
+    const GiNaC::expression& at(const std::string& label) const;
+    /**
   Looks up an expression by its label. Throws an exception if the label does not exist.
   @param label The expression label
   @returns The expression registered under this label
   @exception range_error
   **/
-  const GiNaC::expression& expression_at(const std::string &label) const;
+    const GiNaC::expression& expression_at(const std::string& label) const;
 
-  /// Find the nth previous equation and return its label
-  std::string getPreviousEquationLabel(const unsigned n) const;
+    /// Find the nth previous equation and return its label
+    std::string getPreviousEquationLabel(const unsigned n) const;
 
 private: /* Methods */
-  /**
+    /**
   Investigate all equations that influence the value of a variable, and try to calculate the
   value from these equations. Up to now, only equations that have this variable on the left hand side
   are investigated. Throws an exception if the variable has no value at all.
@@ -420,9 +437,11 @@ private: /* Methods */
   @returns A boolean indicating whether this variable's value is a quantity
   @exception invalid_argument
   **/
-  bool find_values(const GiNaC::symbol &var, GiNaC::numeric &v, GiNaC::expression &u, GiNaC::expression &value, const GiNaC::lst &assgn = GiNaC::lst(), const bool tofloat = true);
+    bool find_values(const GiNaC::symbol& var, GiNaC::numeric& v, GiNaC::expression& u,
+                     GiNaC::expression& value, const GiNaC::lst& assgn = GiNaC::lst(),
+                     const bool tofloat = true);
 
-  /**
+    /**
   Helper function: Check if the equation is an assignment, using all previously found
   assignments
 
@@ -432,9 +451,10 @@ private: /* Methods */
   @param arhs The rhs, without reduction to floats of things like sqrt{3}, sin(1/2) (cf. AVAL etc.)
   @returns True if the lhs is a symbol or a column vector of symbols, that is, the equation is an assignment
   **/
-  bool check_eq(eqrec* eqr, std::vector<std::string> &names, GiNaC::expression &rhs, GiNaC::expression &arhs);
+    bool check_eq(eqrec* eqr, std::vector<std::string>& names, GiNaC::expression& rhs,
+                  GiNaC::expression& arhs);
 
-  /**
+    /**
   Helper function: Store an assignment sym = rhs, which was derived from equation label.
   This function makes sure that the assignments which defines the value of a variable
   always is the first in vars[...]->assignments.
@@ -446,9 +466,10 @@ private: /* Methods */
   @returns True if the rhs is a quantity, false otherwise
   @throws logic_error(equation redefines constant)
   **/
-  bool store_assgn(const std::vector<std::string> &names, const GiNaC::expression &rhs, const GiNaC::expression &arhs, eqrec* eqr);
+    bool store_assgn(const std::vector<std::string>& names, const GiNaC::expression& rhs,
+                     const GiNaC::expression& arhs, eqrec* eqr);
 
-  /**
+    /**
   Helper function: Adds sym to the list syms. Checks if the value of any variables depends on
   the value of sym. If yes, the value of that variable is removed and the function is called
   again with that variable as sym.
@@ -456,54 +477,55 @@ private: /* Methods */
   @param name The name of the variable that has no value any more
   @param names A list of such variables that is recursively collected
   **/
-  void remove_assignment(const GiNaC::ex sym, std::list<GiNaC::ex>& syms);
+    void remove_assignment(const GiNaC::ex sym, std::list<GiNaC::ex>& syms);
 
-  /**
+    /**
   Helper function: Go through all the registered equations, and remove the stored lhs and
   rhs substituted values, if the equation contains the symbol.
   @param name The name of the variable that has no value any more
   **/
-  void remove_subsed(const GiNaC::ex& sym);
+    void remove_subsed(const GiNaC::ex& sym);
 
 private: /* Data */
-  /// Unit management
-  std::shared_ptr<Unitmanager> unitmgr;
+    /// Unit management
+    std::shared_ptr<Unitmanager> unitmgr;
 
-  /// Function management
-  std::shared_ptr<Functionmanager> funcmgr;
+    /// Function management
+    std::shared_ptr<Functionmanager> funcmgr;
 
-  /// Manage copy-on-write
-  bool unitmgr_writable;
-  bool funcmgr_writable;
+    /// Manage copy-on-write
+    bool unitmgr_writable;
+    bool funcmgr_writable;
 
-  /**
+    /**
   A map which stores all equations. The key is a string containing the label of the equation or the equation number.
   **/
-  std::map<const std::string, eqrec> equations;
-  typedef std::map<const std::string, eqrec>::iterator eqrec_it;
-  typedef std::map<const std::string, eqrec>::const_iterator eqrec_cit;
+    std::map<const std::string, eqrec> equations;
+    typedef std::map<const std::string, eqrec>::iterator eqrec_it;
+    typedef std::map<const std::string, eqrec>::const_iterator eqrec_cit;
 
-  /// A map which stores all expression. The key is a string containing the label
-  std::map<const std::string, GiNaC::expression> expressions;
+    /// A map which stores all expression. The key is a string containing the label
+    std::map<const std::string, GiNaC::expression> expressions;
 
-  /// Contains the next number to be given to an equation if no label is supplied.
-  int nextlabel;
+    /// Contains the next number to be given to an equation if no label is supplied.
+    int nextlabel;
 
-  /// A list which stores equations that are not assignments
-  std::list<eqrec*> other_equations; // Note: This will only take pointers to entries in equations, therefore no deletion on destruction of the eqc is required
-  typedef std::list<eqrec*>::iterator eqreclist_it;
-  typedef std::list<eqrec*>::const_iterator eqreclist_cit;
+    /// A list which stores equations that are not assignments
+    std::list<eqrec*>
+        other_equations; // Note: This will only take pointers to entries in equations, therefore no deletion on destruction of the eqc is required
+    typedef std::list<eqrec*>::iterator eqreclist_it;
+    typedef std::list<eqrec*>::const_iterator eqreclist_cit;
 
-  /// An exmap which contains all constants and assignments for variables found so far
-  GiNaC::exmap assignments;
+    /// An exmap which contains all constants and assignments for variables found so far
+    GiNaC::exmap assignments;
 
-  /**
+    /**
   An exmap which contains newly created constants and assignments, until they are used
   in find_values()
   **/
-  GiNaC::exmap recent_assgn; // Cannot use exhashmap because subs() doesn't accept it
+    GiNaC::exmap recent_assgn; // Cannot use exhashmap because subs() doesn't accept it
 
-  /**
+    /**
   A map which stores all variables used in the equations. The key is the variable name (string), and the variables are
   stored with their calculated values in the structure symrec, which has the following members:
   @li symbol: A GiNaC symbol that represents the variable
@@ -513,14 +535,14 @@ private: /* Data */
 
   Note that variables marked as constants are not deleted with the clear() method.
   **/
-  std::map <std::string, symrec> vars;
-  typedef std::map <std::string, symrec>::iterator symrec_it;
-  typedef std::map <std::string, symrec>::const_iterator symrec_cit;
+    std::map<std::string, symrec> vars;
+    typedef std::map<std::string, symrec>::iterator symrec_it;
+    typedef std::map<std::string, symrec>::const_iterator symrec_cit;
 
-  /// The current namespace
-  std::string current_namespace;
+    /// The current namespace
+    std::string current_namespace;
 
-  /// This iterator always points to the previously registered equation
-  eqrec_it previous_it;
+    /// This iterator always points to the previously registered equation
+    eqrec_it previous_it;
 };
 #endif

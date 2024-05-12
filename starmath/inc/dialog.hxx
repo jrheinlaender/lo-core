@@ -555,4 +555,35 @@ private:
     // The parent edit window
     ImGuiWindow* mpGuiWindow;
 };
+
+class ImGuiLabelDialog final : public weld::GenericDialogController
+{
+    std::unique_ptr<weld::Button> mxAdd;
+    std::unique_ptr<weld::Button> mxRemove;
+    std::unique_ptr<weld::TreeView> mxSelectLabel;
+    std::unique_ptr<weld::TreeView> mxLabels;
+
+    DECL_LINK(ButtonAddHdl, weld::Button&, void);
+    DECL_LINK(ButtonRemoveHdl, weld::Button&, void);
+    DECL_LINK(DoubleClickHdl, weld::TreeView&, bool);
+    DECL_LINK(MousePressAddHdl, const MouseEvent&, bool);
+    DECL_LINK(MousePressRemoveHdl, const MouseEvent&, bool);
+
+public:
+    ImGuiLabelDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, std::shared_ptr<iFormulaLine> pLine);
+    virtual ~ImGuiLabelDialog() override;
+
+    // The model was reset, update the line pointer
+    void setFormulaLinePointer(std::shared_ptr<iFormulaLine> pLine) { mpLine = pLine; }
+
+private:
+    // The formula line for this options dialog
+    std::shared_ptr<iFormulaLine> mpLine;
+    // The parent edit window
+    ImGuiWindow* mpGuiWindow;
+
+    void addLabel(const std::unique_ptr<weld::TreeIter>& xIter);
+    void removeLabel(const std::unique_ptr<weld::TreeIter>& xIter);
+};
+
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

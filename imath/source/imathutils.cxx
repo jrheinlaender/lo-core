@@ -2516,12 +2516,14 @@ OUString replaceString(const OUString& str, const OUString& substr, const OUStri
   return result; // This is never reached, but pacifies the compiler
 }
 
-std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary) {
+std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary, const sal_Bool trim) {
   std::list<OUString> result;
   sal_Int32 idx = 0;
 
   do {
     OUString token = str.getToken(0, boundary, idx);
+    if (trim)
+        token = token.trim();
     if (!token.isEmpty())
       result.emplace_back(token);
   } while (idx >= 0);

@@ -18,6 +18,7 @@
 
 #include <sstream>
 #include <regex>
+#include <numeric>
 #include <ginac/operators.h>
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
@@ -446,21 +447,15 @@ void iFormulaNodeStmDelete::addLabel(const OUString& label) {
 }
 
 void iFormulaNodeStmDelete::removeLabel(const OUString& label) {
-    OUString& labels = _formulaParts.at(1);
-    int pos_begin = labels.indexOf(OUString("@" + label));
-    if (pos_begin >= 0)
-    {
-        int pos_end = labels.indexOfAsciiL(";", 1, pos_begin);
-        if (pos_begin > 3)
-            --pos_begin; // Include preceding ';' (shortest beginning of the label list is '{@x@;...')
-        if (pos_end < 0)
-            labels = labels.copy(0, pos_begin);
-        else
-            labels = labels.replaceAt(pos_begin, pos_end - pos_begin, OUString(""));
+    std::list<OUString> labelList = splitString(_formulaParts.at(1), ';', true);
+    auto iter = std::find(labelList.begin(), labelList.end(), OUString("@" + label + "@"));
+    if (iter != labelList.end())
+        labelList.erase(iter);
 
-        if (labels.isEmpty())
-            labels = "@__label__@"; // Dummy to avoid errors
-    }
+    if (labelList.empty())
+        _formulaParts.at(1) = "@__label__@"; // Dummy to avoid errors;
+    else
+        _formulaParts.at(1) = std::accumulate(std::next(labelList.begin()), labelList.end(), labelList.front(), [](OUString a, OUString b) { return OUString(std::move(a) + ";" + b);});
 }
 
 // NodeStmUpdate

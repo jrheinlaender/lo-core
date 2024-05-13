@@ -2463,12 +2463,7 @@ void insertLabelIntoTree(weld::TreeView& treeview, const OUString& xLabel, const
     OUString label = xLabel.replaceAll("::", ":"); // Real namespaces have '::', but legacy labels use ':' instead
     if (label.startsWith(":"))
         label = label.copy(1);
-    int idx = 0;
-    std::vector<OUString> labelparts;
-    do
-    {
-        labelparts.emplace_back(label.getToken(0, ':', idx).trim());
-    } while (idx >= 0);
+    auto labelparts = splitString(label, ':', true);
 
     std::unique_ptr<weld::TreeIter> xIter = nullptr; // TODO It doesn't seem possible to test for xIter = the toplevel iterator
     for (const auto& labelpart : labelparts)
@@ -2547,14 +2542,9 @@ ImGuiLabelDialog::ImGuiLabelDialog(weld::Window* pParent, ImGuiWindow* pGuiWindo
     OUString labels = pLine->getFormula().trim();
     labels = labels.copy(1, labels.getLength() - 2); // Remove curly braces
     labels = labels.replace('@', ' ');
-    int idx = 0;
-    do {
-        OUString label = labels.getToken(0, ';', idx).trim();
-        if (label.isEmpty())
-            continue;
-
+    auto labelList = splitString(labels, ';', true);
+    for (const auto& label : labelList)
         insertLabelIntoTree(*mxLabels, label, BMP_IMGUI_MINUS);
-    } while (idx >= 0);
     mxLabels->thaw();
     mxLabels->set_selection_mode(SelectionMode::Single);
     mxLabels->connect_row_activated(LINK(this, ImGuiLabelDialog, DoubleClickHdl));

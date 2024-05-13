@@ -621,7 +621,8 @@ IMATH_DLLPUBLIC OUString replaceString(const OUString& str, const OUString& subs
                                        const OUString& repl);
 
 /// Split a string into a list of strings at a given boundary
-IMATH_DLLPUBLIC std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary);
+IMATH_DLLPUBLIC std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary,
+                                                const sal_Bool trim = false);
 
 /// Convert a set of symbols and functions into a string of names
 IMATH_DLLPUBLIC OUString

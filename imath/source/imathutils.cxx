@@ -2920,6 +2920,744 @@ void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUStri
     Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
     setCalcCellRangeExpression(xColumnRowRange, value);
 
+    if (!docIsLoaded)
+    {
+        Reference<XStorable> xStore(xCalcDoc, UNO_QUERY_THROW);
+        xStore->store();
+        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
+        xClose->close(true);
+    }
+}
+
+Reference<XModel> checkDocumentLoaded(Reference<XDesktop>& xDesktop, const OUString& URL)
+{
+    Reference<XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
+    Reference<XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
+
+    while (xDocsEnum->hasMoreElements())
+    {
+        Any docModel = xDocsEnum->nextElement();
+        Reference<XModel> xModel;
+        docModel >>= xModel;
+        if (xModel.is() && (xModel->getURL() == URL))
+            return xModel;
+    }
+
+    return Reference<XModel>();
+}
+
+Reference<XModel> loadDocument(const Reference<XDesktop>& xDesktop, const OUString& calcURL,
+                               const bool readonly)
+{
+    Sequence<PropertyValue> args(2);
+    auto pArgs = args.getArray();
+    PropertyValue hidden;
+    hidden.Name = OU("Hidden");
+    hidden.Value = Any(true);
+    pArgs[0] = hidden;
+    PropertyValue ro;
+    ro.Name = OU("ReadOnly");
+    ro.Value = Any(readonly);
+    pArgs[1] = ro;
+
+    try
+    {
+        Reference<XComponentLoader> xComponentLoader(xDesktop, UNO_QUERY_THROW);
+        return Reference<XModel>(
+            xComponentLoader->loadComponentFromURL(calcURL, OU("_default"), 0, args),
+            UNO_QUERY_THROW);
+    }
+    catch (Exception& e)
+    {
+        (void)e;
+        throw std::runtime_error("Referenced document '" + STR(calcURL) + "' does not exist");
+    }
+}
+
+OUString makeSystemPathFor(const OUString& theURL, const Reference<XComponentContext>& xContext)
+{
+    MSG_INFO(2, "makeSystemPathFor() '" << STR(theURL) << "'" << endline);
+    if (!theURL.matchAsciiL("file:///",
+                            8)) // No URL given, so we assume it is already a system path
+        return theURL;
+
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XFileIdentifierConverter> xFIConverter(
+        xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
+        UNO_QUERY_THROW);
+    return (xFIConverter->getSystemPathFromFileURL(theURL));
+} // makeSystemPathFor()
+
+OUString makeURLFor(const OUString& newURL, const OUString& absoluteURL,
+                    const Reference<XComponentContext>& xContext)
+{
+    MSG_INFO(2, "makeURLFor()" << endline);
+    OUString result = OU("");
+
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XFileIdentifierConverter> xFIConverter(
+        xMCF->createInstanceWithContext(OU("com.sun.star.ucb.FileContentProvider"), xContext),
+        UNO_QUERY_THROW);
+
+    if (!newURL.equalsAscii(""))
+    {
+        if (newURL.matchAsciiL("/", 1))
+        { // Absolute Unix path
+            return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
+        }
+        else if (newURL.copy(1, 1).equalsAscii(":") || newURL.matchAsciiL("\\\\", 2))
+        {
+            // Windows absolute path, e.g. C: or D:, or Windows network path
+            return xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
+        }
+        else if (newURL.matchAsciiL("file:///", 8))
+        { // Absolute office URL
+            return newURL;
+        }
+        else
+        { // relative URL
+            if (absoluteURL.equalsAscii(""))
+            { // unsaved new document!
+                return newURL;
+            }
+            else
+            {
+                int slashpos = absoluteURL.lastIndexOfAsciiL("/", 1);
+                return absoluteURL.copy(0, slashpos) + OU("/")
+                       + xFIConverter->getFileURLFromSystemPath(OU(""), newURL);
+            }
+        }
+    }
+
+    return result;
+} // makeURLFor()
+
+sal_Bool isGlobalDocument(const Reference<XModel>& xModel)
+{
+    Reference<XServiceInfo> xServiceInfo(xModel, UNO_QUERY_THROW);
+    return (xServiceInfo->supportsService(OU("com.sun.star.text.GlobalDocument")));
+}
+
+OUString docType(const Reference<XModel>& xModel)
+{
+    Reference<XTextDocument> doc(xModel, UNO_QUERY);
+    return doc.is() ? OU("TextDocument") : OU("Presentation");
+}
+
+Reference<XColumnRowRange> getCalcCellRange(const Reference<XSpreadsheetDocument>& xCalcDoc,
+                                            const OUString& sheetName, const OUString& cellRange)
+{
+    try
+    {
+        Reference<XSpreadsheets> xCalcSheets = xCalcDoc->getSheets();
+        Reference<XSpreadsheet> xCalcSheet(xCalcSheets->getByName(sheetName), UNO_QUERY_THROW);
+        Reference<XColumnRowRange> xColumnRowRange(xCalcSheet->getCellRangeByName(cellRange),
+                                                   UNO_QUERY_THROW);
+        return xColumnRowRange;
+    }
+    catch (Exception& e)
+    {
+        (void)e;
+        throw std::runtime_error("Referenced cell range '" + STR(sheetName) + "." + STR(cellRange)
+                                 + "' does not exist");
+    }
+}
+
+expression getCalcRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange)
+{
+    if (xColumnRowRange.is())
+    {
+        Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
+        Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
+        Reference<XTableRows> xRows = xColumnRowRange->getRows();
+
+        unsigned rows = xRows->getCount();
+        unsigned cols = xCols->getCount();
+        MSG_INFO(2,
+                 "Found cell range with " << rows << " rows and " << cols << " coumns" << endline);
+
+        if ((rows == 1) && (cols == 1))
+        {
+            Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
+            return getCellExpression(xCell);
+        }
+        else
+        {
+            matrix m(rows, cols);
+
+            for (unsigned r = 0; r < rows; ++r)
+            {
+                for (unsigned c = 0; c < cols; ++c)
+                {
+                    Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
+                    m(r, c) = getCellExpression(xCell);
+                }
+            }
+            return m;
+        }
+    }
+    return dynallocate<stringex>("Error: Non-existant calc cell range or internal error");
+}
+
+void setCalcCellRangeExpression(const Reference<XColumnRowRange>& xColumnRowRange,
+                                const expression& value)
+{
+    if (xColumnRowRange.is())
+    {
+        Reference<XCellRange> xCellRange(xColumnRowRange, UNO_QUERY_THROW);
+        Reference<XTableColumns> xCols = xColumnRowRange->getColumns();
+        Reference<XTableRows> xRows = xColumnRowRange->getRows();
+
+        unsigned rows = xRows->getCount();
+        unsigned cols = xCols->getCount();
+        MSG_INFO(2,
+                 "Found cell range with " << rows << " rows and " << cols << " coumns" << endline);
+
+        if (is_a<matrix>(value))
+        {
+            const matrix& m = ex_to<matrix>(value);
+            unsigned mrows = m.rows();
+            unsigned mcols = m.cols();
+
+            if ((rows != mrows) || (cols != mcols))
+                throw std::runtime_error(
+                    "Cell range dimensions do not match vector/matrix dimensions");
+
+            for (unsigned r = 0; r < rows; ++r)
+            {
+                for (unsigned c = 0; c < cols; ++c)
+                {
+                    Reference<XCell> xCell = xCellRange->getCellByPosition(c, r);
+                    setCellExpression(xCell, m(r, c));
+                }
+            }
+        }
+        else if ((rows == 1) && (cols == 1))
+        {
+            Reference<XCell> xCell = xCellRange->getCellByPosition(0, 0);
+            setCellExpression(xCell, value);
+        }
+        else
+        {
+            throw std::runtime_error("Cell range dimensions do not match scalar");
+        }
+    }
+}
+
+expression parseNumber(const std::string& s)
+{
+    std::string::size_type delim;
+    std::string ss = s;
+
+    while ((delim = ss.find(",")) != std::string::npos)
+        ss.replace(delim, 1, ".");
+
+    try
+    {
+        return dynallocate<numeric>(ss.c_str());
+    }
+    catch (std::exception&)
+    {
+        return dynallocate<stringex>(s);
+    }
+}
+
+expression getExpressionFromString(const OUString& s)
+{
+    std::string tf = STR(s);
+
+    if ((tf.find("\n") != std::string::npos) || (tf.find("\t") != std::string::npos))
+    {
+        // String represents a matrix. Split rows at line breaks and columns at tabs
+        std::istringstream mtext(tf);
+        std::string row;
+        std::vector<std::string> rows;
+        while (std::getline(mtext, row, '\n'))
+            rows.emplace_back(row);
+
+        std::vector<std::vector<std::string>> strmatrix;
+        size_t colnum = 0;
+
+        for (const auto& r : rows)
+        {
+            std::istringstream rtext(r);
+            std::string col;
+            strmatrix.emplace_back();
+            std::vector<std::string>& cols = strmatrix.back();
+            while (std::getline(rtext, col, '\t'))
+                cols.emplace_back(col);
+
+            size_t oldcolnum = colnum;
+            colnum = cols.size();
+            if ((oldcolnum != 0) && (oldcolnum != colnum)) // Column number mismatch
+                return dynallocate<stringex>(tf);
+        }
+
+        matrix m((unsigned)strmatrix.size(), (unsigned)colnum);
+        unsigned irow = 0;
+        for (std::vector<std::vector<std::string>>::const_iterator r = strmatrix.begin();
+             r != strmatrix.end(); ++r, ++irow)
+        {
+            unsigned icol = 0;
+            for (std::vector<std::string>::const_iterator e = r->begin(); e != r->end();
+                 ++e, ++icol)
+            {
+                m(irow, icol) = parseNumber(*e);
+            }
+        }
+
+        return m;
+    }
+    else
+    {
+        return parseNumber(tf);
+    }
+}
+
+Reference<XNamedGraph> createGraph(const Reference<XComponentContext>& mxCC,
+                                   const Reference<XModel>& xModel)
+{
+    Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
+    Reference<XURI> xType
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
+    Sequence<Reference<XURI>> types(1);
+    types.getArray()[0] = xType;
+
+    try
+    {
+        Reference<XURI> xGraphName = xDMA->addMetadataFile(OU("imathoptions.rdf"), types);
+        return xDMA->getRDFRepository()->getGraph(xGraphName);
+    }
+    catch (ElementExistException e)
+    { // filename exists?
+    }
+
+    throw std::runtime_error("Internal error: RDF graph already exists");
+}
+
+Reference<XNamedGraph> getGraph(const Reference<XComponentContext>& mxCC,
+                                const Reference<XModel>& xModel)
+{
+    Reference<XDocumentMetadataAccess> xDMA(xModel, UNO_QUERY_THROW);
+    Reference<XURI> xType
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/options/v1.0"));
+    Sequence<Reference<XURI>> graphNames = xDMA->getMetadataGraphsWithType(xType);
+    Reference<XNamedGraph> result;
+
+    if (graphNames.getLength() > 0)
+    {
+        // There should only be one single graph
+        result = xDMA->getRDFRepository()->getGraph(graphNames[0]);
+    }
+
+    return result;
+}
+
+void addStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                  const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                  const OUString& value)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XLiteral> xLit = Literal::create(mxCC, value);
+    Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
+#else
+    Reference<XLiteral> xObj = Literal::create(mxCC, value);
+#endif
+    xGraph->addStatement(docURI, xPredicate, xObj);
+}
+
+void updateStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                     const Reference<XNamedGraph>& xGraph, const OUString& predicate,
+                     const OUString& value)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XLiteral> xLit = Literal::create(mxCC, value);
+    Reference<XNode> xObj(xLit, UNO_QUERY_THROW);
+#else
+    Reference<XLiteral> xObj = Literal::create(mxCC, value);
+#endif
+    xGraph->removeStatements(docURI, xPredicate, NULL);
+    xGraph->addStatement(docURI, xPredicate, xObj);
+}
+
+bool hasStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                  const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+    Reference<XEnumeration> xResult = xGraph->getStatements(
+        docURI, xPredicate, NULL); // All statements must have this document as subject
+
+    return xResult->hasMoreElements();
+}
+
+OUString getStatementString(const Reference<XComponentContext>& mxCC,
+                            const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                            const OUString& predicate)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+    Reference<XEnumeration> xResult = xGraph->getStatements(
+        docURI, xPredicate, NULL); // All statements must have this document as subject
+
+    if (xResult->hasMoreElements())
+    {
+        Any element = xResult->nextElement();
+        Statement stmt;
+        element >>= stmt;
+        Reference<XLiteral> object(stmt.Object, UNO_QUERY_THROW);
+        return object->getValue();
+    }
+    else
+    {
+        return OU("");
+    }
+}
+
+sal_Bool getStatementBool(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                          const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+    return getStatementString(mxCC, xModel, xGraph, predicate) == OU("true");
+}
+sal_uInt32 getStatementPosInt(const Reference<XComponentContext>& mxCC,
+                              const Reference<XModel>& xModel, const Reference<XNamedGraph>& xGraph,
+                              const OUString& predicate)
+{
+    return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
+}
+sal_Int32 getStatementInt(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                          const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+    return std::lround(getStatementString(mxCC, xModel, xGraph, predicate).toDouble());
+}
+
+void removeStatement(const Reference<XComponentContext>& mxCC, const Reference<XModel>& xModel,
+                     const Reference<XNamedGraph>& xGraph, const OUString& predicate)
+{
+#if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7)                  \
+    || (OO_IS_AOO == 1)
+    Reference<XResource> docURI(xModel, UNO_QUERY_THROW);
+#else
+    Reference<XURI> docURI(xModel, UNO_QUERY_THROW);
+#endif
+    Reference<XURI> xPredicate
+        = URI::create(mxCC, OU("http://jan.rheinlaender.gmx.de/imath/predicates/") + predicate);
+    xGraph->removeStatements(docURI, xPredicate, NULL);
+}
+
+OUString getPackageLocation(const Reference<XComponentContext>& mxContext, const OUString& id)
+{
+    Reference<XPackageInformationProvider> xInfoProvider(
+        com::sun::star::deployment::PackageInformationProvider::get(mxContext));
+    return xInfoProvider->getPackageLocation(id);
+}
+
+std::string trimstring(const std::string& s)
+{
+    std::string result = s;
+
+    size_t endpos = result.find_last_not_of(" \t");
+    if (std::string::npos != endpos)
+        result = result.substr(0, endpos + 1);
+
+    size_t startpos = result.find_first_not_of(" \t");
+    if (std::string::npos != startpos)
+        result = result.substr(startpos);
+
+    return result;
+}
+
+OUString replaceString(const OUString& str, const OUString& substr, const OUString& repl)
+{
+    int idx = 0;
+    int lastidx = 0;
+    OUString result(OU(""));
+
+    while (idx < str.getLength())
+    {
+        lastidx = idx;
+        idx = str.indexOf(substr, lastidx);
+        if (idx < 0)
+        {
+            return result + str.copy(lastidx);
+        }
+        else
+        {
+            result = result + str.copy(lastidx, idx - lastidx) + repl;
+            idx = idx + substr.getLength();
+        }
+    }
+
+    return result; // This is never reached, but pacifies the compiler
+}
+
+std::list<OUString> splitString(const OUString& str, const sal_Unicode boundary,
+                                const sal_Bool trim)
+{
+    std::list<OUString> result;
+    sal_Int32 idx = 0;
+
+    do
+    {
+        OUString token = str.getToken(0, boundary, idx);
+        if (trim)
+            token = token.trim();
+        if (!token.isEmpty())
+            result.emplace_back(token);
+    } while (idx >= 0);
+
+    return result;
+}
+
+OUString getLocaleName(const Reference<XComponentContext>& mxCC)
+{
+    Reference<XHierarchicalPropertySet> xProperties
+        = getRegistryAccess(mxCC, OU("/org.openoffice.Setup/L10N"));
+    Any aLocale = xProperties->getHierarchicalPropertyValue(OU("ooLocale")); // UI language
+    OUString ooLocale;
+    aLocale >>= ooLocale;
+    aLocale = xProperties->getHierarchicalPropertyValue(
+        OU("ooSetupSystemLocale")); // Locale set by user (might be empty)
+    OUString ooSSLocale;
+    aLocale >>= ooSSLocale;
+    return (ooSSLocale == OU("") ? ooLocale : ooSSLocale);
+    // Note: There is also "DecimalSeparatorAsLocale" with the following description in Setup.xcs:
+    //      Indicates that the decimal separator (dot or commma) is used as appropriate for the selected locale instead of the one related to the default keyboard layout
+} // getLocaleName()
+
+bool hasEnclosingBrackets(const OUString& arg)
+{
+    if (arg.matchAsciiL("(", 1, 0) && arg.endsWithAsciiL(")", 1))
+    {
+        if (arg.getLength() == 3)
+            return true; // single letter or digit
+
+        // Check for enclosing brackets at start and end of string
+        int blevel = 1; // bracket level
+        int startpos = 1;
+        int bopenpos = arg.indexOfAsciiL("(", 1, startpos); // Could be -1 (not found)
+        int bclosepos = arg.indexOfAsciiL(")", 1, startpos); // Could be -1 (not found)
+        int bpos;
+        if (bopenpos < 0)
+            bpos = bclosepos;
+        else if (bclosepos < 0)
+            bpos = bopenpos;
+        else
+            bpos = std::min(bopenpos, bclosepos);
+        bool hasBrackets = false;
+
+        while (bpos > 0)
+        {
+            if (bpos == bopenpos)
+                blevel++;
+            else
+                blevel--;
+            if (blevel == 0)
+            {
+                hasBrackets
+                    = (bpos
+                       == arg.getLength()
+                              - 1); // Bracket level zero and closing bracket is last character of string
+                break;
+            }
+            startpos = bpos + 1;
+            bopenpos = arg.indexOfAsciiL("(", 1, startpos);
+            bclosepos = arg.indexOfAsciiL(")", 1, startpos);
+            if (bopenpos < 0)
+                bpos = bclosepos;
+            else if (bclosepos < 0)
+                bpos = bopenpos;
+            else
+                bpos = std::min(bopenpos, bclosepos);
+        }
+
+        return hasBrackets;
+    }
+
+    return false;
+}
+
+OUString makeSymbolString(const std::set<GiNaC::expression, GiNaC::expr_is_less>& symbols)
+{
+    Reference<XTextTablesSupplier> xTSupplier(xDoc, UNO_QUERY_THROW);
+    Reference<XNameAccess> xTextTables = xTSupplier->getTextTables();
+
+    if (xTextTables->hasByName(tableName))
+    {
+        Any aTextTable = xTextTables->getByName(tableName);
+        Reference<XTextTable> xTextTable;
+        aTextTable >>= xTextTable;
+        Reference<XCell> xCell(xTextTable->getCellByName(tableCellName), UNO_QUERY);
+        if (xCell.is())
+            return xCell;
+        else
+            throw std::runtime_error("Referenced cell '" + STR(tableCellName) + "' does not exist");
+    }
+    else
+    {
+        throw std::runtime_error("Referenced table '" + STR(tableName) + "' does not exist");
+    }
+}
+
+expression getCellExpression(const Reference<XCell>& xCell)
+{
+    if (xCell.is())
+    {
+        if ((xCell->getType() == com::sun::star::table::CellContentType_VALUE)
+            || ((xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
+                && (xCell->getError() == 0)))
+        {
+            double val = xCell->getValue();
+            if (std::floor(val) - val == 0)
+                return dynallocate<numeric>(std::floor(val));
+            else
+                return dynallocate<numeric>(val);
+        }
+        else if (xCell->getType() == com::sun::star::table::CellContentType_FORMULA)
+        {
+            return dynallocate<stringex>(STR(xCell->getFormula()));
+        }
+        else if (xCell->getType() == com::sun::star::table::CellContentType_TEXT)
+        {
+            Reference<XText> xCellText(xCell, UNO_QUERY);
+            if (xCellText.is())
+                return dynallocate<stringex>(STR(xCellText->getString()));
+        }
+    }
+
+    return dynallocate<stringex>("");
+}
+
+void setCellString(const Reference<XCell>& xCell, const OUString& value)
+{
+    if (xCell.is())
+    {
+        if (value.trim()[0] == '=')
+        {
+            xCell->setFormula(value);
+        }
+        else
+        {
+            Reference<XText> xCellText(xCell, UNO_QUERY);
+            if (xCellText.is())
+                xCellText->setString(value);
+        }
+    }
+}
+
+void setCellDouble(const Reference<XCell>& xCell, const double value)
+{
+    if (xCell.is())
+        xCell->setValue(value);
+}
+
+void setCellExpression(const Reference<XCell>& xCell, const expression& value)
+{
+    if (xCell.is())
+    {
+        if (is_a<stringex>(value))
+        {
+            // This avoids quotation marks around the string
+            setCellString(xCell, OUS8(ex_to<stringex>(value).get_string()));
+        }
+        else
+        {
+            if (is_a<numeric>(value) && ex_to<numeric>(value).info(info_flags::real))
+            {
+                setCellDouble(xCell, ex_to<numeric>(value).to_double());
+            }
+            else
+            {
+                std::ostringstream os;
+                os << value;
+                setCellString(xCell, OUS8(os.str()));
+            }
+        }
+    }
+}
+
+void setTableCell(const Reference<XModel>& xDocumentModel, const OUString& tableName,
+                  const OUString& tableCellName, const GiNaC::expression& value)
+{
+    // Note: LO6 crashes when a table cell is changed during a pasting operation
+    Reference<XTextDocument> xDoc(
+        xDocumentModel, UNO_QUERY_THROW); // This must be checked before calling the method
+    Reference<XCell> xCell = getTableCell(xDoc, tableName, tableCellName.toAsciiUpperCase());
+    setCellExpression(xCell, value);
+}
+
+expression calcCellRangeContent(const Reference<XComponentContext>& xContext,
+                                const OUString& calcURL, const OUString& sheetName,
+                                const OUString& cellRange)
+{
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XDesktop> xDesktop(
+        xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
+        UNO_QUERY_THROW);
+    Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
+    bool docIsLoaded = docModel.is();
+    if (!docIsLoaded)
+        docModel = loadDocument(xDesktop, calcURL, true);
+
+    Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
+    Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
+    expression result = getCalcRangeExpression(xColumnRowRange);
+
+    if (!docIsLoaded)
+    {
+        Reference<XCloseable> xClose(xCalcDoc, UNO_QUERY_THROW);
+        xClose->close(true);
+    }
+
+    return result;
+}
+
+void setCalcCellRange(const Reference<XComponentContext>& xContext, const OUString& calcURL,
+                      const OUString& sheetName, const OUString& cellRange, const ex& value)
+{
+    Reference<XMultiComponentFactory> xMCF = xContext->getServiceManager();
+    Reference<XDesktop> xDesktop(
+        xMCF->createInstanceWithContext(OU("com.sun.star.frame.Desktop"), xContext),
+        UNO_QUERY_THROW);
+    Reference<XModel> docModel = checkDocumentLoaded(xDesktop, calcURL);
+    bool docIsLoaded = docModel.is();
+    if (!docIsLoaded)
+        docModel = loadDocument(xDesktop, calcURL, false);
+
+    Reference<XSpreadsheetDocument> xCalcDoc(docModel, UNO_QUERY_THROW);
+    Reference<XColumnRowRange> xColumnRowRange = getCalcCellRange(xCalcDoc, sheetName, cellRange);
+    setCalcCellRangeExpression(xColumnRowRange, value);
+
     for (; fp != fileParts.end() && pp != progParts.end(); ++fp, ++pp)
     {
         sal_Int32 num_file = fp->toInt32();

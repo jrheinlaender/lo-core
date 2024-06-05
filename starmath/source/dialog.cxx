@@ -2196,6 +2196,7 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     , mxInhibitunderflow(m_xBuilder->weld_check_button("inhibitunderflow"))
     , mxAllowimplicit   (m_xBuilder->weld_check_button("allowimplicit"))
     , mxEvalrealroots   (m_xBuilder->weld_check_button("evalrealroots"))
+    , mxAlgebraic       (m_xBuilder->weld_check_button("algebraic"))
 
     , mxDiffline(m_xBuilder->weld_radio_button("diff_line"))
     , mxDiffdot (m_xBuilder->weld_radio_button("diff_dot"))
@@ -2277,6 +2278,14 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     mxInhibitunderflow->set_active(mpLine->getOption(o_underflow).value.boolean);
     mxAllowimplicit->set_active   (mpLine->getOption(o_implicitmul).value.boolean);
     mxEvalrealroots->set_active   (mpLine->getOption(o_evalf_real_roots).value.boolean);
+    mxAlgebraic->set_visible(false);
+    if (typeid(*mpLine) == typeid(iFormulaNodePrintval))
+    {
+        auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(mpLine);
+        mxAlgebraic->set_visible(true);
+        mxAlgebraic->set_active(line->isAlgebraic());
+    }
+    mxAlgebraic->connect_toggled       (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
 
     mxDiffline->set_active(*mpLine->getOption(o_difftype).value.str == "line");
     mxDiffdot->set_active (*mpLine->getOption(o_difftype).value.str == "dot");
@@ -2322,6 +2331,11 @@ IMPL_LINK(ImGuiOptionsDialog, CheckBoxClickHdl, weld::Toggleable&, rCheckBox, vo
         mpLine->setOption(o_implicitmul, !rCheckBox.get_active());
     else if (&rCheckBox == mxEvalrealroots.get())
         mpLine->setOption(o_evalf_real_roots, !rCheckBox.get_active());
+    else if (&rCheckBox == mxAlgebraic.get())
+    {
+        auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(mpLine);
+        line->setAlgebraic(rCheckBox.get_active());
+    }
     else if (&rCheckBox == mxEchoformula.get())
         mpLine->setOption(o_echoformula, !rCheckBox.get_active());
 

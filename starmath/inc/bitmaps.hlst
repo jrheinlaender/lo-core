@@ -22,5 +22,6 @@ inline constexpr OUStringLiteral BMP_IMGUI_SHOWLABEL = u"starmath/res/sc_imathed
 inline constexpr OUStringLiteral BMP_IMGUI_HIDELABEL = u"starmath/res/sc_imathedithide.png";
 inline constexpr OUStringLiteral BMP_IMGUI_MINUS = u"starmath/res/sc_imathminus.png";
 inline constexpr OUStringLiteral BMP_IMGUI_PLUS = u"starmath/res/sc_imathplus.png";
+inline constexpr OUStringLiteral BMP_IMGUI_INSERT_CHILD = u"cmd/sc_arrowshapes.corner-left-arrow.png";
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab cinoptions=b1,g0,N-s cinkeys+=0=break: */

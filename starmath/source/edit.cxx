@@ -230,8 +230,9 @@ ImEditWindow::~ImEditWindow() COVERITY_NOEXCEPT_FALSE
 #define IMGUIWINDOW_COL_LABEL_HIDE 5
 #define IMGUIWINDOW_COL_TYPE 6
 #define IMGUIWINDOW_COL_FORMULA 7
-#define IMGUIWINDOW_COL_ERRMSG 8
-#define IMGUIWINDOW_COL_LAST 9
+#define IMGUIWINDOW_COL_CHILD 8
+#define IMGUIWINDOW_COL_ERRMSG 9
+#define IMGUIWINDOW_COL_LAST 10
 
 ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     : rCmdBox(rMyCmdBoxWin)
@@ -270,7 +271,7 @@ namespace
 {
     static const std::vector<std::type_index> nodesWithHide = {
         typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
-        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval), typeid(iFormulaNodePrintval)
+        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval)
     };
     static const std::vector<std::type_index> nodesWithoutFormula = {
         typeid(iFormulaNodeStmClearall), typeid(iFormulaNodeStmReadfile), typeid(iFormulaNodeStmOptions), typeid(iFormulaNodeStmDelete)
@@ -303,8 +304,9 @@ void ImGuiWindow::ResetModel()
     mxFormulaList->clear();
 
     int lineCount = 0;
+    std::vector<std::type_index> nodesWithLabel = {
         typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
-        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval), typeid(iFormulaNodePrintval)
+        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval)
     };
 
     for (const auto& fLine : pDoc->GetFormulaLines())
@@ -327,6 +329,7 @@ void ImGuiWindow::ResetModel()
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
+        mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_CHILD);
         mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row. Note: Column number is hard-coded in .ui file
 
         // Generic settings
@@ -340,7 +343,7 @@ void ImGuiWindow::ResetModel()
             auto expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
             mxFormulaList->set_image(*xIter, expr->getHide() ? OUString(BMP_IMGUI_HIDE) : OUString(BMP_IMGUI_SHOW), IMGUIWINDOW_COL_HIDE);
         }
-        if (fLine->isExpression())
+        if (std::find(nodesWithLabel.begin(), nodesWithLabel.end(), typeid(*fLine)) != nodesWithLabel.end())
         {
             auto expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(fLine);
             mxFormulaList->set_text(*xIter, expr->getLabel(), IMGUIWINDOW_COL_LABEL);
@@ -350,7 +353,14 @@ void ImGuiWindow::ResetModel()
         }
         if (fLine->canHaveOptions())
         {
-            mxFormulaList->set_image(*xIter, fLine->hasOptions() ? OUString(BMP_IMGUI_OPTIONS_LOCAL) : OUString(BMP_IMGUI_OPTIONS), IMGUIWINDOW_COL_OPTIONS);
+            bool hasOptions = fLine->hasOptions();
+            if (!hasOptions && typeid(*fLine) == typeid(iFormulaNodePrintval))
+            {
+                auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(fLine);
+                hasOptions = line->isAlgebraic();
+            }
+            mxFormulaList->set_image(*xIter, hasOptions ? OUString(BMP_IMGUI_OPTIONS_LOCAL) : OUString(BMP_IMGUI_OPTIONS), IMGUIWINDOW_COL_OPTIONS);
+        }
 
         // Settings for specific formula types
         if (typeid(*fLine) == typeid(iFormulaNodeStmReadfile))
@@ -379,6 +389,27 @@ void ImGuiWindow::ResetModel()
                 labels = "";
             mxFormulaList->set_text(*xIter, labels , IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
+        }
+        else if (typeid(*fLine) == typeid(iFormulaNodePrintval))
+        {
+            mxFormulaList->set_text(*xIter, "PRINTVAL", IMGUIWINDOW_COL_TYPE);
+            auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(fLine);
+            mxFormulaList->set_text(*xIter, line->getExpression(), IMGUIWINDOW_COL_FORMULA);
+
+            auto withEquationList = line->getWithEquationList();
+            mxFormulaList->set_image(*xIter, withEquationList.empty() ? BMP_IMGUI_INSERT_CHILD : OUString(""), IMGUIWINDOW_COL_CHILD);
+
+            for (const auto& withEquation : withEquationList)
+            {
+                auto xChild = mxFormulaList->make_iterator();
+                mxFormulaList->insert(xIter.get(), -1, &withEquation, nullptr, nullptr, nullptr, false, xChild.get());
+                mxFormulaList->set_image(*xChild, BMP_IMGUI_INSERT_BEFORE, IMGUIWINDOW_COL_INSERT_BEFORE);
+                mxFormulaList->set_image(*xChild, BMP_IMGUI_DELETE, IMGUIWINDOW_COL_DELETE);
+                mxFormulaList->set_text(*xChild, "", IMGUIWINDOW_COL_LABEL);
+                mxFormulaList->set_text(*xChild, "with", IMGUIWINDOW_COL_TYPE);
+                mxFormulaList->set_text(*xChild, withEquation, IMGUIWINDOW_COL_FORMULA);
+                mxFormulaList->set_sensitive(*xChild, true, IMGUIWINDOW_COL_FORMULA);
+            }
         }
         }
         {
@@ -447,13 +478,61 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     {
         case IMGUIWINDOW_COL_INSERT_BEFORE:
         {
-            pDoc->insertFormulaLineBefore(pLine, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
+            if (typeid(*pLine) == typeid(iFormulaNodePrintval))
+            {
+                auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);
 
+                if (mxFormulaList->iter_parent(*xIter))
+                {
+                    // A WITH line was clicked
+                    std::list<OUString> withEquationList;
+                    withEquationList.push_back("E=m c^2");
+                    mxFormulaList->iter_children(*xIter);
+
+                    do
+                    {
+                        withEquationList.push_back(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA));
+                    }
+                    while (mxFormulaList->iter_next(*xIter));
+
+                    line->setWithEquationList(withEquationList);
+                    pDoc->UpdateGuiText();
+                    // Note: xIter is invalid now
+                    break;
+                }
+            }
+
+            pDoc->insertFormulaLineBefore(pLine, std::make_shared<iFormulaNodeEq>(GiNaC::unitvec(), pLine->getGlobalOptions(), GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false));
             pDoc->UpdateGuiText();
             break;
         }
         case IMGUIWINDOW_COL_DELETE:
         {
+            if (typeid(*pLine) == typeid(iFormulaNodePrintval))
+            {
+                auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);
+                auto xIterWith = mxFormulaList->make_iterator();
+                mxFormulaList->copy_iterator(*xIter, *xIterWith);
+
+                if (mxFormulaList->iter_parent(*xIterWith))
+                {
+                    // A WITH line was clicked
+                    std::list<OUString> withEquationList;
+                    mxFormulaList->iter_children(*xIterWith);
+
+                    do
+                    {
+                        if (mxFormulaList->iter_compare(*xIter, *xIterWith) != 0)
+                            withEquationList.push_back(mxFormulaList->get_text(*xIterWith, IMGUIWINDOW_COL_FORMULA));
+                    }
+                    while (mxFormulaList->iter_next(*xIterWith));
+
+                    line->setWithEquationList(withEquationList);
+                    pDoc->UpdateGuiText();
+                    break;
+                }
+            }
+
             pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
             break;
         }
@@ -530,6 +609,19 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             mEditedColumn = mClickedColumn;
             break;
         }
+        case IMGUIWINDOW_COL_CHILD:
+        {
+            if (typeid(*pLine) == typeid(iFormulaNodePrintval))
+            {
+                auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);
+                if (line->getWithEquationList().empty())
+                {
+                    line->setWithEquationList({"E=m c^2"});
+                    pDoc->UpdateGuiText();
+                }
+            }
+            break;
+        }
         default:
             return false;
     }
@@ -571,7 +663,6 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 
     if (mEditedColumn >= 0 && mxFormulaList->get_text(rIterString.first, mEditedColumn) == rIterString.second)
         goto finished; // Nothing changed
-
     {
         auto pLine = GetSelectedLine();
         if (pLine == nullptr)
@@ -850,8 +941,35 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
             {
                 if (typeid(*pLine) == typeid(iFormulaNodeStmReadfile))
                     pLine->setFormula("{\"" + rIterString.second + "\"}");
+                else if (typeid(*pLine) == typeid(iFormulaNodePrintval))
+                {
+                    auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);
+                    auto xIter = mxFormulaList->make_iterator();
+                    mxFormulaList->copy_iterator(rIterString.first, *xIter);
+
+                    if (mxFormulaList->iter_parent(*xIter))
+                    {
+                        // A WITH line was edited
+                        std::list<OUString> withEquationList;
+                        mxFormulaList->iter_children(*xIter);
+
+                        do
+                        {
+                            if (mxFormulaList->iter_compare(*xIter, rIterString.first) == 0)
+                                withEquationList.push_back(rIterString.second);
+                            else
+                                withEquationList.push_back(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA));
+                        }
+                        while (mxFormulaList->iter_next(*xIter));
+
+                        line->setWithEquationList(withEquationList);
+                    }
+                    else
+                        line->setExpression(rIterString.second);
+                }
                 else
                     pLine->setFormula(rIterString.second);
+
                 pDoc->UpdateGuiText();
                 break;
             }
@@ -931,7 +1049,16 @@ SmDocShell * ImGuiWindow::GetDoc()
 
 iFormulaLine_ptr ImGuiWindow::GetSelectedLine()
 {
-    auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+    auto iter = mxFormulaList->make_iterator();
+    if (!mxFormulaList->get_selected(iter.get()))
+        return nullptr;
+
+    std::shared_ptr<iFormulaLine>* ppLine;
+    if (mxFormulaList->iter_parent(*iter))
+        ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(*iter));
+    else
+        ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_selected_id());
+
     if (ppLine == nullptr)
         return nullptr; // line not found
     return *ppLine;

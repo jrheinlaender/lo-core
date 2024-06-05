@@ -564,7 +564,34 @@ public:
     virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;
 
     virtual OUString getCommand() const override;
-    virtual formulaType getSelectionType() const override { return formulaTypePrintval; }
+
+    bool isAlgebraic() const { return _algebraic; }
+    OUString getExpression() const { return _with ? _formulaParts[1] : _formulaParts[0]; }
+    std::list<OUString> getWithEquationList() const;
+
+    void setAlgebraic(const bool algebraic) { _algebraic = algebraic; }
+    void setExpression(const OUString& expr);
+    void setWithEquationList(const std::list<OUString>& withEquations);
+
+private:
+    bool _algebraic;
+    bool _with;
+};
+
+class IMATH_DLLPUBLIC iFormulaNodeExplainval : public iFormulaNodeValue
+{
+public:
+    iFormulaNodeExplainval(const GiNaC::unitvec unitConversions,
+                           std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
+                           std::vector<OUString> formulaParts, const OUString& label,
+                           const GiNaC::expression& expr, const bool hide,
+                           const GiNaC::expression& lh, const GiNaC::expression& definition,
+                           GiNaC::exhashmap<GiNaC::ex> symbols);
+    virtual iFormulaLine_ptr clone() const override;
+
+    virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;
+
+    virtual OUString getCommand() const override { return OU("EXPLAINVAL"); }
 
 private:
     bool _algebraic;

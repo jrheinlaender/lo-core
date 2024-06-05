@@ -750,6 +750,34 @@ std::vector<std::vector<OUString>> iFormulaNodePrintval::display(const Reference
   return result;
 }
 
+std::list<OUString> iFormulaNodePrintval::getWithEquationList() const {
+    if (_with)
+        return splitString(_formulaParts[3], ';', true);
+
+    return {};
+}
+
+void iFormulaNodePrintval::setExpression(const OUString& expr) {
+    _formulaParts[_with ? 1 : 0] = expr;
+}
+
+void iFormulaNodePrintval::setWithEquationList(const std::list<OUString>& withEquations) {
+    if (withEquations.empty()) {
+        if (_with)
+            _formulaParts = {_formulaParts[1]};
+        _with = false;
+        return;
+    }
+
+    OUString list = std::accumulate(std::next(withEquations.begin()), withEquations.end(), withEquations.front(), [](OUString a, OUString b) { return OUString(std::move(a) + ";" + b);});
+    if (!_with)
+        _formulaParts = {"{", _formulaParts[0], ",", list, "}"};
+    else
+        _formulaParts[3] = list;
+
+    _with = true;
+}
+
 // Node Explainval
 iFormulaNodeExplainval::iFormulaNodeExplainval(
     GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,

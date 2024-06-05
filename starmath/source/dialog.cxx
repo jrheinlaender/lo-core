@@ -2285,6 +2285,9 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
         mxAlgebraic->set_visible(true);
         mxAlgebraic->set_active(line->isAlgebraic());
     }
+    mxInhibitunderflow->connect_toggled(LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+    mxAllowimplicit->connect_toggled   (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
+    mxEvalrealroots->connect_toggled   (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
     mxAlgebraic->connect_toggled       (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
 
     mxDiffline->set_active(*mpLine->getOption(o_difftype).value.str == "line");

@@ -524,6 +524,7 @@ class ImGuiOptionsDialog final : public weld::GenericDialogController
     std::unique_ptr<weld::CheckButton> mxInhibitunderflow;
     std::unique_ptr<weld::CheckButton> mxAllowimplicit;
     std::unique_ptr<weld::CheckButton> mxEvalrealroots;
+    std::unique_ptr<weld::CheckButton> mxAlgebraic;
 
     std::unique_ptr<weld::RadioButton> mxDiffline;
     std::unique_ptr<weld::RadioButton> mxDiffdot;

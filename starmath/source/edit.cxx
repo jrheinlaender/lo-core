@@ -362,7 +362,7 @@ void ImGuiWindow::ResetModel()
             mxFormulaList->set_image(*xIter, hasOptions ? OUString(BMP_IMGUI_OPTIONS_LOCAL) : OUString(BMP_IMGUI_OPTIONS), IMGUIWINDOW_COL_OPTIONS);
         }
 
-        // Settings for specific formula types
+        // Extra settings for specific formula types
         if (typeid(*fLine) == typeid(iFormulaNodeStmReadfile))
         {
             // Remove surrounding curly braces and quotes TODO Remove braces from the grammar, they are unnecessary
@@ -387,7 +387,7 @@ void ImGuiWindow::ResetModel()
                 labels = labels.copy(1, labels.getLength() - 2);
             else
                 labels = "";
-            mxFormulaList->set_text(*xIter, labels , IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, labels, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
         }
         else if (typeid(*fLine) == typeid(iFormulaNodePrintval))

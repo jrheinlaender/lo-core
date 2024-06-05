@@ -248,7 +248,7 @@ SmFace & operator *= (SmFace &rFace, const Fraction &rFrac)
 // Note: The mouse event coordinates are relative to the treeview
 bool getClickedCell(std::unique_ptr<weld::TreeView>& treeview, const MouseEvent& rMEvt, weld::TreeIter& rIter, int& column, const int lastColumn) {
     Point mousePos = rMEvt.GetPosPixel();
-    column = 0;
+    column = -1;
     bool found = false;
 
     if (treeview->get_iter_first(rIter))
@@ -264,7 +264,7 @@ bool getClickedCell(std::unique_ptr<weld::TreeView>& treeview, const MouseEvent&
         return false;
     SAL_INFO_LEVEL(1, "starmath.imath", "Mouse click(s) detected in row " << treeview->get_text(rIter));
 
-    for (int col = 0; col <= lastColumn; ++col)
+    for (int col = -1; col <= lastColumn; ++col)
     {
         tools::Rectangle cellArea = treeview->get_cell_area(rIter, col);
         if (cellArea.Contains(mousePos))

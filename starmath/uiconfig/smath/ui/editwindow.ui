@@ -20,6 +20,8 @@
       <column type="gchararray"/>
       <!-- column-name Formula -->
       <column type="gchararray"/>
+      <!-- column-name Child -->
+      <column type="GdkPixbuf"/>
       <!-- column-name Errormessage -->
       <column type="gchararray"/>
       <!-- column-name id -->
@@ -207,7 +209,7 @@
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="model">liststore_formulalines</property>
-                <property name="tooltip-column">8</property>
+                <property name="tooltip-column">9</property>
                 <child internal-child="selection">
                   <object class="GtkTreeSelection" id="Macro Library List-selection2"/>
                 </child>
@@ -263,9 +265,9 @@
                         <property name="editable">True</property>
                       </object>
                       <attributes>
-                        <attribute name="sensitive">14</attribute>
+                        <attribute name="sensitive">15</attribute>
                         <attribute name="text">4</attribute>
-                        <attribute name="weight">10</attribute>
+                        <attribute name="weight">11</attribute>
                       </attributes>
                     </child>
                   </object>
@@ -297,9 +299,9 @@
                         <property name="text-column">1</property>
                       </object>
                       <attributes>
-                        <attribute name="sensitive">15</attribute>
+                        <attribute name="sensitive">16</attribute>
                         <attribute name="text">6</attribute>
-                        <attribute name="weight">11</attribute>
+                        <attribute name="weight">12</attribute>
                       </attributes>
                     </child>
                   </object>
@@ -314,9 +316,19 @@
                         <property name="editable">True</property>
                       </object>
                       <attributes>
-                        <attribute name="sensitive">16</attribute>
+                        <attribute name="sensitive">17</attribute>
                         <attribute name="markup">7</attribute>
-                        <attribute name="weight">12</attribute>
+                        <attribute name="weight">13</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_child">
+                    <child>
+                      <object class="GtkCellRendererPixbuf" id="img_child"/>
+                      <attributes>
+                        <attribute name="pixbuf">8</attribute>
                       </attributes>
                     </child>
                   </object>
@@ -328,9 +340,9 @@
                     <child>
                       <object class="GtkCellRendererText" id="errmsg"/>
                       <attributes>
-                        <attribute name="sensitive">17</attribute>
-                        <attribute name="text">8</attribute>
-                        <attribute name="weight">13</attribute>
+                        <attribute name="sensitive">18</attribute>
+                        <attribute name="text">9</attribute>
+                        <attribute name="weight">14</attribute>
                       </attributes>
                     </child>
                   </object>

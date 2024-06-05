@@ -739,363 +739,639 @@ OUString iFormulaNodeText::printFormula() const
 
 std::vector<std::vector<OUString>> iFormulaNodeText::display(const Reference<XModel>&) const
 {
+    in = collectSymbols(_expr);
+}
+
+std::vector<std::vector<OUString>> iFormulaNodeEx::display(const Reference<XModel>&) const
+{
+    if (error == no_error && _hide)
+        return {};
+
+    OUString what
+        = (autoformat_required() ? printEx(_expr) : // autoformat
+               printFormula()); // preserve user formatting changing decimal separator according to locale
+
+    switch (error)
+    {
+        case label_error:
+            return { { "newline " },
+                     { "{}bold color red{(\"" + _formulaParts[1] + "\")}{}" + what, "{}newline " },
+                     { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
+        case no_error:
+            return { { "{alignl " + what + "}" } };
+        default:
+            return iFormulaLine::display();
+    }
+}
+
+// Node Value
+iFormulaNodeValue::iFormulaNodeValue(GiNaC::unitvec unitConversions,
+                                     std::shared_ptr<optionmap> g_options, optionmap l_options,
+                                     std::vector<OUString> formulaParts, const OUString& label,
+                                     const expression& expr, const bool hide, const expression& lh)
+    : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options),
+                             std::move(formulaParts), label, expr, hide)
+    , _lh(lh)
+{
+    in = collectSymbols(_lh);
+}
+
+iFormulaLine_ptr iFormulaNodeValue::clone() const
+{
+    return std::make_shared<iFormulaNodeValue>(*this);
+}
+
+// Node Printval
+iFormulaNodePrintval::iFormulaNodePrintval(GiNaC::unitvec unitConversions,
+                                           std::shared_ptr<optionmap> g_options,
+                                           optionmap l_options, std::vector<OUString> formulaParts,
+                                           const OUString& label, const expression& expr,
+                                           const bool hide, const expression& lh,
+                                           const bool algebraic, const bool with)
+    : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options),
+                        std::move(formulaParts), label, expr, hide, lh)
+    , _algebraic(algebraic)
+    , _with(with)
+{
+}
+
+iFormulaLine_ptr iFormulaNodePrintval::clone() const
+{
+    return std::make_shared<iFormulaNodePrintval>(*this);
+}
+
+OUString iFormulaNodePrintval::getCommand() const
+{
+    return OU("PRINT") + (_algebraic ? OU("AVAL") : OU("VAL")) + (_with ? OU("WITH") : OU(""));
+}
+
+std::vector<std::vector<OUString>> iFormulaNodePrintval::display(const Reference<XModel>&) const
+{
     if (error != no_error)
         return iFormulaLine::display();
 
     std::vector<std::vector<OUString>> result;
-    if (_textlist.empty())
-        return result;
-
     std::vector<OUString> line;
-    OUString text("");
 
-    for (const auto& textPortion : _textlist)
+    OUString what
+        = (autoformat_required() ? printEx(_lh)
+                                 : adjustLocale(replaceString(_formulaParts[(_with ? 1 : 0)],
+                                                              OU("\n%%ii+"), OU(""))));
+    line.emplace_back(OU("{alignr ") + what + OU("}"));
+    line.emplace_back(OU("{}={}"));
+    line.emplace_back(OU("{alignl ") + printEx(_expr)
+                      + OU("}")); // The RHS is always calculated and therefore auto-formatted
+
+    result.emplace_back(line);
+    return result;
+}
+
+std::list<OUString> iFormulaNodePrintval::getWithEquationList() const
+{
+    if (_with)
+        return splitString(_formulaParts[3], ';', true);
+
+    return {};
+}
+
+void iFormulaNodePrintval::setExpression(const OUString& expr)
+{
+    _formulaParts[_with ? 1 : 0] = expr;
+}
+
+void iFormulaNodePrintval::setWithEquationList(const std::list<OUString>& withEquations)
+{
+    if (withEquations.empty())
     {
-        if (textPortion->isNewline())
-        {
-            text += OU(" newline");
-            line.emplace_back(text);
-            result.emplace_back(line);
-            line = std::vector<OUString>();
-            text = OU("");
-        }
-        else if (textPortion->isOperator())
-        {
-            // Operators go in a column by themselves
-            if (text.getLength() > 0)
-                line.emplace_back(text);
-            line.emplace_back(
-                OU("{}") + textPortion->getText().toAsciiUpperCase()
-                + OU("{}")); // The two empty bracket pairs are required when aligning operators in a matrix
-            text = OU("");
-        }
-        else if (textPortion->isExpression())
-        {
-            // Expressions and equations go in 1 or 3 columns by themselves
-            if (text.getLength() > 0)
-                line.emplace_back(text);
-
-            if (is_a<equation>(textPortion->getExpression()))
-            {
-                equation eq = ex_to<equation>(textPortion->getExpression());
-                line.emplace_back(OU("{alignr ") + printEx(eq.lhs()) + OU("}"));
-                line.emplace_back(OU("{}")
-                                  + OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim()
-                                  + OU("{}"));
-                line.emplace_back(OU("{alignl ") + printEx(eq.rhs()) + OU("}"));
-                text = OU("");
-            }
-            else
-            {
-                line.emplace_back(printEx(textPortion->getExpression()));
-                text = OU("");
-            }
-        }
-        else
-        {
-            // Append to previous text
-            text += textPortion->getText();
-        }
-
-        // Clean up remainders
-        if (!text.isEmpty())
-            line.emplace_back(text);
-        if (!line.empty())
-            result.emplace_back(line);
-
-        return result;
+        if (_with)
+            _formulaParts = { _formulaParts[1] };
+        _with = false;
+        return;
     }
 
-    void iFormulaNodeText::markError(const OUString& compiledText, const int formulaStart,
-                                     const int errorStart, const int errorEnd,
-                                     const OUString& errorMessage)
+    OUString list = std::accumulate(
+        std::next(withEquations.begin()), withEquations.end(), withEquations.front(),
+        [](OUString a, OUString b) { return OUString(std::move(a) + ";" + b); });
+    if (!_with)
+        _formulaParts = { "{", _formulaParts[0], ",", list, "}" };
+    else
+        _formulaParts[3] = list;
+
+    _with = true;
+}
+
+// Node Explainval
+iFormulaNodeExplainval::iFormulaNodeExplainval(
+    GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
+    std::vector<OUString> formulaParts, const OUString& label, const expression& expr,
+    const bool hide, const expression& lh, const expression& definition, exhashmap<ex> symbols)
+    : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options),
+                        std::move(formulaParts), label, expr, hide, lh)
+    , _definition(definition)
+    , _symbols(std::move(symbols))
+{
+}
+
+iFormulaLine_ptr iFormulaNodeExplainval::clone() const
+{
+    return std::make_shared<iFormulaNodeExplainval>(*this);
+}
+
+std::vector<std::vector<OUString>> iFormulaNodeExplainval::display(const Reference<XModel>&) const
+{
+    if (error != no_error)
+        return iFormulaLine::display();
+
+    std::vector<std::vector<OUString>> result;
+    std::vector<OUString> line;
+
+    OUString lhs = (autoformat_required()
+                        ? printEx(_lh)
+                        : adjustLocale(replaceString(_formulaParts[0], OU("\n%%ii+"), OU(""))));
+    OUString rhs = printEx(_expr); // The RHS is always calculated and therefore auto-formatted
+
+    // Prepare the definition string
+    exmap variables; // Cannot use exhashmap because subs() doesn't accept it
+    std::map<std::string, std::string> replacements;
+    for (const auto& s : _symbols)
     {
-        iFormulaLine::markError(compiledText, formulaStart, errorStart, errorEnd, errorMessage);
-        for (size_t i = 0; i < 3; ++i)
-            _formulaParts[i]
-                = OUS8(std::regex_replace(STR(_formulaParts[i]), std::regex("_ii_"),
-                                          "\"_ii_\"")); // Underscore is starmath subscript token
+        std::string newsym = "@@" + ex_to<symbol>(s.first).get_name() + "@@";
+        variables.emplace(s.first, symbol(newsym));
+        replacements.emplace(newsym, "(" + STR(printEx(s.second)) + ")");
+    }
+    std::string defstring = STR(printEx(_definition.subs(variables)));
+    for (const auto& r : replacements)
+        defstring = std::regex_replace(defstring, std::regex(r.first), r.second);
+
+    // Display
+    if (_hide)
+    {
+        line.emplace_back(OU("{alignr ") + OUS8(defstring) + OU("}"));
+        line.emplace_back(OU("{}={}"));
+        line.emplace_back(OU("{alignl ") + rhs + OU("}"));
+    }
+    else if (_definition.is_equal(_lh))
+    {
+        line.emplace_back(OU("{alignr ") + lhs + OU("}"));
+        line.emplace_back(OU("{}={}"));
+        line.emplace_back(OUS8(defstring));
+        line.emplace_back(OU("{}={}"));
+        line.emplace_back(OU("{alignl ") + rhs + OU("}"));
+    }
+    else
+    {
+        line.emplace_back(OU("{alignr ") + lhs + OU("}"));
+        line.emplace_back(OU("{}={}"));
+        line.emplace_back(printEx(_definition));
+        line.emplace_back(OU("{}={}"));
+        line.emplace_back(OUS8(defstring));
+        line.emplace_back(OU("{}={}"));
+        line.emplace_back(OU("{alignl ") + rhs + OU("}"));
     }
 
-    // Node Ex
-    iFormulaNodeEx::iFormulaNodeEx(GiNaC::unitvec unitConversions,
-                                   std::shared_ptr<optionmap> g_options, optionmap l_options,
-                                   std::vector<OUString> formulaParts, const OUString& label,
-                                   const expression& expr, const bool hide)
-        : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options),
-                                 std::move(formulaParts), label, expr, hide)
+    result.emplace_back(line);
+    return result;
+}
+
+// Node Eq
+iFormulaNodeEq::iFormulaNodeEq(GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                               optionmap l_options, std::vector<OUString> formulaParts,
+                               const OUString& label, const expression& expr, const bool hide)
+    : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options),
+                             std::move(formulaParts), label, expr, hide)
+{
+    ex lhs = ex_to<equation>(_expr).lhs();
+    ex rhs = ex_to<equation>(_expr).rhs();
+    if (is_a<symbol>(lhs) || is_a<func>(lhs))
     {
-        in = collectSymbols(_expr);
+        in = collectSymbols(rhs);
+        out = { lhs };
+    }
+    else if (is_a<symbol>(rhs) || is_a<func>(rhs))
+    {
+        in = collectSymbols(lhs);
+        out = { rhs };
+    }
+    else
+    {
+        in = collectSymbols(lhs);
+        auto in2 = collectSymbols(rhs);
+        in.insert(in2.begin(), in2.end());
+        // out = in; // But we should give priority to direct assignments to a single symbol
+    }
+}
+
+OUString iFormulaNodeEq::print() const
+{
+    return OU("%%ii @") + _label + OU("@ ") + printOptions() + getCommand()
+           + (_hide ? OU("* ") : OU(" ")) + getFormula();
+}
+
+std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XModel>&) const
+{
+    if (error == no_error && _hide)
+        return {};
+
+    const equation& eq = ex_to<equation>(_expr);
+    OUString oper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim();
+    OUString lhs;
+    OUString rhs;
+
+    if (autoformat_required())
+    {
+        lhs = printEx(eq.lhs());
+        rhs = printEx(eq.rhs());
+    }
+    else
+    {
+        OUString textEq = printFormula();
+        int alignpos = textEq.toAsciiUpperCase().indexOf(
+            oper); // TODO: Formulas with operator signs within stringEx might bring confusion
+        lhs = textEq.copy(0, alignpos).trim();
+        rhs = textEq.copy(alignpos + oper.getLength()).trim();
     }
 
-    std::vector<std::vector<OUString>> iFormulaNodeEx::display(const Reference<XModel>&) const
+    switch (error)
     {
-        if (error == no_error && _hide)
-            return {};
-
-        OUString what
-            = (autoformat_required() ? printEx(_expr) : // autoformat
-                   printFormula()); // preserve user formatting changing decimal separator according to locale
-
-        switch (error)
-        {
-            case label_error:
-                return { { "newline " },
-                         { "{}bold color red{(\"" + _formulaParts[1] + "\")}{}" + what,
-                           "{}newline " },
-                         { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
-            case no_error:
-                return { { "{alignl " + what + "}" } };
-            default:
-                return iFormulaLine::display();
-        }
-    }
-
-    // Node Value
-    iFormulaNodeValue::iFormulaNodeValue(
-        GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
-        std::vector<OUString> formulaParts, const OUString& label, const expression& expr,
-        const bool hide, const expression& lh)
-        : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options),
-                                 std::move(formulaParts), label, expr, hide)
-        , _lh(lh)
-    {
-        in = collectSymbols(_lh);
-    }
-
-    iFormulaLine_ptr iFormulaNodeValue::clone() const
-    {
-        return std::make_shared<iFormulaNodeValue>(*this);
-    }
-
-    // Node Printval
-    iFormulaNodePrintval::iFormulaNodePrintval(
-        GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
-        std::vector<OUString> formulaParts, const OUString& label, const expression& expr,
-        const bool hide, const expression& lh, const bool algebraic, const bool with)
-        : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options),
-                            std::move(formulaParts), label, expr, hide, lh)
-        , _algebraic(algebraic)
-        , _with(with)
-    {
-    }
-
-    iFormulaLine_ptr iFormulaNodePrintval::clone() const
-    {
-        return std::make_shared<iFormulaNodePrintval>(*this);
-    }
-
-    OUString iFormulaNodePrintval::getCommand() const
-    {
-        return OU("PRINT") + (_algebraic ? OU("AVAL") : OU("VAL")) + (_with ? OU("WITH") : OU(""));
-    }
-
-    std::vector<std::vector<OUString>> iFormulaNodePrintval::display(const Reference<XModel>&) const
-    {
-        if (error != no_error)
+        case label_error:
+            return { { "newline " },
+                     { "bold color red{(\"" + _formulaParts[1] + "\")}",
+                       OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                       OU("{alignl ") + rhs + OU("}"), "newline " },
+                     { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
+        case no_error:
+            return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                       OU("{alignl ") + rhs + OU("}") } };
+        default:
             return iFormulaLine::display();
 
-        std::vector<std::vector<OUString>> result;
-        std::vector<OUString> line;
+            std::vector<std::vector<OUString>> result;
+            if (_textlist.empty())
+                return result;
 
-        OUString what
-            = (autoformat_required() ? printEx(_lh)
+            std::vector<OUString> line;
+            OUString text("");
+
+            for (const auto& textPortion : _textlist)
+            {
+                if (textPortion->isNewline())
+                {
+                    text += OU(" newline");
+                    line.emplace_back(text);
+                    result.emplace_back(line);
+                    line = std::vector<OUString>();
+                    text = OU("");
+                }
+                else if (textPortion->isOperator())
+                {
+                    // Operators go in a column by themselves
+                    if (text.getLength() > 0)
+                        line.emplace_back(text);
+                    line.emplace_back(
+                        OU("{}") + textPortion->getText().toAsciiUpperCase()
+                        + OU("{}")); // The two empty bracket pairs are required when aligning operators in a matrix
+                    text = OU("");
+                }
+                else if (textPortion->isExpression())
+                {
+                    // Expressions and equations go in 1 or 3 columns by themselves
+                    if (text.getLength() > 0)
+                        line.emplace_back(text);
+
+                    if (is_a<equation>(textPortion->getExpression()))
+                    {
+                        equation eq = ex_to<equation>(textPortion->getExpression());
+                        line.emplace_back(OU("{alignr ") + printEx(eq.lhs()) + OU("}"));
+                        line.emplace_back(
+                            OU("{}") + OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim()
+                            + OU("{}"));
+                        line.emplace_back(OU("{alignl ") + printEx(eq.rhs()) + OU("}"));
+                        text = OU("");
+                    }
+                    else
+                    {
+                        line.emplace_back(printEx(textPortion->getExpression()));
+                        text = OU("");
+                    }
+                }
+                else
+                {
+                    // Append to previous text
+                    text += textPortion->getText();
+                }
+
+                // Clean up remainders
+                if (!text.isEmpty())
+                    line.emplace_back(text);
+                if (!line.empty())
+                    result.emplace_back(line);
+
+                return result;
+            }
+
+            void iFormulaNodeText::markError(const OUString& compiledText, const int formulaStart,
+                                             const int errorStart, const int errorEnd,
+                                             const OUString& errorMessage)
+            {
+                iFormulaLine::markError(compiledText, formulaStart, errorStart, errorEnd,
+                                        errorMessage);
+                for (size_t i = 0; i < 3; ++i)
+                    _formulaParts[i] = OUS8(
+                        std::regex_replace(STR(_formulaParts[i]), std::regex("_ii_"),
+                                           "\"_ii_\"")); // Underscore is starmath subscript token
+            }
+
+            // Node Ex
+            iFormulaNodeEx::iFormulaNodeEx(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide)
+                : iFormulaNodeExpression(std::move(unitConversions), g_options,
+                                         std::move(l_options), std::move(formulaParts), label, expr,
+                                         hide)
+            {
+                in = collectSymbols(_expr);
+            }
+
+            std::vector<std::vector<OUString>> iFormulaNodeEx::display(const Reference<XModel>&)
+                const
+            {
+                if (error == no_error && _hide)
+                    return {};
+
+                OUString what
+                    = (autoformat_required() ? printEx(_expr) : // autoformat
+                           printFormula()); // preserve user formatting changing decimal separator according to locale
+
+                switch (error)
+                {
+                    case label_error:
+                        return { { "newline " },
+                                 { "{}bold color red{(\"" + _formulaParts[1] + "\")}{}" + what,
+                                   "{}newline " },
+                                 { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
+                    case no_error:
+                        return { { "{alignl " + what + "}" } };
+                    default:
+                        return iFormulaLine::display();
+                }
+            }
+
+            // Node Value
+            iFormulaNodeValue::iFormulaNodeValue(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide, const expression& lh)
+                : iFormulaNodeExpression(std::move(unitConversions), g_options,
+                                         std::move(l_options), std::move(formulaParts), label, expr,
+                                         hide)
+                , _lh(lh)
+            {
+                in = collectSymbols(_lh);
+            }
+
+            iFormulaLine_ptr iFormulaNodeValue::clone() const
+            {
+                return std::make_shared<iFormulaNodeValue>(*this);
+            }
+
+            // Node Printval
+            iFormulaNodePrintval::iFormulaNodePrintval(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide, const expression& lh, const bool algebraic,
+                const bool with)
+                : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options),
+                                    std::move(formulaParts), label, expr, hide, lh)
+                , _algebraic(algebraic)
+                , _with(with)
+            {
+            }
+
+            iFormulaLine_ptr iFormulaNodePrintval::clone() const
+            {
+                return std::make_shared<iFormulaNodePrintval>(*this);
+            }
+
+            OUString iFormulaNodePrintval::getCommand() const
+            {
+                return OU("PRINT") + (_algebraic ? OU("AVAL") : OU("VAL"))
+                       + (_with ? OU("WITH") : OU(""));
+            }
+
+            std::vector<std::vector<OUString>> iFormulaNodePrintval::display(
+                const Reference<XModel>&) const
+            {
+                if (error != no_error)
+                    return iFormulaLine::display();
+
+                std::vector<std::vector<OUString>> result;
+                std::vector<OUString> line;
+
+                OUString what = (autoformat_required()
+                                     ? printEx(_lh)
                                      : adjustLocale(replaceString(_formulaParts[(_with ? 1 : 0)],
                                                                   OU("\n%%ii+"), OU(""))));
-        line.emplace_back(OU("{alignr ") + what + OU("}"));
-        line.emplace_back(OU("{}={}"));
-        line.emplace_back(OU("{alignl ") + printEx(_expr)
-                          + OU("}")); // The RHS is always calculated and therefore auto-formatted
+                line.emplace_back(OU("{alignr ") + what + OU("}"));
+                line.emplace_back(OU("{}={}"));
+                line.emplace_back(
+                    OU("{alignl ") + printEx(_expr)
+                    + OU("}")); // The RHS is always calculated and therefore auto-formatted
 
-        result.emplace_back(line);
-        return result;
-    }
+                result.emplace_back(line);
+                return result;
+            }
 
-    // Node Explainval
-    iFormulaNodeExplainval::iFormulaNodeExplainval(
-        GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
-        std::vector<OUString> formulaParts, const OUString& label, const expression& expr,
-        const bool hide, const expression& lh, const expression& definition, exhashmap<ex> symbols)
-        : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options),
-                            std::move(formulaParts), label, expr, hide, lh)
-        , _definition(definition)
-        , _symbols(std::move(symbols))
-    {
-    }
+            // Node Explainval
+            iFormulaNodeExplainval::iFormulaNodeExplainval(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide, const expression& lh,
+                const expression& definition, exhashmap<ex> symbols)
+                : iFormulaNodeValue(std::move(unitConversions), g_options, std::move(l_options),
+                                    std::move(formulaParts), label, expr, hide, lh)
+                , _definition(definition)
+                , _symbols(std::move(symbols))
+            {
+            }
 
-    iFormulaLine_ptr iFormulaNodeExplainval::clone() const
-    {
-        return std::make_shared<iFormulaNodeExplainval>(*this);
-    }
+            iFormulaLine_ptr iFormulaNodeExplainval::clone() const
+            {
+                return std::make_shared<iFormulaNodeExplainval>(*this);
+            }
 
-    std::vector<std::vector<OUString>> iFormulaNodeExplainval::display(const Reference<XModel>&)
-        const
-    {
-        if (error != no_error)
-            return iFormulaLine::display();
+            std::vector<std::vector<OUString>> iFormulaNodeExplainval::display(
+                const Reference<XModel>&) const
+            {
+                if (error != no_error)
+                    return iFormulaLine::display();
 
-        std::vector<std::vector<OUString>> result;
-        std::vector<OUString> line;
+                std::vector<std::vector<OUString>> result;
+                std::vector<OUString> line;
 
-        OUString lhs = (autoformat_required()
-                            ? printEx(_lh)
-                            : adjustLocale(replaceString(_formulaParts[0], OU("\n%%ii+"), OU(""))));
-        OUString rhs = printEx(_expr); // The RHS is always calculated and therefore auto-formatted
+                OUString lhs
+                    = (autoformat_required()
+                           ? printEx(_lh)
+                           : adjustLocale(replaceString(_formulaParts[0], OU("\n%%ii+"), OU(""))));
+                OUString rhs
+                    = printEx(_expr); // The RHS is always calculated and therefore auto-formatted
 
-        // Prepare the definition string
-        exmap variables; // Cannot use exhashmap because subs() doesn't accept it
-        std::map<std::string, std::string> replacements;
-        for (const auto& s : _symbols)
-        {
-            std::string newsym = "@@" + ex_to<symbol>(s.first).get_name() + "@@";
-            variables.emplace(s.first, symbol(newsym));
-            replacements.emplace(newsym, "(" + STR(printEx(s.second)) + ")");
-        }
-        std::string defstring = STR(printEx(_definition.subs(variables)));
-        for (const auto& r : replacements)
-            defstring = std::regex_replace(defstring, std::regex(r.first), r.second);
+                // Prepare the definition string
+                exmap variables; // Cannot use exhashmap because subs() doesn't accept it
+                std::map<std::string, std::string> replacements;
+                for (const auto& s : _symbols)
+                {
+                    std::string newsym = "@@" + ex_to<symbol>(s.first).get_name() + "@@";
+                    variables.emplace(s.first, symbol(newsym));
+                    replacements.emplace(newsym, "(" + STR(printEx(s.second)) + ")");
+                }
+                std::string defstring = STR(printEx(_definition.subs(variables)));
+                for (const auto& r : replacements)
+                    defstring = std::regex_replace(defstring, std::regex(r.first), r.second);
 
-        // Display
-        if (_hide)
-        {
-            line.emplace_back(OU("{alignr ") + OUS8(defstring) + OU("}"));
-            line.emplace_back(OU("{}={}"));
-            line.emplace_back(OU("{alignl ") + rhs + OU("}"));
-        }
-        else if (_definition.is_equal(_lh))
-        {
-            line.emplace_back(OU("{alignr ") + lhs + OU("}"));
-            line.emplace_back(OU("{}={}"));
-            line.emplace_back(OUS8(defstring));
-            line.emplace_back(OU("{}={}"));
-            line.emplace_back(OU("{alignl ") + rhs + OU("}"));
-        }
-        else
-        {
-            line.emplace_back(OU("{alignr ") + lhs + OU("}"));
-            line.emplace_back(OU("{}={}"));
-            line.emplace_back(printEx(_definition));
-            line.emplace_back(OU("{}={}"));
-            line.emplace_back(OUS8(defstring));
-            line.emplace_back(OU("{}={}"));
-            line.emplace_back(OU("{alignl ") + rhs + OU("}"));
-        }
+                // Display
+                if (_hide)
+                {
+                    line.emplace_back(OU("{alignr ") + OUS8(defstring) + OU("}"));
+                    line.emplace_back(OU("{}={}"));
+                    line.emplace_back(OU("{alignl ") + rhs + OU("}"));
+                }
+                else if (_definition.is_equal(_lh))
+                {
+                    line.emplace_back(OU("{alignr ") + lhs + OU("}"));
+                    line.emplace_back(OU("{}={}"));
+                    line.emplace_back(OUS8(defstring));
+                    line.emplace_back(OU("{}={}"));
+                    line.emplace_back(OU("{alignl ") + rhs + OU("}"));
+                }
+                else
+                {
+                    line.emplace_back(OU("{alignr ") + lhs + OU("}"));
+                    line.emplace_back(OU("{}={}"));
+                    line.emplace_back(printEx(_definition));
+                    line.emplace_back(OU("{}={}"));
+                    line.emplace_back(OUS8(defstring));
+                    line.emplace_back(OU("{}={}"));
+                    line.emplace_back(OU("{alignl ") + rhs + OU("}"));
+                }
 
-        result.emplace_back(line);
-        return result;
-    }
+                result.emplace_back(line);
+                return result;
+            }
 
-    // Node Eq
-    iFormulaNodeEq::iFormulaNodeEq(GiNaC::unitvec unitConversions,
-                                   std::shared_ptr<optionmap> g_options, optionmap l_options,
-                                   std::vector<OUString> formulaParts, const OUString& label,
-                                   const expression& expr, const bool hide)
-        : iFormulaNodeExpression(std::move(unitConversions), g_options, std::move(l_options),
+            // Node Eq
+            iFormulaNodeEq::iFormulaNodeEq(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide)
+                : iFormulaNodeExpression(std::move(unitConversions), g_options,
+                                         std::move(l_options), std::move(formulaParts), label, expr,
+                                         hide)
+            {
+                ex lhs = ex_to<equation>(_expr).lhs();
+                ex rhs = ex_to<equation>(_expr).rhs();
+                if (is_a<symbol>(lhs) || is_a<func>(lhs))
+                {
+                    in = collectSymbols(rhs);
+                    out = { lhs };
+                }
+                else if (is_a<symbol>(rhs) || is_a<func>(rhs))
+                {
+                    in = collectSymbols(lhs);
+                    out = { rhs };
+                }
+                else
+                {
+                    in = collectSymbols(lhs);
+                    auto in2 = collectSymbols(rhs);
+                    in.insert(in2.begin(), in2.end());
+                    // out = in; // But we should give priority to direct assignments to a single symbol
+                }
+            }
+
+            OUString iFormulaNodeEq::print() const
+            {
+                return OU("%%ii @") + _label + OU("@ ") + printOptions() + getCommand()
+                       + (_hide ? OU("* ") : OU(" ")) + getFormula();
+            }
+
+            std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XModel>&)
+                const
+            {
+                if (error == no_error && _hide)
+                    return {};
+
+                const equation& eq = ex_to<equation>(_expr);
+                OUString oper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim();
+                OUString lhs;
+                OUString rhs;
+
+                if (autoformat_required())
+                {
+                    lhs = printEx(eq.lhs());
+                    rhs = printEx(eq.rhs());
+                }
+                else
+                {
+                    OUString textEq = printFormula();
+                    int alignpos = textEq.toAsciiUpperCase().indexOf(
+                        oper); // TODO: Formulas with operator signs within stringEx might bring confusion
+                    lhs = textEq.copy(0, alignpos).trim();
+                    rhs = textEq.copy(alignpos + oper.getLength()).trim();
+                }
+
+                switch (error)
+                {
+                    case label_error:
+                        return { { "newline " },
+                                 { "bold color red{(\"" + _formulaParts[1] + "\")}",
+                                   OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                                   OU("{alignl ") + rhs + OU("}"), "newline " },
+                                 { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
+                    case no_error:
+                        return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                                   OU("{alignl ") + rhs + OU("}") } };
+                    default:
+                        return iFormulaLine::display();
+                }
+            }
+
+            // Node Const
+            iFormulaNodeConst::iFormulaNodeConst(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide)
+                : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
                                  std::move(formulaParts), label, expr, hide)
-    {
-        ex lhs = ex_to<equation>(_expr).lhs();
-        ex rhs = ex_to<equation>(_expr).rhs();
-        if (is_a<symbol>(lhs) || is_a<func>(lhs))
-        {
-            in = collectSymbols(rhs);
-            out = { lhs };
-        }
-        else if (is_a<symbol>(rhs) || is_a<func>(rhs))
-        {
-            in = collectSymbols(lhs);
-            out = { rhs };
-        }
-        else
-        {
-            in = collectSymbols(lhs);
-            auto in2 = collectSymbols(rhs);
-            in.insert(in2.begin(), in2.end());
-            // out = in; // But we should give priority to direct assignments to a single symbol
-        }
-    }
+            {
+            }
 
-    OUString iFormulaNodeEq::print() const
-    {
-        return OU("%%ii @") + _label + OU("@ ") + printOptions() + getCommand()
-               + (_hide ? OU("* ") : OU(" ")) + getFormula();
-    }
+            // Node Funcdef
+            iFormulaNodeFuncdef::iFormulaNodeFuncdef(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide)
+                : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
+                                 std::move(formulaParts), label, expr, hide)
+            {
+            }
 
-    std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XModel>&) const
-    {
-        if (error == no_error && _hide)
-            return {};
+            // Node Vectordef
+            iFormulaNodeVectordef::iFormulaNodeVectordef(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide)
+                : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
+                                 std::move(formulaParts), label, expr, hide)
+            {
+            }
 
-        const equation& eq = ex_to<equation>(_expr);
-        OUString oper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim();
-        OUString lhs;
-        OUString rhs;
-
-        if (autoformat_required())
-        {
-            lhs = printEx(eq.lhs());
-            rhs = printEx(eq.rhs());
-        }
-        else
-        {
-            OUString textEq = printFormula();
-            int alignpos = textEq.toAsciiUpperCase().indexOf(
-                oper); // TODO: Formulas with operator signs within stringEx might bring confusion
-            lhs = textEq.copy(0, alignpos).trim();
-            rhs = textEq.copy(alignpos + oper.getLength()).trim();
-        }
-
-        switch (error)
-        {
-            case label_error:
-                return { { "newline " },
-                         { "bold color red{(\"" + _formulaParts[1] + "\")}",
-                           OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
-                           OU("{alignl ") + rhs + OU("}"), "newline " },
-                         { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
-            case no_error:
-                return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
-                           OU("{alignl ") + rhs + OU("}") } };
-            default:
-                return iFormulaLine::display();
-        }
-    }
-
-    // Node Const
-    iFormulaNodeConst::iFormulaNodeConst(GiNaC::unitvec unitConversions,
-                                         std::shared_ptr<optionmap> g_options, optionmap l_options,
-                                         std::vector<OUString> formulaParts, const OUString& label,
-                                         const expression& expr, const bool hide)
-        : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
-                         std::move(formulaParts), label, expr, hide)
-    {
-    }
-
-    // Node Funcdef
-    iFormulaNodeFuncdef::iFormulaNodeFuncdef(
-        GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
-        std::vector<OUString> formulaParts, const OUString& label, const expression& expr,
-        const bool hide)
-        : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
-                         std::move(formulaParts), label, expr, hide)
-    {
-    }
-
-    // Node Vectordef
-    iFormulaNodeVectordef::iFormulaNodeVectordef(
-        GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
-        std::vector<OUString> formulaParts, const OUString& label, const expression& expr,
-        const bool hide)
-        : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
-                         std::move(formulaParts), label, expr, hide)
-    {
-    }
-
-    // Node Matrixdef
-    iFormulaNodeMatrixdef::iFormulaNodeMatrixdef(
-        GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
-        std::vector<OUString> formulaParts, const OUString& label, const expression& expr,
-        const bool hide)
-        : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
-                         std::move(formulaParts), label, expr, hide)
-    {
-    }
+            // Node Matrixdef
+            iFormulaNodeMatrixdef::iFormulaNodeMatrixdef(
+                GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options,
+                optionmap l_options, std::vector<OUString> formulaParts, const OUString& label,
+                const expression& expr, const bool hide)
+                : iFormulaNodeEq(std::move(unitConversions), g_options, std::move(l_options),
+                                 std::move(formulaParts), label, expr, hide)
+            {
+            }

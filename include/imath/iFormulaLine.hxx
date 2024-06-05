@@ -463,6 +463,14 @@ public:
   virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;
 
   virtual OUString getCommand() const override;
+
+  bool isAlgebraic() const { return _algebraic; }
+  OUString getExpression() const { return _with ? _formulaParts[1] : _formulaParts[0]; }
+  std::list<OUString> getWithEquationList() const;
+
+  void setAlgebraic(const bool algebraic) { _algebraic = algebraic; }
+  void setExpression(const OUString& expr);
+  void setWithEquationList(const std::list<OUString>& withEquations);
 private:
   bool _algebraic;
   bool _with;

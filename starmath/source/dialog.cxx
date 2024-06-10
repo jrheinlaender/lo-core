@@ -2707,4 +2707,39 @@ IMPL_LINK(ImGuiLabelDialog, MousePressRemoveHdl, const MouseEvent&, rMEvt, bool)
     return false;
 }
 
+ImGuiUnitPrintnameDialog::ImGuiUnitPrintnameDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, iFormulaLine_ptr pLine)
+    : GenericDialogController(pParent, "modules/smath/ui/iformulaunitprintname.ui", "FormulaUnitPrintname")
+    , mxOk    (m_xBuilder->weld_button("button_ok"))
+    , mxCancel(m_xBuilder->weld_button("button_cancel"))
+    , mxPrintname(m_xBuilder->weld_entry("printname"))
+    , mpLine(pLine)
+    , mpGuiWindow(pGuiWindow)
+{
+    mxOk->connect_clicked(LINK(this, ImGuiUnitPrintnameDialog, ButtonOkHdl));
+    mxCancel->connect_clicked(LINK(this, ImGuiUnitPrintnameDialog, ButtonCancelHdl));
+
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(pLine);
+    mxPrintname->set_text(line->getPrintname());
+}
+
+ImGuiUnitPrintnameDialog::~ImGuiUnitPrintnameDialog()
+{
+}
+
+IMPL_LINK_NOARG(ImGuiUnitPrintnameDialog, ButtonOkHdl, weld::Button&, void)
+{
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(mpLine);
+    line->setPrintname(mxPrintname->get_text());
+    m_xDialog->response(RET_CLOSE);
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (pDoc)
+        pDoc->UpdateGuiText();
+}
+
+IMPL_LINK_NOARG(ImGuiUnitPrintnameDialog, ButtonCancelHdl, weld::Button&, void)
+{
+    m_xDialog->response(RET_CLOSE);
+}
+
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

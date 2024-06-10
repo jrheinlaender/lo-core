@@ -274,7 +274,8 @@ namespace
         typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval)
     };
     static const std::vector<std::type_index> nodesWithoutFormula = {
-        typeid(iFormulaNodeStmClearall), typeid(iFormulaNodeStmReadfile), typeid(iFormulaNodeStmOptions), typeid(iFormulaNodeStmDelete)
+        typeid(iFormulaNodeStmClearall), typeid(iFormulaNodeStmReadfile), typeid(iFormulaNodeStmOptions), typeid(iFormulaNodeStmDelete),
+        typeid(iFormulaNodePrintval), typeid(iFormulaNodeStmUnitdef), typeid(iFormulaNodeStmPrefixdef)
     };
 }
 
@@ -411,6 +412,18 @@ void ImGuiWindow::ResetModel()
                 mxFormulaList->set_sensitive(*xChild, true, IMGUIWINDOW_COL_FORMULA);
             }
         }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmUnitdef))
+        {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, "%" + line->getUnitname() + " = " + line->getExpression(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_image(*xIter, line->getPrintname().isEmpty() ? OUString(BMP_IMGUI_OPTIONS) : OUString(BMP_IMGUI_OPTIONS_LOCAL), IMGUIWINDOW_COL_OPTIONS);
+        }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmPrefixdef))
+        {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeStmPrefixdef>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, line->getPrefixname() + " " + line->getExpression(), IMGUIWINDOW_COL_FORMULA);
         }
         {
 
@@ -553,6 +566,15 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_OPTIONS:
         {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(pLine);
+            if (line != nullptr)
+            {
+                auto dialog = std::make_unique<ImGuiUnitPrintnameDialog>(GetFrameWeld(), this, pLine);
+                positionImGuiDialog(dialog->getDialog(), GetFrameWeld());
+                dialog->run();
+                break;
+            }
+
             if (!pLine->canHaveOptions())
                 return false;
 
@@ -941,6 +963,20 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
             {
                 if (typeid(*pLine) == typeid(iFormulaNodeStmReadfile))
                     pLine->setFormula("{\"" + rIterString.second + "\"}");
+                else if (typeid(*pLine) == typeid(iFormulaNodeStmUnitdef))
+                {
+                    auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(pLine);
+                    auto pos = rIterString.second.indexOfAsciiL("=", 1);
+                    line->setUnitname(rIterString.second.copy(0, pos).trim());
+                    line->setExpression(rIterString.second.copy(pos + 1).trim());
+                }
+                else if (typeid(*pLine) == typeid(iFormulaNodeStmPrefixdef))
+                {
+                    auto line = std::dynamic_pointer_cast<iFormulaNodeStmPrefixdef>(pLine);
+                    auto pos = rIterString.second.indexOfAsciiL("=", 1);
+                    line->setPrefixname(rIterString.second.copy(0, pos).trim());
+                    line->setExpression(rIterString.second.copy(pos + 1).trim());
+                }
                 else if (typeid(*pLine) == typeid(iFormulaNodePrintval))
                 {
                     auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);

@@ -397,12 +397,64 @@ iFormulaNodeStmUnitdef::iFormulaNodeStmUnitdef(std::shared_ptr<optionmap> g_opti
 }
 
 OUString iFormulaNodeStmUnitdef::getUnitname() const {
-    return (_formulaParts.size() > 3 ? _formulaParts[3] : "");
+    OUString result;
+
+    if (_formulaParts.size() > 3)
+    {
+        result = _formulaParts[3].trim();
+        if (result.startsWith("\""))
+            return result.copy(1, result.getLength() - 2);
+        else if (result.startsWith("%"))
+            return result.copy(1);
+    }
+
+    return result;
+}
+
+OUString iFormulaNodeStmUnitdef::getPrintname() const {
+    return (_formulaParts.size() > 1 ? _formulaParts[1].copy(1, _formulaParts[1].getLength() - 2)  : "");
+}
+
+OUString iFormulaNodeStmUnitdef::getExpression() const {
+     return (_formulaParts.size() > 5 ? _formulaParts[5].trim() : "");
+}
+
+void iFormulaNodeStmUnitdef::setUnitname(const OUString& unitname) {
+    if (_formulaParts.size() > 3)
+        _formulaParts[3] = (unitname.startsWith("%") ? unitname : "%" + unitname);
+}
+
+void iFormulaNodeStmUnitdef::setPrintname(const OUString& printname) {
+    if (_formulaParts.size() > 1)
+        _formulaParts[1] = "\"" + printname + "\"";
+}
+
+void iFormulaNodeStmUnitdef::setExpression(const OUString& expr) {
+    if (_formulaParts.size() > 5)
+        _formulaParts[5] = expr;
 }
 
 // NodeStmPrefixdef
 iFormulaNodeStmPrefixdef::iFormulaNodeStmPrefixdef(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
+}
+
+OUString iFormulaNodeStmPrefixdef::getPrefixname() const {
+    return (_formulaParts.size() > 1 ? _formulaParts[1] : "");
+}
+
+OUString iFormulaNodeStmPrefixdef::getExpression() const {
+     return (_formulaParts.size() > 3 ? _formulaParts[3] : "");
+}
+
+void iFormulaNodeStmPrefixdef::setPrefixname(const OUString& prefixname) {
+    if (_formulaParts.size() > 1)
+        _formulaParts[1] = prefixname;
+}
+
+void iFormulaNodeStmPrefixdef::setExpression(const OUString& expr) {
+    if (_formulaParts.size() > 3)
+        _formulaParts[3] = expr;
 }
 
 // NodeStmVectordef

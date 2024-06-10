@@ -316,6 +316,11 @@ public:
                            std::vector<OUString> formulaParts);
     virtual OUString getCommand() const override { return OU("UNITDEF"); }
     OUString getUnitname() const;
+    OUString getPrintname() const;
+    OUString getExpression() const;
+    void setUnitname(const OUString& unitname);
+    void setPrintname(const OUString& printname);
+    void setExpression(const OUString& expr);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStmPrefixdef : public iFormulaNodeStatement
@@ -324,6 +329,10 @@ public:
     iFormulaNodeStmPrefixdef(std::shared_ptr<GiNaC::optionmap> g_options,
                              std::vector<OUString> formulaParts);
     virtual OUString getCommand() const override { return OU("PREFIXDEF"); }
+    OUString getPrefixname() const;
+    OUString getExpression() const;
+    void setPrefixname(const OUString& prefixname);
+    void setExpression(const OUString& expr);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStmVectordef : public iFormulaNodeStatement

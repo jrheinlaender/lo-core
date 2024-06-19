@@ -66,7 +66,7 @@
       </row>
       <row>
         <col id="0">FUNCTION</col>
-        <col id="1" translatable="yes" context="formulatype|function_name">Function name</col>
+        <col id="1" translatable="yes" context="formulatype|function_name">Function declaration</col>
       </row>
       <row>
         <col id="0">FUNCDEF</col>

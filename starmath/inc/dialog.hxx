@@ -595,12 +595,53 @@ class ImGuiUnitPrintnameDialog final : public weld::GenericDialogController
 
     DECL_LINK(ButtonOkHdl, weld::Button&, void);
     DECL_LINK(ButtonCancelHdl, weld::Button&, void);
+    DECL_LINK(ModifyHdl, weld::Entry&, void);
 
 public:
     ImGuiUnitPrintnameDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, std::shared_ptr<iFormulaLine> pLine);
     virtual ~ImGuiUnitPrintnameDialog() override;
 
+    // The model was reset, update the line pointer
+    void setFormulaLinePointer(std::shared_ptr<iFormulaLine> pLine) { mpLine = pLine; }
+
 private:
+    // The old value of the printname, in case the user cancels
+    OUString oldPrintname;
+
+    // The formula line for this options dialog
+    std::shared_ptr<iFormulaLine> mpLine;
+    // The parent edit window
+    ImGuiWindow* mpGuiWindow;
+};
+
+class ImGuiFunctionDialog final : public weld::GenericDialogController
+{
+    std::unique_ptr<weld::Button> mxOk;
+    std::unique_ptr<weld::Button> mxCancel;
+    std::unique_ptr<weld::Entry> mxPrintname;
+    std::unique_ptr<weld::CheckButton> mxLib;
+    std::unique_ptr<weld::CheckButton> mxTrig;
+    std::unique_ptr<weld::CheckButton> mxExpand;
+    std::unique_ptr<weld::CheckButton> mxNobracket;
+    std::unique_ptr<weld::CheckButton> mxDefdiff;
+
+    DECL_LINK(ButtonOkHdl, weld::Button&, void);
+    DECL_LINK(ButtonCancelHdl, weld::Button&, void);
+    DECL_LINK(ModifyHdl, weld::Entry&, void);
+    DECL_LINK(CheckBoxClickHdl, weld::Toggleable&, void);
+
+public:
+    ImGuiFunctionDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, std::shared_ptr<iFormulaLine> pLine);
+    virtual ~ImGuiFunctionDialog() override;
+
+    // The model was reset, update the line pointer
+    void setFormulaLinePointer(std::shared_ptr<iFormulaLine> pLine) { mpLine = pLine; }
+
+private:
+    // Old values, in case the user cancels
+    OUString oldPrintname;
+    OUString oldHints;
+
     // The formula line for this options dialog
     std::shared_ptr<iFormulaLine> mpLine;
     // The parent edit window

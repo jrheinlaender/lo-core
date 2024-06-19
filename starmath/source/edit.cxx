@@ -240,6 +240,8 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mxFormulaList(rBuilder.weld_tree_view("iformulalist"))
     , mpOptionsDialog(nullptr)
     , mpLabelDialog(nullptr)
+    , mpUnitPrintnameDialog(nullptr)
+    , mpFunctionDialog(nullptr)
     , lastOptionsPage(0)
     , mNumClicks(0)
     , mClickedColumn(-1)
@@ -300,6 +302,10 @@ void ImGuiWindow::ResetModel()
         mpOptionsDialog->setFormulaLinePointer(nullptr);
     if (mpLabelDialog != nullptr)
         mpLabelDialog->setFormulaLinePointer(nullptr);
+    if (mpUnitPrintnameDialog != nullptr)
+        mpUnitPrintnameDialog->setFormulaLinePointer(nullptr);
+    if (mpFunctionDialog != nullptr)
+        mpFunctionDialog->setFormulaLinePointer(nullptr);
 
     // Note: freeze() and thaw() will break the selection at the end of the loop, and the options dialog callbacks
     mxFormulaList->clear();
@@ -425,6 +431,16 @@ void ImGuiWindow::ResetModel()
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, line->getPrefixname() + " " + line->getExpression(), IMGUIWINDOW_COL_FORMULA);
         }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmFunction))
+        {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, line->getName() + "(" + line->getArgs() + ")", IMGUIWINDOW_COL_FORMULA);
+            if (line->getPrintname().isEmpty() && line->getHints() == "{none}")
+                mxFormulaList->set_image(*xIter, BMP_IMGUI_OPTIONS, IMGUIWINDOW_COL_OPTIONS);
+            else
+                mxFormulaList->set_image(*xIter, BMP_IMGUI_OPTIONS_LOCAL, IMGUIWINDOW_COL_OPTIONS);
+        }
         {
 
         }
@@ -446,6 +462,10 @@ void ImGuiWindow::ResetModel()
         mpOptionsDialog->setFormulaLinePointer(GetSelectedLine());
     if (mpLabelDialog != nullptr)
         mpLabelDialog->setFormulaLinePointer(GetSelectedLine());
+    if (mpUnitPrintnameDialog != nullptr)
+        mpUnitPrintnameDialog->setFormulaLinePointer(GetSelectedLine());
+    if (mpFunctionDialog != nullptr)
+        mpFunctionDialog->setFormulaLinePointer(GetSelectedLine());
 }
 
 // Utility function for positioning dialogs at bottom center so that it does not hide the formula display
@@ -566,12 +586,23 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_OPTIONS:
         {
-            auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(pLine);
-            if (line != nullptr)
+            auto u_line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(pLine);
+            if (u_line != nullptr)
             {
-                auto dialog = std::make_unique<ImGuiUnitPrintnameDialog>(GetFrameWeld(), this, pLine);
-                positionImGuiDialog(dialog->getDialog(), GetFrameWeld());
-                dialog->run();
+                mpUnitPrintnameDialog = std::make_unique<ImGuiUnitPrintnameDialog>(GetFrameWeld(), this, pLine);
+                positionImGuiDialog(mpUnitPrintnameDialog->getDialog(), GetFrameWeld());
+                mpUnitPrintnameDialog->run();
+                mpUnitPrintnameDialog = nullptr;
+                break;
+            }
+
+            auto f_line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(pLine);
+            if (f_line != nullptr)
+            {
+                mpFunctionDialog = std::make_unique<ImGuiFunctionDialog>(GetFrameWeld(), this, pLine);
+                positionImGuiDialog(mpFunctionDialog->getDialog(), GetFrameWeld());
+                mpFunctionDialog->run();
+                mpFunctionDialog = nullptr;
                 break;
             }
 
@@ -1002,6 +1033,13 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     }
                     else
                         line->setExpression(rIterString.second);
+                }
+                else if (typeid(*pLine) == typeid(iFormulaNodeStmFunction))
+                {
+                    auto line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(pLine);
+                    auto pos = rIterString.second.indexOfAsciiL("(", 1);
+                    line->setName(rIterString.second.copy(0, pos).trim());
+                    line->setArgs(rIterString.second.copy(pos + 1, rIterString.second.getLength() - pos - 2).trim());
                 }
                 else
                     pLine->setFormula(rIterString.second);

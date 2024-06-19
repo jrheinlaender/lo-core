@@ -205,6 +205,8 @@ public:
 class iFormulaLine;
 class ImGuiOptionsDialog;
 class ImGuiLabelDialog;
+class ImGuiUnitPrintnameDialog;
+class ImGuiFunctionDialog;
 
 class ImGuiWindow
 {
@@ -216,6 +218,8 @@ private:
     // Required for callbacks after something was edited
     std::unique_ptr<ImGuiOptionsDialog> mpOptionsDialog;
     std::unique_ptr<ImGuiLabelDialog> mpLabelDialog;
+    std::unique_ptr<ImGuiUnitPrintnameDialog> mpUnitPrintnameDialog;
+    std::unique_ptr<ImGuiFunctionDialog> mpFunctionDialog;
 
     // The last tab selected by the user in the formula options dialog
     int lastOptionsPage;

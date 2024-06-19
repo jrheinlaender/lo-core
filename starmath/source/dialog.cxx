@@ -2719,7 +2719,9 @@ ImGuiUnitPrintnameDialog::ImGuiUnitPrintnameDialog(weld::Window* pParent, ImGuiW
     mxCancel->connect_clicked(LINK(this, ImGuiUnitPrintnameDialog, ButtonCancelHdl));
 
     auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(pLine);
-    mxPrintname->set_text(line->getPrintname());
+    oldPrintname = line->getPrintname();
+    mxPrintname->set_text(oldPrintname);
+    mxPrintname->connect_changed(LINK(this, ImGuiUnitPrintnameDialog, ModifyHdl));
 }
 
 ImGuiUnitPrintnameDialog::~ImGuiUnitPrintnameDialog()
@@ -2728,8 +2730,13 @@ ImGuiUnitPrintnameDialog::~ImGuiUnitPrintnameDialog()
 
 IMPL_LINK_NOARG(ImGuiUnitPrintnameDialog, ButtonOkHdl, weld::Button&, void)
 {
+    m_xDialog->response(RET_CLOSE);
+}
+
+IMPL_LINK_NOARG(ImGuiUnitPrintnameDialog, ButtonCancelHdl, weld::Button&, void)
+{
     auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(mpLine);
-    line->setPrintname(mxPrintname->get_text());
+    line->setPrintname(oldPrintname);
     m_xDialog->response(RET_CLOSE);
 
     SmDocShell* pDoc = mpGuiWindow->GetDoc();
@@ -2737,9 +2744,106 @@ IMPL_LINK_NOARG(ImGuiUnitPrintnameDialog, ButtonOkHdl, weld::Button&, void)
         pDoc->UpdateGuiText();
 }
 
-IMPL_LINK_NOARG(ImGuiUnitPrintnameDialog, ButtonCancelHdl, weld::Button&, void)
+IMPL_LINK_NOARG(ImGuiUnitPrintnameDialog, ModifyHdl, weld::Entry&, void)
+{
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(mpLine);
+    line->setPrintname(mxPrintname->get_text());
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (pDoc)
+        pDoc->UpdateGuiText();
+}
+
+ImGuiFunctionDialog::ImGuiFunctionDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, iFormulaLine_ptr pLine)
+    : GenericDialogController(pParent, "modules/smath/ui/iformulafunction.ui", "FormulaFunction")
+    , mxOk    (m_xBuilder->weld_button("button_ok"))
+    , mxCancel(m_xBuilder->weld_button("button_cancel"))
+    , mxPrintname(m_xBuilder->weld_entry("printname"))
+    , mxLib(m_xBuilder->weld_check_button("lib"))
+    , mxTrig(m_xBuilder->weld_check_button("trig"))
+    , mxExpand(m_xBuilder->weld_check_button("expand"))
+    , mxNobracket(m_xBuilder->weld_check_button("nobracket"))
+    , mxDefdiff(m_xBuilder->weld_check_button("defdiff"))
+    , mpLine(pLine)
+    , mpGuiWindow(pGuiWindow)
+{
+    mxOk->connect_clicked(LINK(this, ImGuiFunctionDialog, ButtonOkHdl));
+    mxCancel->connect_clicked(LINK(this, ImGuiFunctionDialog, ButtonCancelHdl));
+
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(pLine);
+    oldPrintname = line->getPrintname();
+    mxPrintname->set_text(oldPrintname);
+    mxPrintname->connect_changed(LINK(this, ImGuiFunctionDialog, ModifyHdl));
+    oldHints = line->getHints();
+    mxLib->set_active(oldHints.indexOfAsciiL("lib", 4) >= 0);
+    mxTrig->set_active(oldHints.indexOfAsciiL("trig", 4) >= 0);
+    mxExpand->set_active(oldHints.indexOfAsciiL("expand", 6) >= 0);
+    mxNobracket->set_active(oldHints.indexOfAsciiL("nobracket", 9) >= 0);
+    mxDefdiff->set_active(oldHints.indexOfAsciiL("defdiff", 7) >= 0);
+    mxLib->connect_toggled   (LINK(this, ImGuiFunctionDialog, CheckBoxClickHdl));
+    mxTrig->connect_toggled   (LINK(this, ImGuiFunctionDialog, CheckBoxClickHdl));
+    mxExpand->connect_toggled   (LINK(this, ImGuiFunctionDialog, CheckBoxClickHdl));
+    mxNobracket->connect_toggled   (LINK(this, ImGuiFunctionDialog, CheckBoxClickHdl));
+    mxDefdiff->connect_toggled   (LINK(this, ImGuiFunctionDialog, CheckBoxClickHdl));
+}
+
+ImGuiFunctionDialog::~ImGuiFunctionDialog()
+{
+}
+
+IMPL_LINK_NOARG(ImGuiFunctionDialog, ButtonOkHdl, weld::Button&, void)
 {
     m_xDialog->response(RET_CLOSE);
+}
+
+IMPL_LINK_NOARG(ImGuiFunctionDialog, ButtonCancelHdl, weld::Button&, void)
+{
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(mpLine);
+    line->setPrintname(oldPrintname);
+    line->setHints(oldHints);
+    m_xDialog->response(RET_CLOSE);
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (pDoc)
+        pDoc->UpdateGuiText();
+}
+
+IMPL_LINK_NOARG(ImGuiFunctionDialog, ModifyHdl, weld::Entry&, void)
+{
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(mpLine);
+    line->setPrintname(mxPrintname->get_text());
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (pDoc)
+        pDoc->UpdateGuiText();
+}
+
+IMPL_LINK_NOARG( ImGuiFunctionDialog, CheckBoxClickHdl, weld::Toggleable&, void )
+{
+    std::vector<OUString> hintlist;
+    if (mxLib->get_active())
+        hintlist.push_back("lib");
+    if (mxTrig->get_active())
+        hintlist.push_back("trig");
+    if (mxExpand->get_active())
+        hintlist.push_back("expand");
+    if (mxNobracket->get_active())
+        hintlist.push_back("nobracket");
+    if (mxDefdiff->get_active())
+        hintlist.push_back("defdiff");
+
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(mpLine);
+    if (!hintlist.empty())
+    {
+        OUString hints = std::accumulate(std::next(hintlist.begin()), hintlist.end(), hintlist.front(), [](OUString a, OUString b) { return OUString(std::move(a) + ";" + b);});
+        line->setHints("{" + hints + "}");
+    }
+    else
+        line->setHints("{none}");
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (pDoc)
+        pDoc->UpdateGuiText();
 }
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

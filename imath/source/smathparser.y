@@ -786,7 +786,7 @@ statement: OPTIONS options {
            std::string printname = (pos == std::string::npos ? fname : fname.substr(pos+1));
            params.compiler->register_function(fname, {$7}, $3, printname);
            if (include_level == 0) {
-             std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
+             std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), OU("\"\""), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), params.compiler->create_function(fname)));
              line = params.lines.back();
              line_options.clear();
@@ -799,7 +799,7 @@ statement: OPTIONS options {
            std::string printname = (pos == std::string::npos ? fname : fname.substr(pos+1));
            params.compiler->register_function(fname, $7, $3, printname);
            if (include_level == 0) {
-             std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
+             std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), OU("\"\""), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), params.compiler->create_function(fname)));
              line = params.lines.back();
              line_options.clear();

@@ -261,6 +261,14 @@ class IMATH_DLLPUBLIC iFormulaNodeStmFunction : public iFormulaNodeStatement {
 public:
   iFormulaNodeStmFunction(std::shared_ptr<GiNaC::optionmap> g_options, std::vector<OUString> formulaParts, const GiNaC::expression& f);
   virtual OUString getCommand() const override { return OU("FUNCTION"); }
+  OUString getName() const;
+  OUString getPrintname() const;
+  OUString getArgs() const;
+  OUString getHints() const;
+  void setName(const OUString& name);
+  void setPrintname(const OUString& printname);
+  void setArgs(const OUString& args);
+  void setHints(const OUString& hints);
   // dependencyType recalc e.g. if function name was changed
 };
 

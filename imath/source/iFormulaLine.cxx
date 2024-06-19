@@ -390,6 +390,42 @@ iFormulaNodeStmFunction::iFormulaNodeStmFunction(std::shared_ptr<optionmap> g_op
   out.insert(f);
 }
 
+OUString iFormulaNodeStmFunction::getName() const {
+    return (_formulaParts.size() > 5 ? _formulaParts[5].trim() : "");
+}
+
+OUString iFormulaNodeStmFunction::getPrintname() const {
+    return (_formulaParts.size() > 3 ? _formulaParts[3].copy(1, _formulaParts[3].getLength() - 2) : "");
+}
+
+OUString iFormulaNodeStmFunction::getArgs() const {
+    return (_formulaParts.size() > 7 ? _formulaParts[7].trim() : "");
+}
+
+OUString iFormulaNodeStmFunction::getHints() const {
+    return (_formulaParts.size() > 1 ? _formulaParts[1].trim() : "");
+}
+
+void iFormulaNodeStmFunction::setName(const OUString& name) {
+    if (_formulaParts.size() > 5)
+        _formulaParts[5] = name;
+}
+
+void iFormulaNodeStmFunction::setPrintname(const OUString& printname) {
+    if (_formulaParts.size() > 3)
+        _formulaParts[3] = "\"" + printname + "\"";
+}
+
+void iFormulaNodeStmFunction::setArgs(const OUString& args) {
+    if (_formulaParts.size() > 7)
+        _formulaParts[7] = args;
+}
+
+void iFormulaNodeStmFunction::setHints(const OUString& hints) {
+    if (_formulaParts.size() > 1)
+        _formulaParts[1] = hints;
+}
+
 // NodeStmUnitdef
 iFormulaNodeStmUnitdef::iFormulaNodeStmUnitdef(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
@@ -496,6 +532,7 @@ void iFormulaNodeStmDelete::addLabel(const OUString& label) {
     OUString& labels = _formulaParts.at(1);
     if (labels.indexOf(label) < 0)
         labels += ";@" + label + "@";
+    _formulaParts.at(1) = labels;
 }
 
 void iFormulaNodeStmDelete::removeLabel(const OUString& label) {

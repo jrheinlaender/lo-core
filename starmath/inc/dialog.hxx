@@ -648,4 +648,35 @@ private:
     ImGuiWindow* mpGuiWindow;
 };
 
+class ImGuiChartDialog final : public weld::GenericDialogController
+{
+    std::unique_ptr<weld::Button> mxOk;
+    std::unique_ptr<weld::Button> mxCancel;
+    std::unique_ptr<weld::Entry> mxSeriesName;
+    std::unique_ptr<weld::Entry> mxXUnits;
+    std::unique_ptr<weld::Entry> mxYUnits;
+
+    DECL_LINK(ButtonOkHdl, weld::Button&, void);
+    DECL_LINK(ButtonCancelHdl, weld::Button&, void);
+    DECL_LINK(ModifyHdl, weld::Entry&, void);
+
+public:
+    ImGuiChartDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, std::shared_ptr<iFormulaLine> pLine);
+    virtual ~ImGuiChartDialog() override;
+
+    // The model was reset, update the line pointer
+    void setFormulaLinePointer(std::shared_ptr<iFormulaLine> pLine) { mpLine = pLine; }
+
+private:
+    // Old values, in case the user cancels
+    OUString oldSeriesName;
+    OUString oldXUnits;
+    OUString oldYUnits;
+
+    // The formula line for this options dialog
+    std::shared_ptr<iFormulaLine> mpLine;
+    // The parent edit window
+    ImGuiWindow* mpGuiWindow;
+};
+
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

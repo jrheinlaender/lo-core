@@ -2846,4 +2846,67 @@ IMPL_LINK_NOARG( ImGuiFunctionDialog, CheckBoxClickHdl, weld::Toggleable&, void 
         pDoc->UpdateGuiText();
 }
 
+ImGuiChartDialog::ImGuiChartDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, iFormulaLine_ptr pLine)
+    : GenericDialogController(pParent, "modules/smath/ui/iformulachart.ui", "FormulaChart")
+    , mxOk    (m_xBuilder->weld_button("button_ok"))
+    , mxCancel(m_xBuilder->weld_button("button_cancel"))
+    , mxSeriesName(m_xBuilder->weld_entry("seriesname"))
+    , mxXUnits(m_xBuilder->weld_entry("xunits"))
+    , mxYUnits(m_xBuilder->weld_entry("yunits"))
+    , mpLine(pLine)
+    , mpGuiWindow(pGuiWindow)
+{
+    mxOk->connect_clicked(LINK(this, ImGuiChartDialog, ButtonOkHdl));
+    mxCancel->connect_clicked(LINK(this, ImGuiChartDialog, ButtonCancelHdl));
+
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(pLine);
+    oldSeriesName = line->getSeriesName();
+    mxSeriesName->set_text(oldSeriesName);
+    mxSeriesName->connect_changed(LINK(this, ImGuiChartDialog, ModifyHdl));
+    oldXUnits = line->getXUnits();
+    mxXUnits->set_text(oldXUnits);
+    mxXUnits->connect_changed(LINK(this, ImGuiChartDialog, ModifyHdl));
+    oldYUnits = line->getYUnits();
+    mxYUnits->set_text(oldYUnits);
+    mxYUnits->connect_changed(LINK(this, ImGuiChartDialog, ModifyHdl));
+}
+
+ImGuiChartDialog::~ImGuiChartDialog()
+{
+}
+
+IMPL_LINK_NOARG(ImGuiChartDialog, ButtonOkHdl, weld::Button&, void)
+{
+    m_xDialog->response(RET_CLOSE);
+}
+
+IMPL_LINK_NOARG(ImGuiChartDialog, ButtonCancelHdl, weld::Button&, void)
+{
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(mpLine);
+    line->setSeriesName(oldSeriesName);
+    line->setXUnits(oldXUnits);
+    line->setYUnits(oldYUnits);
+    m_xDialog->response(RET_CLOSE);
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (pDoc)
+        pDoc->UpdateGuiText();
+}
+
+IMPL_LINK(ImGuiChartDialog, ModifyHdl, weld::Entry&, rEntry, void)
+{
+    auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(mpLine);
+
+    if (&rEntry == mxSeriesName.get())
+        line->setSeriesName(mxSeriesName->get_text());
+    else if (&rEntry == mxXUnits.get())
+        line->setXUnits(mxXUnits->get_text());
+    else if (&rEntry == mxYUnits.get())
+        line->setYUnits(mxYUnits->get_text());
+
+    SmDocShell* pDoc = mpGuiWindow->GetDoc();
+    if (pDoc)
+        pDoc->UpdateGuiText();
+}
+
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

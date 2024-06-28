@@ -183,7 +183,8 @@ protected:
       general_error,
       label_error,
       option_error,
-      formula_error
+      formula_error,
+      statement_error
   } error;
 
   /// Dependency tracking
@@ -240,6 +241,8 @@ public:
   virtual bool canHaveOptions() const override { return true; } // Actually only option echo is relevant
   virtual bool isDisplayable() const override { return false; }
   virtual depType dependencyType() const override { return depRecalc; }
+
+  virtual void markError(const OUString& compiledText, const int formulaStart, const int errorStart, const int errorEnd, const OUString& errorMessage) override;
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStmNamespace : public iFormulaNodeStatement {
@@ -371,6 +374,17 @@ class IMATH_DLLPUBLIC iFormulaNodeStmChart : public iFormulaNodeStatement {
 public:
   iFormulaNodeStmChart(std::shared_ptr<GiNaC::optionmap> g_options, std::vector<OUString> formulaParts);
   virtual OUString getCommand() const override { return OU("CHART"); }
+
+  OUString getX() const;
+  OUString getXUnits() const;
+  OUString getY() const;
+  OUString getYUnits() const;
+  OUString getSeriesName() const;
+  void setX(const OUString& x);
+  void setXUnits(const OUString& units);
+  void setY(const OUString& y);
+  void setYUnits(const OUString& units);
+  void setSeriesName(const OUString& name);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeExpression : public iFormulaLine {

@@ -330,7 +330,8 @@ void handle_error(imath::parserParameters& params, const std::shared_ptr<iFormul
   if (include_level == 0) {
     params.lines.push_back(l);
     int fStart = formulaStart.begin.column - (params.rawtext[formulaStart.begin.column - 1] == ' ' ? 0 : 1); // Blank after keyword is added automatically in iFormulaLine::print()
-    if (errorlocation.begin.column < fStart) errorlocation.begin.column = fStart;
+    if (errorlocation.begin.column > 5 && errorlocation.begin.column < fStart)
+      errorlocation.begin.column = fStart; // Note: errorlocation.begin.column == 0 marks a statement_error
     params.lines.back()->markError(params.rawtext, fStart, errorlocation.begin.column, errorlocation.end.column, errormessage);
   } else {
     errormessage += ": At line " + OUString::number(errorlocation.begin.line) + ", column " + OUString::number(errorlocation.begin.column);
@@ -345,8 +346,8 @@ void handle_error(imath::parserParameters& params, const std::shared_ptr<iFormul
 
 void handle_label_error(const imath::location& labelStart,const std::string& label, imath::parserParameters& params, const std::shared_ptr<iFormulaLine>& l, const imath::location& formulaStart) {
   errorlocation = labelStart;
-  errorlocation.begin.column += 5; // Ignore %%ii<space> and @ at start of label TODO Adjust in markError() if changed here!
-  errorlocation.end.column = params.rawtext.indexOfAsciiL("@", 1, errorlocation.begin.column);
+  errorlocation.begin.column += 4; // Ignore %%ii<space>
+  errorlocation.end.column = params.rawtext.indexOfAsciiL("@", 1, errorlocation.begin.column + 1);
   errormessage = "Duplicate label: " + OUS8(label);
   handle_error(params, l, formulaStart);
 }
@@ -987,7 +988,7 @@ statement: OPTIONS options {
          }
          | CHART '{' STRING ',' symbol '=' colvec_ex ',' ex ',' eq ',' ex ',' uinteger ',' STRING '}' {
            std::vector<OUString> formulaParts =
-               {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
+               {OU("{"), GETARG(@3), OU(","), GETARG(@5) + OU("=") + GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
            if (!checkHasChartsAndTables(params.xDocumentModel)) {
              error(@1, "This document type does not support the CHART statement");
              handle_error(params, std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)), @2);
@@ -1012,7 +1013,7 @@ statement: OPTIONS options {
          }
          | CHART '{' STRING ',' symbol '=' colvec_ex ',' ex ',' ex ',' ex ',' uinteger ',' STRING '}' {
            std::vector<OUString> formulaParts =
-               {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU("="), GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
+               {OU("{"), GETARG(@3), OU(","), GETARG(@5) + OU("=") + GETARG(@7), OU(","), GETARG(@9), OU(","), GETARG(@11), OU(","), GETARG(@13), OU(","), GETARG(@15), OU(","), GETARG(@17), OU("}")};
            if (!checkHasChartsAndTables(params.xDocumentModel)) {
              error(@1, "This document type does not support the CHART statement");
              handle_error(params, std::make_shared<iFormulaNodeStmChart>(current_options, std::move(formulaParts)), @2);
@@ -1038,7 +1039,7 @@ statement: OPTIONS options {
          | CHART error {
             handle_error(params, std::make_shared<iFormulaNodeStmChart>(current_options, fparts({})), @2);
             YYABORT;
-          }
+         }
          | SETTABLECELL '{' string_ex ',' ex ',' ex '}' {
            std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU("}")};
            if (!checkHasChartsAndTables(params.xDocumentModel)) {

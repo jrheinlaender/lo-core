@@ -46,11 +46,13 @@
 #include <dialog.hxx>
 #include <logging.hxx>
 
-#include "imath/option.hxx"
-#include "imath/printing.hxx"
+#include <imath/option.hxx>
+#include <imath/printing.hxx>
 #include <imath/iFormulaLine.hxx>
+#include <imath/imathutils.hxx>
 
 #include <com/sun/star/container/XChild.hpp>
+#include <com/sun/star/container/XNamed.hpp>
 
 using namespace com::sun::star::accessibility;
 using namespace com::sun::star;
@@ -242,6 +244,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mpLabelDialog(nullptr)
     , mpUnitPrintnameDialog(nullptr)
     , mpFunctionDialog(nullptr)
+    , mpChartDialog(nullptr)
     , lastOptionsPage(0)
     , mNumClicks(0)
     , mClickedColumn(-1)
@@ -306,6 +309,8 @@ void ImGuiWindow::ResetModel()
         mpUnitPrintnameDialog->setFormulaLinePointer(nullptr);
     if (mpFunctionDialog != nullptr)
         mpFunctionDialog->setFormulaLinePointer(nullptr);
+    if (mpChartDialog != nullptr)
+        mpChartDialog->setFormulaLinePointer(nullptr);
 
     // Note: freeze() and thaw() will break the selection at the end of the loop, and the options dialog callbacks
     mxFormulaList->clear();
@@ -441,6 +446,25 @@ void ImGuiWindow::ResetModel()
             else
                 mxFormulaList->set_image(*xIter, BMP_IMGUI_OPTIONS_LOCAL, IMGUIWINDOW_COL_OPTIONS);
         }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmChart))
+        {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, line->getY(), IMGUIWINDOW_COL_FORMULA);
+            if (line->getSeriesName().isEmpty() && line->getXUnits().isEmpty() && line->getYUnits().isEmpty())
+                mxFormulaList->set_image(*xIter, BMP_IMGUI_OPTIONS, IMGUIWINDOW_COL_OPTIONS);
+            else
+                mxFormulaList->set_image(*xIter, BMP_IMGUI_OPTIONS_LOCAL, IMGUIWINDOW_COL_OPTIONS);
+            mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_CHILD, IMGUIWINDOW_COL_CHILD); // add chart series
+
+            auto xChild = mxFormulaList->make_iterator();
+            OUString x = line->getX();
+            mxFormulaList->insert(xIter.get(), -1, &x, nullptr, nullptr, nullptr, false, xChild.get());
+            mxFormulaList->set_text(*xChild, "", IMGUIWINDOW_COL_LABEL);
+            mxFormulaList->set_text(*xChild, "x values", IMGUIWINDOW_COL_TYPE);
+            mxFormulaList->set_text(*xChild, x, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xChild, true, IMGUIWINDOW_COL_FORMULA);
+        }
         {
 
         }
@@ -466,6 +490,8 @@ void ImGuiWindow::ResetModel()
         mpUnitPrintnameDialog->setFormulaLinePointer(GetSelectedLine());
     if (mpFunctionDialog != nullptr)
         mpFunctionDialog->setFormulaLinePointer(GetSelectedLine());
+    if (mpChartDialog != nullptr)
+        mpChartDialog->setFormulaLinePointer(GetSelectedLine());
 }
 
 // Utility function for positioning dialogs at bottom center so that it does not hide the formula display
@@ -603,6 +629,16 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 positionImGuiDialog(mpFunctionDialog->getDialog(), GetFrameWeld());
                 mpFunctionDialog->run();
                 mpFunctionDialog = nullptr;
+                break;
+            }
+
+            auto c_line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(pLine);
+            if (c_line != nullptr)
+            {
+                mpChartDialog = std::make_unique<ImGuiChartDialog>(GetFrameWeld(), this, pLine);
+                positionImGuiDialog(mpChartDialog->getDialog(), GetFrameWeld());
+                mpChartDialog->run();
+                mpChartDialog = nullptr;
                 break;
             }
 
@@ -950,7 +986,23 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "OPTIONS")
                         pNew = std::make_shared<iFormulaNodeStmOptions>(gopt,fparts({""}));
                     else if (newType == "CHART")
-                        pNew = std::make_shared<iFormulaNodeStmChart>(gopt, fparts({"{", "\"chartname\"", ",", useEx, ",", "0:10", ",", "y", ",", useEx, ",", "1", ",", "\"series\"", "}"}));
+                    {
+                        Reference<XModel> xParent;
+                        Reference<XComponent> xChart;
+                        Reference<container::XChild> xModel(pDoc->GetModel(), UNO_QUERY);
+                        if (xModel.is())
+                        {
+                            xParent = Reference<XModel>(xModel->getParent(), UNO_QUERY);
+                            if (xParent.is())
+                            {
+                                xChart = insertChart(xParent, comphelper::getProcessComponentContext());
+                                setTitles(xChart, "Title", "1", "1");
+                                Reference <container::XNamed> xNamed(xChart, UNO_QUERY);
+                                if (xNamed.is())
+                                    pNew = std::make_shared<iFormulaNodeStmChart>(gopt, fparts({"{", "\"" + xNamed->getName() + "\"", ",", useEx + " = 0:10", ",", "1", ",", "y = " + useEx, ",", "1", ",", "1", ",", "\"series 1\"", "}"}));
+                            }
+                        }
+                    }
                     else if (newType == "TEXT")
                         pNew = std::make_shared<iFormulaNodeText>(uvec, gopt, GiNaC::optionmap(), fparts({"="}), std::vector<std::shared_ptr<textItem>>());
                     else if (newType == "CLEAREQUATIONS")
@@ -979,7 +1031,8 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                         pNew = std::make_shared<iFormulaNodeStmTablecell>(gopt, fparts({"{", "\"tablename\"", ",", "\"A1\"", ",", "1", "}"}));
                     else if (newType == "SETCALCCELLS")
                         pNew = std::make_shared<iFormulaNodeStmCalccell>(gopt, fparts({"{", "\"filename\"", ",", "\"tablename\"", ",", "\"A1\"", ",", "1", "}"}));
-                    else
+
+                    if (pNew == nullptr)
                     {
                         pNew = std::make_shared<iFormulaNodeError>(gopt, pLine->print());
                         pNew->markError(pLine->print() + "\n", 5, 5, pLine->print().getLength() - 4, "Invalid formula type");
@@ -1040,6 +1093,28 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     auto pos = rIterString.second.indexOfAsciiL("(", 1);
                     line->setName(rIterString.second.copy(0, pos).trim());
                     line->setArgs(rIterString.second.copy(pos + 1, rIterString.second.getLength() - pos - 2).trim());
+                }
+                else if (typeid(*pLine) == typeid(iFormulaNodeStmChart))
+                {
+                    auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(pLine);
+                    auto xIter = mxFormulaList->make_iterator();
+                    mxFormulaList->copy_iterator(rIterString.first, *xIter);
+
+                    if (mxFormulaList->iter_parent(*xIter))
+                    {
+                        // The x values line was edited
+                        mxFormulaList->iter_children(*xIter);
+                        int nLine = 1; // odd lines: x values. even lines: y values
+
+                        do
+                        {
+                            if (nLine == 1)
+                                line->setX(rIterString.second);
+                        }
+                        while (mxFormulaList->iter_next(*xIter));
+                    }
+                    else
+                        line->setY(rIterString.second);
                 }
                 else
                     pLine->setFormula(rIterString.second);

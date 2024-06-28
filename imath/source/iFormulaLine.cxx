@@ -35,7 +35,6 @@
 #include "unit.hxx"
 #include "iFormulaLine.hxx"
 #endif
-#include "operands.hxx"
 
 using namespace GiNaC;
 
@@ -81,10 +80,10 @@ std::vector<std::vector<OUString>> iFormulaLine::display(const Reference<XModel>
 
     OUString errorPart = (_formulaParts[1].isEmpty() ? OUString(sal_Unicode(u'\u21B5')) : _formulaParts[1]);
 
-    // Double unmatched quotes (there seems to be no way to actually display quotes in starmath syntax ?!)
+    // Fix unmatched quotes
     OUString fPart0;
     OUString fPart2;
-    if (countQuotes(_formulaParts[0]) > 0)
+    if (countQuotes(_formulaParts[0]) % 2 > 0)
     {
         auto quote_idx = _formulaParts[0].lastIndexOf("\"");
         fPart0 = _formulaParts[0].replaceAt(quote_idx, 1, OUString(u'\u201C'));
@@ -93,7 +92,7 @@ std::vector<std::vector<OUString>> iFormulaLine::display(const Reference<XModel>
         fPart0 = _formulaParts[0];
     std::cout << "fPart0=" << fPart0 << std::endl;
 
-    if (countQuotes(_formulaParts[2]) > 0)
+    if (!fPart0.isEmpty() && countQuotes(_formulaParts[2]) % 2 > 0)
     {
         auto quote_idx = _formulaParts[2].indexOf("\"");
         fPart2 = _formulaParts[2].replaceAt(quote_idx, 1, OUString(u'\u201C'));
@@ -281,6 +280,8 @@ OUString iFormulaLine::getFormula() const {
             return _formulaParts[2];
         case general_error:
             return _formulaParts[0];
+        case statement_error:
+            return _formulaParts[2];
         default:
             // All other errors
             return  _formulaParts[0] + _formulaParts[1] + _formulaParts [2];
@@ -371,6 +372,20 @@ iFormulaNodeStatement::iFormulaNodeStatement(std::shared_ptr<optionmap> g_option
 
 OUString iFormulaNodeStatement::print() const {
   return OU("%%ii ") + (options.size() > 0 ? printOptions() + OU(" ") : OU("")) + getCommand() + OU(" ") + getFormula();
+}
+
+void iFormulaNodeStatement::markError(const OUString& compiledText, const int formulaStart, const int errorStart, const int errorEnd, const OUString& errorMessage)
+{
+    // Ensure that we are handling a statement error
+    if (errorStart > 0)
+        return iFormulaLine::markError(compiledText, formulaStart, errorStart, errorEnd, errorMessage);
+
+    _formulaParts.clear();
+    _formulaParts.emplace_back("");
+    _formulaParts.emplace_back(compiledText.copy(errorStart + 5, errorEnd - errorStart - 5));
+    _formulaParts.emplace_back(compiledText.copy(formulaStart));
+    _formulaParts.emplace_back(errorMessage);
+    error = statement_error;
 }
 
 // NodeStmOptions
@@ -572,6 +587,144 @@ iFormulaNodeStmChart::iFormulaNodeStmChart(std::shared_ptr<optionmap> g_options,
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
 }
 
+OUString extractPart(const std::vector<OUString>& fparts, const int i) {
+    OUString compiledText;
+    for (auto it = fparts.begin(); it != fparts.end() - 1; ++it)
+        compiledText += *it;
+    compiledText = compiledText.copy(compiledText.indexOfAsciiL("{", 1) + 1, compiledText.getLength() - 2);
+
+    sal_Int32 idx = 0;
+    int n = 1;
+
+    do {
+        OUString token = compiledText.getToken(0, ',', idx).trim();
+        if (n == i)
+            return token;
+        ++n;
+    } while (idx >= 0);
+
+    return OU("");
+}
+
+OUString iFormulaNodeStmChart::getX() const {
+    if (error)
+        return extractPart(_formulaParts, 2);
+
+    return (_formulaParts.size() > 3 ? _formulaParts[3] : "");
+}
+
+OUString iFormulaNodeStmChart::getXUnits() const {
+    if (error)
+        return extractPart(_formulaParts, 3);
+
+    return (_formulaParts.size() > 5 ? _formulaParts[5] : "");
+}
+
+OUString iFormulaNodeStmChart::getY() const {
+    if (error)
+        return extractPart(_formulaParts, 4);
+
+    return (_formulaParts.size() > 7 ? _formulaParts[7] : "");
+}
+
+OUString iFormulaNodeStmChart::getYUnits() const {
+    if (error)
+        return extractPart(_formulaParts, 5);
+
+    return (_formulaParts.size() > 9 ? _formulaParts[9] : "");
+}
+
+OUString iFormulaNodeStmChart::getSeriesName() const {
+    if (error) {
+        OUString part = extractPart(_formulaParts, 7);
+        return part.copy(1, part.getLength() - 2);
+    }
+
+    return (_formulaParts.size() > 13 ? _formulaParts[13].copy(1, _formulaParts[13].getLength() - 2) : "");
+}
+
+OUString setPart(std::vector<OUString>& fparts, const int i, const OUString& part) {
+    OUString compiledText;
+    for (auto it = fparts.begin(); it != fparts.end() - 1; ++it)
+        compiledText += *it;
+    compiledText = compiledText.copy(compiledText.indexOfAsciiL("{", 1) + 1, compiledText.getLength() - 2);
+
+    sal_Int32 idx = 0;
+    int n = 1;
+    OUString result("{");
+
+    do {
+        OUString token = compiledText.getToken(0, ',', idx).trim();
+        if (n == i)
+            result += part + OU(",");
+        else
+            result += token + OU(",");
+        ++n;
+    } while (idx >= 0);
+
+    return result.replaceAt(result.getLength() - 1, 1, OU("}")); // Replace trailing comma
+}
+
+void iFormulaNodeStmChart::setX(const OUString& x) {
+    if (error) {
+        _formulaParts[0] = setPart(_formulaParts, 2, x);
+        _formulaParts.resize(1);
+        error = no_error;
+        return;
+    }
+
+    if (_formulaParts.size() > 3)
+        _formulaParts[3] = x;
+}
+
+void iFormulaNodeStmChart::setXUnits(const OUString& units) {
+    if (error) {
+        _formulaParts[0] = setPart(_formulaParts, 3, units);
+        _formulaParts.resize(1);
+        error = no_error;
+        return;
+    }
+
+    if (_formulaParts.size() > 5)
+        _formulaParts[5] = units;
+}
+
+void iFormulaNodeStmChart::setY(const OUString& y) {
+    if (error) {
+        _formulaParts[0] = setPart(_formulaParts, 4, y);
+        _formulaParts.resize(1);
+        error = no_error;
+        return;
+    }
+
+    if (_formulaParts.size() > 7)
+        _formulaParts[7] = y;
+}
+
+void iFormulaNodeStmChart::setYUnits(const OUString& units) {
+    if (error) {
+        _formulaParts[0] = setPart(_formulaParts, 5, units);
+        _formulaParts.resize(1);
+        error = no_error;
+        return;
+    }
+
+    if (_formulaParts.size() > 9)
+        _formulaParts[9] = units;
+}
+
+void iFormulaNodeStmChart::setSeriesName(const OUString& name) {
+    if (error) {
+        _formulaParts[0] = setPart(_formulaParts, 7, "\"" + name + "\"");
+        _formulaParts.resize(1);
+        error = no_error;
+        return;
+    }
+
+    if (_formulaParts.size() > 13)
+        _formulaParts[13] = "\"" + name + "\"";
+}
+
 // Node Expression (virtual superclass of Node Ex and Node Eq)
 iFormulaNodeExpression::iFormulaNodeExpression(
     GiNaC::unitvec unitConversions, std::shared_ptr<optionmap> g_options, optionmap l_options,
@@ -654,7 +807,7 @@ void iFormulaNodeExpression::markError(const OUString& compiledText, const int f
 
     _formulaParts.clear();
     _formulaParts.emplace_back("");
-    _formulaParts.emplace_back(compiledText.copy(errorStart, errorEnd - errorStart));
+    _formulaParts.emplace_back(compiledText.copy(errorStart + 1, errorEnd - errorStart - 1));  // skip @ at start of label
     _formulaParts.emplace_back(compiledText.copy(formulaStart));
     _formulaParts.emplace_back(errorMessage);
     error = label_error;

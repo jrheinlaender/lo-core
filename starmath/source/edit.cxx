@@ -209,13 +209,9 @@ ImEditWindow::ImEditWindow(SmCmdBoxWindow &rMyCmdBoxWin, weld::Builder& rBuilder
     // mathmlimport.cxx creates a document and cals SetImText(). But later another SmDocShell() is constructed (copied?) and SetImText() is never called on it, so compilation is not triggered
     if (SmDocShell *pDoc = GetDoc()) {
         // Check for stand-alone formula
-        Reference<com::sun::star::container::XChild> xChild(pDoc->GetModel(), UNO_QUERY);
-        Reference<XModel> xParent;
-        if (xChild.is())
-            xParent = Reference<XModel>(xChild->getParent(), UNO_QUERY);
-        Reference<XModel> xModel;
-
-        if (!xParent.is())
+        OUString documentType;
+        Reference<XModel> xParent = pDoc->GetDocumentModel();
+        if (documentType.equalsAscii("SmDoc"))
             pDoc->Compile();
     }
 }

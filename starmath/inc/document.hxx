@@ -280,6 +280,7 @@ public:
 public:
     /// Access the document model. Either starmath or writer or impress, depending on whether the formula is stand-alone or inside a document
     css::uno::Reference<css::frame::XModel> GetDocumentModel() const;
+    css::uno::Reference<css::frame::XModel> GetDocumentModel(OUString& documentType) const;
 
     /// Set/Get for previous iFormula
     void SetPreviousFormula(const OUString& aName);

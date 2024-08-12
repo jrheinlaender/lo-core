@@ -172,8 +172,9 @@ void SmDocShell::Notify(SfxBroadcaster&, const SfxHint& rHint)
     }
 }
 
-Reference<XModel> SmDocShell::GetDocumentModel() const
+Reference<XModel> SmDocShell::GetDocumentModel(OUString& documentType) const
 {
+    documentType = "SmDoc";
     Reference<container::XChild> xModel(GetModel(), UNO_QUERY);
     if (!xModel.is())
         return GetModel();
@@ -186,6 +187,7 @@ Reference<XModel> SmDocShell::GetDocumentModel() const
         if (xTextDoc.is())
         {
             SAL_INFO_LEVEL(1, "starmath.imath", "Found parent text document");
+            documentType = "XTextDocument";
             return xParent;
         }
 
@@ -193,12 +195,18 @@ Reference<XModel> SmDocShell::GetDocumentModel() const
         if (xPresDoc.is())
         {
             SAL_INFO_LEVEL(1, "starmath.imath", "Found parent presentation document");
+            documentType = "XPresentationSupplier";
             return xParent;
         }
     }
 
     SAL_INFO_LEVEL(1, "starmath.imath", "No parent document for formula");
     return GetModel();
+}
+Reference<XModel> SmDocShell::GetDocumentModel() const
+{
+    OUString documentType;
+    return GetDocumentModel(documentType);
 }
 
 void SmDocShell::LoadSymbols()
@@ -465,32 +473,17 @@ OUString SmDocShell::ImInitializeCompiler() {
     Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
 
     // Check for stand-alone formula or part of Text / Presentation
-    Reference<container::XChild> xChild(GetModel(), UNO_QUERY);
-    Reference<XModel> xParent;
-    if (xChild.is())
-        xParent = Reference<XModel>(xChild->getParent(), UNO_QUERY);
+    OUString documentType;
+    Reference<XModel> xParent = GetDocumentModel(documentType);
     Reference<XModel> xModel;
 
-    if (!xParent.is())
+    if (documentType.equalsAscii("SmDoc"))
     {
         SAL_INFO_LEVEL(1, "starmath.imath", "Detected Starmath document");
         xModel = GetBaseModel();
     }
     else
-    {
-        Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
-        Reference<presentation::XPresentationSupplier> xPresDoc(xParent, UNO_QUERY); // TODO: Implement functionality for Impress
-
-        if (xTextDoc.is()) {
-            SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Writer document");
-            xModel = xParent;
-        } else if (xPresDoc.is()) {
-            SAL_INFO_LEVEL(1, "starmath.imath", "Detected parent Impress document");
-            xModel = xParent;
-        } else {
-            SAL_WARN("starmath.imath", "Unknown document type");
-        }
-    }
+        xModel = xParent;
 
     // Get access to the RDF graph that contains the document-specific options. Create one if it doesn't exist
     // TODO In stand-alone Math the graph does not get saved with the document. Why?
@@ -1083,12 +1076,9 @@ bool SmDocShell::addResultLines()
 
     // Find parent text document, if there is one
     // A valid xModel is only required for the CHART statement
-    Reference<container::XChild> xModel(GetModel(), UNO_QUERY);
-    Reference<XModel> xParent;
-    if (xModel.is())
-        xParent = Reference<XModel>(xModel->getParent(), UNO_QUERY);
-    Reference<XTextDocument> xTextDoc(xParent, UNO_QUERY);
-    if (!xTextDoc.is())
+    OUString documentType;
+    Reference<XModel> xParent = GetDocumentModel(documentType);
+    if (!documentType.equalsAscii("XTextDocument"))
         xParent.clear();
 
     unsigned basefontheight = o3tl::convert(GetFormat().GetBaseSize().Height(), SmO3tlLengthUnit(), o3tl::Length::pt);

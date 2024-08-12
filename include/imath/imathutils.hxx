@@ -277,7 +277,7 @@ setSeriesProperties(const Reference<com::sun::star::chart2::XChartDocument>& cDo
                     const sal_uInt16 linewidth = 50, const sal_uInt32 linecolor = 0);
 
 /// Get the chart data
-Sequence<Sequence<double>> getChartData(const Reference<XComponent>& xChart);
+IMATH_DLLPUBLIC Sequence<Sequence<double>> getChartData(const Reference<XComponent>& xChart);
 
 /// Get the chart data array object of a chart object
 Reference<XChartDataArray>

@@ -634,6 +634,15 @@ OUString iFormulaNodeStmChart::getYUnits() const {
     return (_formulaParts.size() > 9 ? _formulaParts[9] : "");
 }
 
+OUString iFormulaNodeStmChart::getObjectName() const {
+    if (error) {
+        OUString part = extractPart(_formulaParts, 0);
+        return part.copy(1, part.getLength() - 2);
+    }
+
+    return (_formulaParts.size() > 1 ? _formulaParts[1].copy(1, _formulaParts[1].getLength() - 2) : "");
+}
+
 OUString iFormulaNodeStmChart::getSeriesName() const {
     if (error) {
         OUString part = extractPart(_formulaParts, 7);
@@ -641,6 +650,13 @@ OUString iFormulaNodeStmChart::getSeriesName() const {
     }
 
     return (_formulaParts.size() > 13 ? _formulaParts[13].copy(1, _formulaParts[13].getLength() - 2) : "");
+}
+
+OUString iFormulaNodeStmChart::getSeriesNumber() const {
+    if (error)
+        return extractPart(_formulaParts, 6);
+
+    return _formulaParts.size() > 11 ? _formulaParts[11] : "";
 }
 
 OUString setPart(std::vector<OUString>& fparts, const int i, const OUString& part) {

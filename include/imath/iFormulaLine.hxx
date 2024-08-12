@@ -379,7 +379,9 @@ public:
   OUString getXUnits() const;
   OUString getY() const;
   OUString getYUnits() const;
+  OUString getObjectName() const;
   OUString getSeriesName() const;
+  OUString getSeriesNumber() const;
   void setX(const OUString& x);
   void setXUnits(const OUString& units);
   void setY(const OUString& y);

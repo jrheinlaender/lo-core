@@ -2854,7 +2854,9 @@ ImGuiChartDialog::ImGuiChartDialog(weld::Window* pParent, ImGuiWindow* pGuiWindo
     : GenericDialogController(pParent, "modules/smath/ui/iformulachart.ui", "FormulaChart")
     , mxOk    (m_xBuilder->weld_button("button_ok"))
     , mxCancel(m_xBuilder->weld_button("button_cancel"))
+    , mxObjectName(m_xBuilder->weld_label("objectname"))
     , mxSeriesName(m_xBuilder->weld_entry("seriesname"))
+    , mxSeriesNumber(m_xBuilder->weld_label("seriesnumber"))
     , mxXUnits(m_xBuilder->weld_entry("xunits"))
     , mxYUnits(m_xBuilder->weld_entry("yunits"))
     , mpLine(pLine)
@@ -2864,9 +2866,11 @@ ImGuiChartDialog::ImGuiChartDialog(weld::Window* pParent, ImGuiWindow* pGuiWindo
     mxCancel->connect_clicked(LINK(this, ImGuiChartDialog, ButtonCancelHdl));
 
     auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(pLine);
+    mxObjectName->set_label(line->getObjectName());
     oldSeriesName = line->getSeriesName();
     mxSeriesName->set_text(oldSeriesName);
     mxSeriesName->connect_changed(LINK(this, ImGuiChartDialog, ModifyHdl));
+    mxSeriesNumber->set_label(line->getSeriesNumber());
     oldXUnits = line->getXUnits();
     mxXUnits->set_text(oldXUnits);
     mxXUnits->connect_changed(LINK(this, ImGuiChartDialog, ModifyHdl));

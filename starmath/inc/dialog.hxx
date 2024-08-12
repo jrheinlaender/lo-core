@@ -652,7 +652,9 @@ class ImGuiChartDialog final : public weld::GenericDialogController
 {
     std::unique_ptr<weld::Button> mxOk;
     std::unique_ptr<weld::Button> mxCancel;
+    std::unique_ptr<weld::Label> mxObjectName;
     std::unique_ptr<weld::Entry> mxSeriesName;
+    std::unique_ptr<weld::Label> mxSeriesNumber;
     std::unique_ptr<weld::Entry> mxXUnits;
     std::unique_ptr<weld::Entry> mxYUnits;
 

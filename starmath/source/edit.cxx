@@ -494,6 +494,25 @@ void ImGuiWindow::ResetModel()
         mpChartDialog->setFormulaLinePointer(GetSelectedLine());
 }
 
+// Utility function to insert a chart object into the document
+OUString createChart(SmDocShell* pDoc)
+{
+    OUString result("");
+    OUString documentType;
+    Reference<XModel> xParent = pDoc->GetDocumentModel(documentType);
+
+    if (!documentType.equalsAscii("SmDoc"))
+    {
+        Reference<XComponent> xChart = insertChart(xParent, comphelper::getProcessComponentContext());
+        setTitles(xChart, "Title", "1", "1");
+        Reference <container::XNamed> xNamed(xChart, UNO_QUERY);
+        if (xNamed.is())
+            result = xNamed->getName();
+    }
+
+    return result;
+}
+
 // Utility function for positioning dialogs at bottom center so that it does not hide the formula display
 void positionImGuiDialog(weld::Dialog* dialog, weld::Window* window)
 {
@@ -707,6 +726,28 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 {
                     line->setWithEquationList({"E=m c^2"});
                     pDoc->UpdateGuiText();
+                }
+            }
+            else if (typeid(*pLine) == typeid(iFormulaNodeStmChart))
+            {
+                // Insert chart object for new series
+                auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(pLine);
+                OUString documentType;
+                Reference<XModel> xParent = pDoc->GetDocumentModel(documentType);
+
+                if (!documentType.equalsAscii("SmDoc"))
+                {
+                    OUString chartName = line->getObjectName();
+                    Reference<XComponent> xChart = getObjectByName(xParent, chartName);
+
+                    if (xChart.is())
+                    {
+                        sal_Int32 series = getChartData(xChart)[0].getLength() + 2; // Number of data series, including X values. 1, 4, 7, 10, ...
+                        pDoc->insertFormulaLineBefore(nullptr, std::make_shared<iFormulaNodeStmChart>(pLine->getGlobalOptions(),
+                            fparts({"{", "\"" +  chartName + "\"", ",", line->getX(), ",", line->getXUnits(), ",", line->getY(), ",", line->getYUnits(), ",", OUString::number(series), ",", "\"series 1\"", "}"}
+                        )));
+                        pDoc->UpdateGuiText();
+                    }
                 }
             }
             break;
@@ -987,21 +1028,9 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                         pNew = std::make_shared<iFormulaNodeStmOptions>(gopt,fparts({""}));
                     else if (newType == "CHART")
                     {
-                        Reference<XModel> xParent;
-                        Reference<XComponent> xChart;
-                        Reference<container::XChild> xModel(pDoc->GetModel(), UNO_QUERY);
-                        if (xModel.is())
-                        {
-                            xParent = Reference<XModel>(xModel->getParent(), UNO_QUERY);
-                            if (xParent.is())
-                            {
-                                xChart = insertChart(xParent, comphelper::getProcessComponentContext());
-                                setTitles(xChart, "Title", "1", "1");
-                                Reference <container::XNamed> xNamed(xChart, UNO_QUERY);
-                                if (xNamed.is())
-                                    pNew = std::make_shared<iFormulaNodeStmChart>(gopt, fparts({"{", "\"" + xNamed->getName() + "\"", ",", useEx + " = 0:10", ",", "1", ",", "y = " + useEx, ",", "1", ",", "1", ",", "\"series 1\"", "}"}));
-                            }
-                        }
+                        OUString chartName = createChart(pDoc);
+                        if (!chartName.isEmpty())
+                            pNew = std::make_shared<iFormulaNodeStmChart>(gopt, fparts({"{", "\"" + chartName + "\"", ",", useEx + " = 0:10", ",", "1", ",", "y = " + useEx, ",", "1", ",", "1", ",", "\"series 1\"", "}"}));
                     }
                     else if (newType == "TEXT")
                         pNew = std::make_shared<iFormulaNodeText>(uvec, gopt, GiNaC::optionmap(), fparts({"="}), std::vector<std::shared_ptr<textItem>>());
@@ -1101,18 +1130,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     mxFormulaList->copy_iterator(rIterString.first, *xIter);
 
                     if (mxFormulaList->iter_parent(*xIter))
-                    {
-                        // The x values line was edited
-                        mxFormulaList->iter_children(*xIter);
-                        int nLine = 1; // odd lines: x values. even lines: y values
-
-                        do
-                        {
-                            if (nLine == 1)
-                                line->setX(rIterString.second);
-                        }
-                        while (mxFormulaList->iter_next(*xIter));
-                    }
+                        line->setX(rIterString.second);
                     else
                         line->setY(rIterString.second);
                 }

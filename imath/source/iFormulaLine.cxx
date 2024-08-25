@@ -567,26 +567,6 @@ iFormulaNodeStmUpdate::iFormulaNodeStmUpdate(std::shared_ptr<optionmap> g_option
    iFormulaNodeStatement(g_options, std::move(formulaParts)) {
 }
 
-// NodeStmTablecell
-iFormulaNodeStmTablecell::iFormulaNodeStmTablecell(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
-   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
-}
-
-// NodeStmCalccell
-iFormulaNodeStmCalccell::iFormulaNodeStmCalccell(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
-   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
-}
-
-// NodeStmReadfile
-iFormulaNodeStmReadfile::iFormulaNodeStmReadfile(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
-   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
-}
-
-// NodeStmChart
-iFormulaNodeStmChart::iFormulaNodeStmChart(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
-   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
-}
-
 OUString extractPart(const std::vector<OUString>& fparts, const int i) {
     OUString compiledText;
     for (auto it = fparts.begin(); it != fparts.end() - 1; ++it)
@@ -604,59 +584,6 @@ OUString extractPart(const std::vector<OUString>& fparts, const int i) {
     } while (idx >= 0);
 
     return OU("");
-}
-
-OUString iFormulaNodeStmChart::getX() const {
-    if (error)
-        return extractPart(_formulaParts, 2);
-
-    return (_formulaParts.size() > 3 ? _formulaParts[3] : "");
-}
-
-OUString iFormulaNodeStmChart::getXUnits() const {
-    if (error)
-        return extractPart(_formulaParts, 3);
-
-    return (_formulaParts.size() > 5 ? _formulaParts[5] : "");
-}
-
-OUString iFormulaNodeStmChart::getY() const {
-    if (error)
-        return extractPart(_formulaParts, 4);
-
-    return (_formulaParts.size() > 7 ? _formulaParts[7] : "");
-}
-
-OUString iFormulaNodeStmChart::getYUnits() const {
-    if (error)
-        return extractPart(_formulaParts, 5);
-
-    return (_formulaParts.size() > 9 ? _formulaParts[9] : "");
-}
-
-OUString iFormulaNodeStmChart::getObjectName() const {
-    if (error) {
-        OUString part = extractPart(_formulaParts, 0);
-        return part.copy(1, part.getLength() - 2);
-    }
-
-    return (_formulaParts.size() > 1 ? _formulaParts[1].copy(1, _formulaParts[1].getLength() - 2) : "");
-}
-
-OUString iFormulaNodeStmChart::getSeriesName() const {
-    if (error) {
-        OUString part = extractPart(_formulaParts, 7);
-        return part.copy(1, part.getLength() - 2);
-    }
-
-    return (_formulaParts.size() > 13 ? _formulaParts[13].copy(1, _formulaParts[13].getLength() - 2) : "");
-}
-
-OUString iFormulaNodeStmChart::getSeriesNumber() const {
-    if (error)
-        return extractPart(_formulaParts, 6);
-
-    return _formulaParts.size() > 11 ? _formulaParts[11] : "";
 }
 
 OUString setPart(std::vector<OUString>& fparts, const int i, const OUString& part) {
@@ -681,64 +608,117 @@ OUString setPart(std::vector<OUString>& fparts, const int i, const OUString& par
     return result.replaceAt(result.getLength() - 1, 1, OU("}")); // Replace trailing comma
 }
 
-void iFormulaNodeStmChart::setX(const OUString& x) {
+OUString iFormulaLine::genericGet(const int idx) const {
+    if (error)
+        return extractPart(_formulaParts, idx);
+
+    return (_formulaParts.size() > (2 * idx + 1) ? _formulaParts[2 * idx + 1] : "");
+}
+
+void iFormulaLine::genericSet(const int idx, const OUString& value) {
     if (error) {
-        _formulaParts[0] = setPart(_formulaParts, 2, x);
+        _formulaParts[0] = setPart(_formulaParts, idx + 1, value);
         _formulaParts.resize(1);
         error = no_error;
         return;
     }
 
-    if (_formulaParts.size() > 3)
-        _formulaParts[3] = x;
+    if (_formulaParts.size() > (2 * idx + 1))
+        _formulaParts[2 * idx + 1] = value;
+}
+
+// NodeStmTablecell
+iFormulaNodeStmTablecell::iFormulaNodeStmTablecell(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
+   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
+}
+
+OUString iFormulaNodeStmTablecell::getTablename() const {
+    return genericGet(0);
+}
+
+OUString iFormulaNodeStmTablecell::getCellReferences() const {
+    return genericGet(1);
+}
+
+OUString iFormulaNodeStmTablecell::getValues() const {
+    return genericGet(2);
+}
+
+void iFormulaNodeStmTablecell::setTablename(const OUString& n) {
+    genericSet(0, n);
+}
+
+void iFormulaNodeStmTablecell::setCellReferences(const OUString& r) {
+    genericSet(1, r);
+}
+
+void iFormulaNodeStmTablecell::setValues(const OUString& v) {
+    genericSet(2, v);
+}
+
+// NodeStmCalccell
+iFormulaNodeStmCalccell::iFormulaNodeStmCalccell(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
+   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
+}
+
+// NodeStmReadfile
+iFormulaNodeStmReadfile::iFormulaNodeStmReadfile(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
+   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
+}
+
+// NodeStmChart
+iFormulaNodeStmChart::iFormulaNodeStmChart(std::shared_ptr<optionmap> g_options, std::vector<OUString> formulaParts) :
+   iFormulaNodeStatement(g_options, std::move(formulaParts)) {
+}
+
+OUString iFormulaNodeStmChart::getObjectName() const {
+    OUString result = genericGet(0);
+    return !result.isEmpty() ? result.copy(1, result.getLength() - 2) : "";
+}
+
+OUString iFormulaNodeStmChart::getX() const {
+    return genericGet(1);
+}
+
+OUString iFormulaNodeStmChart::getXUnits() const {
+    return genericGet(2);
+}
+
+OUString iFormulaNodeStmChart::getY() const {
+    return genericGet(3);
+}
+
+OUString iFormulaNodeStmChart::getYUnits() const {
+    return genericGet(4);
+}
+
+OUString iFormulaNodeStmChart::getSeriesNumber() const {
+    return genericGet(5);
+}
+
+OUString iFormulaNodeStmChart::getSeriesName() const {
+    OUString result = genericGet(6);
+    return !result.isEmpty() ? result.copy(1, result.getLength() - 2) : "";
+}
+
+void iFormulaNodeStmChart::setX(const OUString& x) {
+    genericSet(1, x);
 }
 
 void iFormulaNodeStmChart::setXUnits(const OUString& units) {
-    if (error) {
-        _formulaParts[0] = setPart(_formulaParts, 3, units);
-        _formulaParts.resize(1);
-        error = no_error;
-        return;
-    }
-
-    if (_formulaParts.size() > 5)
-        _formulaParts[5] = units;
+    genericSet(2, units);
 }
 
 void iFormulaNodeStmChart::setY(const OUString& y) {
-    if (error) {
-        _formulaParts[0] = setPart(_formulaParts, 4, y);
-        _formulaParts.resize(1);
-        error = no_error;
-        return;
-    }
-
-    if (_formulaParts.size() > 7)
-        _formulaParts[7] = y;
+   genericSet(3, y);
 }
 
 void iFormulaNodeStmChart::setYUnits(const OUString& units) {
-    if (error) {
-        _formulaParts[0] = setPart(_formulaParts, 5, units);
-        _formulaParts.resize(1);
-        error = no_error;
-        return;
-    }
-
-    if (_formulaParts.size() > 9)
-        _formulaParts[9] = units;
+    genericSet(4, units);
 }
 
 void iFormulaNodeStmChart::setSeriesName(const OUString& name) {
-    if (error) {
-        _formulaParts[0] = setPart(_formulaParts, 7, "\"" + name + "\"");
-        _formulaParts.resize(1);
-        error = no_error;
-        return;
-    }
-
-    if (_formulaParts.size() > 13)
-        _formulaParts[13] = "\"" + name + "\"";
+    genericSet(6, "\"" + name + "\"");
 }
 
 // Node Expression (virtual superclass of Node Ex and Node Eq)

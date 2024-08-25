@@ -217,6 +217,10 @@ protected:
 
     /// Dependency tracking
     std::set<GiNaC::expression, GiNaC::expr_is_less> in, out;
+
+    /// Get/set of formula parts
+    OUString genericGet(const int idx) const;
+    void genericSet(const int idx, const OUString& value);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeComment : public iFormulaLine
@@ -433,6 +437,13 @@ public:
                              std::vector<OUString> formulaParts);
     virtual OUString getCommand() const override { return OU("SETTABLECELL"); }
     virtual depType dependencyType() const override { return depIn; }
+
+    OUString getTablename() const;
+    OUString getCellReferences() const;
+    OUString getValues() const;
+    void setTablename(const OUString& n);
+    void setCellReferences(const OUString& r);
+    void setValues(const OUString& v);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStmCalccell : public iFormulaNodeStatement

@@ -142,15 +142,19 @@
       </row>
       <row>
         <col id="0">SETTABLECELL</col>
-        <col id="1" translatable="yes" context="formulatype|table_cell">Table cell</col>
+        <col id="1" translatable="yes" context="formulatype|table_cell">Set table cell</col>
       </row>
       <row>
         <col id="0">SETCALCCELLS</col>
-        <col id="1" translatable="yes" context="formulatype|calc_cell">Calc cell</col>
+        <col id="1" translatable="yes" context="formulatype|calc_cell">Set calc cells</col>
       </row>
       <row>
         <col id="0">ERROR</col>
         <col id="1" translatable="yes" context="formulatype|error">Error</col>
+      </row>
+      <row>
+        <col id="0">CHARTSERIES</col>
+        <col id="1" translatable="yes" context="formulatype|chartseries">Chart series</col>
       </row>
     </data>
   </object>

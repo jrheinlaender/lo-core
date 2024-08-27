@@ -461,8 +461,39 @@ void ImGuiWindow::ResetModel()
             mxFormulaList->set_text(*xChild, x, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_sensitive(*xChild, true, IMGUIWINDOW_COL_FORMULA);
         }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmTablecell))
         {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeStmTablecell>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, line->getTablename(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_CHILD, IMGUIWINDOW_COL_CHILD); // add cell reference and value assignment
 
+            OUString references = line->getCellReferences().trim();
+            if (references.indexOfAsciiL(";", 1) > 0)
+                references = references.copy(1, references.getLength() - 2); // Drop enclosing braces
+            OUString values = line->getValues().trim();
+            if (values.indexOfAsciiL(";", 1) > 0)
+                values = values.copy(1, values.getLength() - 2);
+            sal_Int32 r_idx = 0;
+            sal_Int32 v_idx = 0;
+            OUString r;
+            OUString v;
+
+            do
+            {
+                // TODO: It would simplify things if the smathparser stored the references and values as true vectors of OUString in the iFormulaLine
+                r = references.getToken(0, ';', r_idx);
+                if (v_idx < values.getLength())
+                    v = values.getToken(0, ';', v_idx); // Otherwise the last value is repeated in the referenced cell
+                auto xChild = mxFormulaList->make_iterator();
+                mxFormulaList->insert(xIter.get(), -1, &r, nullptr, nullptr, nullptr, false, xChild.get());
+                mxFormulaList->set_image(*xChild, BMP_IMGUI_DELETE, IMGUIWINDOW_COL_DELETE);
+                mxFormulaList->set_text(*xChild, "", IMGUIWINDOW_COL_LABEL);
+                mxFormulaList->set_text(*xChild, "assignment", IMGUIWINDOW_COL_TYPE);
+                mxFormulaList->set_text(*xChild, r.replace('\"', ' ').trim() + " = " + v, IMGUIWINDOW_COL_FORMULA);
+                mxFormulaList->set_sensitive(*xChild, true, IMGUIWINDOW_COL_FORMULA);
+                mxFormulaList->set_image(*xChild, BMP_IMGUI_INSERT_CHILD, IMGUIWINDOW_COL_CHILD);
+            } while (r_idx >= 0);
         }
         {
         else if (typeid(*fLine) == typeid(iFormulaNodeError))
@@ -606,6 +637,47 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                     break;
                 }
             }
+            else if (typeid(*pLine) == typeid(iFormulaNodeStmTablecell))
+            {
+                auto line = std::dynamic_pointer_cast<iFormulaNodeStmTablecell>(pLine);
+                auto xIterRefs = mxFormulaList->make_iterator();
+                mxFormulaList->copy_iterator(*xIter, *xIterRefs);
+
+                if (mxFormulaList->iter_parent(*xIterRefs))
+                {
+                    // A cell reference assignment line was clicked
+                    std::vector<OUString> references;
+                    std::vector<OUString> values;
+                    mxFormulaList->iter_children(*xIterRefs);
+
+                    do
+                    {
+                        if (mxFormulaList->iter_compare(*xIter, *xIterRefs) != 0)
+                        {
+                            OUString assignment = mxFormulaList->get_text(*xIterRefs, IMGUIWINDOW_COL_FORMULA);
+                            auto pos = assignment.indexOfAsciiL("=", 1);
+                            references.emplace_back(assignment.copy(0, pos).trim());
+                            values.emplace_back(assignment.copy(pos + 1, assignment.getLength() - pos - 1).trim());
+                        }
+                    }
+                    while (mxFormulaList->iter_next(*xIterRefs));
+
+                    if (references.empty())
+                        break; // Ignore click, at least one assignemnt is required
+
+                    OUString referencelist = "\"" + references.front() + "\"";
+                    referencelist = std::accumulate(std::next(references.begin()), references.end(), referencelist, [](OUString a, OUString b) { return OUString(std::move(a) + ";\"" + b + "\""); });
+                    if (references.size() > 1)
+                        referencelist = "{" + referencelist + "}";
+                    line->setCellReferences(referencelist);
+                    OUString valuelist = std::accumulate(std::next(values.begin()), values.end(), values.front(), [](OUString a, OUString b) { return OUString(std::move(a) + ";" + b); });
+                    if (values.size() > 1)
+                        valuelist = "{" + valuelist + "}";
+                    line->setValues(valuelist);
+                    pDoc->UpdateGuiText();
+                    break;
+                }
+            }
 
             pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
             break;
@@ -745,6 +817,21 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                         pDoc->UpdateGuiText();
                     }
                 }
+            }
+            else if (typeid(*pLine) == typeid(iFormulaNodeStmTablecell))
+            {
+                auto line = std::dynamic_pointer_cast<iFormulaNodeStmTablecell>(pLine);
+                OUString references = line->getCellReferences().trim();
+                if (references.indexOfAsciiL(";", 1) < 0)
+                    line->setCellReferences("{" + references + "; \"A1\"}");
+                else
+                    line->setCellReferences(references.copy(0, references.getLength() - 1) + "; \"A1\"}");
+                OUString values = line->getValues().trim();
+                if (values.indexOfAsciiL(";", 1) < 0)
+                    line->setValues("{" + values + "; \"A1\"}");
+                else
+                    line->setValues(values.copy(0, values.getLength() - 1) + "; 1}");
+                pDoc->UpdateGuiText();
             }
             break;
         }
@@ -1130,6 +1217,45 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else
                         line->setY(rIterString.second);
                 }
+                else if (typeid(*pLine) == typeid(iFormulaNodeStmTablecell))
+                {
+                    auto line = std::dynamic_pointer_cast<iFormulaNodeStmTablecell>(pLine);
+                    auto xIter = mxFormulaList->make_iterator();
+                    mxFormulaList->copy_iterator(rIterString.first, *xIter);
+
+                    if (mxFormulaList->iter_parent(*xIter))
+                    {
+                        // A cell value assigment was edited
+                        std::vector<OUString> references;
+                        std::vector<OUString> values;
+                        mxFormulaList->iter_children(*xIter);
+
+                        do
+                        {
+                            OUString assignment;
+                            if (mxFormulaList->iter_compare(*xIter, rIterString.first) == 0)
+                                assignment = rIterString.second;
+                            else
+                                assignment = mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA);
+
+                            auto pos = assignment.indexOfAsciiL("=", 1);
+                            references.emplace_back(assignment.copy(0, pos).trim());
+                            values.emplace_back(assignment.copy(pos + 1, assignment.getLength() - pos - 1).trim());
+                        }
+                        while (mxFormulaList->iter_next(*xIter));
+
+                        OUString referencelist = "\"" + references.front() + "\"";
+                        referencelist = std::accumulate(std::next(references.begin()), references.end(), referencelist, [](OUString a, OUString b) { return OUString(std::move(a) + ";\"" + b + "\""); });
+                        if (references.size() > 1)
+                            referencelist = "{" + referencelist + "}";
+                        line->setCellReferences(referencelist);
+                        OUString valuelist = std::accumulate(std::next(values.begin()), values.end(), values.front(), [](OUString a, OUString b) { return OUString(std::move(a) + ";" + b); });
+                        if (values.size() > 1)
+                            valuelist = "{" + valuelist + "}";
+                        line->setValues(valuelist);
+                    }
+                    else
+                        line->setTablename(rIterString.second);
                 else
                     pLine->setFormula(rIterString.second);
 

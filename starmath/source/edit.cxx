@@ -274,6 +274,10 @@ namespace
         typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
         typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval)
     };
+    static const std::vector<std::type_index> nodesWithLabel = {
+        typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
+        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval)
+    };
     static const std::vector<std::type_index> nodesWithoutFormula = {
         typeid(iFormulaNodeStmClearall), typeid(iFormulaNodeStmReadfile), typeid(iFormulaNodeStmOptions), typeid(iFormulaNodeStmDelete),
         typeid(iFormulaNodePrintval), typeid(iFormulaNodeStmUnitdef), typeid(iFormulaNodeStmPrefixdef)
@@ -312,11 +316,6 @@ void ImGuiWindow::ResetModel()
     mxFormulaList->clear();
 
     int lineCount = 0;
-    std::vector<std::type_index> nodesWithLabel = {
-        typeid(iFormulaNodeEq), typeid(iFormulaNodeEx), typeid(iFormulaNodeConst), typeid(iFormulaNodeFuncdef),
-        typeid(iFormulaNodeVectordef), typeid(iFormulaNodeMatrixdef), typeid(iFormulaNodeExplainval)
-    };
-
     for (const auto& fLine : pDoc->GetFormulaLines())
     {
         if (typeid(*fLine) == typeid(iFormulaNodeResult))
@@ -402,6 +401,7 @@ void ImGuiWindow::ResetModel()
         {
             mxFormulaList->set_text(*xIter, "PRINTVAL", IMGUIWINDOW_COL_TYPE);
             auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, line->getExpression(), IMGUIWINDOW_COL_FORMULA);
 
             auto withEquationList = line->getWithEquationList();
@@ -495,7 +495,19 @@ void ImGuiWindow::ResetModel()
                 mxFormulaList->set_image(*xChild, BMP_IMGUI_INSERT_CHILD, IMGUIWINDOW_COL_CHILD);
             } while (r_idx >= 0);
         }
+        else if (typeid(*fLine) == typeid(iFormulaNodeStmCalccell))
         {
+            auto line = std::dynamic_pointer_cast<iFormulaNodeStmCalccell>(fLine);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, "'" + line->getFilename() + "'#$" + line->getSheetname(), IMGUIWINDOW_COL_FORMULA);
+            OUString assignment = line->getCellReferences() + " = " + line->getValues();
+            auto xChild = mxFormulaList->make_iterator();
+            mxFormulaList->insert(xIter.get(), -1, &assignment, nullptr, nullptr, nullptr, false, xChild.get());
+            mxFormulaList->set_text(*xChild, "", IMGUIWINDOW_COL_LABEL);
+            mxFormulaList->set_text(*xChild, "assignment", IMGUIWINDOW_COL_TYPE);
+            mxFormulaList->set_text(*xChild, assignment, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xChild, true, IMGUIWINDOW_COL_FORMULA);
+        }
         else if (typeid(*fLine) == typeid(iFormulaNodeError))
         {
             auto error = std::dynamic_pointer_cast<iFormulaNodeError>(fLine);
@@ -560,8 +572,8 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         return false; // Ignore mouse clicks when a cell is being edited
 
     SmDocShell* pDoc = GetDoc();
-        if (!pDoc)
-            return false;
+    if (!pDoc)
+        return false;
 
     // Detect clicked row and column
     // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
@@ -591,12 +603,12 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 {
                     // A WITH line was clicked
                     std::list<OUString> withEquationList;
-                    withEquationList.push_back("E=m c^2");
+                    withEquationList.emplace_back("E=m c^2");
                     mxFormulaList->iter_children(*xIter);
 
                     do
                     {
-                        withEquationList.push_back(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA));
+                        withEquationList.emplace_back(mxFormulaList->get_text(*xIter, IMGUIWINDOW_COL_FORMULA));
                     }
                     while (mxFormulaList->iter_next(*xIter));
 
@@ -766,6 +778,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine, lastOptionsPage);
                 positionImGuiDialog(mpOptionsDialog->getDialog(), GetFrameWeld());
                 mpOptionsDialog->run();
+                lastOptionsPage = mpOptionsDialog->getCurrentPage();
                 mpOptionsDialog = nullptr;
             }
             else if (typeid(*pLine) == typeid(iFormulaNodeStmDelete))
@@ -810,11 +823,18 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
 
                     if (xChart.is())
                     {
-                        sal_Int32 series = getChartData(xChart)[0].getLength() + 2; // Number of data series, including X values. 1, 4, 7, 10, ...
-                        pDoc->insertFormulaLineBefore(nullptr, std::make_shared<iFormulaNodeStmChart>(pLine->getGlobalOptions(),
-                            fparts({"{", "\"" +  chartName + "\"", ",", line->getX(), ",", line->getXUnits(), ",", line->getY(), ",", line->getYUnits(), ",", OUString::number(series), ",", "\"series 1\"", "}"}
-                        )));
-                        pDoc->UpdateGuiText();
+                        const auto& lines = pDoc->GetFormulaLines();
+                        auto it = std::find(lines.begin(), lines.end(), pLine);
+                        if (it != lines.end())
+                        {
+                            while (++it != lines.end() && typeid(**it) == typeid(iFormulaNodeResult));
+                            auto nextLine = (it == lines.end() ? nullptr : *it);
+                            sal_Int32 series = getChartData(xChart)[0].getLength() + 2; // Number of data series, including X values. 1, 4, 7, 10, ...
+                            pDoc->insertFormulaLineBefore(nextLine, std::make_shared<iFormulaNodeStmChart>(pLine->getGlobalOptions(),
+                                fparts({"{", "\"" +  chartName + "\"", ",", line->getX(), ",", line->getXUnits(), ",", line->getY(), ",", line->getYUnits(), ",", OUString::number(series), ",", "\"series 1\"", "}"}
+                            )));
+                            pDoc->UpdateGuiText();
+                        }
                     }
                 }
             }
@@ -1091,6 +1111,9 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     SAL_INFO_LEVEL(1, "starmath.imath", "Conversion not possible, replacing line with a default");
                     auto uvec = GiNaC::unitvec();
                     auto gopt = pLine->getGlobalOptions();
+                    useEx = useEx.trim();
+                    useEq = useEq.trim();
+
                     if (newType == "EQDEF")
                         pNew = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({useEq}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
                     else if (newType == "EXDEF")
@@ -1142,7 +1165,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "SETTABLECELL")
                         pNew = std::make_shared<iFormulaNodeStmTablecell>(gopt, fparts({"{", "\"tablename\"", ",", "\"A1\"", ",", "1", "}"}));
                     else if (newType == "SETCALCCELLS")
-                        pNew = std::make_shared<iFormulaNodeStmCalccell>(gopt, fparts({"{", "\"filename\"", ",", "\"tablename\"", ",", "\"A1\"", ",", "1", "}"}));
+                        pNew = std::make_shared<iFormulaNodeStmCalccell>(gopt, fparts({"{", "\"filename.ods\"", ",", "\"sheet\"", ",", "\"A1\"", ",", "1", "}"}));
 
                     if (pNew == nullptr)
                     {
@@ -1256,6 +1279,31 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     }
                     else
                         line->setTablename(rIterString.second);
+                }
+                else if (typeid(*pLine) == typeid(iFormulaNodeStmCalccell))
+                {
+                    auto line = std::dynamic_pointer_cast<iFormulaNodeStmCalccell>(pLine);
+                    auto xIter = mxFormulaList->make_iterator();
+                    mxFormulaList->copy_iterator(rIterString.first, *xIter);
+
+                    if (mxFormulaList->iter_parent(*xIter))
+                    {
+                        // The cell value assigment was edited
+                        OUString assignment = rIterString.second;
+                        auto pos = assignment.indexOfAsciiL("=", 1);
+                        std::cout << "assignment=" << assignment.copy(0, pos).trim() << " = " << assignment.copy(pos + 1, assignment.getLength() - pos - 1).trim() << std::endl;
+                        line->setCellReferences(assignment.copy(0, pos).trim());
+                        line->setValues(assignment.copy(pos + 1, assignment.getLength() - pos - 1).trim());
+                    }
+                    else
+                    {
+                        OUString sheet = rIterString.second;
+                        auto pos = sheet.indexOfAsciiL("'#$", 3);
+                        std::cout << "file=" << sheet.copy(1, pos - 1).trim() << ", sheet=" << sheet.copy(pos + 3, sheet.getLength() - pos - 3).trim() << std::endl;
+                        line->setFilename(sheet.copy(1, pos - 1).trim());
+                        line->setSheetname(sheet.copy(pos + 3, sheet.getLength() - pos - 3).trim());
+                    }
+                }
                 else
                     pLine->setFormula(rIterString.second);
 

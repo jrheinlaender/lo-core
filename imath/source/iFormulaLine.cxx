@@ -728,7 +728,7 @@ OUString setPart(std::vector<OUString>& fparts, const int i, const OUString& par
     return result.replaceAt(result.getLength() - 1, 1, OU("}")); // Replace trailing comma
 }
 
-OUString iFormulaLine::genericGet(const int idx) const
+OUString iFormulaLine::genericGet(const unsigned idx) const
 {
     if (error)
         return extractPart(_formulaParts, idx);
@@ -736,7 +736,7 @@ OUString iFormulaLine::genericGet(const int idx) const
     return (_formulaParts.size() > (2 * idx + 1) ? _formulaParts[2 * idx + 1] : "");
 }
 
-void iFormulaLine::genericSet(const int idx, const OUString& value)
+void iFormulaLine::genericSet(const unsigned idx, const OUString& value)
 {
     if (error)
     {
@@ -757,13 +757,17 @@ iFormulaNodeStmTablecell::iFormulaNodeStmTablecell(std::shared_ptr<optionmap> g_
 {
 }
 
-OUString iFormulaNodeStmTablecell::getTablename() const { return genericGet(0); }
+OUString iFormulaNodeStmTablecell::getTablename() const
+{
+    OUString result = genericGet(0);
+    return !result.isEmpty() ? result.copy(1, result.getLength() - 2) : "";
+}
 
 OUString iFormulaNodeStmTablecell::getCellReferences() const { return genericGet(1); }
 
 OUString iFormulaNodeStmTablecell::getValues() const { return genericGet(2); }
 
-void iFormulaNodeStmTablecell::setTablename(const OUString& n) { genericSet(0, n); }
+void iFormulaNodeStmTablecell::setTablename(const OUString& n) { genericSet(0, "\"" + n + "\""); }
 
 void iFormulaNodeStmTablecell::setCellReferences(const OUString& r) { genericSet(1, r); }
 
@@ -775,6 +779,37 @@ iFormulaNodeStmCalccell::iFormulaNodeStmCalccell(std::shared_ptr<optionmap> g_op
     : iFormulaNodeStatement(g_options, std::move(formulaParts))
 {
 }
+
+OUString iFormulaNodeStmCalccell::getFilename() const
+{
+    OUString result = genericGet(0);
+    return !result.isEmpty() ? result.copy(1, result.getLength() - 2) : "";
+}
+
+OUString iFormulaNodeStmCalccell::getSheetname() const
+{
+    OUString result = genericGet(1);
+    return !result.isEmpty() ? result.copy(1, result.getLength() - 2) : "";
+}
+
+OUString iFormulaNodeStmCalccell::getCellReferences() const
+{
+    OUString result = genericGet(2);
+    return !result.isEmpty() ? result.copy(1, result.getLength() - 2) : "";
+}
+
+OUString iFormulaNodeStmCalccell::getValues() const { return genericGet(3); }
+
+void iFormulaNodeStmCalccell::setFilename(const OUString& f) { genericSet(0, "\"" + f + "\""); }
+
+void iFormulaNodeStmCalccell::setSheetname(const OUString& s) { genericSet(1, "\"" + s + "\""); }
+
+void iFormulaNodeStmCalccell::setCellReferences(const OUString& r)
+{
+    genericSet(2, "\"" + r + "\"");
+}
+
+void iFormulaNodeStmCalccell::setValues(const OUString& v) { genericSet(3, v); }
 
 // NodeStmReadfile
 iFormulaNodeStmReadfile::iFormulaNodeStmReadfile(std::shared_ptr<optionmap> g_options,

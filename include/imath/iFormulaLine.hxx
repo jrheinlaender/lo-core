@@ -191,8 +191,8 @@ protected:
   std::set<GiNaC::expression, GiNaC::expr_is_less> in, out;
 
   /// Get/set of formula parts
-  OUString genericGet(const int idx) const;
-  void genericSet(const int idx, const OUString& value);
+  OUString genericGet(const unsigned idx) const;
+  void genericSet(const unsigned idx, const OUString& value);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeComment : public iFormulaLine {
@@ -373,6 +373,15 @@ public:
   iFormulaNodeStmCalccell(std::shared_ptr<GiNaC::optionmap> g_options, std::vector<OUString> formulaParts);
   virtual OUString getCommand() const override { return OU("SETCALCCELLS"); }
   virtual depType dependencyType() const override { return depIn; }
+
+  OUString getFilename() const;
+  OUString getSheetname() const;
+  OUString getCellReferences() const;
+  OUString getValues() const;
+  void setFilename(const OUString& f);
+  void setSheetname(const OUString& s);
+  void setCellReferences(const OUString& r);
+  void setValues(const OUString& v);
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStmReadfile : public iFormulaNodeStatement {

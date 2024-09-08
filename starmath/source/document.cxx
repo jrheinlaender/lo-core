@@ -1093,6 +1093,7 @@ bool SmDocShell::addResultLines()
 
     for (auto line_it = mLines.begin(); line_it != mLines.end();)
     {
+        SAL_INFO_LEVEL(4, "starmath.imath", "Processing formula line");
         const auto& line = *line_it;
         iExpression_ptr p_expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(line);
 
@@ -1134,6 +1135,7 @@ bool SmDocShell::addResultLines()
         for (auto displayLine_it = displayLines.begin(); displayLine_it != displayLines.end(); )
         {
             auto& displayLine = *displayLine_it;
+            SAL_INFO_LEVEL(4, "starmath.imath", "Processing display line");
 
             if (displayLine.empty())
             {
@@ -1142,7 +1144,7 @@ bool SmDocShell::addResultLines()
             }
 
             // Option showlabels=true was used in an expression/equation in the middle of a line
-            if (!exLabel.isEmpty())
+            if (!exLabel.isEmpty() && displayLine.empty())
             {
                 displayLine.front() = OU("{alignr \"(") + exLabel + OU(")\"}~") + displayLine.front();
                 exLabel = OU("");
@@ -1158,15 +1160,16 @@ bool SmDocShell::addResultLines()
 
             // Finish the result line either at a new line or after processing all formula lines
             bool hasNewline = currentMatrixLine.back().trim().equalsAsciiL("newline", 7);
-            if (hasNewline || (line_it == mLines.end() && displayLine_it == displayLines.end()))
+            if (hasNewline)
             {
+                SAL_INFO_LEVEL(4, "starmath.imath", OUString("Finishing result line") + (hasNewline ? OUString(" with newline") : OUString("")));
                 // Check for repeated left-hand-side
                 if (autochain && previousLhs.equals(currentMatrixLine.front()))
                     currentMatrixLine.front() = OU("{}");
                 else
                     previousLhs = currentMatrixLine.front();
 
-                if ((hasNewline && currentMatrixLine.size() > 1) || (!hasNewline && currentMatrixLine.size() >= 1)) {
+                if (hasNewline && currentMatrixLine.size() > 1) {
                     // Add label if asked for
                     if (showlabels)
                         currentMatrixLine.emplace(currentMatrixLine.begin(), lineLabel);
@@ -1209,12 +1212,29 @@ bool SmDocShell::addResultLines()
         }
     }
 
+    // Finish remaining line
+    if (!currentMatrixLine.empty()) {
+        // TODO This replicates code from above, but it is difficult to know in advance when a line should be finished
+        // e.g. if CLEAREQUATIONS is used in the last formula line, then that is empty and the displayline_it loop will not run at all
+        if (autochain && previousLhs.equals(currentMatrixLine.front()))
+            currentMatrixLine.front() = OU("{}");
+        if (showlabels)
+            currentMatrixLine.emplace(currentMatrixLine.begin(), lineLabel);
+        currentMatrixLine.emplace_back(autoalign ? "y" : "n");
+        columns = std::max(columns, currentMatrixLine.size() - 1);
+
+        // Write line to matrix
+        resultMatrix.emplace_back(std::vector<OUString>());
+        std::swap(resultMatrix.back(), currentMatrixLine);
+    }
+
     // Add all result lines at the end
     bool insideBlock = false;
     bool hasAlignment = false;
 
     for (auto resultLine_it = resultMatrix.begin(); resultLine_it != resultMatrix.end(); )
     {
+        SAL_INFO_LEVEL(4, "starmath.imath", "Result matrix row");
         auto& resultLine = *resultLine_it;
 
         // Check for automatic alignment, and ignore the setting if there is only a single result line
@@ -1270,6 +1290,7 @@ bool SmDocShell::addResultLines()
                 textLine += OU(" newline"); // Finish normal line
         }
 
+        SAL_INFO_LEVEL(4, "starmath.imath", "Adding result line " << textLine);
         mLines.emplace_back(std::make_shared<iFormulaNodeResult>(textLine));
     }
 

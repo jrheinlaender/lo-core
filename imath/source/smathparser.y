@@ -2568,11 +2568,11 @@ lmatrix:   lvector DOUBLEHASH lvector { $$ = lst{$1, $3}; }
 /* Symbols */
 %type <GiNaC::expression> symbol "complex-valued symbol";
 symbol:   SYMBOL
-        | IDENTIFIER { $$ = params.compiler->getsym(params.compiler->varname_ns($1)); }
+        | IDENTIFIER { $$ = params.compiler->getsym($1); }
 ;
 %type <GiNaC::expression> vsymbol "vector symbol";
 vsymbol:  VSYMBOL
-        | IDENTIFIER { $$ = params.compiler->getsym(params.compiler->varname_ns($1), p_vector); }
+        | IDENTIFIER { $$ = params.compiler->getsym($1, p_vector); }
         | SYMBOL {
           // Redefine symbol type. Only VECTORDEF is allowed to do this!
           std::string sname = ex_to<symbol>($1).get_name();
@@ -2582,7 +2582,7 @@ vsymbol:  VSYMBOL
 ;
 %type <GiNaC::expression> msymbol "matrix symbol";
 msymbol:  MSYMBOL
-        | IDENTIFIER { $$ = params.compiler->getsym(params.compiler->varname_ns($1), p_matrix); }
+        | IDENTIFIER { $$ = params.compiler->getsym($1, p_matrix); }
         | SYMBOL {
           // Redefine symbol type. Only MATRIXDEF is allowed to do this!
           std::string sname = ex_to<symbol>($1).get_name();
@@ -2591,7 +2591,7 @@ msymbol:  MSYMBOL
         }
 ;
 %type <GiNaC::expression> rsymbol "real-valued symbol";
-rsymbol:  IDENTIFIER { $$ = params.compiler->getsym(params.compiler->varname_ns($1), p_real); }
+rsymbol:  IDENTIFIER { $$ = params.compiler->getsym($1, p_real); }
         | SYMBOL {
           std::string sname = ex_to<symbol>($1).get_name();
           params.compiler->setsymprop(sname, p_real);
@@ -2599,7 +2599,7 @@ rsymbol:  IDENTIFIER { $$ = params.compiler->getsym(params.compiler->varname_ns(
         }
 ;
 %type <GiNaC::expression> psymbol "positive symbol";
-psymbol:  IDENTIFIER { $$ = params.compiler->getsym(params.compiler->varname_ns($1), p_pos); }
+psymbol:  IDENTIFIER { $$ = params.compiler->getsym($1, p_pos); }
         | SYMBOL {
           std::string sname = ex_to<symbol>($1).get_name();
           params.compiler->setsymprop(sname, p_pos);

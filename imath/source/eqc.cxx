@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <cmath>
+#include <chrono>
 #include <ginac/operators.h>
 #ifdef INSIDE_SM
 #include <imath/eqc.hxx>
@@ -1542,6 +1543,7 @@ matrix eqc::iterate(const matrix& syms, const matrix& exprs, const matrix& start
 
     bool converged;
     iter++;
+    auto startTime = std::chrono::steady_clock::now();
 
     do
     {
@@ -1557,34 +1559,17 @@ matrix eqc::iterate(const matrix& syms, const matrix& exprs, const matrix& start
             MSG_INFO(2, "s" << iter << " = " << nextvar(row, 0) << endline);
         }
 
-        if (!ignore_convergence)
-        {
-            converged = true;
-            for (unsigned row = 0; row < rows; ++row)
-            {
-                ex diff = nextvar(row, 0) - var(row, 0);
-                if (diff.info(info_flags::real))
-                {
-                    if (abs(ex_to<numeric>(diff)) > criteria(row, 0))
-                    {
-                        converged = false;
-                        break;
-                    }
-                }
-                else
-                {
-                    converged = false;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            converged = false;
-        }
-
         var = std::move(nextvar);
         iter++;
+        // Extra security check, to avoid lock-up of the office
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()
+                                                                  - startTime)
+            > std::chrono::milliseconds(1000))
+        {
+            MSG_ERROR(0, "Stopped iteration because calculation time exceeded one second");
+            break;
+        }
+        startTime = std::chrono::steady_clock::now();
     } while (!converged && (iter < maxiter));
 
     return var;

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.40.0 -->
+<interface domain="sm">
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkMenu" id="addiformulamenu">
+    <property name="visible">True</property>
+    <property name="can-focus">False</property>
+    <child>
+      <object class="GtkMenuItem" id="formula">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="label" translatable="yes" context="addiformulamenu|add">Add formula</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="transform">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="label" translatable="yes" context="addiformulamenu|transform">Transform formula</property>
+        <property name="use-underline">True</property>
+        <child type="submenu">
+          <object class="GtkMenu" id="transformmenu">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <child>
+              <object class="GtkMenuItem" id="transform_add">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|add">Add</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_multiply">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|multiply">Multiply</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_power">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|power">Raise to power</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_simplify">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|simplify">Simplify</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_solve">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|solve">Solve</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_substitute">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|substitute">Substitute variable</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_function">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|applyfunc">Apply function</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_diff">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|diff">Differentiate</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="transform_integrate">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes" context="addiformulamenu|integrate">Integrate</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="newline">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="label" translatable="yes" context="addiformulamenu|newline">Add newline</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="equals">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="label" translatable="yes" context="addiformulamenu|equals">Add equals</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="evaluate">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="label" translatable="yes" context="addiformulamenu|evaluate">Evaluate</property>
+      </object>
+    </child>
+  </object>
+</interface>

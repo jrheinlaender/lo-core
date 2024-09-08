@@ -48,6 +48,7 @@ $(eval $(call gb_UIConfig_add_uifiles,modules/smath,\
 	starmath/uiconfig/smath/ui/iformulaunitprintname \
 	starmath/uiconfig/smath/ui/iformulafunction \
 	starmath/uiconfig/smath/ui/iformulachart \
+	starmath/uiconfig/smath/ui/iformulaaddmenu \
 ))
 
 # vim: set noet sw=4 ts=4:

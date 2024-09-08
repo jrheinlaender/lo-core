@@ -342,8 +342,10 @@ void ImGuiWindow::ResetModel()
         // Generic settings
         if (std::find(nodesWithoutFormula.begin(), nodesWithoutFormula.end(), typeid(*fLine)) == nodesWithoutFormula.end())
         {
+            // Nodes with formula
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_AFTER, IMGUIWINDOW_COL_CHILD);
         }
         if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*fLine)) != nodesWithHide.end())
         {
@@ -800,7 +802,84 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_CHILD:
         {
-            if (typeid(*pLine) == typeid(iFormulaNodePrintval))
+            if (std::find(nodesWithoutFormula.begin(), nodesWithoutFormula.end(), typeid(*pLine)) == nodesWithoutFormula.end())
+            {
+                // Find line after which we insert the new line
+                const auto& lines = pDoc->GetFormulaLines();
+                auto it = std::find(lines.begin(), lines.end(), pLine);
+                if (it == lines.end())
+                    break;
+                while (++it != lines.end() && typeid(**it) == typeid(iFormulaNodeResult));
+
+                // Nodes with formula
+                std::unique_ptr<weld::Builder> xBuilder(Application::CreateBuilder(mxFormulaList.get(), "modules/smath/ui/iformulaaddmenu.ui"));
+                std::unique_ptr<weld::Menu> xPopup = xBuilder->weld_menu("addiformulamenu");
+                //xPopup->set_sensitive("formula", true);
+                OString sCommand = xPopup->popup_at_rect(mxFormulaList.get(), tools::Rectangle(rMEvt.GetPosPixel(), Size(1,1)));
+                std::shared_ptr<iFormulaLine> newLine = nullptr;
+                auto uvec = GiNaC::unitvec();
+                auto gopt = pLine->getGlobalOptions();
+
+                if (sCommand == "formula")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"E=m c^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_add")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"@prev@ + 1"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_multiply")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"@prev@ * 2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_power")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"@prev@^2"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_simplify")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"SIMPLIFY(@prev@, \"expand\""}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_solve")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"SOLVE(@prev@, x, 1)"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_substitute")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"SUBSTC(@prev@, x=1)"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_function")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"ln(@prev@)"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_diff")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"DIFFERENTIATE(@prev@, x, 1)"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "transform_integrate")
+                {
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"INTEGRATE(@prev@, x, C)"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                }
+                else if (sCommand == "newline")
+                {
+                    newLine = std::make_shared<iFormulaNodeText>(uvec, gopt, GiNaC::optionmap(), fparts({"newline"}), std::vector<std::shared_ptr<textItem>>());
+                }
+                else if (sCommand == "equals")
+                {
+                    newLine = std::make_shared<iFormulaNodeText>(uvec, gopt, GiNaC::optionmap(), fparts({"="}), std::vector<std::shared_ptr<textItem>>());
+                }
+                else if (sCommand == "evaluate")
+                {
+                    newLine = std::make_shared<iFormulaNodeEx>(uvec, gopt, GiNaC::optionmap(), fparts({"VAL(LHS(@prev@))"}), "", GiNaC::expression(), false);
+                }
+
+                if (newLine != nullptr) {
+                    pDoc->insertFormulaLineBefore((it == lines.end() ? nullptr : *it), newLine);
+                    pDoc->UpdateGuiText();
+                }
+                break;
+            }
+            else if (typeid(*pLine) == typeid(iFormulaNodePrintval))
             {
                 auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);
                 if (line->getWithEquationList().empty())

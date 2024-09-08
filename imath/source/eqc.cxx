@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <cmath>
+#include <chrono>
 #include <ginac/operators.h>
 #ifdef INSIDE_SM
 #include <imath/eqc.hxx>
@@ -1152,6 +1153,7 @@ bool is_internal(const std::string& varname) {
 
     bool converged;
     iter++;
+    auto startTime = std::chrono::steady_clock::now();
 
     do {
       matrix nextvar(rows, 1);
@@ -1185,6 +1187,12 @@ bool is_internal(const std::string& varname) {
 
       var = std::move(nextvar);
       iter++;
+      // Extra security check, to avoid lock-up of the office
+      if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime) > std::chrono::milliseconds(1000)) {
+          MSG_ERROR(0, "Stopped iteration because calculation time exceeded one second");
+          break;
+      }
+      startTime = std::chrono::steady_clock::now();
     } while (!converged && (iter < maxiter));
 
     return var;

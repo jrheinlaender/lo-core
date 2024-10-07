@@ -231,11 +231,13 @@ private:
     int mNumClicks;
     int mClickedColumn;
     DECL_LINK(KeyReleaseHdl, const ::KeyEvent&, bool);
+    bool mEscapePressed;
 
     DECL_LINK(EditingEntryHdl, const weld::TreeIter&, bool);
     typedef std::pair<const weld::TreeIter&, OUString> IterString;
     DECL_LINK(EditedEntryHdl, const IterString&, bool);
     int mEditedColumn;
+    DECL_LINK(EditingCanceledHdl, const IterString&, void);
 
 public:
     ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder);

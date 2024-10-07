@@ -1041,6 +1041,7 @@ protected:
     Link<const iter_col&, void> m_aRadioToggleHdl;
     Link<const TreeIter&, bool> m_aEditingStartedHdl;
     Link<const iter_string&, bool> m_aEditingDoneHdl;
+    Link<const iter_string&, void> m_aEditingCanceledHdl;
     // if handler returns false, the expansion of the row is refused
     Link<const TreeIter&, bool> m_aExpandingHdl;
     // if handler returns false, the collapse of the row is refused
@@ -1102,6 +1103,10 @@ protected:
     }
 
     void signal_popup_menu(const CommandEvent& rCommand) { m_aPopupMenuHdl.Call(rCommand); }
+
+    void signal_editing_canceled(const iter_string& rIterText) {
+        m_aEditingCanceledHdl.Call(rIterText);
+    }
 
     Link<const TreeIter&, OUString> m_aQueryTooltipHdl;
 
@@ -1510,6 +1515,12 @@ public:
         assert(rStartLink.IsSet() == rEndLink.IsSet() && "should be both on or both off");
         m_aEditingStartedHdl = rStartLink;
         m_aEditingDoneHdl = rEndLink;
+    }
+
+    virtual void connect_editing_canceled(const Link<const iter_string&, void>& rCanceledLink)
+    {
+        assert(!m_aEditingCanceledHdl.IsSet() || !rCanceledLink.IsSet());
+        m_aEditingCanceledHdl = rCanceledLink;
     }
 
     virtual void start_editing(const weld::TreeIter& rEntry) = 0;

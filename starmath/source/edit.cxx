@@ -244,6 +244,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , lastOptionsPage(0)
     , mNumClicks(0)
     , mClickedColumn(-1)
+    , mEscapePressed(false)
     , mEditedColumn(-1)
 {
     if (!mxFormulaList)
@@ -252,6 +253,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     mxFormulaList->connect_key_release(LINK(this, ImGuiWindow, KeyReleaseHdl));
     mxFormulaList->connect_mouse_press(LINK(this, ImGuiWindow, MousePressHdl));
     mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
+    mxFormulaList->connect_editing_canceled(LINK(this, ImGuiWindow, EditingCanceledHdl));
     mxFormulaList->set_selection_mode(SelectionMode::Single);
 
     ResetModel();
@@ -1397,6 +1399,14 @@ finished:
     return true;
 }
 
+IMPL_LINK(ImGuiWindow, EditingCanceledHdl, const IterString&, rIterString, void)
+{
+    // Catch the case when user edits something and then clicks into the document.
+    // This counts as canceled editing for the GtkCellRendererText because the starmath window is closed by it
+    if (!mEscapePressed)
+        this->EditedEntryHdl(rIterString);
+}
+
 IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
 {
     SmDocShell* pDoc = GetDoc();
@@ -1404,6 +1414,7 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
         return false;
 
     bool handled = false;
+    mEscapePressed = false;
     const vcl::KeyCode& rKeyCode = rKEvt.GetKeyCode();
 
     switch (rKeyCode.GetModifier() | rKeyCode.GetCode())
@@ -1425,6 +1436,9 @@ IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
             }
             break;
         }
+        case KEY_ESCAPE:
+            mEscapePressed = true;
+            break;
     }
 
     return handled;

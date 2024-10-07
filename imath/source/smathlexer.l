@@ -620,6 +620,13 @@ BEGIN(INITIAL);
              last_token = token::SOLVE;
              return (token::SOLVE);
            }
+<II>(?i:fsolve) {
+             CHECK_IMPLICIT_MUL(token::FUNC)
+             if (checkresult) return (token::IMPMUL);
+             implicit_mul_might_follow = false;
+             last_token = token::FSOLVE;
+             return (token::FSOLVE);
+           }
 <II>(?i:subst) {
              CHECK_IMPLICIT_MUL(token::FUNC)
              if (checkresult) return (token::IMPMUL);

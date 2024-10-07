@@ -417,7 +417,7 @@ void print_smath_mul(const operands &m, const imathprint& c, const size_t ops, c
   if (!m.get_others().is_equal(_ex1))
     print_smath_ops(m.get_others(), separator, c, false, opnum);
   if (!m.check_functions(_ex1))
-    print_smath_ops(m.get_functions(), separator, c, false, opnum);
+    print_smath_ops(m.get_functions(), "`", c, false, opnum);
   if (!m.get_integrals().is_equal(_ex1))
     print_smath_ops(m.get_integrals(), separator, c, false, opnum);
   if (!m.get_derivatives().is_equal(_ex1))

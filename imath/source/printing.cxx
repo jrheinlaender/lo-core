@@ -454,69 +454,26 @@ void print_smath_mul(const operands& m, const imathprint& c, const size_t ops,
             c.s << "1"; // Avoid "blank" unit
         print_smath_ops(m.get_units(), separator, c, false, opnum);
     }
-    if (!m.get_constants().is_equal(_ex1))
-        print_smath_ops(m.get_constants(), separator, c, false, opnum);
-    if (!m.check_symbols(_ex1))
-        print_smath_ops(m.get_symbols(), separator, c, false, opnum);
-    if (!restpowers.is_equal(_ex1))
-        print_smath_ops(restpowers, separator, c, false, opnum);
-    if (!m.get_adds().is_equal(_ex1))
-    {
-        if (opnum > 0)
-            c.s << separator;
-
-        if (is_a<mul>(m.get_adds()))
-        { // There are several adds in this mul
-            opnum++; // suppress op_symbol here!
-            print_smath_ops(m.get_adds(), separator, c, false, opnum, turn_around);
-            opnum--; // correct operator count
-        }
-        else
-        {
-            if ((opnum == ops) && m.get_others().is_equal(_ex1) && m.check_functions(_ex1)
-                && m.get_muls().is_equal(_ex1) && m.check_matrices(_ex1)
-                && m.get_integrals().is_equal(_ex1) && m.get_differentials().is_equal(_ex1)
-                && m.get_derivatives().is_equal(_ex1))
-            {
-                // In other words, if there is only this one add in the mul, and nothing else
-                std::ostringstream os;
-                imathprint cc(os, c);
-                cc.add_turn_around = turn_around;
-                imathprint_add(ex_to<add>(m.get_adds()), cc, (unsigned)opnum);
-                c.s << os.str();
-            }
-            else
-            {
-                c.s << "(";
-                std::ostringstream os;
-                imathprint cc(os, c);
-                cc.add_turn_around = turn_around;
-                imathprint_add(ex_to<add>(m.get_adds()), cc, (unsigned)opnum);
-                c.s << os.str();
-                c.s << ") ";
-            }
-            //checksplit(toplevel, opnum, c);
-        }
-    }
-    // Warning: The preceding code depends on these statements following AFTER it!
-    if (!m.get_muls().is_equal(_ex1))
-    {
-        imathprint_mul(ex_to<mul>(m.get_muls()), c, (unsigned)opnum);
-        opnum += m.get_muls().nops();
-    }
-    if (!m.check_matrices(_ex1))
-        print_smath_ops(m.get_matrices(), separator, c, false, opnum);
-    if (!m.get_others().is_equal(_ex1))
-        print_smath_ops(m.get_others(), separator, c, false, opnum);
-    if (!m.check_functions(_ex1))
-        print_smath_ops(m.get_functions(), separator, c, false, opnum);
-    if (!m.get_integrals().is_equal(_ex1))
-        print_smath_ops(m.get_integrals(), separator, c, false, opnum);
-    if (!m.get_derivatives().is_equal(_ex1))
-        print_smath_ops(m.get_derivatives(), separator, c, false, opnum);
-    if (!m.get_differentials().is_equal(_ex1))
-        print_smath_ops(m.get_differentials(), separator, c, false, opnum);
-    c.s << ' ';
+}
+// Warning: The preceding code depends on these statements following AFTER it!
+if (!m.get_muls().is_equal(_ex1))
+{
+    imathprint_mul(ex_to<mul>(m.get_muls()), c, (unsigned)opnum);
+    opnum += m.get_muls().nops();
+}
+if (!m.check_matrices(_ex1))
+    print_smath_ops(m.get_matrices(), separator, c, false, opnum);
+if (!m.get_others().is_equal(_ex1))
+    print_smath_ops(m.get_others(), separator, c, false, opnum);
+if (!m.check_functions(_ex1))
+    print_smath_ops(m.get_functions(), "`", c, false, opnum);
+if (!m.get_integrals().is_equal(_ex1))
+    print_smath_ops(m.get_integrals(), separator, c, false, opnum);
+if (!m.get_derivatives().is_equal(_ex1))
+    print_smath_ops(m.get_derivatives(), separator, c, false, opnum);
+if (!m.get_differentials().is_equal(_ex1))
+    print_smath_ops(m.get_differentials(), separator, c, false, opnum);
+c.s << ' ';
 } // print_smath_mul()
 
 void imathprint_add(const add& a, const imathprint& c, unsigned level)

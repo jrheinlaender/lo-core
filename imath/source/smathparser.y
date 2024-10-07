@@ -67,6 +67,7 @@
   #include <ginac/normal.h>
   #include <ginac/operators.h>
   #include <ginac/pseries.h>
+  #include <ginac/inifcns.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -450,6 +451,7 @@ OUS8(rawtext.substr(index.begin.column-1, index.end.column-index.begin.column)).
 %token        TEXT                 "TEXT"
 %token				MAGIC						     "_ii_"
 %token	      SOLVE                "SOLVE"
+%token        FSOLVE               "FSOLVE"
 %token        SUBST                "SUBST"
 %token        SUBSTC               "SUBSTC"
 %token        SUBSTV               "SUBSTV"
@@ -1674,7 +1676,12 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
       $$ = ex_to<equation>($3).solve($5, numeric($7));
       must_autoformat = true;
     }
-     | SUBST '(' eq ',' eqlist ')' {
+    | FSOLVE '(' eq ',' symbol_ex ',' numeric_ex ',' numeric_ex ')' {
+      auto sym = $5;
+      $$ = dynallocate<equation>(sym, GiNaC::fsolve(ex_to<equation>($3), ex_to<symbol>(sym), ex_to<numeric>($7), ex_to<numeric>($9)), relational::equal);
+      must_autoformat = true;
+    }
+    | SUBST '(' eq ',' eqlist ')' {
       $$ = ex_to<equation>($3).subs($5).evalm();
       must_autoformat = true;
     }

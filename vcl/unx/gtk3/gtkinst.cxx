@@ -14516,6 +14516,12 @@ private:
             g_signal_connect(pEditable, "changed", G_CALLBACK(signalComboRendererChanged), pRenderer);
         }
 
+        if (GTK_IS_CELL_RENDERER_TEXT(pRenderer) && GTK_IS_ENTRY(pEditable)) {
+            // Allow accepting a cancelled edit e.g. when the user clicks somewhere outside of the cell renderers parent window, closing the window and normally losing the edit
+            auto user_data = new std::pair<GtkInstanceTreeView*, const gchar*>(pThis, g_strdup(path));
+            g_signal_connect(pEditable, "remove-widget", G_CALLBACK(signalCellEntryEditingCanceled), user_data);
+        }
+
         if (!pThis->signal_cell_editing_started(path))
             Application::PostUserEvent(LINK(pThis, GtkInstanceTreeView, async_stop_cell_editing));
     }
@@ -14584,6 +14590,22 @@ private:
     static void signalCellEditingCanceled(GtkCellRenderer* pCell, gpointer /*widget*/)
     {
         restoreNonEditable(G_OBJECT(pCell));
+    }
+
+    static void signalCellEntryEditingCanceled(GtkEntry* pEntry, gpointer user_data)
+    {
+        auto [pThis, path] = *static_cast<std::pair<GtkInstanceTreeView*, gchar*>*>(user_data);
+        gchar *pText = g_strdup(gtk_entry_get_text(pEntry)); // Edited text before cancel signal
+        OUString sText(pText, pText ? strlen(pText) : 0, RTL_TEXTENCODING_UTF8);
+
+        GtkInstanceTreeIter aGtkIter(nullptr);
+        GtkTreePath *tree_path = gtk_tree_path_new_from_string(path);
+        gtk_tree_model_get_iter(pThis->m_pTreeModel, &aGtkIter.iter, tree_path);
+        gtk_tree_path_free(tree_path);
+
+        pThis->signal_editing_canceled(iter_string(aGtkIter, sText));
+
+        g_free(user_data);
     }
 
     void signal_column_clicked(GtkTreeViewColumn* pClickedColumn)

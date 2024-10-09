@@ -1382,7 +1382,6 @@ void SwDocShell::LoadingFinished()
                 SAL_INFO_LEVEL(1, "sw.imath", "Checking for master document: '" << xDocumentStorable->getLocation() << "'");
                 if (m_xMasterDocument.is() && (xDocumentStorable->getLocation() == masterDocURL))
                 {
-                    m_masterDocumentWasLoaded = true;
                     SAL_INFO_LEVEL(1, "sw.imath", "Found master document");
                     break;
                 }
@@ -1405,7 +1404,6 @@ void SwDocShell::LoadingFinished()
 
                     Reference< XComponentLoader > xComponentLoader(xDesktop, UNO_QUERY_THROW);
                     m_xMasterDocument = Reference< XModel >(xComponentLoader->loadComponentFromURL(masterDocURL, "_default", 0, args), UNO_QUERY);
-                    m_masterDocumentWasLoaded = false;
                     SAL_INFO_LEVEL(1, "sw.imath", "Loaded master document '" << masterDocURL << "'");
                 }
                 catch (Exception&) { }

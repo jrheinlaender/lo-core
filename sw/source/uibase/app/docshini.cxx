@@ -374,15 +374,7 @@ SwDocShell::~SwDocShell()
             pPCD->dispose();
     }
 
-    // Close master document
-    if (m_xMasterDocument.is() && !m_masterDocumentWasLoaded)
-    {
-        SAL_INFO_LEVEL(1, "sw.imath", "Closing master document");
-        Reference<util::XCloseable> xClose(m_xMasterDocument, UNO_QUERY_THROW);
-        xClose->close(true);
-        m_xMasterDocument.clear();
-        SAL_INFO_LEVEL(1, "sw.imath", "Master document closed");
-    }
+    // Note: Closing the master document (that was maybe loaded in the background) does not appear to be necessary
 
     // Ensure that all iFormula OLE objects can be removed
     SAL_INFO_LEVEL(1, "sw.imath", "Preparing removal of iFormula OLE objects");

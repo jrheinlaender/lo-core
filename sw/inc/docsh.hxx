@@ -171,7 +171,6 @@ class SW_DLLPUBLIC SwDocShell
 
     /// Master document
     css::uno::Reference< css::frame::XModel > m_xMasterDocument;
-    bool m_masterDocumentWasLoaded; // User opened the master document before iMath required it
 
 protected:
     /// override to update text fields

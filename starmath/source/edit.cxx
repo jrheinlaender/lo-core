@@ -289,9 +289,10 @@ namespace
 
 void ImGuiWindow::ResetModel()
 {
+    SAL_INFO_LEVEL(1, "starmath.imath", "ImGuiWindow::ResetModel()");
     // Remember the current selection
     int currentSelection = 0;
-    auto  xIter = mxFormulaList->make_iterator();
+    auto xIter = mxFormulaList->make_iterator();
     if (mxFormulaList->get_iter_first(*xIter.get()))
         do
         {
@@ -323,6 +324,7 @@ void ImGuiWindow::ResetModel()
     {
         if (typeid(*fLine) == typeid(iFormulaNodeResult))
             continue;
+        SAL_INFO_LEVEL(1, "starmath.imath", "Resetting formula line " + fLine->getCommand());
 
         mxFormulaList->append(xIter.get());
         mxFormulaList->set_id(*xIter, weld::toId(&fLine));
@@ -771,12 +773,17 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         // Note: Text columns are handled in EditedEntryHdl
         case IMGUIWINDOW_COL_LABEL:
+        {
+            mEditedColumn = mClickedColumn;
+            SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected on label");
+            break;
+        }
         case IMGUIWINDOW_COL_FORMULA:
         {
             if (mxFormulaList->get_sensitive(*xIter, mClickedColumn))
             {
                 mEditedColumn = mClickedColumn;
-                SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected in column " << mEditedColumn);
+                SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected on formula");
             }
             else if (typeid(*pLine) == typeid(iFormulaNodeStmOptions))
             {
@@ -1373,7 +1380,6 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                         // The cell value assigment was edited
                         OUString assignment = rIterString.second;
                         auto pos = assignment.indexOfAsciiL("=", 1);
-                        std::cout << "assignment=" << assignment.copy(0, pos).trim() << " = " << assignment.copy(pos + 1, assignment.getLength() - pos - 1).trim() << std::endl;
                         line->setCellReferences(assignment.copy(0, pos).trim());
                         line->setValues(assignment.copy(pos + 1, assignment.getLength() - pos - 1).trim());
                     }
@@ -1381,7 +1387,6 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     {
                         OUString sheet = rIterString.second;
                         auto pos = sheet.indexOfAsciiL("'#$", 3);
-                        std::cout << "file=" << sheet.copy(1, pos - 1).trim() << ", sheet=" << sheet.copy(pos + 3, sheet.getLength() - pos - 3).trim() << std::endl;
                         line->setFilename(sheet.copy(1, pos - 1).trim());
                         line->setSheetname(sheet.copy(pos + 3, sheet.getLength() - pos - 3).trim());
                     }

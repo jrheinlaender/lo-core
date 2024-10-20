@@ -1389,7 +1389,7 @@ void SwDocShell::LoadingFinished()
                     pArgs[1] = ro;
 
                     Reference< XComponentLoader > xComponentLoader(xDesktop, UNO_QUERY_THROW);
-                    m_xMasterDocument = Reference< XModel >(xComponentLoader->loadComponentFromURL(masterDocURL, "_default", 0, args), UNO_QUERY);
+                    m_xMasterDocument = Reference< XModel >(xComponentLoader->loadComponentFromURL(masterDocURL, "_default", 0, args), UNO_QUERY_THROW);
                     SAL_INFO_LEVEL(1, "sw.imath", "Loaded master document '" << masterDocURL << "'");
                 }
                 catch (Exception&) { }
@@ -1433,6 +1433,8 @@ void SwDocShell::LoadingFinished()
                 }
             }
         }
+        else
+            setFormulaProperty(xFormulaComp, "iFormulaMasterDocument", uno::Any()); // Reset master document in case a formula was inserted before the first formula
 
         setFormulaProperty(xFormulaComp, "iFormulaPendingAction", uno::Any(OUString("compile")));
         // TODO: Do we need to give time for the compilation?

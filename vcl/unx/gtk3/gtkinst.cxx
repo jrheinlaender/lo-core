@@ -14518,8 +14518,8 @@ private:
 
         if (GTK_IS_CELL_RENDERER_TEXT(pRenderer) && GTK_IS_ENTRY(pEditable)) {
             // Allow accepting a cancelled edit e.g. when the user clicks somewhere outside of the cell renderers parent window, closing the window and normally losing the edit
-            auto user_data = new std::pair<GtkInstanceTreeView*, const gchar*>(pThis, g_strdup(path));
-            g_signal_connect(pEditable, "remove-widget", G_CALLBACK(signalCellEntryEditingCanceled), user_data);
+            auto user_data1 = new std::pair<GtkInstanceTreeView*, const gchar*>(pThis, g_strdup(path));
+            g_signal_connect(pEditable, "remove-widget", G_CALLBACK(signalCellEntryEditingCanceled), user_data1);
         }
 
         if (!pThis->signal_cell_editing_started(path))
@@ -14594,7 +14594,7 @@ private:
 
     static void signalCellEntryEditingCanceled(GtkEntry* pEntry, gpointer user_data)
     {
-        auto [pThis, path] = *static_cast<std::pair<GtkInstanceTreeView*, gchar*>*>(user_data);
+        auto [pThis, path] = *static_cast<std::pair<GtkInstanceTreeView*, const gchar*>*>(user_data);
         gchar *pText = g_strdup(gtk_entry_get_text(pEntry)); // Edited text before cancel signal
         OUString sText(pText, pText ? strlen(pText) : 0, RTL_TEXTENCODING_UTF8);
 

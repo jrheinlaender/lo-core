@@ -940,6 +940,7 @@ protected:
     Link<const iter_col&, void> m_aRadioToggleHdl;
     Link<const TreeIter&, bool> m_aEditingStartedHdl;
     Link<const iter_string&, bool> m_aEditingDoneHdl;
+    // Allow intercepting canceled CellRendererText
     Link<const iter_string&, void> m_aEditingCanceledHdl;
     // if handler returns false, the expansion of the row is refused
     Link<const TreeIter&, bool> m_aExpandingHdl;

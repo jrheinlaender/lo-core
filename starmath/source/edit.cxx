@@ -241,6 +241,7 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mpUnitPrintnameDialog(nullptr)
     , mpFunctionDialog(nullptr)
     , mpChartDialog(nullptr)
+    , mpMatrixEditorDialog(nullptr)
     , lastOptionsPage(0)
     , mNumClicks(0)
     , mClickedColumn(-1)
@@ -1407,6 +1408,61 @@ IMPL_LINK(ImGuiWindow, EditingCanceledHdl, const IterString&, rIterString, void)
         this->EditedEntryHdl(rIterString);
 }
 
+    if (mEditedColumn == IMGUIWINDOW_COL_FORMULA)
+    {
+        int idx = 0;
+        int pos = std::get<2>(rIterClick);
+        OUString sText = std::get<1>(rIterClick);
+        SAL_INFO_LEVEL(1, "starmath.imath", "Right click on formula at position " << pos);
+
+        do
+        {
+            OUString word = sText.getToken( 0, ' ', idx ); // idx becomes the first character after the ' '
+            SAL_INFO_LEVEL(1, "starmath.imath", "Found word " << word);
+            bool isVector = word.toAsciiUpperCase().startsWith("STACK");
+
+            if ((isVector || word.toAsciiUpperCase().startsWith("MATRIX")) && pos >= idx - word.getLength() - 1 && pos < idx + 6) // 6 = strlen("MATRIX")
+            {
+                // Scan the matrix
+                int startMatrix = idx - word.getLength();
+                int level = 1;
+                idx = sText.indexOfAsciiL("{", 1, startMatrix) + 1;
+                auto startPos = idx;
+
+                while (level > 0)
+                {
+                    auto openPos = sText.indexOfAsciiL("{", 1, idx);
+                    auto closePos = sText.indexOfAsciiL("}", 1, idx);
+                    if (openPos > 0 && openPos < closePos)
+                    {
+                        ++level;
+                        idx = openPos + 1;
+                    }
+                    else if (closePos > 0) {
+                        --level;
+                        idx = closePos + 1;
+                    }
+                    else
+                        break;
+                }
+
+                if (idx < 0)
+                    continue; // Missing closing bracket
+
+                mpMatrixEditorDialog = std::make_unique<MatrixEditorDialog>(GetFrameWeld(), this, nullptr, sText.copy(startPos, idx - startPos - 1), isVector, pLine);
+                positionImGuiDialog(mpMatrixEditorDialog->getDialog(), GetFrameWeld());
+                mpMatrixEditorDialog->run();
+                OUString result = mpMatrixEditorDialog->getMatrix();
+                std::cout << "result=" << result << std::endl;
+                mpMatrixEditorDialog = nullptr;
+                pLine->setFormula(sText.replaceAt(startMatrix - 1, idx - startMatrix + 1, result));
+                pDoc->UpdateGuiText();
+
+                return true;
+            }
+        }
+        while ( idx >= 0 );
+    }
 IMPL_LINK(ImGuiWindow, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
 {
     SmDocShell* pDoc = GetDoc();

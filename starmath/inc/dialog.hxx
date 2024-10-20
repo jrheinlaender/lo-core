@@ -498,6 +498,7 @@ public:
 /**************************************************************************/
 
 class ImGuiWindow;
+class SmEditWindow;
 class iFormulaLine;
 
 class ImGuiOptionsDialog final : public weld::GenericDialogController
@@ -679,6 +680,63 @@ private:
     std::shared_ptr<iFormulaLine> mpLine;
     // The parent edit window
     ImGuiWindow* mpGuiWindow;
+};
+
+class MatrixEditorDialog final : public weld::GenericDialogController
+{
+    std::unique_ptr<weld::Button> mxOk;
+    std::unique_ptr<weld::Button> mxCancel;
+    std::unique_ptr<weld::Entry> mxName;
+    std::unique_ptr<weld::SpinButton> mxRows;
+    std::unique_ptr<weld::SpinButton> mxCols;
+    std::unique_ptr<weld::RadioButton> mxUnitMatrix;
+    std::unique_ptr<weld::RadioButton> mxDiagMatrix;
+    std::unique_ptr<weld::RadioButton> mxSymmetricMatrix;
+    std::unique_ptr<weld::RadioButton> mxFullMatrix;
+    std::unique_ptr<weld::TreeView> mxMatrix;
+
+    DECL_LINK(ButtonOkHdl, weld::Button&, void);
+    DECL_LINK(ButtonCancelHdl, weld::Button&, void);
+    DECL_LINK(ModifyHdl, weld::Entry&, void);
+    OUString mOldName;
+    DECL_LINK(SpinButtonModifyHdl, weld::SpinButton&, void);
+    DECL_LINK(RadioButtonModifyHdl, weld::Toggleable&, void);
+    DECL_LINK(MousePressHdl, const MouseEvent&, bool);
+    int mClickedColumn;
+    int mEditedColumn;
+    DECL_LINK(EditingEntryHdl, const weld::TreeIter&, bool);
+    typedef std::pair<const weld::TreeIter&, OUString> IterString;
+    DECL_LINK(EditedEntryHdl, const IterString&, bool);
+
+public:
+    MatrixEditorDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, SmEditWindow* pEditWindow, const OUString& matrixText, const bool isVector, std::shared_ptr<iFormulaLine> pLine);
+    virtual ~MatrixEditorDialog() override;
+
+    // Get textual representation of the matrix (including STACK/MATRIX and curly braces
+    OUString getMatrix() const { return mMatrixText; }
+
+    // The model was reset, update the line pointer
+    void setFormulaLinePointer(std::shared_ptr<iFormulaLine> pLine) { mpLine = pLine; }
+
+private:
+    // Get name to be used for filling the matrix (default is "x")
+    OUString getName() const;
+    // Change number of rows and/or columns
+    void resizeMatrix();
+    // Make matrix diagonal, symmetric, etc.
+    void shapeMatrix();
+    // Build matrix in starmath format
+    OUString buildMatrix() const;
+
+    static constexpr int maxcols = 10;
+    bool mIsVector;
+    OUString mMatrixText;
+
+    // The formula line for this options dialog
+    std::shared_ptr<iFormulaLine> mpLine;
+    // The parent edit window
+    ImGuiWindow* mpGuiWindow;
+    SmEditWindow* mpSmEditWindow;
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

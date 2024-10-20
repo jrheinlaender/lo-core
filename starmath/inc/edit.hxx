@@ -206,6 +206,7 @@ class ImGuiLabelDialog;
 class ImGuiUnitPrintnameDialog;
 class ImGuiFunctionDialog;
 class ImGuiChartDialog;
+class MatrixEditorDialog;
 
 class ImGuiWindow
 {
@@ -220,7 +221,7 @@ private:
     std::unique_ptr<ImGuiUnitPrintnameDialog> mpUnitPrintnameDialog;
     std::unique_ptr<ImGuiFunctionDialog> mpFunctionDialog;
     std::unique_ptr<ImGuiChartDialog> mpChartDialog;
-
+    std::unique_ptr<MatrixEditorDialog> mpMatrixEditorDialog;
 
     // The last tab selected by the user in the formula options dialog
     int lastOptionsPage;

@@ -24,14 +24,17 @@
  */
 
 #ifdef INSIDE_SM
+#include <imath/imathdllapi.h>
 #include <imath/differential.hxx>
 #include <imath/printing.hxx>
 #else
+#define IMATH_DLLPUBLIC
 #include "differential.hxx"
 #include "printing.hxx"
 #endif
 
 namespace GiNaC {
+class differential;
 
 /**
  * Class exderivative

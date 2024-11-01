@@ -24,7 +24,6 @@
  */
 
 #include <string>
-#include <stdexcept>
 #include "printing.hxx"
 
 namespace GiNaC {

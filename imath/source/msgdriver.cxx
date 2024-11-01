@@ -15,7 +15,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <sstream>
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
 #include <imath/equation.hxx>

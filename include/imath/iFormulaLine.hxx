@@ -21,10 +21,12 @@
 #ifdef INSIDE_SM
 #include <imath/imathutils.hxx>
 #include <imath/option.hxx>
+#include <imath/equation.hxx>
 #include <imath/printing.hxx>
 #else
 #include "imathutils.hxx"
 #include "option.hxx"
+#include "equation.hxx"
 #include "printing.hxx"
 #endif
 
@@ -301,17 +303,21 @@ public:
   void setExpression(const OUString& expr);
 };
 
+class iFormulaNodeVectordef;
 class IMATH_DLLPUBLIC iFormulaNodeStmVectordef : public iFormulaNodeStatement {
 public:
   iFormulaNodeStmVectordef(std::shared_ptr<GiNaC::optionmap> g_options, std::vector<OUString> formulaParts);
+  iFormulaNodeStmVectordef(iFormulaNodeVectordef other);
   iFormulaNodeStmVectordef(const iFormulaNodeStatement& other) = delete;
   iFormulaNodeStmVectordef(iFormulaNodeStatement&& other) : iFormulaNodeStatement(std::move(other)) {}
   virtual OUString getCommand() const override { return OU("VECTORDEF"); }
 };
 
+class iFormulaNodeMatrixdef;
 class IMATH_DLLPUBLIC iFormulaNodeStmMatrixdef : public iFormulaNodeStatement {
 public:
   iFormulaNodeStmMatrixdef(std::shared_ptr<GiNaC::optionmap> g_options, std::vector<OUString> formulaParts);
+  iFormulaNodeStmMatrixdef(iFormulaNodeMatrixdef other);
   iFormulaNodeStmMatrixdef(const iFormulaNodeStatement& other) = delete;
   iFormulaNodeStmMatrixdef(iFormulaNodeStatement&& other) : iFormulaNodeStatement(std::move(other)) {}
   virtual OUString getCommand() const override { return OU("MATRIXDEF"); }
@@ -597,6 +603,7 @@ public:
 
 class IMATH_DLLPUBLIC iFormulaNodeVectordef : public iFormulaNodeEq {
 public:
+  friend class iFormulaNodeStmVectordef;
   iFormulaNodeVectordef(
     const GiNaC::unitvec unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
     std::vector<OUString> formulaParts, const OUString& label,
@@ -610,6 +617,7 @@ public:
 
 class IMATH_DLLPUBLIC iFormulaNodeMatrixdef : public iFormulaNodeEq {
 public:
+  friend class iFormulaNodeStmMatrixdef;
   iFormulaNodeMatrixdef(
     const GiNaC::unitvec unitConversions, std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
     std::vector<OUString> formulaParts, const OUString& label,

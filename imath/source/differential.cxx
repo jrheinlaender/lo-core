@@ -18,15 +18,16 @@
 #include <cmath>
 #include <ginac/operators.h>
 #include <ginac/relational.h>
-#include <ginac/symbol.h>
 #ifdef INSIDE_SM
 #include <imath/differential.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/printing.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/utils.hxx>
 #include <imath/func.hxx>
 #else
 #include "differential.hxx"
+#include "extsymbol.hxx>
 #include "printing.hxx"
 #include "msgdriver.hxx"
 #include "utils.hxx"
@@ -156,7 +157,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
 
     std::string lbracket = "(";
     std::string rbracket = ")";
-    if (is_a<symbol>(e) || (is_a<func>(e) && ex_to<func>(e).is_pure() && !ex_to<func>(e).is_lib())) {
+    if (is_a<extsymbol>(e) || (is_a<func>(e) && ex_to<func>(e).is_pure() && !ex_to<func>(e).is_lib())) {
       lbracket = "";
       rbracket = "";
     } else if (is_a<func>(e)) {
@@ -359,7 +360,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(differential, basic,
 }
 
   ex differential::derivative(const symbol & s) const {
-    MSG_INFO(3, "Derivative of " << *this << " to " << s << endline);
+    MSG_INFO(3, "Derivative of " << *this << " to " << s.get_name() << endline);
     if (is_a<symbol>(e))
       // Derivative of a differential of a symbol is always zero
       return 0;

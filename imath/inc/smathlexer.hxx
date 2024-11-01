@@ -39,12 +39,14 @@
   #include <imath/printing.hxx>
   #include <imath/imathutils.hxx>
   #include <imath/unit.hxx>
+  #include <imath/equation.hxx>
   #include <imath/func.hxx>
   #include <imath/msgdriver.hxx>
   #include <imath/iFormulaLine.hxx>
   #include <imath/eqc.hxx>
 #else
   #include "unit.hxx"
+  #include "equation.hxx"
   #include "func.hxx"
   #include "msgdriver.hxx"
   #include "iFormulaLine.hxx"

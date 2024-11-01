@@ -26,6 +26,7 @@
 #include <imath/func.hxx>
 #include <imath/settingsmanager.hxx>
 #include <imath/unit.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/iFormulaLine.hxx>
 #else
 #include "msgdriver.hxx"
@@ -33,6 +34,7 @@
 #include "func.hxx"
 #include "settingsmanager.hxx"
 #include "unit.hxx"
+#include "extsymbol.hxx"
 #include "iFormulaLine.hxx"
 #endif
 
@@ -374,7 +376,7 @@ std::set<expression, expr_is_less> collectSymbols(const expression& e)
     std::set<expression, expr_is_less> result;
     for (const_preorder_iterator i = e.preorder_begin(); i != e.preorder_end(); ++i)
     {
-        if (is_a<symbol>(*i))
+        if (is_a<extsymbol>(*i))
             result.emplace(*i);
         else if (is_a<func>(*i))
             // TODO Since funcs are not created in a factory, the expressions do not compare equal
@@ -613,12 +615,22 @@ iFormulaNodeStmVectordef::iFormulaNodeStmVectordef(std::shared_ptr<optionmap> g_
     // TODO: vector -> out?
 }
 
+iFormulaNodeStmVectordef::iFormulaNodeStmVectordef(iFormulaNodeVectordef other)
+    : iFormulaNodeStatement(std::move(other.global_options), { std::move(other._formulaParts[0]) })
+{
+}
+
 // NodeStmMatrixdef
 iFormulaNodeStmMatrixdef::iFormulaNodeStmMatrixdef(std::shared_ptr<optionmap> g_options,
                                                    std::vector<OUString> formulaParts)
     : iFormulaNodeStatement(g_options, std::move(formulaParts))
 {
     // TODO: matrix -> out?
+}
+
+iFormulaNodeStmMatrixdef::iFormulaNodeStmMatrixdef(iFormulaNodeMatrixdef other)
+    : iFormulaNodeStatement(std::move(other.global_options), { std::move(other._formulaParts[0]) })
+{
 }
 
 // NodeStmRealvardef
@@ -949,7 +961,7 @@ OUString iFormulaNodeExpression::printEx(const expression& e) const
         preferredUnit.print(i); // Print only one unit - this is a best guess
     }
 
-    MSG_INFO(3, "printed on stream" << endline);
+    MSG_INFO(3, "printed on stream: " << endline);
     return OUS8(os.str());
 } // printEx()
 
@@ -1174,7 +1186,7 @@ std::vector<std::vector<OUString>> iFormulaNodeExplainval::display(const Referen
     for (const auto& s : _symbols)
     {
         std::string newsym = "@@" + ex_to<symbol>(s.first).get_name() + "@@";
-        variables.emplace(s.first, symbol(newsym));
+        variables.emplace(s.first, extsymbol(newsym));
         replacements.emplace(newsym, "(" + STR(printEx(s.second)) + ")");
     }
     std::string defstring = STR(printEx(_definition.subs(variables)));
@@ -1220,12 +1232,12 @@ iFormulaNodeEq::iFormulaNodeEq(GiNaC::unitvec unitConversions, std::shared_ptr<o
 {
     ex lhs = ex_to<equation>(_expr).lhs();
     ex rhs = ex_to<equation>(_expr).rhs();
-    if (is_a<symbol>(lhs) || is_a<func>(lhs))
+    if (is_a<extsymbol>(lhs) || is_a<func>(lhs))
     {
         in = collectSymbols(rhs);
         out = { lhs };
     }
-    else if (is_a<symbol>(rhs) || is_a<func>(rhs))
+    else if (is_a<extsymbol>(rhs) || is_a<func>(rhs))
     {
         in = collectSymbols(lhs);
         out = { rhs };

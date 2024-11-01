@@ -24,52 +24,52 @@
  */
 
 #include <string>
-#include <stdexcept>
 #include "printing.hxx"
 
-namespace GiNaC {
-
+namespace GiNaC
+{
 /// Extends GiNaC to handle string "expressions"
-class IMATH_DLLPUBLIC stringex : public basic {
-  GINAC_DECLARE_REGISTERED_CLASS(stringex, basic)
+class IMATH_DLLPUBLIC stringex : public basic
+{
+    GINAC_DECLARE_REGISTERED_CLASS(stringex, basic)
 
 public:
-  /**
+    /**
    * Construct a stringex with the given value
    * @param s A string with the value of stringex
    */
-  stringex(const std::string &s);
+    stringex(const std::string& s);
 
 #ifdef DEBUG_CONSTR_DESTR
-  ~stringex();
-  stringex(const stringex& other);
-  stringex& operator=(const stringex& other);
+    ~stringex();
+    stringex(const stringex& other);
+    stringex& operator=(const stringex& other);
 #endif
 
-  /// Return the content of the stringex object
-  inline const std::string& get_string() const { return value; }
+    /// Return the content of the stringex object
+    inline const std::string& get_string() const { return value; }
 
-  /**
+    /**
    * Print the stringex in a GiNaC print context.
    * @param c The print context (e.g., print_latex)
    * @param level Unused, for consistency with GiNaC print methods
    */
-  void do_print(const print_context &c, unsigned level = 0) const;
-  void do_print_imath(const imathprint &c, unsigned level = 0) const;
+    void do_print(const print_context& c, unsigned level = 0) const;
+    void do_print_imath(const imathprint& c, unsigned level = 0) const;
 
-  using basic::normal; // Fixes weird linking error on LO internal build
+    using basic::normal; // Fixes weird linking error on LO internal build
 
 private:
-  /// The value of the stringex
-  std::string value;
+    /// The value of the stringex
+    std::string value;
 };
 
-class IMATH_DLLPUBLIC stringex_unarchiver {
+class IMATH_DLLPUBLIC stringex_unarchiver
+{
 public:
-  stringex_unarchiver();
-  ~stringex_unarchiver();
+    stringex_unarchiver();
+    ~stringex_unarchiver();
 };
 static stringex_unarchiver stringex_unarchiver_instance;
-
 }
 #endif

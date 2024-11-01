@@ -26,10 +26,11 @@ possible to request variable values from eqc, which will be derived from the reg
 
 #include <iostream>
 #include <string>
-#include <stdexcept>
-#include "equation.hxx"
+#include <ginac/exprseq.h>
+#include <ginac/matrix.h>
+#include <ginac/hash_map.h>
+#include "expression.hxx"
 #include "extsymbol.hxx"
-#include "utils.hxx"
 
 class Functionmanager;
 class Unitmanager;
@@ -100,6 +101,8 @@ private:
     symtype type;
     /// Indicates whether the symbol is a vector, matrix, complex number, real number or positive number
     symprop prop;
+    /// Remember whether the value is a quantity
+    bool isquantity;
 
 public:
     /**
@@ -117,12 +120,6 @@ public:
 
     /// Assignment operator
     symrec& operator=(const symrec& other);
-
-#ifdef DEBUG_CONSTR_DESTR
-    symrec();
-    symrec(const symrec& other);
-    ~symrec();
-#endif
 
     /// Change the symbol type
     void setsymtype(const symtype t) { type = t; }
@@ -147,6 +144,12 @@ public:
 
     /// Return true if the symbol has a value
     bool has_value() const;
+
+    /// Set the quantity flag
+    void set_quantity(const bool q) { isquantity = q; }
+
+    /// Return true if the value is a quantity
+    bool is_quantity() const { return isquantity; }
 };
 
 /// Used to store all equations, variables and constants encountered during processing.
@@ -295,7 +298,7 @@ public:
   @returns A boolean indicating whether the symbol has a value
   @exception range_error(Symbol is not registered with the compiler)
   **/
-    bool has_value(const GiNaC::symbol& v) const;
+    bool has_value(const GiNaC::extsymbol& v) const;
 
     /**
   Return the assignment that defines the value of this variable
@@ -304,7 +307,7 @@ public:
   @returns An expression containing the assignment
   @exception range_error(Symbol is not registered with the compiler)
   **/
-    GiNaC::expression get_assignment(const GiNaC::symbol& s) const;
+    GiNaC::expression get_assignment(const GiNaC::extsymbol& s) const;
 
     /**
   Return the stored value of this symbol without going through all the hassle of find_values()
@@ -314,7 +317,7 @@ public:
   @returns The value of the symbol
   @exception range_error(Symbol is not registered with the compiler)
   **/
-    GiNaC::expression get_value(const GiNaC::symbol& s) const;
+    GiNaC::expression get_value(const GiNaC::extsymbol& s) const;
 
     /**
   A wrapper function for find_values(). Searches for an equation defining the symbol, substitutes as many
@@ -327,13 +330,13 @@ public:
 
   @param var The variable for which the value is requested
   @param assignments An optional expression containing an equation or a list of equations
-  @param tofloat If true, evaluates all numbers to floats. If false, things like sqrt{3} or sin(5) are not evaluated
+  @param toquantity If the result is a quantity, return it as a floating point number with units. Otherwise, things like sqrt{3} or sin(5) are not evaluated
   @returns An expression containing the value
   @exception invalid_argument
   **/
-    GiNaC::expression find_value_of(const GiNaC::symbol& var,
+    GiNaC::expression find_value_of(const GiNaC::extsymbol& var,
                                     const GiNaC::lst& assgn = GiNaC::lst(),
-                                    const bool tofloat = true);
+                                    const bool toquantity = true);
 
     /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
   the value is no quantity.
@@ -342,7 +345,7 @@ public:
   @returns An expression containing the quantity
   @exception invalid_argument
   **/
-    GiNaC::expression find_quantity_of(const GiNaC::symbol& var,
+    GiNaC::expression find_quantity_of(const GiNaC::extsymbol& var,
                                        const GiNaC::lst& assgn = GiNaC::lst());
 
     /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
@@ -352,7 +355,8 @@ public:
   @returns A numeric containing the value
   @exception invalid_argument
   **/
-    GiNaC::numeric find_numval_of(const GiNaC::symbol& var, const GiNaC::lst& assgn = GiNaC::lst());
+    GiNaC::numeric find_numval_of(const GiNaC::extsymbol& var,
+                                  const GiNaC::lst& assgn = GiNaC::lst());
 
     /** A wrapper function for find_values(). Same as find_value_of(), only that an exception is thrown if
   the value is no unit (or a multiplication of units and powers of units).
@@ -361,7 +365,7 @@ public:
   @returns An expression containing the units
   @exception invalid_argument
   **/
-    GiNaC::expression find_units_of(const GiNaC::symbol& var,
+    GiNaC::expression find_units_of(const GiNaC::extsymbol& var,
                                     const GiNaC::lst& assgn = GiNaC::lst());
 
     /** Scan the expression for symbols and return a map from the symbols to their values
@@ -437,7 +441,7 @@ private: /* Methods */
   @returns A boolean indicating whether this variable's value is a quantity
   @exception invalid_argument
   **/
-    bool find_values(const GiNaC::symbol& var, GiNaC::numeric& v, GiNaC::expression& u,
+    bool find_values(const GiNaC::extsymbol& var, GiNaC::numeric& v, GiNaC::expression& u,
                      GiNaC::expression& value, const GiNaC::lst& assgn = GiNaC::lst(),
                      const bool tofloat = true);
 

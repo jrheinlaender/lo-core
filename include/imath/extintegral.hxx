@@ -18,64 +18,67 @@
 #ifndef EXTINTEGRAL_H
 #define EXTINTEGRAL_H
 
-#include <typeinfo>
 #include <ginac/integral.h>
 #include "printing.hxx"
+#include "extsymbol.hxx"
 
-namespace GiNaC {
-
+namespace GiNaC
+{
 class IMATH_DLLPUBLIC extintegral : public integral
 {
-  GINAC_DECLARE_REGISTERED_CLASS(extintegral, integral)
+    GINAC_DECLARE_REGISTERED_CLASS(extintegral, integral)
 
-  // other constructors
+    // other constructors
 public:
-  extintegral(const ex & x_, const ex & a_, const ex & b_, const ex & f_);
-  extintegral(const ex & x_, const ex & f_, const ex & C_);
-  extintegral(const ex & f__, const ex & C_);
-  extintegral(const integral& other);
+    extintegral(const ex& x_, const ex& a_, const ex& b_, const ex& f_);
+    extintegral(const ex& x_, const ex& f_, const ex& C_);
+    extintegral(const ex& f__, const ex& C_);
+    extintegral(const integral& other);
 
 #ifdef DEBUG_CONSTR_DESTR
-  extintegral(const extintegral& other);
-  extintegral& operator=(const extintegral& other);
-  ~extintegral();
+    extintegral(const extintegral& other);
+    extintegral& operator=(const extintegral& other);
+    ~extintegral();
 #endif
 
-  // functions overriding virtual functions from base classes
+    // functions overriding virtual functions from base classes
 public:
-  inline unsigned precedence() const override {return 45;}
-  ex eval() const override;
-  ex evalf() const override;
-  ex evalm() const override;
-  ex subs(const exmap & m, unsigned options = 0) const override;
-  int degree(const ex & s) const override;
-  int ldegree(const ex & s) const override;
-  ex expand(unsigned options = 0) const override;
-  ex conjugate() const override;
-  ex eval_integ() const override;
-public:
-  void set_integration_constant(const symbol& newconstant);
-protected:
-  ex derivative(const symbol & s) const override;
+    inline unsigned precedence() const override { return 45; }
+    ex eval() const override;
+    ex evalf() const override;
+    ex evalm() const override;
+    ex subs(const exmap& m, unsigned options = 0) const override;
+    int degree(const ex& s) const override;
+    int ldegree(const ex& s) const override;
+    ex expand(unsigned options = 0) const override;
+    ex conjugate() const override;
+    ex eval_integ() const override;
 
-  // non-virtual functions in this class
+public:
+    void set_integration_constant(const extsymbol& newconstant);
+
 protected:
-  void do_print(const print_context & c, unsigned level) const;
-  void do_print_imath(const imathprint& c, unsigned level) const;
+    ex derivative(const symbol& s) const override;
+
+    // non-virtual functions in this class
+protected:
+    void do_print(const print_context& c, unsigned level) const;
+    void do_print_imath(const imathprint& c, unsigned level) const;
+
 private:
-  /// The integral has boundaries defined
-  bool hasboundaries;
-  /// The integration constant, for integrals without boundaries
-  ex C;
+    /// The integral has boundaries defined
+    bool hasboundaries;
+    /// The integration constant, for integrals without boundaries
+    ex C;
 };
 
-class IMATH_DLLPUBLIC extintegral_unarchiver {
+class IMATH_DLLPUBLIC extintegral_unarchiver
+{
 public:
-  extintegral_unarchiver();
-  ~extintegral_unarchiver();
+    extintegral_unarchiver();
+    ~extintegral_unarchiver();
 };
 static extintegral_unarchiver extintegral_unarchiver;
-
 }
 
 #endif

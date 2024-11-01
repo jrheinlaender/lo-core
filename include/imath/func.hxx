@@ -24,7 +24,6 @@
  */
 
 #include <string>
-#include <stdexcept>
 #include "expression.hxx"
 #include "printing.hxx"
 

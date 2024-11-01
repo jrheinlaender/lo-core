@@ -144,9 +144,7 @@
 #include <com/sun/star/presentation/XPresentationSupplier.hpp>
 #include <com/sun/star/util/XModifiable.hpp>
 
-
 #include <cmath>
-#include <limits>
 #include <sstream>
 #include <fstream>
 #ifdef _MSC_VER
@@ -167,6 +165,7 @@
 #include <imath/stringex.hxx>
 #include <imath/func.hxx>
 #include <imath/funcmgr.hxx>
+#include <imath/extsymbol.hxx>
 #else
 #include "imathutils.hxx"
 #include "unit.hxx"
@@ -174,6 +173,7 @@
 #include "stringex.hxx"
 #include "func.hxx"
 #include "funcmgr.hxx"
+#include "extsymbol.hxx"
 #endif
 #include "iIterator.hxx"
 
@@ -181,7 +181,6 @@ using com::sun::star::awt::WindowDescriptor;
 using com::sun::star::awt::XControlModel;
 using com::sun::star::awt::XMessageBox;
 using com::sun::star::awt::XMessageBoxFactory;
-using com::sun::star::awt::Rectangle;
 using com::sun::star::awt::XWindowPeer;
 using com::sun::star::document::XEmbeddedObjectSupplier;
 using com::sun::star::lang::XComponent;
@@ -194,7 +193,6 @@ using com::sun::star::text::XTextCursor;
 using com::sun::star::text::XParagraphCursor;
 using com::sun::star::text::XText;
 using com::sun::star::text::XTextViewCursor;
-using com::sun::star::util::XRefreshable;
 using com::sun::star::awt::XNumericField;
 using com::sun::star::awt::XCheckBox;
 using com::sun::star::container::XEnumerationAccess;
@@ -206,34 +204,26 @@ using com::sun::star::text::XTextTable;
 using com::sun::star::text::XTextTablesSupplier;
 using com::sun::star::text::XFootnote;
 using com::sun::star::text::XTextFieldsSupplier;
-using com::sun::star::text::XTextField;
-using com::sun::star::text::XDependentTextField;
 using com::sun::star::table::XCell;
 using com::sun::star::container::XNameAccess;
 using com::sun::star::util::XChangesBatch;
 using com::sun::star::document::XEmbeddedObjectSupplier2;
 using com::sun::star::deployment::XPackageInformationProvider;
-using com::sun::star::chart::XChartData;
 using com::sun::star::chart::XDiagram;
 using com::sun::star::chart::XAxisXSupplier;
 using com::sun::star::chart::XAxisYSupplier;
-using com::sun::star::beans::XMultiPropertySet;
 using com::sun::star::chart2::data::XDataProvider;
 using com::sun::star::chart2::data::XLabeledDataSequence;
 using com::sun::star::chart2::XChartTypeContainer;
 using com::sun::star::chart2::data::XDataSequence;
 using com::sun::star::chart2::data::XDataSource;
 using com::sun::star::chart2::data::XDataSink;
-using com::sun::star::chart2::XChartType;
 using com::sun::star::chart2::XCoordinateSystemContainer;
 using com::sun::star::chart2::XDataSeries;
 using com::sun::star::chart2::XDataSeriesContainer;
 using com::sun::star::chart2::XTitled;
 using com::sun::star::chart2::XTitle;
 using com::sun::star::chart2::XFormattedString;
-#if (OO_IS_AOO == 0)
-using com::sun::star::chart2::XFormattedString2;
-#endif
 using com::sun::star::chart2::XLegend;
 using com::sun::star::chart2::XCoordinateSystem;
 using com::sun::star::chart2::XAxis;
@@ -247,7 +237,6 @@ using com::sun::star::rdf::XURI;
 #if (OO_MAJOR_VERSION == 3) && (OO_MINOR_VERSION <= 5) || (OO_MAJOR_VERSION >= 7) || (OO_IS_AOO == 1)
 using com::sun::star::rdf::XResource;
 #endif
-using com::sun::star::rdf::XRepository;
 using com::sun::star::rdf::Statement;
 using com::sun::star::container::ElementExistException;
 using com::sun::star::container::XEnumeration;
@@ -263,7 +252,6 @@ using com::sun::star::table::XCellRange;
 using com::sun::star::table::XTableColumns;
 using com::sun::star::table::XTableRows;
 using com::sun::star::drawing::XDrawPagesSupplier;
-using com::sun::star::drawing::XDrawPages;
 using com::sun::star::container::XIndexAccess;
 using com::sun::star::drawing::XDrawPage;
 using com::sun::star::drawing::XShapes;

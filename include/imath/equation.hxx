@@ -25,12 +25,9 @@ Class equation is used to store, print and evaluate equations
 #ifndef EQUATION_H
 #define EQUATION_H
 
-#include <iostream>
 #include <string>
-#include <stdexcept>
 #include <ginac/relational.h>
 #include "expression.hxx"
-#include "option.hxx"
 #include "printing.hxx"
 #include "utils.hxx"
 
@@ -222,9 +219,9 @@ public:
   @returns An equation containing the result of the integration
   @exception logic_error(Can only integrate with respect to a symbol)
   **/
-  expression integrate(const ex &var, const symbol& integration_constant) const;
+  expression integrate(const ex &var, const extsymbol& integration_constant) const;
   expression integrate(const ex &var, const ex& lowerbound, const ex& upperbound) const;
-  expression integrate(const ex &lvar, const symbol& l_integration_constant, const ex &rvar, const symbol& r_integration_constant) const;
+  expression integrate(const ex &lvar, const extsymbol& l_integration_constant, const ex &rvar, const extsymbol& r_integration_constant) const;
   expression integrate(const ex &lvar, const ex& l_lowerbound, const ex& l_upperbound, const ex &rvar, const ex& r_lowerbound, const ex& r_upperbound) const;
 
   /**

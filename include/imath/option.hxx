@@ -18,8 +18,7 @@
 #define OPTSTACK_H
 
 #include <string>
-#include <vector>
-#include "expression.hxx"
+#include <ginac/basic.h>
 // TODO: How to pull in sal_Bool directly?
 #ifndef _RTL_USTRING_HXX_
 #include <rtl/ustring.hxx>

@@ -17,9 +17,7 @@
  ***************************************************************************/
 
 #include "com/sun/star/lang/XServiceInfo.hpp"
-#include "com/sun/star/document/XEmbeddedObjectSupplier.hpp"
 #include "com/sun/star/drawing/XDrawPagesSupplier.hpp"
-#include "com/sun/star/drawing/XDrawPages.hpp"
 #include "com/sun/star/drawing/XDrawPage.hpp"
 
 #include "iIterator.hxx"
@@ -32,9 +30,7 @@
 #endif
 
 using com::sun::star::lang::XServiceInfo;
-using com::sun::star::document::XEmbeddedObjectSupplier;
 using com::sun::star::drawing::XDrawPagesSupplier;
-using com::sun::star::drawing::XDrawPages;
 using com::sun::star::drawing::XDrawPage;
 
 iIterator::iIterator(const Reference< XModel >& xModel) : iIterator(xModel, CLSID_FORMULA) {};

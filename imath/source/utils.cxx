@@ -16,9 +16,6 @@
  ***************************************************************************/
 
 #include <cmath>
-#include <algorithm>
-#include <stdexcept>
-#include <sstream>
 #include <cln/float.h>
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -26,12 +23,12 @@
 #endif
 #include <ginac/mul.h>
 #include <ginac/operators.h>
-#include <ginac/symbol.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 #ifdef INSIDE_SM
 #include <imath/utils.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/equation.hxx>
 #include <imath/func.hxx>
@@ -39,6 +36,7 @@
 #include <imath/differential.hxx>
 #else
 #include "utils.hxx"
+#include "extsymbol.hxx"
 #include "msgdriver.hxx"
 #include "equation.hxx"
 #include "func.hxx"
@@ -242,12 +240,12 @@ bool is_quantity (const expression &quantity) {
 } // is_quantity()
 
 bool is_symbolic (const expression &e) {
-  if (is_a<symbol>(e))
+  if (is_a<extsymbol>(e))
     return true;
 
   if (is_a<matrix>(e)) {
     for (const auto& elem : e)
-      if (!is_a<symbol>(elem)) return false;
+      if (!is_a<extsymbol>(elem)) return false;
     return true;
   }
 
@@ -792,7 +790,7 @@ bool check_modulus(const expression& e) {
   if (is_a<numeric>(e))
     return e.info(info_flags::posint) ||
            (e.info(info_flags::cinteger) && !e.is_zero());
-  else if (is_a<symbol>(e))
+  else if (is_a<extsymbol>(e))
     return true;
 
   return false;
@@ -818,7 +816,7 @@ expression apply_modulus(const expression& e, const expression& mod) {
       else
         return e;
     }
-  } else if (is_a<symbol>(e) && e.is_equal(mod)) {
+  } else if (is_a<extsymbol>(e) && e.is_equal(mod)) {
     return _expr0; // Replace the symbol with 0, since s ~= 0 (mod s)
   } else if (is_a<power>(e)) {
     const power& p = ex_to<power>(e);

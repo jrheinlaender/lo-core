@@ -45,8 +45,6 @@
 #endif
 #include "exderivative.hxx"
 
-#include <ginac/symbol.h>
-
 using namespace std;
 
 namespace GiNaC {
@@ -64,7 +62,7 @@ extintegral::extintegral()
   : integral()
 {
   MSG_INFO(3, "Constructing empty extintegral" << endline);
-  C = dynallocate<symbol>("C");
+  C = dynallocate<extsymbol>("C");
   hasboundaries = false;
 }
 
@@ -83,7 +81,7 @@ extintegral::extintegral(const ex & x_, const ex & a_, const ex & b_, const ex &
   let_op(1) = a_;
   let_op(2) = b_;
   let_op(3) = f_;
-  C = dynallocate<symbol>("C");
+  C = dynallocate<extsymbol>("C");
   hasboundaries = true;
 }
 
@@ -133,7 +131,7 @@ extintegral::extintegral(const integral& other)
 {
   MSG_INFO(3, "Constructing extintegral from integral " << other << endline);
   hasboundaries = true;
-  C = dynallocate<symbol>("C");
+  C = dynallocate<extsymbol>("C");
 }
 
 #ifdef DEBUG_CONSTR_DESTR
@@ -200,7 +198,7 @@ int extintegral::compare_same_type(const basic & other) const
     return 1;
 }
 
-void extintegral::set_integration_constant(const symbol& newconstant)
+void extintegral::set_integration_constant(const extsymbol& newconstant)
 {
   C = newconstant;
   MSG_INFO(1, "Set new integration constant: " << C << endline);
@@ -262,7 +260,7 @@ ex extintegral::evalm() const {
 
 int extintegral::degree(const ex & s) const
 {
-  if (hasboundaries && is_a<symbol>(op(0)))
+  if (hasboundaries && is_a<extsymbol>(op(0)))
     return integral::degree(s);
   else
     return op(3).degree(s);
@@ -270,7 +268,7 @@ int extintegral::degree(const ex & s) const
 
 int extintegral::ldegree(const ex & s) const
 {
-  if (hasboundaries && is_a<symbol>(op(0)))
+  if (hasboundaries && is_a<extsymbol>(op(0)))
     return integral::degree(s);
   else
     return op(3).ldegree(s);
@@ -330,7 +328,7 @@ ex extintegral::derivative(const symbol & s) const
 
 ex extintegral::conjugate() const
 {
-  if (hasboundaries && is_a<symbol>(op(0)))
+  if (hasboundaries && is_a<extsymbol>(op(0)))
     return ensure_extintegral(integral::conjugate(), status_flags::dynallocated);
 
   ex conjf = op(3).conjugate().subs(op(0).conjugate()==op(0));

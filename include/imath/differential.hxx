@@ -23,7 +23,6 @@
  * @short Extends GiNaC to handle string "expressions"
  */
 
-#include <stdexcept>
 #ifdef INSIDE_SM
 #include <imath/printing.hxx>
 #include <imath/utils.hxx>

@@ -22,7 +22,6 @@
 #endif
 #include <ginac/mul.h>
 #include <ginac/operators.h>
-#include <ginac/symbol.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -201,7 +200,7 @@ void operands::split_ex(const expression &e, operands &o1, operands &o2) {
 
 void operands::include(const ex &what) {
   // Find the type of what and include it in the receiver
-       if (is_a<symbol>(what)) symbols = oper(symbols, what);
+       if (is_a<extsymbol>(what)) symbols = oper(symbols, what);
   else if (is_a<constant>(what)) constants = oper(constants, what);
   else if (is_a<Unit>(what)) units = oper(units, what);
   else if (is_a<func>(what)) functions = oper(functions, what);
@@ -218,7 +217,7 @@ void operands::include(const ex &what) {
     ex exponent = get_exp(pow);
     if (is_a<numeric>(exponent) && (is_a<Unit>(base))) {
       units = oper(units, what);
-    } else if (is_a<numeric>(exponent) && is_a<symbol>(base)) {
+    } else if (is_a<numeric>(exponent) && is_a<extsymbol>(base)) {
       symbols = oper(symbols, what);
     } else if (is_a<numeric>(exponent) && (is_a<constant>(base))) {
       constants = oper(constants, what);
@@ -243,7 +242,7 @@ void operands::include(const ex &what) {
 
 void operands::exclude(const ex &what) {
   // Find the type of what and include it in the receiver
-       if (is_a<symbol>(what)) symbols = oper(symbols, 1 / what);
+       if (is_a<extsymbol>(what)) symbols = oper(symbols, 1 / what);
   else if (is_a<constant>(what)) constants = oper(constants, 1 / what);
   else if (is_a<Unit>(what)) units = oper(units, 1 / what);
   else if (is_a<func>(what)) functions = oper(functions, 1 / what);
@@ -260,7 +259,7 @@ void operands::exclude(const ex &what) {
     ex exponent = get_exp(pow);
     if (is_a<numeric>(exponent) && (is_a<Unit>(base))) {
       units = oper(units, 1 / what);
-    } else if (is_a<numeric>(exponent) && is_a<symbol>(base)) {
+    } else if (is_a<numeric>(exponent) && is_a<extsymbol>(base)) {
       symbols = oper(symbols, 1 / what);
     } else if (is_a<numeric>(exponent) && (is_a<constant>(base))) {
       constants = oper(constants, 1 / what);

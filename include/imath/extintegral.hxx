@@ -18,9 +18,9 @@
 #ifndef EXTINTEGRAL_H
 #define EXTINTEGRAL_H
 
-#include <typeinfo>
 #include <ginac/integral.h>
 #include "printing.hxx"
+#include "extsymbol.hxx"
 
 namespace GiNaC {
 
@@ -54,7 +54,7 @@ public:
   ex conjugate() const override;
   ex eval_integ() const override;
 public:
-  void set_integration_constant(const symbol& newconstant);
+  void set_integration_constant(const extsymbol& newconstant);
 protected:
   ex derivative(const symbol & s) const override;
 

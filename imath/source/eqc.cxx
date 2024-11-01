@@ -20,12 +20,14 @@
 #include <ginac/operators.h>
 #ifdef INSIDE_SM
 #include <imath/eqc.hxx>
+#include <imath/equation.hxx>
 #include <imath/printing.hxx>
 #include <imath/func.hxx>
 #include <imath/funcmgr.hxx>
 #include <imath/msgdriver.hxx>
 #else
 #include "eqc.hxx"
+#include "equation.hxx"
 #include "printing.hxx"
 #include "func.hxx"
 #include "funcmgr.hxx"
@@ -242,6 +244,7 @@ bool is_internal(const std::string& varname) {
         } else {
           varr.val = rh(r,0);
           varr.aval = arh(r,0);
+          varr.set_quantity(true);
           varr.assignments.emplace_front(eqr); // The first equation gives the value
           MSG_INFO(2,  "Stored assignment " << names[r] << " == " << ex(arh(r,0)) << endline);
         }
@@ -290,7 +293,7 @@ bool is_internal(const std::string& varname) {
     if ((label != VALLABEL) && (previous_it != equations.end()) && previous_it->second.is_automatic()) {
       expression lhs = previous_it->second.eq.lhs();
       expression rhs = previous_it->second.eq.rhs();
-      if (!(is_a<symbol>(lhs) || is_a<symbol>(rhs))) {
+      if (!(is_a<extsymbol>(lhs) || is_a<extsymbol>(rhs))) {
         deleq(previous_it);
         prevlabel = "";
       }
@@ -428,26 +431,26 @@ bool is_internal(const std::string& varname) {
   } // eqc::deleq()
 
   void eqc::register_constant (const expression &eq) {
-    if (! is_a<symbol>(eq.lhs()) )
+    if (! is_a<extsymbol>(eq.lhs()) )
       throw std::invalid_argument("Warning: Left hand side for 'constant' is no symbol! Ignoring.");
 
     std::string varname = ex_to<symbol>(eq.lhs()).get_name();
-    const auto& varr = vars.find(varname);
+    auto varr = vars.find(varname);
     if ((varr != vars.end()) && (varr->second.getsymtype() == t_constant))
       throw std::invalid_argument("Error: Constant already exists! Ignoring.");
 
     if (!is_quantity(eq.rhs())) {
       // Automatically evaluate the RHS to a quantity (if possible)
-      const extsymbol& valsym = ex_to<extsymbol>(getsym(VALSYM));
+      extsymbol valsym = ex_to<extsymbol>(getsym(VALSYM)); // const& gives warning dangling reference
       check_and_register(equation(valsym, eq.rhs(), relational::equal, _expr0), VALLABEL);
 
       varr->second.val = find_value_of(valsym);
       deleq(VALLABEL);
     } else {
-      // This avoids find_value_of() which always evaluates numbers to floats
       varr->second.val = eq.rhs();
     }
 
+    varr->second.aval = varr->second.val;
     varr->second.setsymtype(t_constant);
     if (!is_quantity(varr->second.val))
       throw std::invalid_argument("Warning: Constant " + varname + " is no quantity.");
@@ -562,7 +565,7 @@ bool is_internal(const std::string& varname) {
     else
       current_namespace = current_namespace.substr(0, cpos);
 
-    MSG_INFO(0, "Current namespace: " << current_namespace << endline);
+    MSG_INFO(0, "Current namespace: '" << current_namespace << "'" << endline);
   }
 
   std::string eqc::varname_ns(const std::string& varname) const {
@@ -616,7 +619,7 @@ bool is_internal(const std::string& varname) {
       return result;
   }
 
-  symrec::symrec(const symtype t, const std::string& varname, const symprop p) : sym(dynallocate<extsymbol>(varname)), type(t) {
+  symrec::symrec(const symtype t, const std::string& varname, const symprop p) : sym(dynallocate<extsymbol>(varname)), type(t), isquantity(false) {
     MSG_INFO(3, "Constructing symrec from " << varname  << endline);
     sym.add_reference(); // otherwise the symbol will be deallocated after we pass it out...
     setsymprop(p);
@@ -628,24 +631,12 @@ bool is_internal(const std::string& varname) {
     sym = other.sym;
     type = other.type;
     prop = other.prop;
+    isquantity = other.isquantity;
     val = other.val;
+    aval = other.aval;
     assignments = std::list<eqrec*>(other.assignments.begin(), other.assignments.end());
     return *this;
   }
-
-#ifdef DEBUG_CONSTR_DESTR
-  symrec::symrec() : sym(dynallocate<extsymbol>("empty symbol")) {
-    MSG_INFO(3, "Constructing empty symrec" << endline);
-    sym.add_reference(); // otherwise the symbol will be deallocated after we pass it out...
-  }
-  symrec::symrec(const symrec& other) : sym(other.sym), type(other.type), prop(other.prop), val(other.val) {
-    MSG_INFO(3, "Copying symrec from " << other.sym  << endline);
-    assignments = std::list<eqrec*>(other.assignments.begin(), other.assignments.end());
-  }
-  symrec::~symrec() {
-    MSG_INFO(3, "Destructing symrec for " << sym  << endline);
-  }
-#endif
 
   void symrec::setsymprop(const symprop p) {
     prop = p;
@@ -667,6 +658,7 @@ bool is_internal(const std::string& varname) {
   void symrec::make_unknown() {
     MSG_INFO(3, "symrec::make_unknown()" << endline);
     val = sym;
+    isquantity = false;
   }
 
   bool symrec::has_value() const {
@@ -681,13 +673,16 @@ bool is_internal(const std::string& varname) {
       return Euler_number;
     } else if (varname == "i") {
       return I;
-    } else if (vars.find(varname) == vars.end()) { // create a new variable
-      MSG_INFO(3,  "Creating new variable " << varname << endline);
-      const symrec_it& v = (vars.emplace(std::piecewise_construct, std::forward_as_tuple(varname), std::forward_as_tuple(t_variable, varname, p))).first;
-      return v->second.getsym();
     } else {
-      MSG_INFO(3, "Returning existing variable " << varname << endline);
-      return (vars.at(varname).getsym());
+        auto it_var = vars.find(varname);
+        if (it_var == vars.end()) { // create a new variable
+            MSG_INFO(3,  "Creating new variable " << varname << endline);
+            const symrec_it& v = (vars.emplace(std::piecewise_construct, std::forward_as_tuple(varname), std::forward_as_tuple(t_variable, varname, p))).first;
+            return v->second.getsym();
+        } else {
+            MSG_INFO(3, "Returning existing variable " << varname << endline);
+            return it_var->second.getsym();
+        }
     }
   } // eqc::getsym()
 
@@ -746,14 +741,14 @@ bool is_internal(const std::string& varname) {
     return funcmgr->is_a_func(fname);
   }
 
-  bool eqc::has_value(const symbol& s) const {
+  bool eqc::has_value(const extsymbol& s) const {
     symrec_cit v = vars.find(s.get_name());
     if (v == vars.end())
       throw(std::range_error("has_value: Symbol '" + s.get_name() + "' is not registered with the compiler"));
     return (v->second.has_value());
   } // eqc::has_value()
 
-  expression eqc::get_assignment(const symbol& s) const {
+  expression eqc::get_assignment(const extsymbol& s) const {
     symrec_cit v = vars.find(s.get_name());
     if (v == vars.end())
       throw(std::range_error("has_value: Symbol '" + s.get_name() + "' is not registered with the compiler"));
@@ -763,16 +758,16 @@ bool is_internal(const std::string& varname) {
     return (v->second.assignments.front()->eq);
   }
 
-  expression eqc::get_value(const symbol &s) const {
+  expression eqc::get_value(const extsymbol &s) const {
     symrec_cit v = vars.find(s.get_name());
     if (v == vars.end())
       throw(std::range_error("get_value: Symbol '" + s.get_name() + "' is not registered with the compiler"));
     return (v->second.val);
   } // eqc::get_value()
 
-  bool eqc::find_values(const symbol &var, numeric &val, expression &unit, expression &value, const lst &assgn, const bool tofloat) {
+  bool eqc::find_values(const extsymbol &var, numeric &val, expression &unit, expression &value, const lst &assgn, const bool toquantity) {
     bool found_value = false;
-    MSG_INFO(1,  "Searching value of " << var << endline);
+    MSG_INFO(1,  "Searching value of " << var.get_name() << endline);
 
     // 1.0 Prepare the equation list if optional parameters are being used
     std::list<eqrec_it> tempeqs;
@@ -822,7 +817,7 @@ bool is_internal(const std::string& varname) {
     symrec_it v;
     eqrec_it e;
 
-    if (msg::info().checkprio(1)) {
+    if (msg::info().checkprio(2)) {
       msg::info() << "Available other equations: " << endline;
       for (const auto& eqr : other_equations) {
         msg::info() << eqr->label << ": " << eqr->eq << endline;
@@ -948,9 +943,11 @@ bool is_internal(const std::string& varname) {
 
                 // If the result is a quantity, store the value for later
                 // If this is the symbol we are searching a value for, the search is finished
-                if (is_quantity(res(r,0)) || is_a<matrix>(res(r,0))) {
+                bool isqty = is_quantity(res(r,0));
+                if (isqty || is_a<matrix>(res(r,0))) {
                   v->second.val = res(r,0); // A value was found for the variable
                   v->second.aval = ares(r,0);
+                  v->second.set_quantity(isqty);
                   if (names[r] != VALSYM)
                     new_assgn.emplace(vars.at(names[r]).getsym(), ares(r,0));
                   MSG_INFO(1,  "Found value from equations: " << names[r] << " == " << ares(r,0) << endline);
@@ -1025,20 +1022,29 @@ bool is_internal(const std::string& varname) {
     // 4. Find the best value for the variable
     std::list<expression> values;
     if (has_value(var)) {
-      // 4.1 The variable has a value which is a quantity
-      ::operands n(GINAC_MUL), d(GINAC_MUL);
-      ::operands::split_ex(varsr.val, n, d);
-      val = ex_to<numeric>(n.get_coefficient());
-      unit = n.get_units()/d.get_units();
-      value = tofloat ? varsr.val : varsr.aval;
+        // 4.1 The variable has a value
 
-      // If optional parameters were used, clean up
-      if (assgn.nops() != 0) {
-        for (auto it_eqr : tempeqs) deleq(it_eqr);
-        previous_it = preveq;
-      }
+        // If optional parameters were used, clean up
+        if (assgn.nops() != 0) {
+            for (auto it_eqr : tempeqs) deleq(it_eqr);
+            previous_it = preveq;
+        }
 
-      return true;
+        if (varsr.is_quantity() && toquantity) {
+            // 4.1.1 The variable has a value which is a quantity. Return result that was evalf()ed
+            ::operands n(GINAC_MUL), d(GINAC_MUL);
+            ::operands::split_ex(varsr.val, n, d);
+            val = ex_to<numeric>(n.get_coefficient());
+            unit = n.get_units()/d.get_units();
+            value = varsr.val;
+            MSG_INFO(0, "Found value which is a quantity: " << value << endline);
+            return true;
+        } else {
+            // 4.1.2 The variable has a value which is not a quantity. Return result that was not evalf()ed
+            value = varsr.aval;
+            MSG_INFO(0, "Found value which is no quantity: " << value << endline);
+            return false;
+        }
     } else {
       // 4.2 Collect all the possible values, detect if assignment is the wrong way around
       //     (symbol on the left-hand side).
@@ -1073,14 +1079,14 @@ bool is_internal(const std::string& varname) {
     return false;
   } // eqc::find_values()
 
-  expression eqc::find_value_of(const symbol &var, const lst &assgn, const bool tofloat) {
+  expression eqc::find_value_of(const extsymbol &var, const lst &assgn, const bool toquantity) {
     numeric v;
     expression u, value;
-    find_values(var, v, u, value, assgn, tofloat);
+    find_values(var, v, u, value, assgn, toquantity);
     return (value);
   } // eqc::find_value_of()
 
-  expression eqc::find_quantity_of(const symbol &var, const lst &assgn) {
+  expression eqc::find_quantity_of(const extsymbol &var, const lst &assgn) {
     numeric v;
     expression u, value;
     if (!find_values(var, v, u, value, assgn, true)) {
@@ -1090,7 +1096,7 @@ bool is_internal(const std::string& varname) {
     return (value.evalf());
   } // eqc::find_quantity_of()
 
-  numeric eqc::find_numval_of(const symbol &var, const lst &assgn) {
+  numeric eqc::find_numval_of(const extsymbol &var, const lst &assgn) {
     // Note: This function discards any units the result might contain!
     numeric v;
     expression u, value;
@@ -1104,7 +1110,7 @@ bool is_internal(const std::string& varname) {
     return (v);
   } //eqc::find_numval_of()
 
-  expression eqc::find_units_of(const symbol &var, const lst &assgn) {
+  expression eqc::find_units_of(const extsymbol &var, const lst &assgn) {
     numeric v;
     expression u, value;
     if (!find_values(var, v, u, value, assgn, true)) {
@@ -1122,9 +1128,9 @@ bool is_internal(const std::string& varname) {
     exhashmap<ex> result;
 
     for (const_preorder_iterator i = e.preorder_begin(); i != e.preorder_end(); ++i) {
-      if (is_a<symbol>(*i) && (result.find(ex_to<symbol>(*i)) == result.end())) {
-        MSG_INFO(3, "Found contained symbol " << *i << " with value " << get_value(ex_to<symbol>(*i)) << endline);
-        result[ex_to<symbol>(*i)] = get_value(ex_to<symbol>(*i)); // exhashmap has no emplace()
+      if (is_a<extsymbol>(*i) && (result.find(*i) == result.end())) {
+        MSG_INFO(3, "Found contained symbol " << *i << " with value " << get_value(ex_to<extsymbol>(*i)) << endline);
+        result[*i] = get_value(ex_to<extsymbol>(*i)); // exhashmap has no emplace()
       }
     }
 
@@ -1222,35 +1228,45 @@ bool is_internal(const std::string& varname) {
       funcmgr_writable = true;
     }
 
-    // Clear only variables and non-library functions
+    // Clear only variables and non-library functions in current namespace
     assignments.clear();
     recent_assgn.clear();
-    for (auto& v : vars) {
-      if (v.second.getsymtype() == t_variable) {
-        MSG_INFO(3,  "Deleting variable " << v.first << endline);
-        v.second.make_unknown();
-        v.second.setsymprop(p_complex);
-        v.second.assignments.clear();
-      } else if (v.second.getsymtype() == t_function) {
-        if (!funcmgr->is_lib(v.first)) {
-          MSG_INFO(3,  "Deleting function " << v.first << endline);
-          funcmgr->remove(v.first);
-          v.second.setsymtype(t_variable); // Keep this variable because it might have been shadowed by a function
-          v.second.setsymprop(p_complex);
-          v.second.make_unknown();
-          v.second.assignments.clear();
+    for (auto& [varname, var] : vars) {
+      if (is_internal(varname)) {
+          MSG_INFO(0, "Keeping internal " << varname << endline);
+          assignments.emplace(var.getsym(), var.val);
+          continue;
+      }
+      if (is_external_ns(varname)) {
+          MSG_INFO(0, "Keeping from external namespace " << varname << endline);
+          assignments.emplace(var.getsym(), var.val);
+          continue;
+      }
+
+      if (var.getsymtype() == t_variable) {
+        MSG_INFO(0, "Deleting variable " << varname << endline);
+        var.make_unknown();
+        var.setsymprop(p_complex);
+        var.assignments.clear();
+      } else if (var.getsymtype() == t_function) {
+        if (!funcmgr->is_lib(varname)) {
+          MSG_INFO(0, "Deleting function " << varname << endline);
+          funcmgr->remove(varname);
+          var.setsymtype(t_variable); // Keep this variable because it might have been shadowed by a function
+          var.setsymprop(p_complex);
+          var.make_unknown();
+          var.assignments.clear();
         } else {
-          MSG_INFO(3,  "Keeping " << v.first << endline);
+          MSG_INFO(0, "Keeping " << varname << endline);
           // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
-          v.second.make_unknown();
-          v.second.assignments.clear();
+          var.make_unknown();
+          var.assignments.clear();
         }
       } else {
-        MSG_INFO(3,  "Keeping " << v.first << endline);
-        assignments.emplace(v.second.getsym(), v.second.val);
+        MSG_INFO(0, "Keeping " << varname << endline);
+        assignments.emplace(var.getsym(), var.val);
       }
     }
-    funcmgr->clear();
   } //eqc::clear()
 
   void eqc::clearall (const bool persist_symbols) {

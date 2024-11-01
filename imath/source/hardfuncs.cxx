@@ -28,7 +28,6 @@
 
 #include <ginac/operators.h>
 #include <ginac/relational.h>
-#include <ginac/symbol.h>
 #ifdef INSIDE_SM
 #include <imath/expression.hxx>
 #include <imath/func.hxx>
@@ -36,6 +35,7 @@
 #include <imath/msgdriver.hxx>
 #include <imath/printing.hxx>
 #include <imath/stringex.hxx>
+#include <imath/extsymbol.hxx>
 #else
 #include "expression.hxx"
 #include "func.hxx"
@@ -43,6 +43,7 @@
 #include "msgdriver.hxx"
 #include "printing.hxx"
 #include "stringex.hxx"
+#include "extsymbol.hxx"
 #endif
 #include "hardfuncs.hxx"
 #include "operands.hxx"
@@ -148,7 +149,7 @@ static ex sum_eval(const ex &lower, const ex &higher, const ex &e) {
   MSG_INFO(3, "Doing hard eval of sum" << endline);
   if (!is_a<relational>(lower))
     throw std::runtime_error("Lower bound must be an equation");
-  if (!is_a<symbol>((ex_to<relational>(lower)).lhs()))
+  if (!is_a<extsymbol>((ex_to<relational>(lower)).lhs()))
     throw std::runtime_error("Lower bound must assign a value to a symbol");
   if (lower.is_equal(higher)) return e;
   // TODO: check if higher < lower

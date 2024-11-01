@@ -47,9 +47,12 @@
 #define OUSTRINGNUMBER OUString::number
 #endif
 
-#include <stdexcept>
+#include <ginac/matrix.h>
 #include "expression.hxx"
-#include "extsymbol.hxx"
+
+namespace GiNaC {
+    class extsymbol;
+}
 
 #include "com/sun/star/lang/IllegalArgumentException.hpp"
 #include "com/sun/star/beans/UnknownPropertyException.hpp"

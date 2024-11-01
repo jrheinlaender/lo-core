@@ -21,7 +21,6 @@
 #endif
 #include <ginac/mul.h>
 #include <ginac/operators.h>
-#include <ginac/symbol.h>
 #include <ginac/relational.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -29,9 +28,11 @@
 #include "exderivative.hxx"
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/func.hxx>
 #else
 #include "msgdriver.hxx"
+#include "extsymbol.hxx"
 #include "func.hxx"
 #endif
 
@@ -61,7 +62,7 @@ exderivative::exderivative(const differential& n, const ex& d) : numer(n), denom
         if (!is_a<differential>(get_basis(p)))
           throw std::invalid_argument("exderivative: Denominator may only contain differentials and their powers");
 
-        const differential& df = ex_to<differential>(get_basis(p));
+        differential df = ex_to<differential>(get_basis(p)); // no const& because compiler warns about dangling reference
         d_args[df.argument()] += df.get_grade() * get_exp(p);
       } else if (is_a<differential>(f)) {
         const differential& df = ex_to<differential>(f);
@@ -136,7 +137,7 @@ void exderivative::do_print_imath(const imathprint &c, unsigned level) const {
 
     if (numer.is_partial()) {
       ex arg = denom_get_argument(denom);
-      if (is_a<symbol>(arg) || (is_a<func>(arg) && ex_to<func>(arg).is_pure()))
+      if (is_a<extsymbol>(arg) || (is_a<func>(arg) && ex_to<func>(arg).is_pure()))
         numer.do_print_imath(c, 0, true, arg);
       else
         throw std::logic_error("Warning: Partial differentials with diff type 'line' must differentiate to a symbol or function");
@@ -153,7 +154,7 @@ void exderivative::do_print_imath(const imathprint &c, unsigned level) const {
       c.s << " ";
       if (is_a<power>(f)) {
         const power& p = ex_to<power>(f);
-        const differential& df = ex_to<differential>(get_basis(p));
+        differential df = ex_to<differential>(get_basis(p)); // no const& because compiler warns about dangling reference
         differential(df.argument(), df.is_partial(), get_exp(p)).do_print_imath(c, 0, true);
       } else {
         ex_to<differential>(f).do_print_imath(c, 0, true);
@@ -220,7 +221,7 @@ ex exderivative::subs(const exmap & m, unsigned options) const {
 // 1. By differentiation a func()
 // 2. By matching of user-defined differentials
 ex exderivative::derivative(const symbol & s) const {
-  MSG_INFO(2, "Derivative of " << *this << " to " << s << endline);
+  MSG_INFO(2, "Derivative of " << *this << " to " << s.get_name() << endline);
   ex argument = numer.argument();
   if (!argument.has(s)) return _ex0;
 
@@ -324,7 +325,7 @@ ex exderivative::eval_diff() const {
     ex grade = v.get_grade();
     MSG_INFO(2, "Differentiating " << result << " to " << diffarg << " grade " << grade << endline);
 
-    if (is_a<symbol>(diffarg) || is_a<func>(diffarg)) {
+    if (is_a<extsymbol>(diffarg) || is_a<func>(diffarg)) {
       if (partial)
         result = expression(result).pdiff(diffarg, grade);
       else

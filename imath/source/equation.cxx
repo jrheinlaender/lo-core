@@ -21,7 +21,6 @@
 #pragma warning(disable: 4099 4100 4996)
 #endif
 #include <ginac/operators.h>
-#include <ginac/symbol.h>
 #include <ginac/inifcns.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -32,6 +31,7 @@
 #include <imath/printing.hxx>
 #include <imath/expression.hxx>
 #include <imath/func.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/utils.hxx>
 #else
@@ -40,6 +40,7 @@
 #include "printing.hxx"
 #include "expression.hxx"
 #include "func.hxx"
+#include "extsymbol.hxx"
 #include "msgdriver.hxx"
 #include "utils.hxx"
 #endif
@@ -122,7 +123,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
       msg::info() << os.str();
       msg::info() << endline;
     }
-    if (!is_a<symbol>(lh) || (o != relational::equal)) return false;
+    if (!is_a<extsymbol>(lh) || (o != relational::equal)) return false;
     // parse the expression tree and check that it contains only numerics and Units.
     return is_quantity(rh);
   }
@@ -255,7 +256,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
     return dynallocate<equation>(expression(lh).pdiff(var, nth, toplevel), expression(rh).pdiff(var, nth, toplevel), o, mod);
   }
 
-  expression equation::integrate(const ex &var, const symbol& integration_constant) const {
+  expression equation::integrate(const ex &var, const extsymbol& integration_constant) const {
     return dynallocate<equation>(expression(lh).integrate(var, integration_constant), expression(rh).integrate(var, integration_constant), o, mod);
   }
 
@@ -263,7 +264,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
     return dynallocate<equation>(expression(lh).integrate(var, lowerbound, upperbound), expression(rh).integrate(var, lowerbound, upperbound), o, mod);
   }
 
-  expression equation::integrate(const ex &lvar, const symbol& l_integration_constant, const ex &rvar, const symbol& r_integration_constant) const {
+  expression equation::integrate(const ex &lvar, const extsymbol& l_integration_constant, const ex &rvar, const extsymbol& r_integration_constant) const {
     return dynallocate<equation>(expression(lh).integrate(lvar, l_integration_constant), expression(rh).integrate(rvar, r_integration_constant), o, mod);
   }
 
@@ -485,7 +486,7 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
     exmap e_subs_rev;
     unsigned tempnum = 0;
     for (const auto& s : (is_a<matrix>(e) ? e : lst{e})) {
-      if (is_a<symbol>(s)) continue; // Avoid unnecessary substitutions
+      if (is_a<extsymbol>(s)) continue; // Avoid unnecessary substitutions
       symbol s_sym("__temp" + std::to_string(tempnum++) + "__");
       e_subs.emplace(s, s_sym);
       e_subs_rev.emplace(s_sym, s);

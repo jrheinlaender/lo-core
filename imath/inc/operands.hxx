@@ -26,8 +26,6 @@
   @author Jan Rheinlaender
 **/
 
-#include <stdexcept>
-
 #ifdef INSIDE_SM
 #include <imath/expression.hxx>
 #include <imath/utils.hxx>
@@ -237,9 +235,11 @@ public:
   inline void clear_diffs() { differentials = type; }
   inline void clear_derivatives() { derivatives = type; }
   inline void clear_integrals() { integrals = type; }
+  inline void clear_functions() { functions = type; }
   inline void clear_symbols() { symbols = type; }
   inline void clear_constants() { constants = type; }
   inline void clear_units() { units = type; }
+  inline void clear_matrices() { matrices = type; }
 
   /**
   @returns True if the receiver is a quantity.

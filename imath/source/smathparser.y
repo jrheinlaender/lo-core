@@ -74,6 +74,7 @@
 
 #ifdef INSIDE_SM
   #include <imath/imathparse.hxx>
+  #include <imath/equation.hxx>
   #include <imath/func.hxx>
   #include <imath/funcmgr.hxx>
   #include <imath/stringex.hxx>
@@ -82,6 +83,7 @@
   #include <officecfg/Office/iMath.hxx>
 #else
   #include "imathparse.hxx"
+  #include "equation.hxx"
   #include "func.hxx"
   #include "funcmgr.hxx"
   #include "stringex.hxx"
@@ -177,11 +179,11 @@ const ex calcvalue(const std::string& whatval, const ex& expr, const lst &assign
   try {
    // The substr is necessary to catch the "VALWITH" statements
    if (whatval.substr(0,3) == "VAL")  {
-     value = compiler->find_value_of(var, assignments);
+     value = compiler->find_value_of(var, assignments, true); // Return quantity if possible, otherwise return same as AVAL
    } else if (whatval.substr(0,4) == "AVAL")  {
-     value = compiler->find_value_of(var, assignments, false); // Do not force to float
+     value = compiler->find_value_of(var, assignments, false); // Keep transcendental functions and roots of rational numbers
    } else if (whatval.substr(0,8) == "QUANTITY")
-     value = compiler->find_quantity_of(var, assignments);
+     value = compiler->find_quantity_of(var, assignments); // This forces to float
    else if (whatval.substr(0,6) == "NUMVAL")
      value = compiler->find_numval_of(var, assignments);
    else if (whatval.substr(0,4) == "UNIT")
@@ -1001,9 +1003,9 @@ statement: OPTIONS options {
              auto units = $9;
              expression vec = expression($7 / units).evalm();
              auto chartname = OUS8($3);
-             auto sym = $5;
+             const auto& sym = ex_to<extsymbol>($5);
              auto snum = $15;
-             setChartData(params.xDocumentModel, chartname, ex_to<extsymbol>(sym), ex_to<matrix>(vec), subs(ex($11.rhs()) / ex($13), ex_to<extsymbol>(sym) == ex_to<extsymbol>(sym) * units), snum);
+             setChartData(params.xDocumentModel, chartname, sym, ex_to<matrix>(vec), subs(ex($11.rhs()) / ex($13), sym == sym * units), snum);
              setSeriesDescription(params.xDocumentModel, std::move(chartname), OUS8($17), snum == 1 ? 1 : snum - 1);
            }
 
@@ -1026,9 +1028,9 @@ statement: OPTIONS options {
              auto units = $9;
              expression vec = expression($7 / units).evalm();
              auto chartname = OUS8($3);
-             auto sym = $5;
+             const auto& sym = ex_to<extsymbol>($5);
              auto snum = $15;
-             setChartData(params.xDocumentModel, chartname, ex_to<extsymbol>(sym), ex_to<matrix>(vec), subs($11 / $13, ex_to<extsymbol>(sym) == ex_to<extsymbol>(sym) * units), snum);
+             setChartData(params.xDocumentModel, chartname, sym, ex_to<matrix>(vec), subs($11 / $13, sym == sym * units), snum);
              setSeriesDescription(params.xDocumentModel, std::move(chartname), OUS8($17), snum == 1 ? 1 : snum - 1);
            }
 
@@ -1289,7 +1291,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           // What is the value of the expression?
           auto expr = $4;
           expression value = (is_a<matrix>(expr) ? calcvalueofmatrix("VAL", expr, lst()) : calcvalue("VAL", expr, lst()));
-          expression definition = (is_a<symbol>(expr) ? ex_to<relational>(params.compiler->get_assignment(ex_to<symbol>(expr))).rhs() : expr);
+          expression definition = (is_a<extsymbol>(expr) ? ex_to<relational>(params.compiler->get_assignment(ex_to<extsymbol>(expr))).rhs() : expr);
 
           params.lines.push_back(std::make_shared<iFormulaNodeExplainval>(
             unitConversions(), current_options, $1,
@@ -1678,7 +1680,7 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
     }
     | FSOLVE '(' eq ',' symbol_ex ',' numeric_ex ',' numeric_ex ')' {
       auto sym = $5;
-      $$ = dynallocate<equation>(sym, GiNaC::fsolve(ex_to<equation>($3), ex_to<symbol>(sym), ex_to<numeric>($7), ex_to<numeric>($9)), relational::equal);
+      $$ = dynallocate<equation>(sym, GiNaC::fsolve(ex_to<equation>($3), ex_to<extsymbol>(sym), ex_to<numeric>($7), ex_to<numeric>($9)), relational::equal);
       must_autoformat = true;
     }
     | SUBST '(' eq ',' eqlist ')' {
@@ -1711,14 +1713,14 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
     }
     | INTEGRATE '(' eq ',' ex ',' symbol_ex ')' {
       auto var = $5;
-      auto iconst = $7;
-      $$ = ex_to<equation>($3).integrate(var, ex_to<symbol>(iconst), var, ex_to<symbol>(iconst));
+      const auto& iconst = ex_to<extsymbol>($7);
+      $$ = ex_to<equation>($3).integrate(var, iconst, var, iconst);
       must_autoformat = true;
     }
     | INTEGRATE '(' eq ',' two_ex ',' two_symbols ')' {
       auto vars = $5;
       auto constants = $7;
-      $$ = ex_to<equation>($3).integrate(vars[0], ex_to<symbol>(constants[0]), vars[1], ex_to<symbol>(constants[1]));
+      $$ = ex_to<equation>($3).integrate(vars[0], ex_to<extsymbol>(constants[0]), vars[1], ex_to<extsymbol>(constants[1]));
       must_autoformat = true;
     }
     | INTEGRATE '(' eq ',' ex ',' ex ',' ex ')' {
@@ -1802,7 +1804,7 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
       const equation& eq = ex_to<equation>($3);
       ex lhs = eq.lhs();
       auto value = $1;
-      if (!is_a<symbol>(lhs))
+      if (!is_a<extsymbol>(lhs))
         lhs = calcvalue(value, lhs, lst());
       $$ = dynallocate<equation>(lhs, calcvalue(std::move(value), eq.rhs(), lst()), eq.getop(), eq.getmod());
       must_autoformat = true;
@@ -1869,7 +1871,7 @@ numeric_ex: ex {
 %type <GiNaC::expression> symbol_ex "symbol expression";
 symbol_ex: ex {
             $$ = $1;
-            if (!is_a<symbol>($$)) {
+            if (!is_a<extsymbol>($$)) {
               error(@1, "Expected symbol");
               YYERROR;
             }
@@ -1898,7 +1900,7 @@ real_exvec: exvec {
 %type <GiNaC::exvector> two_symbols "two symbols";
 two_symbols: exvec {
               $$ = $1;
-              if (!($$.size() == 2 && is_a<symbol>($$[0]) && is_a<symbol>($$[1]))) {
+              if (!($$.size() == 2 && is_a<extsymbol>($$[0]) && is_a<extsymbol>($$[1]))) {
                 error(@1, "Expected two symbols");
                 YYERROR;
               }
@@ -1970,7 +1972,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       must_autoformat = true;
     }
     | INTEGRATE '(' ex ',' ex ',' symbol ')' {
-			$$ = $3.integrate($5, ex_to<symbol>($7));
+			$$ = $3.integrate($5, ex_to<extsymbol>($7));
       must_autoformat = true;
     }
 		| INTEGRATE '(' ex ',' ex ',' ex ',' ex ')' {
@@ -2196,9 +2198,6 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | SIZE sizestr IMPMUL ex {
       $$ = $4;
     }
-/*    | vector '[' ex ']' { // get vector element
-      $$ = func("mindex", exprseq{*$1, *$3, wild()});
-    }*/
     | ex TRANSPOSE {
       auto expr = $1;
       if (is_a<matrix>(expr))
@@ -2209,13 +2208,13 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | VSYMBOL '[' ex ']' {
       auto sym = $1;
       expression val = sym;
-      const symbol& s = ex_to<symbol>(sym);
+      const extsymbol& s = ex_to<extsymbol>(sym);
 
       try {
         if (params.compiler->has_value(s)) {
           val = params.compiler->get_value(s); // save some time
         } else {
-          val = params.compiler->find_value_of(s);
+          val = params.compiler->find_value_of(s, {}, false);
         }
       } catch(std::exception &) { /* e.g. s does not have a value, ignore error */ }
 
@@ -2224,19 +2223,16 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       // TODO: This test will fail on vectors that contain functions as elements!
       if (is_a<func>($$)) $$ = Functionmanager::create_hard("mindex", exprseq{std::move(sym), std::move(expr), -999}); // mindex::eval() changed nothing
     }
-/*    | matrix '[' ex ',' ex ']' {
-      $$ = func("mindex", mindex(*$1, *$3, *$5));
-    }*/
     | MSYMBOL '[' ex ',' ex ']' {
       auto sym = $1;
       expression val = sym;
-      const symbol& s = ex_to<symbol>(sym);
+      const extsymbol& s = ex_to<extsymbol>(sym);
 
       try {
         if (params.compiler->has_value(s)) {
           val = params.compiler->get_value(s);
         } else {
-          val = params.compiler->find_value_of(s);
+          val = params.compiler->find_value_of(s, {}, false);
         }
       } catch(std::exception &e) { (void)e; /* ignore (no value found) */ }
 
@@ -2452,13 +2448,13 @@ vector:   VSYMBOL { $$ = $1; }
         | MSYMBOL '[' ex ',' '*' ']' {
           auto sym = $1;
           expression val = sym;
-          const symbol& s = ex_to<symbol>(sym);
+          const extsymbol& s = ex_to<extsymbol>(sym);
 
           try {
             if (params.compiler->has_value(s)) {
               val = params.compiler->get_value(s);
             } else {
-              val = params.compiler->find_value_of(s);
+              val = params.compiler->find_value_of(s, {}, false);
             }
           } catch(std::exception &) { /* ignore (no value found) */ }
 
@@ -2469,13 +2465,13 @@ vector:   VSYMBOL { $$ = $1; }
         | MSYMBOL '[' '*' ',' ex ']' {
           auto sym = $1;
           expression val = sym;
-          const symbol& s = ex_to<symbol>(sym);
+          const extsymbol& s = ex_to<extsymbol>(sym);
 
           try {
             if (params.compiler->has_value(s)) {
               val = params.compiler->get_value(s);
             } else {
-              val = params.compiler->find_value_of(s);
+              val = params.compiler->find_value_of(s, {}, false);
             }
           } catch(std::exception &e) { (void)e; } // ignore (no value found)
 

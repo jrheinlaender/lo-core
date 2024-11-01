@@ -36,31 +36,22 @@
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-#include "printing.hxx"
 
 namespace GiNaC {
 
-class IMATH_DLLPUBLIC extsymbol: public symbol {
-  GINAC_DECLARE_REGISTERED_CLASS(extsymbol, symbol)
-
-  // other constructors
+class IMATH_DLLPUBLIC extsymbol: public symbol
+{
 public:
+  extsymbol();
   explicit extsymbol(const std::string & initname);
   extsymbol(const std::string & initname, const std::string & textname);
 
-#ifdef DEBUG_CONSTR_DESTR
-  extsymbol(const extsymbol& other);
-  extsymbol& operator=(const extsymbol& other);
-  ~extsymbol();
-#endif
+  inline unsigned get_domain() const override { return _domain; }
 
-  // functions overriding virtual functions from base classes
-public:
   ex conjugate() const override;
   ex real_part() const override;
   ex imag_part() const override;
 
-  inline unsigned get_domain() const override { return _domain; }
   inline void set_domain(const unsigned d) { _domain = d; }
   inline void make_complex() { _domain = domain::complex; }
   inline void make_real()    { _domain = domain::real; }
@@ -71,9 +62,12 @@ public:
   inline void make_c()  { _return_type = return_types::commutative; }
   inline void make_nc() { _return_type = return_types::noncommutative_composite; }
 
-protected:
-  void do_print(const print_context & c, unsigned level) const;
-  void do_print_imath(const imathprint& c, unsigned level) const;
+  extsymbol* duplicate() const override
+  {
+    extsymbol * bp = new extsymbol(*this);
+    bp->setflag(status_flags::dynallocated);
+    return bp;
+  }
 
 private:
   unsigned _domain;

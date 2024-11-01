@@ -17,13 +17,14 @@
 
 #include <ginac/operators.h>
 #include <ginac/relational.h>
-#include <ginac/symbol.h>
 #ifdef INSIDE_SM
+#include <imath/extsymbol.hxx>
 #include <imath/func.hxx>
 #include <imath/funcmgr.hxx>
 #include <imath/msgdriver.hxx>
 #include <imath/unit.hxx>
 #else
+#include "extsymbol.hxx>
 #include "func.hxx"
 #include "funcmgr.hxx"
 #include "msgdriver.hxx"
@@ -138,7 +139,7 @@ void func::print_imath(const imathprint&c, const ex& p, unsigned level) const {
           c.s << "()";
           return;
         }
-        if (is_a<numeric>(op(0)) || is_a<symbol>(op(0)) || is_a<power>(op(0)) ||
+        if (is_a<numeric>(op(0)) || is_a<extsymbol>(op(0)) || is_a<power>(op(0)) ||
             is_a<Unit>(op(0)) || (is_a<func>(op(0)) && !ex_to<func>(op(0)).is_lib())) // do not print brackets
           seq[0].print(c);
         else
@@ -175,7 +176,7 @@ void func::print_imath(const imathprint&c, const ex& p, unsigned level) const {
   if (is_nobracket()) { // do not print brackets
     printseq(c, "{", delim, "}");
   } else if (is_trig() && (seq.size() == 1) &&
-             (is_a<numeric>(seq[0]) || is_a<symbol>(seq[0]) || is_a<power>(seq[0]) || is_a<Unit>(seq[0]) || (is_a<func>(seq[0]) && !ex_to<func>(seq[0]).is_lib()))) {
+             (is_a<numeric>(seq[0]) || is_a<extsymbol>(seq[0]) || is_a<power>(seq[0]) || is_a<Unit>(seq[0]) || (is_a<func>(seq[0]) && !ex_to<func>(seq[0]).is_lib()))) {
     c.s << "{";
     seq[0].print(c); // do not print brackets for trigonometric functions of a simple argument
     c.s << "}";
@@ -228,7 +229,7 @@ void func::print_diff_line(const ex& g, const int gr, const print_context& c) co
   if (is_nobracket()) { // do not print brackets
     printseq(c, "{", delim, "}");
   } else if (is_trig() && (seq.size() == 1) &&
-             (is_a<numeric>(seq[0]) || is_a<symbol>(seq[0]) || is_a<power>(seq[0]) || is_a<Unit>(seq[0]) || (is_a<func>(seq[0]) && !ex_to<func>(seq[0]).is_lib()))) {
+             (is_a<numeric>(seq[0]) || is_a<extsymbol>(seq[0]) || is_a<power>(seq[0]) || is_a<Unit>(seq[0]) || (is_a<func>(seq[0]) && !ex_to<func>(seq[0]).is_lib()))) {
     c.s << "{";
     seq[0].print(c); // do not print brackets for trigonometric functions of a simple argument
     c.s << "}";
@@ -246,6 +247,7 @@ void func::print_diff_line(const ex& g, const int gr, const print_context& c) co
 }
 
 expression func::expand_definition() const {
+    MSG_INFO(3, "func::expand_definition()" << endline);
   if (definition.is_empty() && !hard)
     throw(std::logic_error("Warning: Function " + name + " has no definition! Not expanded."));
 
@@ -567,7 +569,7 @@ ex func::thiscontainer(exvector &&v) const {
 }
 
 ex func::derivative(const symbol & s) const {
-  MSG_INFO(2, "Calculating derivative of " << *this << " to " << s << endline);
+  MSG_INFO(2, "Calculating derivative of " << *this << " to " << s.get_name() << endline);
 
   if (hard) { // Fall through to GiNaC::function::diff(). derivative() is protected!
     // Special handling of sum function - hard-coded derivative function is unusable because differentiation symbol s cannot be passed to it

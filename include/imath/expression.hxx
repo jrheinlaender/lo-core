@@ -19,8 +19,6 @@
 #define EXPRESSION_H
 
 #include <string>
-#include <iostream>
-#include <stdexcept>
 #include <ginac/ex.h>
 #ifdef INSIDE_SM
 #include <imath/imathdllapi.h>
@@ -32,7 +30,8 @@ namespace GiNaC {
 
 typedef std::vector<relational> unitvec;
 
-class IMATH_DLLPUBLIC expression;
+class expression;
+class extsymbol;
 IMATH_DLLPUBLIC extern const expression _expr0;
 IMATH_DLLPUBLIC extern const expression _expr1;
 
@@ -197,11 +196,11 @@ public:
   @returns An expression containing the result of the integration
   @exception logic_error(Can only integrate with respect to a symbol or a function)
   **/
-  expression integrate(const ex &var, const symbol& integration_constant) const;
+  expression integrate(const ex &var, const extsymbol& integration_constant) const;
   expression integrate(const ex &var, const ex& lowerbound, const ex& upperbound) const;
 
   /// Assign a symbol to the expression
-  expression& operator=(const symbol &s);
+  expression& operator=(const extsymbol &s);
   /// Assign an expression to the expression
   expression& operator=(const expression &e);
 }; // class expression

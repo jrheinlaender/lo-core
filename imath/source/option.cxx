@@ -15,7 +15,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <sstream>
 #include <cmath>
 #ifdef _MSC_VER
 #pragma warning(push)

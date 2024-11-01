@@ -27,9 +27,6 @@ x^{(3+4i)} looks ugly. Therefore another approach to bracketing is implemented i
 #ifndef PRINTING_H
 #define PRINTING_H
 
-#include <iostream>
-#include <string>
-#include <stdexcept>
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning (disable: 4099 4100 4661 4996)
@@ -46,6 +43,12 @@ x^{(3+4i)} looks ugly. Therefore another approach to bracketing is implemented i
 #pragma warning(pop)
 #endif
 #include "option.hxx"
+
+#ifdef INSIDE_SM
+#include <imath/imathdllapi.h>
+#else
+#define IMATH_DLLPUBLIC
+#endif
 
 namespace GiNaC {
 

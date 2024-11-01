@@ -78,7 +78,7 @@ public:
   /// Delete a function
   void remove(const std::string& fname);
 
-  /// Return the function table to the state after ???
+  /// Return the function table to the state after init(), but keep library functions
   void clear();
 
   /// Return the function table to the state after init()

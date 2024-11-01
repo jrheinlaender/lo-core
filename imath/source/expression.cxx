@@ -15,7 +15,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <sstream>
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4099 4100 4996)
@@ -23,12 +22,12 @@
 #include <ginac/mul.h>
 #include <ginac/normal.h>
 #include <ginac/operators.h>
-#include <ginac/symbol.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 #ifdef INSIDE_SM
 #include <imath/expression.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/unit.hxx>
 #include <imath/func.hxx>
 #include <imath/funcmgr.hxx>
@@ -186,7 +185,7 @@ struct reduce_double_funcs : public map_function {
       const func& mf = ex_to<func>(me);
 
       if (is_a<func>(mf.op(0))) { // The argument is a function
-        const func& argf = ex_to<func>(mf.op(0));
+        func argf = ex_to<func>(mf.op(0)); // const& warns about dangling reference
         std::string fnamebare = mf.get_name();
         std::string argfnamebare = argf.get_name();
         const auto& inv = func_inv.find(fnamebare);
@@ -322,7 +321,7 @@ expression expression::subsv(const expression& e, const bool consecutive, unsign
     if (!is_a<matrix>(eq.op(1)))
       throw std::runtime_error("The expression to substitute must have a column vector on the right-hand side");
 
-    const matrix& m = ex_to<matrix>(eq.op(1));
+    matrix m = ex_to<matrix>(eq.op(1)); // const& warns about dangling reference
     if (m.cols() > 1)
       throw std::runtime_error("The expression to substitute must have a column vector on the right-hand side");
 
@@ -356,7 +355,7 @@ expression expression::subsv(const expression& e, const bool consecutive, unsign
 }
 
 expression expression::csubs(const exmap &m, unsigned options) const {
-  MSG_INFO(1, "Substituting consecutively " << m << " in " << ex(*this) << endline);
+  MSG_INFO(2, "Substituting consecutively " << m << " in " << ex(*this) << endline);
   if (m.size() == 1) return subs(m, options);
 
   expression result = *this;
@@ -371,7 +370,7 @@ expression expression::csubs(const exmap &m, unsigned options) const {
       options |= subs_options::pattern_is_not_product;
 
     result = result.subs(mm, options);
-    MSG_INFO(1, "Substituted " << mm << ", result: " << result << endline);
+    MSG_INFO(2, "Substituted " << mm << ", result: " << result << endline);
   }
 
   return result;
@@ -397,7 +396,7 @@ expression expression::csubs(const unitvec &v, unsigned options) const {
 }
 
 expression expression::csubs(const ex &e, unsigned options) const {
-  MSG_INFO(2, "Substituting consecutively in " << ex(*this) << ":" << endline);
+  MSG_INFO(2, "Substituting " << e << " consecutively in " << ex(*this) << ":" << endline);
 
   if (e.info(info_flags::relation_equal)) {
     return subs(e);
@@ -465,12 +464,11 @@ struct expand_sum : public map_function {
         fargs[i] = expand_s(fargs[i]);
 
       MSG_INFO(0,  "Lower bound: " << fargs[0] << endline);
-      const symbol& var = ex_to<symbol>(ex_to<equation>(fargs[0]).lhs());
+      extsymbol var = ex_to<extsymbol>(ex_to<equation>(fargs[0]).lhs()); // const& warns about dangling reference
       expression lbound = ex_to<equation>(fargs[0]).rhs();
       expression hbound = fargs[1];
       MSG_INFO(0,  "Summing up " << fargs[2] << " from " << var << " = " << lbound
                         << " to " << hbound << endline);
-
       int l, h;
       if (!lbound.info(info_flags::integer) || !hbound.info(info_flags::integer)) return e.map(*this);
       l = numeric_to_int(ex_to<numeric>(lbound));
@@ -482,7 +480,7 @@ struct expand_sum : public map_function {
         result = result + expression(fargs[2].subs(var == l));
         ++l;
       }
-      return std::move(result);
+      return result;
     }
 
     return e.map(*this);
@@ -588,12 +586,12 @@ expression expression::diff(const expression &var, const expression& nth, bool t
   expression result;
 
   // Handle differentiation to a function
-  if (is_a<symbol>(var)) {
+  if (is_a<extsymbol>(var)) {
     if (toplevel) {
       match_differentials match_diffs;
-      result = match_diffs(*this).diff(ex_to<symbol>(var), i_nth);
+      result = match_diffs(*this).diff(ex_to<extsymbol>(var), i_nth);
     } else {
-      result = ex::diff(ex_to<symbol>(var), i_nth);
+      result = ex::diff(ex_to<extsymbol>(var), i_nth);
     }
   } else if (is_a<func>(var)) {
     const func& v = ex_to<func>(var);
@@ -715,7 +713,7 @@ expression expression::eval_integral() {
   return rest * result;
 }
 
-expression expression::integrate(const ex& var, const symbol& integration_constant) const {
+expression expression::integrate(const ex& var, const extsymbol& integration_constant) const {
   extintegral result(var, *this, integration_constant);
   return result.eval_integ();
 }
@@ -725,7 +723,7 @@ expression expression::integrate(const ex& var, const ex& lowerbound, const ex& 
   return extintegral(var, lowerbound, upperbound, *this).eval_integ();
 }
 
-expression& expression::operator=(const symbol &s) {
+expression& expression::operator=(const extsymbol &s) {
   MSG_INFO(3, "Assigning expression from symbol " << s << endline);
   ex::operator=(s);
   empty = false;

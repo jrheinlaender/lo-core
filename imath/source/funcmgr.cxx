@@ -15,15 +15,15 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <sstream>
 #include <ginac/fderivative.h>
 #include <ginac/operators.h>
-#include <ginac/symbol.h>
 #ifdef INSIDE_SM
 #include <imath/func.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/funcmgr.hxx>
 #else
 #include "func.hxx"
+#include "extsymbol.hxx"
 #include "funcmgr.hxx"
 #endif
 #include "exderivative.hxx"
@@ -352,7 +352,7 @@ void Functionmanager::registr(const std::string &n, const exvector &args, const 
     throw (std::invalid_argument("Function " + n + " already exists"));
 
   for (const auto& i : args) {
-    if ( !(is_a<symbol>(i) || (is_a< func>(i) && ex_to< func>(i).is_pure())) )
+    if ( !(is_a<extsymbol>(i) || (is_a< func>(i) && ex_to< func>(i).is_pure())) )
       throw (std::invalid_argument("Argument of function " + n + " is no symbol! "));
   }
 

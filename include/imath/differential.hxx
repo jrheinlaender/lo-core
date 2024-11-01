@@ -23,7 +23,6 @@
  * @short Extends GiNaC to handle string "expressions"
  */
 
-#include <stdexcept>
 #ifdef INSIDE_SM
 #include <imath/printing.hxx>
 #include <imath/utils.hxx>
@@ -32,31 +31,33 @@
 #include "utils.hxx"
 #endif
 
-namespace GiNaC {
-
+namespace GiNaC
+{
 /// Extends GiNaC to handle differentials as stand-alone objects
-class IMATH_DLLPUBLIC differential : public basic {
-  GINAC_DECLARE_REGISTERED_CLASS(differential, basic)
+class IMATH_DLLPUBLIC differential : public basic
+{
+    GINAC_DECLARE_REGISTERED_CLASS(differential, basic)
 
 public:
-  /**
+    /**
    * Construct a differential
    * @param e The expression that is to be differentiated
    */
-  //differential(const ex& e_, const bool partial_ = false, const ex& grade_ = _ex1, const ex& parent_ = _ex0, const bool numerator_ = false);
-  differential(const ex& e_);
-  differential(const ex& e_, const bool partial_, const ex& grade_);
-  differential(const ex& e_, const bool partial_, const ex& grade_, const ex& parent_, const bool numerator_);
-  differential(const differential& other);
-  differential& operator=(const differential& other);
+    //differential(const ex& e_, const bool partial_ = false, const ex& grade_ = _ex1, const ex& parent_ = _ex0, const bool numerator_ = false);
+    differential(const ex& e_);
+    differential(const ex& e_, const bool partial_, const ex& grade_);
+    differential(const ex& e_, const bool partial_, const ex& grade_, const ex& parent_,
+                 const bool numerator_);
+    differential(const differential& other);
+    differential& operator=(const differential& other);
 
 #ifdef DEBUG_CONSTR_DESTR
-  ~differential();
+    ~differential();
 #endif
 
-  inline unsigned precedence() const override {return 70;}
+    inline unsigned precedence() const override { return 70; }
 
-  /**
+    /**
    * Print the differential in a GiNaC print context.
    * @param c The print context (e.g., print_latex)
    * @param level Unused, for consistency with GiNaC print methods
@@ -64,82 +65,84 @@ public:
    * @param is_numer If this is true, a power of 2 will be printed as d(d(x)). Otherwise as dx^2
    * @param is_complete If this is false, only dfdt style printing is possible
    */
-  void do_print(const print_context &c, unsigned level = 0) const;
-  void do_print_imath(const imathprint &c, unsigned level = 0) const;
-  void do_print_imath(const imathprint &c, unsigned level = 0, bool is_complete = false, const ex& pdiffto = _ex0) const;
+    void do_print(const print_context& c, unsigned level = 0) const;
+    void do_print_imath(const imathprint& c, unsigned level = 0) const;
+    void do_print_imath(const imathprint& c, unsigned level = 0, bool is_complete = false,
+                        const ex& pdiffto = _ex0) const;
 
-  /// GiNaC internal comparison function, more efficient than compare_same_type()
-  bool match_same_type(const basic & other) const override;
+    /// GiNaC internal comparison function, more efficient than compare_same_type()
+    bool match_same_type(const basic& other) const override;
 
-  unsigned calchash() const override;
+    unsigned calchash() const override;
 
-  /**
+    /**
    * Required by GiNac, does nothing. It would be possible to define simplification or
    * canonicalization rules here, but the whole point of having a differential object
    * is to delay the differentiation until a user request.
    * @param level Unused, required by GiNaC
    * @returns An expression with the result of the evaluation
    */
-  ex eval() const override;
+    ex eval() const override;
 
-  /// Try to evaluate the differential to a number. Only possible if the expression evaluates to a numeric, then the result is zero
-  ex evalf() const override;
+    /// Try to evaluate the differential to a number. Only possible if the expression evaluates to a numeric, then the result is zero
+    ex evalf() const override;
 
-  /// Evaluate matrices in the arguments
-  ex evalm() const override;
+    /// Evaluate matrices in the arguments
+    ex evalm() const override;
 
-  size_t nops() const override;
-  ex op(size_t i) const override;
+    size_t nops() const override;
+    ex op(size_t i) const override;
 
-  ex map(map_function & f) const override;
-  ex subs(const exmap & m, unsigned options) const override;
-  bool has(const ex & other, unsigned options) const override;
+    ex map(map_function& f) const override;
+    ex subs(const exmap& m, unsigned options) const override;
+    bool has(const ex& other, unsigned options) const override;
 
-  /// Allow accessing the argument
-  inline const ex& argument() const { return e;};
-  /// Check whether this is a partial differential
-  inline const bool& is_partial() const { return partial; };
-  /// Return the grade of the differential
-  inline const ex& get_grade() const { return grade; }
-  /// Return the numeric grade, or -1
-  int get_ngrade() const;
-  /// Return the parent
-  inline const ex& get_parent() const { return parent; }
-  /// Return true if this differential appears in the numerator
-  inline bool is_numerator() const { return numerator; }
+    /// Allow accessing the argument
+    inline const ex& argument() const { return e; };
+    /// Check whether this is a partial differential
+    inline const bool& is_partial() const { return partial; };
+    /// Return the grade of the differential
+    inline const ex& get_grade() const { return grade; }
+    /// Return the numeric grade, or -1
+    int get_ngrade() const;
+    /// Return the parent
+    inline const ex& get_parent() const { return parent; }
+    /// Return true if this differential appears in the numerator
+    inline bool is_numerator() const { return numerator; }
 
-  /// Set the partial flag
-  inline void set_partial(const bool& p) { partial = p; };
-  /// Set the grade
-  inline void set_grade(const ex& g) { grade = g; }
-  /// Set the numerator flag
-  inline void set_numerator(const bool& n) { numerator = n; }
+    /// Set the partial flag
+    inline void set_partial(const bool& p) { partial = p; };
+    /// Set the grade
+    inline void set_grade(const ex& g) { grade = g; }
+    /// Set the numerator flag
+    inline void set_numerator(const bool& n) { numerator = n; }
 
-  /// Expand the argument
-  ex expand(unsigned options) const override;
+    /// Expand the argument
+    ex expand(unsigned options) const override;
 
 protected:
-  ex derivative(const symbol & s) const override;
+    ex derivative(const symbol& s) const override;
 
 private:
-  /// The expression to be differentiated
-  ex e;
-  /// Partial differential (only relevant for multi-variable expressions)
-  bool partial;
-  /// The grade of the differential
-  ex grade;
-  /// The parent, e.g. for d(f)/d(x) 'f' is the parent of d(x).
-  // Used to match differentials into exderivative objects for differentiating and printing
-  ex parent;
-  /// This differential is the numerator of an exderivative object
-  // Used to prevent GiNaC::mul from automatically cancelling differential objects
-  bool numerator;
+    /// The expression to be differentiated
+    ex e;
+    /// Partial differential (only relevant for multi-variable expressions)
+    bool partial;
+    /// The grade of the differential
+    ex grade;
+    /// The parent, e.g. for d(f)/d(x) 'f' is the parent of d(x).
+    // Used to match differentials into exderivative objects for differentiating and printing
+    ex parent;
+    /// This differential is the numerator of an exderivative object
+    // Used to prevent GiNaC::mul from automatically cancelling differential objects
+    bool numerator;
 };
 
-class IMATH_DLLPUBLIC differential_unarchiver {
+class IMATH_DLLPUBLIC differential_unarchiver
+{
 public:
-  differential_unarchiver();
-  ~differential_unarchiver();
+    differential_unarchiver();
+    ~differential_unarchiver();
 };
 static differential_unarchiver differential_unarchiver_instance;
 }

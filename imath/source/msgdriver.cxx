@@ -15,7 +15,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <sstream>
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
 #include <imath/equation.hxx>
@@ -30,25 +29,30 @@ msg msg::msg_error = msg();
 msg msg::msg_warn = msg();
 msg msg::msg_info = msg();
 
-void msg::init() {
-  msg_error.level = 1;
-  msg_warn.level = 1;
-  msg_info.level = -1;
+void msg::init()
+{
+    msg_error.level = 1;
+    msg_warn.level = 1;
+    msg_info.level = -1;
 }
 
-namespace GiNaC {
-    std::ostream& operator<<(std::ostream& os, const equation& e) {
-        e.print(print_dflt(os));
-        return os;
-    }
+namespace GiNaC
+{
+std::ostream& operator<<(std::ostream& os, const equation& e)
+{
+    e.print(print_dflt(os));
+    return os;
+}
 
-    std::ostream& operator<<(std::ostream& os, const operands& o) {
-        o.print(os);
-        return os;
-    }
+std::ostream& operator<<(std::ostream& os, const operands& o)
+{
+    o.print(os);
+    return os;
+}
 
-    std::ostream& operator<<(std::ostream& os, const relational& r) {
-        r.print(print_dflt(os));
-        return os;
-    }
+std::ostream& operator<<(std::ostream& os, const relational& r)
+{
+    r.print(print_dflt(os));
+    return os;
+}
 }

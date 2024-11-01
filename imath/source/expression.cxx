@@ -15,7 +15,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <sstream>
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4099 4100 4996)
@@ -23,12 +22,12 @@
 #include <ginac/mul.h>
 #include <ginac/normal.h>
 #include <ginac/operators.h>
-#include <ginac/symbol.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 #ifdef INSIDE_SM
 #include <imath/expression.hxx>
+#include <imath/extsymbol.hxx>
 #include <imath/unit.hxx>
 #include <imath/func.hxx>
 #include <imath/funcmgr.hxx>
@@ -248,7 +247,66 @@ struct reduce_double_funcs : public map_function
 
         return e.map(*this);
     }
+    if (is_a<func>(e))
+    {
+        const func& f = ex_to<func>(e);
+
+        if (f.nops() == 0)
+            return e; // Nothing to reduce
+        ex me = e.map(*this); // map arguments first
+        if (f.get_numargs() > 1)
+            return me; // cannot work on functions with multiple arguments
+        if (!is_a<func>(me))
+            return me; // Something was contracted
+        const func& mf = ex_to<func>(me);
+
+        if (is_a<func>(mf.op(0)))
+        { // The argument is a function
+            func argf = ex_to<func>(mf.op(0)); // const& warns about dangling reference
+            std::string fnamebare = mf.get_name();
+            std::string argfnamebare = argf.get_name();
+            const auto& inv = func_inv.find(fnamebare);
+
+            if (inv != func_inv.end() && inv->second == argfnamebare && argf.nops() == 1)
+                return argf.op(0);
+        }
+
+        return me;
+    }
+
+    return e.map(*this);
+}
 };
+std::map<std::string, std::string> reduce_double_funcs::func_inv
+    = { { "sin", "arcsin" },
+        { "arcsin", "sin" },
+        { "sinh", "arsinh" },
+        { "arsinh", "sinh" },
+        { "cos", "arccos" },
+        { "arccos", "cos" },
+        { "cosh", "arcosh" },
+        { "arcosh", "cosh" },
+        { "tan", "arctan" },
+        { "arctan", "tan" },
+        { "tanh", "artanh" },
+        { "artanh", "tanh" },
+        { "sec", "arcsec" },
+        { "arcsec", "sec" },
+        { "sech", "arsech" },
+        { "arsech", "sech" },
+        { "csc", "arccsc" },
+        { "arcscs", "csc" },
+        { "csch", "arcsch" },
+        { "arcsch", "csch" },
+        { "cot", "arccot" },
+        { "arccot", "cot" },
+        { "coth", "arcoth" },
+        { "arcoth", "coth" },
+        { "ln", "exp" },
+        { "exp", "ln" },
+        { "conjugate", "conjugate" },
+        { "transpose", "transpose" },
+        { "invertmatrix", "invertmatrix" } };
 std::map<std::string, std::string> reduce_double_funcs::func_inv
     = { { "sin", "arcsin" },
         { "arcsin", "sin" },
@@ -408,7 +466,7 @@ expression expression::subsv(const expression& e, const bool consecutive, unsign
             throw std::runtime_error(
                 "The expression to substitute must have a column vector on the right-hand side");
 
-        const matrix& m = ex_to<matrix>(eq.op(1));
+        matrix m = ex_to<matrix>(eq.op(1)); // const& warns about dangling reference
         if (m.cols() > 1)
             throw std::runtime_error(
                 "The expression to substitute must have a column vector on the right-hand side");
@@ -452,7 +510,7 @@ expression expression::subsv(const expression& e, const bool consecutive, unsign
 
 expression expression::csubs(const exmap& m, unsigned options) const
 {
-    MSG_INFO(1, "Substituting consecutively " << m << " in " << ex(*this) << endline);
+    MSG_INFO(2, "Substituting consecutively " << m << " in " << ex(*this) << endline);
     if (m.size() == 1)
         return subs(m, options);
 
@@ -469,7 +527,7 @@ expression expression::csubs(const exmap& m, unsigned options) const
             options |= subs_options::pattern_is_not_product;
 
         result = result.subs(mm, options);
-        MSG_INFO(1, "Substituted " << mm << ", result: " << result << endline);
+        MSG_INFO(2, "Substituted " << mm << ", result: " << result << endline);
     }
 
     return result;
@@ -483,35 +541,70 @@ expression expression::csubs(const unitvec& v, unsigned options) const
     for (const auto& i : v)
     {
         exmap m;
-        const ex& s = i.op(0);
-        m.insert(std::make_pair(s, i.op(1)));
-        if (is_exactly_a<mul>(s) || is_exactly_a<power>(s))
-            options |= subs_options::pattern_is_product;
-        else
-            options |= subs_options::pattern_is_not_product;
 
-        result = result.subs(m, options);
-        MSG_INFO(2, "Substituted " << m << ", result: " << ex(result) << endline);
-    }
-    return result;
-}
-
-expression expression::csubs(const ex& e, unsigned options) const
-{
-    MSG_INFO(2, "Substituting consecutively in " << ex(*this) << ":" << endline);
-
-    if (e.info(info_flags::relation_equal))
-    {
-        return subs(e);
-    }
-    else if (e.info(info_flags::list))
-    {
-        expression result = *this;
-        for (const auto& i : ex_to<lst>(e))
+        // Note: this is largely copied from ex::subs()
+        if (e.info(info_flags::relation_equal))
         {
-            if (!i.info(info_flags::relation_equal))
-                throw std::invalid_argument(
-                    "The expression to substitute must be a relational or a list of relationals.");
+            const ex& s = e.op(0);
+            m.insert(std::make_pair(s, e.op(1)));
+            if (is_exactly_a<mul>(s) || is_exactly_a<power>(s))
+                options |= subs_options::pattern_is_product;
+            else
+                options |= subs_options::pattern_is_not_product;
+        }
+        else if (e.info(info_flags::list))
+        {
+            for (auto& r : ex_to<lst>(e))
+            {
+                if (!r.info(info_flags::relation_equal))
+                    throw std::invalid_argument("The expression to substitute must be a relational "
+                                                "or a list of relationals.");
+                const ex& s = r.op(0);
+                m.insert(std::make_pair(s, r.op(1)));
+                if (is_exactly_a<mul>(s) || is_exactly_a<power>(s))
+                    options |= subs_options::pattern_is_product;
+            }
+            if (!(options & subs_options::pattern_is_product))
+                options |= subs_options::pattern_is_not_product;
+        }
+        else
+        {
+            throw std::invalid_argument(
+                "The expression to substitute must be a relational or a list of relationals.");
+        }
+        return subs(m, options);
+    }
+
+    expression expression::csubs(const ex& e, unsigned options) const
+    {
+        MSG_INFO(2, "Substituting " << e << " consecutively in " << ex(*this) << ":" << endline);
+
+        expression result = *this;
+
+        for (const auto& i : m)
+        {
+            exmap mm;
+            const ex& s = i.first;
+            mm.insert(std::make_pair(s, i.second));
+            if (is_exactly_a<mul>(s) || is_exactly_a<power>(s))
+                options |= subs_options::pattern_is_product;
+            else
+                options |= subs_options::pattern_is_not_product;
+
+            result = result.subs(mm, options);
+            MSG_INFO(1, "Substituted " << mm << ", result: " << result << endline);
+        }
+
+        return result;
+    }
+
+    expression expression::csubs(const unitvec& v, unsigned options) const
+    {
+        MSG_INFO(2, "Substituting consecutively unitvec in " << ex(*this) << endline);
+        expression result = *this;
+
+        for (const auto& i : v)
+        {
             exmap m;
             const ex& s = i.op(0);
             m.insert(std::make_pair(s, i.op(1)));
@@ -525,434 +618,596 @@ expression expression::csubs(const ex& e, unsigned options) const
         }
         return result;
     }
-    else
-        throw std::invalid_argument(
-            "Argument to csubs() must be a relational or a list of relationals");
-}
 
-// Helper functions for simplification cancel-diff
-/// Dissolve exderivative objects into single differentials
-struct expand_exderivatives : public map_function
-{
-    ex operator()(const ex& e);
-};
-ex expand_exderivatives::operator()(const ex& e)
-{
-    MSG_INFO(3, "expand_exderivatives() for " << e << endline);
-    if (is_a<exderivative>(e))
-        return ex_to<exderivative>(e).dissolve().map(*this);
-
-    return e.map(*this);
-}
-
-/// Ignore numerator / denominator flag in differentials so that they can be cancelled against one another
-struct reduce_differentials : public map_function
-{
-    ex operator()(const ex& e);
-};
-ex reduce_differentials::operator()(const ex& e)
-{
-    MSG_INFO(3, "reduce_differentials() for " << e << endline);
-    if (is_a<differential>(e))
+    expression expression::csubs(const ex& e, unsigned options) const
     {
-        differential d = ex_to<differential>(e);
-        d.set_numerator(false);
-        return ex(d).map(*this);
+        MSG_INFO(2, "Substituting consecutively in " << ex(*this) << ":" << endline);
+
+        if (e.info(info_flags::relation_equal))
+        {
+            return subs(e);
+        }
+        else if (e.info(info_flags::list))
+        {
+            expression result = *this;
+            for (const auto& i : ex_to<lst>(e))
+            {
+                if (!i.info(info_flags::relation_equal))
+                    throw std::invalid_argument("The expression to substitute must be a relational "
+                                                "or a list of relationals.");
+                exmap m;
+                const ex& s = i.op(0);
+                m.insert(std::make_pair(s, i.op(1)));
+                if (is_exactly_a<mul>(s) || is_exactly_a<power>(s))
+                    options |= subs_options::pattern_is_product;
+                else
+                    options |= subs_options::pattern_is_not_product;
+
+                result = result.subs(m, options);
+                MSG_INFO(2, "Substituted " << m << ", result: " << ex(result) << endline);
+            }
+            return result;
+        }
+        else
+            throw std::invalid_argument(
+                "Argument to csubs() must be a relational or a list of relationals");
     }
 
-    return e.map(*this);
-}
-
-/// Expand all sum functions (by adding up)
-struct expand_sum : public map_function
-{
-    ex operator()(const ex& e)
+    // Helper functions for simplification cancel-diff
+    /// Dissolve exderivative objects into single differentials
+    struct expand_exderivatives : public map_function
     {
-        MSG_INFO(2, "Expanding sum in " << e << endline);
+        ex operator()(const ex& e);
+    };
+    ex expand_exderivatives::operator()(const ex& e)
+    {
+        MSG_INFO(3, "expand_exderivatives() for " << e << endline);
+        if (is_a<exderivative>(e))
+            return ex_to<exderivative>(e).dissolve().map(*this);
 
-        if (is_a<func>(e) && (ex_to<func>(e).get_name() == "sum"))
+        return e.map(*this);
+    }
+
+    /// Ignore numerator / denominator flag in differentials so that they can be cancelled against one another
+    struct reduce_differentials : public map_function
+    {
+        ex operator()(const ex& e);
+    };
+    ex reduce_differentials::operator()(const ex& e)
+    {
+        MSG_INFO(3, "reduce_differentials() for " << e << endline);
+        if (is_a<differential>(e))
         {
-            const func& f = ex_to<func>(e);
-            exprseq fargs(f.begin(), f.end());
+            differential d = ex_to<differential>(e);
+            d.set_numerator(false);
+            return ex(d).map(*this);
+        }
 
-            // Handle children first
-            expand_sum expand_s;
-            for (size_t i = 0; i < fargs.nops(); ++i)
-                fargs[i] = expand_s(fargs[i]);
+        return e.map(*this);
+    }
 
-            MSG_INFO(0, "Lower bound: " << fargs[0] << endline);
-            const symbol& var = ex_to<symbol>(ex_to<equation>(fargs[0]).lhs());
-            expression lbound = ex_to<equation>(fargs[0]).rhs();
-            expression hbound = fargs[1];
-            MSG_INFO(0, "Summing up " << fargs[2] << " from " << var << " = " << lbound << " to "
-                                      << hbound << endline);
+    /// Expand all sum functions (by adding up)
+    struct expand_sum : public map_function
+    {
+        ex operator()(const ex& e)
+        {
+            MSG_INFO(2, "Expanding sum in " << e << endline);
 
-            int l, h;
-            if (!lbound.info(info_flags::integer) || !hbound.info(info_flags::integer))
+            if (is_a<func>(e) && (ex_to<func>(e).get_name() == "sum"))
+            {
+                const func& f = ex_to<func>(e);
+                exprseq fargs(f.begin(), f.end());
+
+                // Handle children first
+                expand_sum expand_s;
+                for (size_t i = 0; i < fargs.nops(); ++i)
+                    fargs[i] = expand_s(fargs[i]);
+
+                MSG_INFO(0, "Lower bound: " << fargs[0] << endline);
+                extsymbol var = ex_to<extsymbol>(
+                    ex_to<equation>(fargs[0]).lhs()); // const& warns about dangling reference
+                expression lbound = ex_to<equation>(fargs[0]).rhs();
+                expression hbound = fargs[1];
+                MSG_INFO(0, "Summing up " << fargs[2] << " from " << var << " = " << lbound
+                                          << " to " << hbound << endline);
+                int l, h;
+                if (!lbound.info(info_flags::integer) || !hbound.info(info_flags::integer))
+                    return e.map(*this);
+                l = numeric_to_int(ex_to<numeric>(lbound));
+                h = numeric_to_int(ex_to<numeric>(hbound));
+
+                expression result;
+                while (l <= h)
+                {
+                    MSG_INFO(0, "Summing up: current value: " << result << endline);
+                    result = result + expression(fargs[2].subs(var == l));
+                    ++l;
+                }
+                return result;
+            }
+
+            return e.map(*this);
+        }
+
+        /// Expand all sum functions (by adding up)
+        struct expand_sum : public map_function
+        {
+            ex operator()(const ex& e)
+            {
+                MSG_INFO(2, "Expanding sum in " << e << endline);
+
+                if (is_a<func>(e) && (ex_to<func>(e).get_name() == "sum"))
+                {
+                    const func& f = ex_to<func>(e);
+                    exprseq fargs(f.begin(), f.end());
+
+                    // Handle children first
+                    expand_sum expand_s;
+                    for (size_t i = 0; i < fargs.nops(); ++i)
+                        fargs[i] = expand_s(fargs[i]);
+
+                    MSG_INFO(0, "Lower bound: " << fargs[0] << endline);
+                    const symbol& var = ex_to<symbol>(ex_to<equation>(fargs[0]).lhs());
+                    expression lbound = ex_to<equation>(fargs[0]).rhs();
+                    expression hbound = fargs[1];
+                    MSG_INFO(0, "Summing up " << fargs[2] << " from " << var << " = " << lbound
+                                              << " to " << hbound << endline);
+
+                    int l, h;
+                    if (!lbound.info(info_flags::integer) || !hbound.info(info_flags::integer))
+                        return e.map(*this);
+                    l = numeric_to_int(ex_to<numeric>(lbound));
+                    h = numeric_to_int(ex_to<numeric>(hbound));
+
+                    expression result;
+                    while (l <= h)
+                    {
+                        MSG_INFO(0, "Summing up: current value: " << result << endline);
+                        result = result + expression(fargs[2].subs(var == l));
+                        ++l;
+                    }
+                    return std::move(result);
+                }
+
                 return e.map(*this);
-            l = numeric_to_int(ex_to<numeric>(lbound));
-            h = numeric_to_int(ex_to<numeric>(hbound));
+            }
+        };
+
+        expression expression::simplify(const std::vector<std::string>& s) const
+        {
+            expression result(*this);
+
+            for (const auto& i : s)
+            {
+                if (i == "expand")
+                { // Full expansion
+                    MSG_INFO(1, "Full expanding " << result << endline);
+                    result = result.expand(expand_options::expand_function_args);
+                }
+                else if (i == "expandf")
+                { // Do not expand function args
+                    MSG_INFO(1, "Expanding " << result << endline);
+                    result = result.expand();
+                }
+                else if (i == "eval")
+                { // Evaluation
+                    MSG_INFO(1, "Evaluating " << result << endline);
+                    result = result.evalf();
+                }
+                else if (i == "normal")
+                { // Normalization
+                    MSG_INFO(1, "Normalizing " << result << endline);
+                    result = result.normal();
+                }
+                else if (i == "collect-common")
+                { // Collecting common factors
+                    MSG_INFO(1, "Collecting common factors in " << result << endline);
+                    result = result.collect_common_factors();
+                }
+                else if (i == "unsafe")
+                { // Unsafe simplifications
+                    MSG_INFO(1, "Doing unsafe simplifications in " << result << endline);
+                    result = result.evalu();
+                }
+                else if (i == "diff")
+                { // Evalute differential objects
+                    // Note: Unevaluated objects may occur after substitution, e.g. of a symbolic grade with a numeric grade
+                    result = result.eval_differential();
+                }
+                else if (i == "cancel-diff")
+                {
+                    expand_exderivatives expand_devs;
+                    reduce_differentials reduce_diffs;
+                    match_differentials match_diffs;
+                    result = match_diffs(reduce_diffs(expand_devs(result)));
+                }
+                else if (i == "sum")
+                { // Evalute \sum function objects
+                    expand_sum expand_s;
+                    result = expand_s(result);
+                }
+                else if (i == "gather-sqrt")
+                {
+                    MSG_INFO(1, "Gathering square roots in " << result << endline);
+                    gather_sqrt gather_sqrts;
+                    result = gather_sqrts(result);
+                }
+                else if (i == "integrate")
+                {
+                    MSG_INFO(1, "Symbolically integrating " << result << endline);
+                    result = result.eval_integral();
+                }
+                else if (i == "ignore-units")
+                {
+                    MSG_INFO(1, "Ignoring units in certain functions " << result << endline);
+                    result = result.ignore_units();
+                }
+                else
+                { // Nothing of the above fitted
+                    MSG_WARN(0, "Warning: Unknown simplification of type " << i << endline);
+                }
+            }
+
+            return result;
+        }
+
+        expression expression::collect_common_factors() const
+        {
+            ex result = GiNaC::collect_common_factors(*this);
+
+            if (result.is_equal(*this))
+                // Try harder
+                result = collect();
+
+            return result;
+        }
+
+        expression expression::collect(const expression& e) const
+        {
+            MSG_INFO(2, "Collecting expression " << ex(*this) << " to symbol " << e << endline);
+            ex sym = e;
+            if (e.is_zero())
+            {
+                // Try to guess variable
+                if (!check_polynomial(*this, sym, false))
+                    return *this;
+            }
+
+            return expression(ex(*this).collect(sym));
+        }
+
+        expression expression::diff(const expression& var, const expression& nth,
+                                    bool toplevel) const
+        {
+            MSG_INFO(1, "Calculating " << nth << "-th derivative of " << ex(*this) << " to " << var
+                                       << endline);
+
+            // No differentiation possible
+            if (!nth.info(info_flags::nonnegint))
+            {
+                // TODO: How to determine when to use partial?
+                if (toplevel)
+                    return expression(dynallocate<differential>(*this, false, nth, _ex0, true))
+                           / expression(dynallocate<differential>(var, false, nth, *this, false));
+                else
+                    return dynallocate<exderivative>(
+                        dynallocate<differential>(*this, false, nth),
+                        dynallocate<differential>(var, false, nth, *this, false));
+            }
+
+            // Handle trivial cases
+            int i_nth = numeric_to_int(ex_to<numeric>(nth));
+            if (i_nth == 0)
+                return *this;
+            if (are_ex_trivially_equal(*this, var))
+            {
+                if (i_nth == 1)
+                    return _ex1;
+                else
+                    return _ex0;
+            }
 
             expression result;
-            while (l <= h)
+
+            // Handle differentiation to a function
+            if (is_a<extsymbol>(var))
             {
-                MSG_INFO(0, "Summing up: current value: " << result << endline);
-                result = result + expression(fargs[2].subs(var == l));
-                ++l;
+                if (toplevel)
+                {
+                    match_differentials match_diffs;
+                    result = match_diffs(*this).diff(ex_to<extsymbol>(var), i_nth);
+                }
+                else
+                {
+                    result = ex::diff(ex_to<extsymbol>(var), i_nth);
+                }
+
+                // Handle trivial cases
+                int i_nth = numeric_to_int(ex_to<numeric>(nth));
+                if (i_nth == 0)
+                    return *this;
+                if (are_ex_trivially_equal(*this, var))
+                {
+                    if (i_nth == 1)
+                        return _ex1;
+                    else
+                        return _ex0;
+                }
+
+                expression result;
+
+                // Handle differentiation to a function
+                if (is_a<symbol>(var))
+                {
+                    if (toplevel)
+                    {
+                        match_differentials match_diffs;
+                        result = match_diffs(*this).diff(ex_to<symbol>(var), i_nth);
+                    }
+                    else
+                    {
+                        result = ex::diff(ex_to<symbol>(var), i_nth);
+                    }
+                }
+                else if (is_a<func>(var))
+                {
+                    const func& v = ex_to<func>(var);
+                    symbol diffsym(v.get_name()); // Create a temporary symbol
+                    MSG_INFO(2, "Differentiating to function " << v << endline);
+                    if (toplevel)
+                    {
+                        match_differentials match_diffs;
+                        result = match_diffs(this->subs(var == diffsym)).diff(diffsym, i_nth);
+                    }
+                    else
+                    {
+                        result = ex(this->subs(var == diffsym)).diff(diffsym, i_nth);
+                    }
+                    MSG_INFO(2, "Intermediate result " << ex(result) << endline);
+                    result = result.subs(diffsym == var);
+                }
+                else
+                {
+                    throw std::logic_error(
+                        "Can only differentiate with respect to a variable or a function!");
+                }
+
+                MSG_INFO(2, "Result of differentiation: " << result << endline);
+
+                // Differentiating powers might have introduced the GiNaC log() function
+                return Functionmanager::replace_function_by_func(result);
             }
-            return std::move(result);
+
+            /// Map function for use in partial differentiation
+            // Functions that do not have an explicit argument which is identical to the differentiation variable are replaced by symbols
+            // e.g. diffvar is x
+            // f(x) -> f(x)
+            // f(y) -> symbol
+            // f() -> f() if f() is a function of x
+            // f() -> symbol if f() is not a function of x
+            // f(a x + b) -> f(a x + b)
+            struct replace_pure_funcs_by_symbols : public map_function
+            {
+                ex diffvar;
+                bool toplevel;
+                exmap repl;
+
+                replace_pure_funcs_by_symbols(const ex& dv, const bool tl)
+                    : diffvar(dv)
+                    , toplevel(tl)
+                {
+                }
+                ex operator()(const ex& e);
+                exmap get_replacements() { return repl; }
+            };
+
+            ex replace_pure_funcs_by_symbols::operator()(const ex& e)
+            {
+                if (!toplevel && is_a<func>(e) && ex_to<func>(e).is_pure()
+                    && (!e.is_equal(diffvar)))
+                {
+                    // TODO: Isn't it more correct to check whether the function has the diffvar as an argument, even if it is pure?
+                    // Currently we define our behaviour as a feature
+                    MSG_INFO(2, "Replacing pure func " << e << " with symbol" << endline);
+                    ex r = dynallocate<symbol>();
+                    repl.emplace(r, e);
+                    toplevel = false;
+                    return r;
+                }
+
+                toplevel = false;
+                return e.map(*this);
+            }
+
+            expression expression::pdiff(const expression& var, const expression& nth,
+                                         bool toplevel) const
+            {
+                MSG_INFO(1, "Calculating " << nth << "-th partial derivative of " << ex(*this)
+                                           << " to " << var << endline);
+                exmap repl;
+                replace_pure_funcs_by_symbols repl_funcs(var, is_a<func>(*this)
+                                                                  && ex_to<func>(*this).is_pure());
+                expression result = repl_funcs(*this);
+                return expression(result)
+                    .diff(var, nth, toplevel)
+                    .subs(repl_funcs.get_replacements());
+            }
+
+            struct eval_differentials : public map_function
+            {
+                ex operator()(const ex& e);
+            };
+
+            ex eval_differentials::operator()(const ex& e)
+            {
+                MSG_INFO(3, "eval_differentials() for " << e << endline);
+                if (is_a<exderivative>(e))
+                {
+                    ex mapped_e = e.map(*this); // First map subexpressions
+                    return ex_to<exderivative>(mapped_e).eval_diff();
+                }
+                else
+                    rest = rest * expression(i);
+            }
+
+            MSG_INFO(2, "Integrals: " << integrals << endline);
+            MSG_INFO(2, "Rest: " << rest << endline);
+            if (integrals.is_equal(_expr1))
+                return *this; // no integrals found
+
+            // Evaluate the integrals
+            expression result(_expr1);
+            for (const auto& i : (is_a<mul>(integrals) ? integrals : lst{ integrals }))
+                result = result * expression(ex_to<extintegral>(i).eval_integ());
+
+            return rest * result;
         }
 
-        return e.map(*this);
-    }
-};
-
-expression expression::simplify(const std::vector<std::string>& s) const
-{
-    expression result(*this);
-
-    for (const auto& i : s)
-    {
-        if (i == "expand")
-        { // Full expansion
-            MSG_INFO(1, "Full expanding " << result << endline);
-            result = result.expand(expand_options::expand_function_args);
-        }
-        else if (i == "expandf")
-        { // Do not expand function args
-            MSG_INFO(1, "Expanding " << result << endline);
-            result = result.expand();
-        }
-        else if (i == "eval")
-        { // Evaluation
-            MSG_INFO(1, "Evaluating " << result << endline);
-            result = result.evalf();
-        }
-        else if (i == "normal")
-        { // Normalization
-            MSG_INFO(1, "Normalizing " << result << endline);
-            result = result.normal();
-        }
-        else if (i == "collect-common")
-        { // Collecting common factors
-            MSG_INFO(1, "Collecting common factors in " << result << endline);
-            result = result.collect_common_factors();
-        }
-        else if (i == "unsafe")
-        { // Unsafe simplifications
-            MSG_INFO(1, "Doing unsafe simplifications in " << result << endline);
-            result = result.evalu();
-        }
-        else if (i == "diff")
-        { // Evalute differential objects
-            // Note: Unevaluated objects may occur after substitution, e.g. of a symbolic grade with a numeric grade
-            result = result.eval_differential();
-        }
-        else if (i == "cancel-diff")
+        expression expression::integrate(const ex& var, const extsymbol& integration_constant) const
         {
-            expand_exderivatives expand_devs;
-            reduce_differentials reduce_diffs;
-            match_differentials match_diffs;
-            result = match_diffs(reduce_diffs(expand_devs(result)));
+            extintegral result(var, *this, integration_constant);
+            return result.eval_integ();
         }
-        else if (i == "sum")
-        { // Evalute \sum function objects
-            expand_sum expand_s;
-            result = expand_s(result);
-        }
-        else if (i == "gather-sqrt")
+
+        expression expression::integrate(const ex& var, const ex& lowerbound,
+                                         const ex& upperbound) const
         {
-            MSG_INFO(1, "Gathering square roots in " << result << endline);
-            gather_sqrt gather_sqrts;
-            result = gather_sqrts(result);
+            MSG_INFO(1, "expression::integrate() with bounds for " << ex(*this) << endline);
+            return extintegral(var, lowerbound, upperbound, *this).eval_integ();
         }
-        else if (i == "integrate")
+
+        expression& expression::operator=(const extsymbol& s)
         {
-            MSG_INFO(1, "Symbolically integrating " << result << endline);
-            result = result.eval_integral();
-        }
-        else if (i == "ignore-units")
-        {
-            MSG_INFO(1, "Ignoring units in certain functions " << result << endline);
-            result = result.ignore_units();
-        }
-        else
-        { // Nothing of the above fitted
-            MSG_WARN(0, "Warning: Unknown simplification of type " << i << endline);
-        }
-    }
-
-    return result;
-}
-
-expression expression::collect_common_factors() const
-{
-    ex result = GiNaC::collect_common_factors(*this);
-
-    if (result.is_equal(*this))
-        // Try harder
-        result = collect();
-
-    return result;
-}
-
-expression expression::collect(const expression& e) const
-{
-    MSG_INFO(2, "Collecting expression " << ex(*this) << " to symbol " << e << endline);
-    ex sym = e;
-    if (e.is_zero())
-    {
-        // Try to guess variable
-        if (!check_polynomial(*this, sym, false))
+            MSG_INFO(3, "Assigning expression from symbol " << s << endline);
+            ex::operator=(s);
+            empty = false;
             return *this;
-    }
-
-    return expression(ex(*this).collect(sym));
-}
-
-expression expression::diff(const expression& var, const expression& nth, bool toplevel) const
-{
-    MSG_INFO(1, "Calculating " << nth << "-th derivative of " << ex(*this) << " to " << var
-                               << endline);
-
-    // No differentiation possible
-    if (!nth.info(info_flags::nonnegint))
-    {
-        // TODO: How to determine when to use partial?
-        if (toplevel)
-            return expression(dynallocate<differential>(*this, false, nth, _ex0, true))
-                   / expression(dynallocate<differential>(var, false, nth, *this, false));
-        else
-            return dynallocate<exderivative>(
-                dynallocate<differential>(*this, false, nth),
-                dynallocate<differential>(var, false, nth, *this, false));
-    }
-
-    // Handle trivial cases
-    int i_nth = numeric_to_int(ex_to<numeric>(nth));
-    if (i_nth == 0)
-        return *this;
-    if (are_ex_trivially_equal(*this, var))
-    {
-        if (i_nth == 1)
-            return _ex1;
-        else
-            return _ex0;
-    }
-
-    expression result;
-
-    // Handle differentiation to a function
-    if (is_a<symbol>(var))
-    {
-        if (toplevel)
-        {
-            match_differentials match_diffs;
-            result = match_diffs(*this).diff(ex_to<symbol>(var), i_nth);
         }
-        else
+
+        expression& expression::operator=(const expression& e)
         {
-            result = ex::diff(ex_to<symbol>(var), i_nth);
+            MSG_INFO(3, "Assigning expression from expression " << ex(e) << endline);
+            ex::operator=(e);
+            empty = e.empty;
+            return *this;
         }
-    }
-    else if (is_a<func>(var))
-    {
-        const func& v = ex_to<func>(var);
-        symbol diffsym(v.get_name()); // Create a temporary symbol
-        MSG_INFO(2, "Differentiating to function " << v << endline);
-        if (toplevel)
+
+        void expression::print(const print_context& c, unsigned level) const
         {
-            match_differentials match_diffs;
-            result = match_diffs(this->subs(var == diffsym)).diff(diffsym, i_nth);
+            MSG_INFO(4, "expression::print()" << endline);
+            if (is_a<imathprint>(c))
+            {
+                if (is_empty())
+                {
+                    c.s << "[empty expression]";
+                }
+                else
+                {
+                    ex::print(c, level);
+                }
+            }
+
+            expression expression::eval_differential() const
+            {
+                match_differentials match_diffs;
+                eval_differentials eval_diffs;
+                return eval_diffs(match_diffs(*this));
+            }
+
+            expression expression::eval_integral()
+            {
+                MSG_INFO(1, "Evaluating integrals for " << ex(*this) << endline);
+                if (is_a<add>(*this))
+                {
+                    expression result(_expr0);
+                    for (const auto& i : *this)
+                        result = result + expression(i).eval_integral();
+                    return result;
+                }
+
+                expression integrals(_expr1);
+                expression rest(_expr1);
+
+                MSG_INFO(2, "Examining " << ex(*this) << endline);
+
+                // Find the integral(s)
+                for (const auto& i : (is_a<mul>(*this) ? *this : lst{ *this }))
+                {
+                    if (is_a<extintegral>(i))
+                        integrals = integrals * expression(i);
+                    else if (is_a<add>(i))
+                        rest = rest * expression(i).eval_integral();
+                    else
+                        rest = rest * expression(i);
+                }
+
+                MSG_INFO(2, "Integrals: " << integrals << endline);
+                MSG_INFO(2, "Rest: " << rest << endline);
+                if (integrals.is_equal(_expr1))
+                    return *this; // no integrals found
+
+                // Evaluate the integrals
+                expression result(_expr1);
+                for (const auto& i : (is_a<mul>(integrals) ? integrals : lst{ integrals }))
+                    result = result * expression(ex_to<extintegral>(i).eval_integ());
+
+                return rest * result;
+            }
+
+            expression expression::integrate(const ex& var, const symbol& integration_constant)
+                const
+            {
+                extintegral result(var, *this, integration_constant);
+                return result.eval_integ();
+            }
+
+            expression expression::integrate(const ex& var, const ex& lowerbound,
+                                             const ex& upperbound) const
+            {
+                MSG_INFO(1, "expression::integrate() with bounds for " << ex(*this) << endline);
+                return extintegral(var, lowerbound, upperbound, *this).eval_integ();
+            }
+
+            expression& expression::operator=(const symbol& s)
+            {
+                MSG_INFO(3, "Assigning expression from symbol " << s << endline);
+                ex::operator=(s);
+                empty = false;
+                return *this;
+            }
+
+            expression& expression::operator=(const expression& e)
+            {
+                MSG_INFO(3, "Assigning expression from expression " << ex(e) << endline);
+                ex::operator=(e);
+                empty = e.empty;
+                return *this;
+            }
+
+            void expression::print(const print_context& c, unsigned level) const
+            {
+                MSG_INFO(4, "expression::print()" << endline);
+                if (is_a<imathprint>(c))
+                {
+                    if (is_empty())
+                    {
+                        c.s << "[empty expression]";
+                    }
+                    else
+                    {
+                        ex::print(c, level);
+                    }
+                }
+                else
+                {
+                    if (is_empty())
+                    {
+                        c.s << "-EMPTY-";
+                    }
+                    else
+                    {
+                        ex::print(c, level);
+                    }
+                }
+            } // expression::print()
         }
-        else
-        {
-            result = ex(this->subs(var == diffsym)).diff(diffsym, i_nth);
-        }
-        MSG_INFO(2, "Intermediate result " << ex(result) << endline);
-        result = result.subs(diffsym == var);
-    }
-    else
-    {
-        throw std::logic_error("Can only differentiate with respect to a variable or a function!");
-    }
-
-    MSG_INFO(2, "Result of differentiation: " << result << endline);
-
-    // Differentiating powers might have introduced the GiNaC log() function
-    return Functionmanager::replace_function_by_func(result);
-}
-
-/// Map function for use in partial differentiation
-// Functions that do not have an explicit argument which is identical to the differentiation variable are replaced by symbols
-// e.g. diffvar is x
-// f(x) -> f(x)
-// f(y) -> symbol
-// f() -> f() if f() is a function of x
-// f() -> symbol if f() is not a function of x
-// f(a x + b) -> f(a x + b)
-struct replace_pure_funcs_by_symbols : public map_function
-{
-    ex diffvar;
-    bool toplevel;
-    exmap repl;
-
-    replace_pure_funcs_by_symbols(const ex& dv, const bool tl)
-        : diffvar(dv)
-        , toplevel(tl)
-    {
-    }
-    ex operator()(const ex& e);
-    exmap get_replacements() { return repl; }
-};
-
-ex replace_pure_funcs_by_symbols::operator()(const ex& e)
-{
-    if (!toplevel && is_a<func>(e) && ex_to<func>(e).is_pure() && (!e.is_equal(diffvar)))
-    {
-        // TODO: Isn't it more correct to check whether the function has the diffvar as an argument, even if it is pure?
-        // Currently we define our behaviour as a feature
-        MSG_INFO(2, "Replacing pure func " << e << " with symbol" << endline);
-        ex r = dynallocate<symbol>();
-        repl.emplace(r, e);
-        toplevel = false;
-        return r;
-    }
-
-    toplevel = false;
-    return e.map(*this);
-}
-
-expression expression::pdiff(const expression& var, const expression& nth, bool toplevel) const
-{
-    MSG_INFO(1, "Calculating " << nth << "-th partial derivative of " << ex(*this) << " to " << var
-                               << endline);
-    exmap repl;
-    replace_pure_funcs_by_symbols repl_funcs(var,
-                                             is_a<func>(*this) && ex_to<func>(*this).is_pure());
-    expression result = repl_funcs(*this);
-    return expression(result).diff(var, nth, toplevel).subs(repl_funcs.get_replacements());
-}
-
-struct eval_differentials : public map_function
-{
-    ex operator()(const ex& e);
-};
-
-ex eval_differentials::operator()(const ex& e)
-{
-    MSG_INFO(3, "eval_differentials() for " << e << endline);
-    if (is_a<exderivative>(e))
-    {
-        ex mapped_e = e.map(*this); // First map subexpressions
-        return ex_to<exderivative>(mapped_e).eval_diff();
-    }
-    else
-    {
-        // TODO: Also evaluate differential objects?
-        return e.map(*this);
-    }
-}
-
-expression expression::eval_differential() const
-{
-    match_differentials match_diffs;
-    eval_differentials eval_diffs;
-    return eval_diffs(match_diffs(*this));
-}
-
-expression expression::eval_integral()
-{
-    MSG_INFO(1, "Evaluating integrals for " << ex(*this) << endline);
-    if (is_a<add>(*this))
-    {
-        expression result(_expr0);
-        for (const auto& i : *this)
-            result = result + expression(i).eval_integral();
-        return result;
-    }
-
-    expression integrals(_expr1);
-    expression rest(_expr1);
-
-    MSG_INFO(2, "Examining " << ex(*this) << endline);
-
-    // Find the integral(s)
-    for (const auto& i : (is_a<mul>(*this) ? *this : lst{ *this }))
-    {
-        if (is_a<extintegral>(i))
-            integrals = integrals * expression(i);
-        else if (is_a<add>(i))
-            rest = rest * expression(i).eval_integral();
-        else
-            rest = rest * expression(i);
-    }
-
-    MSG_INFO(2, "Integrals: " << integrals << endline);
-    MSG_INFO(2, "Rest: " << rest << endline);
-    if (integrals.is_equal(_expr1))
-        return *this; // no integrals found
-
-    // Evaluate the integrals
-    expression result(_expr1);
-    for (const auto& i : (is_a<mul>(integrals) ? integrals : lst{ integrals }))
-        result = result * expression(ex_to<extintegral>(i).eval_integ());
-
-    return rest * result;
-}
-
-expression expression::integrate(const ex& var, const symbol& integration_constant) const
-{
-    extintegral result(var, *this, integration_constant);
-    return result.eval_integ();
-}
-
-expression expression::integrate(const ex& var, const ex& lowerbound, const ex& upperbound) const
-{
-    MSG_INFO(1, "expression::integrate() with bounds for " << ex(*this) << endline);
-    return extintegral(var, lowerbound, upperbound, *this).eval_integ();
-}
-
-expression& expression::operator=(const symbol& s)
-{
-    MSG_INFO(3, "Assigning expression from symbol " << s << endline);
-    ex::operator=(s);
-    empty = false;
-    return *this;
-}
-
-expression& expression::operator=(const expression& e)
-{
-    MSG_INFO(3, "Assigning expression from expression " << ex(e) << endline);
-    ex::operator=(e);
-    empty = e.empty;
-    return *this;
-}
-
-void expression::print(const print_context& c, unsigned level) const
-{
-    MSG_INFO(4, "expression::print()" << endline);
-    if (is_a<imathprint>(c))
-    {
-        if (is_empty())
-        {
-            c.s << "[empty expression]";
-        }
-        else
-        {
-            ex::print(c, level);
-        }
-    }
-    else
-    {
-        if (is_empty())
-        {
-            c.s << "-EMPTY-";
-        }
-        else
-        {
-            ex::print(c, level);
-        }
-    }
-} // expression::print()
-}

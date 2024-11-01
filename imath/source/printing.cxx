@@ -688,6 +688,27 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level)
     c.s << "})";
 }
 
+// Helper method to print an operand of a certain type
+void printOperand(const GiNaC::ex& posop, const GiNaC::ex& negop, const imathprint& c, size_t opnum)
+{
+    // Print functions
+    if (!negop.is_equal(_ex1))
+    {
+        c.enter_fraction();
+        c.s << "{{alignc ";
+        print_smath_ops(posop, " ", c, false, opnum);
+        c.s << "} over {alignc ";
+        print_smath_ops(negop, " ", c, false, opnum);
+        c.s << "}}";
+        c.exit_fraction();
+    }
+    else if (!posop.is_equal(_ex1))
+    {
+        c.s << " ";
+        print_smath_ops(posop, " ", c, false, opnum);
+    }
+}
+
 void imathprint_mul(const mul& m, const imathprint& c, unsigned level)
 {
     MSG_INFO(4, "imathprint_mul() for " << m << endline);
@@ -1005,6 +1026,141 @@ void print_ncmul_fraction(const expression& n, const expression& d, const imathp
     d.print(c, level + 1);
     c.s << "}}";
     c.exit_fraction();
+    numer.clear_symbols();
+    denom.clear_symbols();
+    opnum++; // Count all this as one operand
+}
+
+// A single differential in the numerator should not be printed d²x but dx² (but that is mostly a matter of taste)
+if (denom.get_differentials().is_equal(_ex1) && !numer.get_derivatives().is_equal(_ex1))
+{
+    if (is_a<differential>(numer.get_differentials()))
+    {
+        differential df = ex_to<differential>(numer.get_differentials());
+        df.set_numerator(false);
+        numer.set_differentials(df);
+    }
+    else if (is_a<power>(numer.get_differentials()))
+    {
+        const power& p = ex_to<power>(numer.get_differentials());
+        differential df = ex_to<differential>(get_basis(p));
+        df.set_numerator(false);
+        numer.set_differentials(dynallocate<power>(df, get_exp(p)));
+    }
+}
+
+// Print the rest
+if (denom.is_trivial())
+{
+    if (!numer.is_trivial())
+    {
+        bool is_only_one_add
+            = (numer.check_symbols(_ex1) && numer.get_constants().is_equal(_ex1)
+               && is_a<add>(numer.get_adds()) && numer.check_functions(_ex1)
+               && numer.check_matrices(_ex1) && numer.get_muls().is_equal(_ex1)
+               && numer.get_others().is_equal(_ex1) && numer.get_powers().is_equal(_ex1)
+               && numer.get_units().is_equal(_ex1) && numer.get_integrals().is_equal(_ex1)
+               && numer.get_differentials().is_equal(_ex1)
+               && numer.get_derivatives().is_equal(_ex1));
+        if (is_only_one_add)
+            c.s << "(";
+        print_smath_mul(numer, c, opnum, turn_around == 1); // checksplit is taken care of here
+        if (is_only_one_add)
+            c.s << ")";
+    }
+}
+else
+{
+    //if (opnum != 0) checksplit(toplevel, opnum, c);
+
+    // Extract some stuff that shouldn't go onto a big common fraction
+    ex posdiffs = numer.get_differentials();
+    ex negdiffs = denom.get_differentials();
+    ex posderiv = numer.get_derivatives();
+    ex negderiv = denom.get_derivatives();
+    ex posinteg = numer.get_integrals();
+    ex neginteg = denom.get_integrals();
+    ex posfuncs = numer.get_functions();
+    ex negfuncs = denom.get_functions();
+    ex posmatrs = numer.get_matrices();
+    ex negmatrs = numer.get_matrices();
+    bool has_diffs = (!(posdiffs.is_equal(_ex1) && negdiffs.is_equal(_ex1)
+                        && posderiv.is_equal(_ex1) && negderiv.is_equal(_ex1)));
+    numer.clear_diffs();
+    numer.clear_derivatives();
+    numer.clear_integrals();
+    numer.clear_functions();
+    numer.clear_matrices();
+    denom.clear_diffs();
+    denom.clear_derivatives();
+    denom.clear_integrals();
+    denom.clear_functions();
+    denom.clear_matrices();
+
+    // Print everything that goes onto the big fraction
+    c.enter_fraction();
+    c.s << "{{alignc ";
+    print_smath_mul(numer, c, opnum, turn_around == 1);
+    c.s << "} over {alignc ";
+    print_smath_mul(denom, c, opnum, turn_around == 2);
+    c.s << "}}";
+    c.exit_fraction();
+
+    // Print things that should go after the big fraction
+    printOperand(posfuncs, negfuncs, c, opnum);
+    printOperand(posinteg, neginteg, c, opnum);
+
+    // Print derivatives
+    // Move partial derivatives to the front
+    lst v_posderiv;
+    if (!posderiv.is_equal(_ex1))
+    {
+        for (const auto& mm : (is_a<mul>(posderiv) ? posderiv : lst{ posderiv }))
+        {
+            if (ex_to<exderivative>(mm).is_partial())
+                v_posderiv.prepend(mm);
+            else
+                v_posderiv.append(mm);
+        }
+    }
+    lst v_negderiv;
+    if (!negderiv.is_equal(_ex1))
+    {
+        for (const auto& mm : (is_a<mul>(negderiv) ? negderiv : lst{ negderiv }))
+        {
+            if (ex_to<exderivative>(mm).is_partial())
+                v_negderiv.prepend(mm);
+            else
+                v_negderiv.append(mm);
+        }
+    }
+
+    if (v_negderiv.nops() > 0)
+    {
+        c.enter_fraction();
+        c.s << "{{alignc ";
+        if (v_posderiv.nops() == 0)
+            c.s << "1";
+        else
+            for (const auto& d : v_posderiv)
+                d.print(c, level + 1);
+        c.s << "} over {alignc ";
+        for (const auto& d : v_negderiv)
+            d.print(c, level + 1);
+        c.s << "}}";
+        c.exit_fraction();
+    }
+    else if (v_posderiv.nops() > 0)
+    {
+        c.s << " ";
+        for (const auto& d : v_posderiv)
+            d.print(c, level + 1);
+    }
+
+    // Print differentials (incomplete derivatives)
+    MSG_INFO(3, "Remaining incomplete differentials: " << posdiffs << " / " << negdiffs << endline);
+    printOperand(posdiffs, negdiffs, c, opnum);
+}
 }
 
 void imathprint_ncmul(const ncmul& m, const imathprint& c, unsigned level)

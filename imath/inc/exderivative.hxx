@@ -24,14 +24,18 @@
  */
 
 #ifdef INSIDE_SM
+#include <imath/imathdllapi.h>
 #include <imath/differential.hxx>
 #include <imath/printing.hxx>
 #else
+#define IMATH_DLLPUBLIC
 #include "differential.hxx"
 #include "printing.hxx"
 #endif
 
-namespace GiNaC {
+namespace GiNaC
+{
+class differential;
 
 /**
  * Class exderivative
@@ -40,74 +44,75 @@ namespace GiNaC {
  * when differentiating and printing, since handling the muls of differentials does
  * not lead to good results
  */
-class exderivative : public basic {
-  GINAC_DECLARE_REGISTERED_CLASS(exderivative, basic)
+class exderivative : public basic
+{
+    GINAC_DECLARE_REGISTERED_CLASS(exderivative, basic)
 
 public:
-  /**
+    /**
    * Construct an exderivative
    * @param e The expression that is to be differentiated
    */
-  exderivative(const differential& n, const ex& d);
-  exderivative(const exderivative& other);
+    exderivative(const differential& n, const ex& d);
+    exderivative(const exderivative& other);
 
 #ifdef DEBUG_CONSTR_DESTR
-  exderivative& operator=(const exderivative& other);
-  ~exderivative();
+    exderivative& operator=(const exderivative& other);
+    ~exderivative();
 #endif
 
-  inline unsigned precedence() const override {return 70;}
+    inline unsigned precedence() const override { return 70; }
 
-  /**
+    /**
    * Print the exderivative in a GiNaC print context.
    * @param c The print context (e.g., print_latex)
    * @param level Unused, for consistency with GiNaC print methods
    */
-  void do_print(const print_context &c, unsigned level = 0) const;
-  void do_print_imath(const imathprint &c, unsigned level = 0) const;
+    void do_print(const print_context& c, unsigned level = 0) const;
+    void do_print_imath(const imathprint& c, unsigned level = 0) const;
 
-  /**
+    /**
    * Required by GiNac. Returns 1 if denom equals numer
    * @param level Unused, required by GiNaC
    * @returns An expression with the result of the evaluation
    */
-  ex eval() const override;
+    ex eval() const override;
 
-  size_t nops() const override;
-  ex op(size_t i) const override;
-  ex map(map_function & f) const override;
-  ex subs(const exmap & m, unsigned options) const override;
+    size_t nops() const override;
+    ex op(size_t i) const override;
+    ex map(map_function& f) const override;
+    ex subs(const exmap& m, unsigned options) const override;
 
-  // Evaluate the exderivative by differentiating the numerator to all differentials in the denominator
-  ex eval_diff() const;
+    // Evaluate the exderivative by differentiating the numerator to all differentials in the denominator
+    ex eval_diff() const;
 
-  inline bool is_partial() const { return numer.is_partial(); }
+    inline bool is_partial() const { return numer.is_partial(); }
 
-  inline const differential& get_numer() const { return numer; }
-  inline const ex& get_denom() const { return denom; }
+    inline const differential& get_numer() const { return numer; }
+    inline const ex& get_denom() const { return denom; }
 
-  /// Dissolve the exderivative into single differentials
-  inline ex dissolve() const { return numer / denom; }
+    /// Dissolve the exderivative into single differentials
+    inline ex dissolve() const { return numer / denom; }
 
 protected:
-  ex derivative(const symbol & s) const override;
+    ex derivative(const symbol& s) const override;
 
-  // Calculate the partial derivative of the exderivative with respect to the given variable
-  ex pderivative(const ex& v) const;
+    // Calculate the partial derivative of the exderivative with respect to the given variable
+    ex pderivative(const ex& v) const;
 
 private:
-  /// The numerator of the derivative, e.g. differential(f(x), 2)
-  differential numer;
-  // The denominator of the derivative, e.g. differential(y) * differential(x)
-  ex denom;
+    /// The numerator of the derivative, e.g. differential(f(x), 2)
+    differential numer;
+    // The denominator of the derivative, e.g. differential(y) * differential(x)
+    ex denom;
 };
 
-class exderivative_unarchiver {
+class exderivative_unarchiver
+{
 public:
-  exderivative_unarchiver();
-  ~exderivative_unarchiver();
+    exderivative_unarchiver();
+    ~exderivative_unarchiver();
 };
 static exderivative_unarchiver exderivative_unarchiver_instance;
-
 }
 #endif

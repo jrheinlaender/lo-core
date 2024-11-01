@@ -21,10 +21,12 @@
 #ifdef INSIDE_SM
 #include <imath/imathutils.hxx>
 #include <imath/option.hxx>
+#include <imath/equation.hxx>
 #include <imath/printing.hxx>
 #else
 #include "imathutils.hxx"
 #include "option.hxx"
+#include "equation.hxx"
 #include "printing.hxx"
 #endif
 
@@ -352,11 +354,13 @@ public:
     void setExpression(const OUString& expr);
 };
 
+class iFormulaNodeVectordef;
 class IMATH_DLLPUBLIC iFormulaNodeStmVectordef : public iFormulaNodeStatement
 {
 public:
     iFormulaNodeStmVectordef(std::shared_ptr<GiNaC::optionmap> g_options,
                              std::vector<OUString> formulaParts);
+    iFormulaNodeStmVectordef(iFormulaNodeVectordef other);
     iFormulaNodeStmVectordef(const iFormulaNodeStatement& other) = delete;
     iFormulaNodeStmVectordef(iFormulaNodeStatement&& other)
         : iFormulaNodeStatement(std::move(other))
@@ -365,11 +369,13 @@ public:
     virtual OUString getCommand() const override { return OU("VECTORDEF"); }
 };
 
+class iFormulaNodeMatrixdef;
 class IMATH_DLLPUBLIC iFormulaNodeStmMatrixdef : public iFormulaNodeStatement
 {
 public:
     iFormulaNodeStmMatrixdef(std::shared_ptr<GiNaC::optionmap> g_options,
                              std::vector<OUString> formulaParts);
+    iFormulaNodeStmMatrixdef(iFormulaNodeMatrixdef other);
     iFormulaNodeStmMatrixdef(const iFormulaNodeStatement& other) = delete;
     iFormulaNodeStmMatrixdef(iFormulaNodeStatement&& other)
         : iFormulaNodeStatement(std::move(other))
@@ -699,12 +705,13 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeStmFunction : public iFormulaNodeStatement
 {
 public:
-    iFormulaNodeConst(const GiNaC::unitvec unitConversions,
-                      std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
-                      std::vector<OUString> formulaParts, const OUString& label,
-                      const GiNaC::expression& expr, const bool hide);
-    iFormulaNodeConst(const iFormulaNodeEq& other) = delete;
-    iFormulaNodeConst(iFormulaNodeEq&& other)
+    friend class iFormulaNodeStmVectordef;
+    iFormulaNodeVectordef(const GiNaC::unitvec unitConversions,
+                          std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
+                          std::vector<OUString> formulaParts, const OUString& label,
+                          const GiNaC::expression& expr, const bool hide);
+    iFormulaNodeVectordef(const iFormulaNodeEq& other) = delete;
+    iFormulaNodeVectordef(iFormulaNodeEq&& other)
         : iFormulaNodeEq(std::move(other))
     {
     }
@@ -716,12 +723,13 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeStmUnitdef : public iFormulaNodeStatement
 {
 public:
-    iFormulaNodeFuncdef(const GiNaC::unitvec unitConversions,
-                        std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
-                        std::vector<OUString> formulaParts, const OUString& label,
-                        const GiNaC::expression& expr, const bool hide);
-    iFormulaNodeFuncdef(const iFormulaNodeEq& other) = delete;
-    iFormulaNodeFuncdef(iFormulaNodeEq&& other)
+    friend class iFormulaNodeStmMatrixdef;
+    iFormulaNodeMatrixdef(const GiNaC::unitvec unitConversions,
+                          std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
+                          std::vector<OUString> formulaParts, const OUString& label,
+                          const GiNaC::expression& expr, const bool hide);
+    iFormulaNodeMatrixdef(const iFormulaNodeEq& other) = delete;
+    iFormulaNodeMatrixdef(iFormulaNodeEq&& other)
         : iFormulaNodeEq(std::move(other))
     {
     }

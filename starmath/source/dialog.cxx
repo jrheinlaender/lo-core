@@ -2913,7 +2913,7 @@ IMPL_LINK(ImGuiChartDialog, ModifyHdl, weld::Entry&, rEntry, void)
         pDoc->UpdateGuiText();
 }
 
-MatrixEditorDialog::MatrixEditorDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, SmEditWindow* pEditWindow, const OUString& matrixText, const bool isVector, iFormulaLine_ptr pLine)
+MatrixEditorDialog::MatrixEditorDialog(weld::Window* pParent, ImGuiWindow* pGuiWindow, SmEditWindow* pEditWindow, const OUString& matrixText, iFormulaLine_ptr pLine)
     : GenericDialogController(pParent, "modules/smath/ui/matrixeditor.ui", "MatrixEditor")
     , mxOk    (m_xBuilder->weld_button("button_ok"))
     , mxCancel(m_xBuilder->weld_button("button_cancel"))
@@ -2928,7 +2928,7 @@ MatrixEditorDialog::MatrixEditorDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     , mOldName("x")
     , mClickedColumn(-1)
     , mEditedColumn(-1)
-    , mIsVector(isVector)
+    , mEscapePressed(false)
     , mMatrixText(matrixText)
     , mpLine(pLine)
     , mpGuiWindow(pGuiWindow)
@@ -2943,11 +2943,19 @@ MatrixEditorDialog::MatrixEditorDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     mxDiagMatrix->connect_toggled(LINK(this, MatrixEditorDialog, RadioButtonModifyHdl));
     mxSymmetricMatrix->connect_toggled(LINK(this, MatrixEditorDialog, RadioButtonModifyHdl));
     mxFullMatrix->connect_toggled(LINK(this, MatrixEditorDialog, RadioButtonModifyHdl));
+    mxMatrix->connect_key_release(LINK(this, MatrixEditorDialog, KeyReleaseHdl));
     mxMatrix->connect_mouse_press(LINK(this, MatrixEditorDialog, MousePressHdl));
     mxMatrix->connect_editing(LINK(this, MatrixEditorDialog, EditingEntryHdl), LINK(this, MatrixEditorDialog, EditedEntryHdl));
+    mxMatrix->connect_editing_canceled(LINK(this, MatrixEditorDialog, EditingCanceledHdl));
+
+    if (mMatrixText.isEmpty())
+        mMatrixText = "STACK{ x_1 # x_2 # x_3}";
+
+    // Distinguish matrix and vector
+    mIsVector = mMatrixText.toAsciiUpperCase().trim().startsWith("STACK");
 
     // Parse matrix into treeview
-    int idx = 0;
+    int idx = mMatrixText.indexOfAsciiL("{", 1) + 1;
     std::vector<std::vector<OUString>> rawMatrix;
 
     do
@@ -2957,21 +2965,16 @@ MatrixEditorDialog::MatrixEditorDialog(weld::Window* pParent, ImGuiWindow* pGuiW
         do
         {
             OUString entry = mMatrixText.getToken(0, '#', idx);
-            row.emplace_back(entry);
+            row.emplace_back(idx < 0 ? entry.copy(0, entry.getLength() - 1).trim() : entry.trim()); // Remove trailing brace at last entry
+            if (mIsVector)
+                break; // Vectors by definition are column vectors, i.e. they have only one element in each row
         } while (idx >= 0 && idx < mMatrixText.getLength() && mMatrixText[idx] != '#');
 
-        ++idx;
-        rawMatrix.emplace_back(row);
-    } while (idx > 0);
+        if (!mIsVector)
+            ++idx; // Skip second hash delimiting the matrix rows
 
-    if (mIsVector && rawMatrix.size() == 1)
-    {
-        // Vectors are column vectors by default
-        std::vector<OUString> column = rawMatrix[0];
-        rawMatrix.clear();
-        for (const auto& entry : column)
-            rawMatrix.emplace_back(std::vector<OUString>{entry});
-    }
+        rawMatrix.emplace_back(row);
+    } while (idx > 0); // Not <= 0 because we just incremented the idx
 
     if (!rawMatrix.empty())
         mxCols->set_value(rawMatrix[0].size());
@@ -3049,11 +3052,13 @@ void MatrixEditorDialog::resizeMatrix()
             {
                 mxMatrix->set_text(*xIter, name + "_" + OUString::number(row + 1) + (cols > 1 ? OUString::number(col + 1) : OUString("")), col);
                 mxMatrix->set_sensitive(*xIter, true, col);
+                mxMatrix->set_column_visible(col, true);
             }
             else if (col >= cols && col < oldcols)
             {
                 mxMatrix->set_text(*xIter, "", col);
                 mxMatrix->set_sensitive(*xIter, false, col);
+                mxMatrix->set_column_visible(col, false);
             }
         }
 
@@ -3061,6 +3066,9 @@ void MatrixEditorDialog::resizeMatrix()
     }
 
     mxMatrix->columns_autosize();
+
+    for (int col = cols; col < maxcols; ++col)
+        mxMatrix->set_column_visible(col, false);
 }
 
 void MatrixEditorDialog::shapeMatrix()
@@ -3186,6 +3194,13 @@ IMPL_LINK_NOARG(MatrixEditorDialog, RadioButtonModifyHdl, weld::Toggleable&, voi
     shapeMatrix();
 }
 
+IMPL_LINK(MatrixEditorDialog, KeyReleaseHdl, const ::KeyEvent&, rKEvt, bool)
+{
+    mEscapePressed = (rKEvt.GetKeyCode() == KEY_ESCAPE);
+    return false;
+}
+
+
 IMPL_LINK(MatrixEditorDialog, MousePressHdl, const MouseEvent&, rMEvt, bool)
 {
     if (mEditedColumn > 0)
@@ -3193,8 +3208,9 @@ IMPL_LINK(MatrixEditorDialog, MousePressHdl, const MouseEvent&, rMEvt, bool)
 
     auto xIter = mxMatrix->make_iterator();
     getClickedCell(mxMatrix, rMEvt, *xIter, mClickedColumn, 10);
+    mxMatrix->set_cursor(*xIter, mClickedColumn, true); // This avoids one mouse click when changing entries
 
-    return false; // We don't handle the mouse click, just register the column
+    return false; // We don't handle the mouse click, just find the column
 }
 
 IMPL_LINK_NOARG(MatrixEditorDialog, EditingEntryHdl, const weld::TreeIter&, bool)
@@ -3205,6 +3221,9 @@ IMPL_LINK_NOARG(MatrixEditorDialog, EditingEntryHdl, const weld::TreeIter&, bool
 
 IMPL_LINK(MatrixEditorDialog, EditedEntryHdl, const IterString&, rIterString, bool)
 {
+    if (mEditedColumn < 0)
+        return false; // Sometimes there is a double call and since we set mEditedColumn to -1 at the end we can avoid that
+
     if (mxSymmetricMatrix->get_active() && mClickedColumn >= 0 && mClickedColumn < mxCols->get_value())
     {
         auto xIter = mxMatrix->make_iterator();
@@ -3232,8 +3251,81 @@ IMPL_LINK(MatrixEditorDialog, EditedEntryHdl, const IterString&, rIterString, bo
         mxMatrix->set_text(*xIter, rIterString.second, clickedRow);
     }
 
+    mxMatrix->set_text(rIterString.first, rIterString.second, mEditedColumn); // Required for EditingCanceledHdl()
+
     mEditedColumn = -1;
     return true;
+}
+
+IMPL_LINK(MatrixEditorDialog, EditingCanceledHdl, const IterString&, rIterString, void)
+{
+    // Catch the case when user edits something and then clicks into the document.
+    // This counts as canceled editing for the GtkCellRendererText because the starmath window is closed by it
+    if (!mEscapePressed)
+        this->EditedEntryHdl(rIterString);
+}
+
+// Static method to scan for MATRIX or STACK in text at a given position
+std::tuple<OUString, sal_Int32, sal_Int32> MatrixEditorDialog::scanForMatrix(const OUString& sText, const sal_Int32 pos)
+{
+    sal_Int32 idx = 0;
+
+    do
+    {
+        // Scan the text until keyword STACK or MATRIX appears
+        OUString word = sText.getToken( 0, ' ', idx ); // idx becomes the first character after the ' '
+        bool isVector = true;
+        sal_Int32 startMatrix = word.toAsciiUpperCase().indexOfAsciiL("STACK", 5);
+        if (startMatrix < 0)
+        {
+            startMatrix = word.toAsciiUpperCase().indexOfAsciiL("MATRIX", 6);
+            isVector = false;
+        }
+        if (startMatrix < 0)
+            continue;
+
+        startMatrix = (idx < 0 ? sText.getLength() : idx - 1) - word.getLength() + startMatrix; // The -1 skips the separator ' ' after the word
+
+        // 5 = strlen("STACK"). 6 = strlen("MATRIX"). This condition requires the user to position the cursor on MATRIX or STACK before opening the MatrixEditor
+        if (pos >= startMatrix && pos < startMatrix + (isVector ? 5 : 6))
+        {
+            // Scan the matrix
+            sal_Int32 level = 1;
+            idx = sText.indexOfAsciiL("{", 1, startMatrix) + 1;
+            if (idx <= 0)
+            {
+                if (isVector)
+                    return {"STACK{x_1 # x_2 # x_3}", startMatrix, startMatrix + 5};
+
+                return {"MATRIX{x_11 # x_12 # x_13 ## x_21 # x_22 # x_23 ## x_31 # x_32 # x_33}", startMatrix, startMatrix + 6};
+            }
+
+            while (level > 0)
+            {
+                auto openPos = sText.indexOfAsciiL("{", 1, idx);
+                auto closePos = sText.indexOfAsciiL("}", 1, idx);
+                if (openPos > 0 && openPos < closePos)
+                {
+                    ++level;
+                    idx = openPos + 1;
+                }
+                else if (closePos > 0) {
+                    --level;
+                    idx = closePos + 1;
+                }
+                else
+                    break;
+            }
+
+            if (level > 0)
+                return {sText.copy(startMatrix) + "}", startMatrix, sText.getLength()}; // Add missing closing bracket
+
+            return {sText.copy(startMatrix, idx - startMatrix), startMatrix, idx};
+        }
+    }
+    while ( idx >= 0 );
+
+    return {"STACK{x_1 # x_2 # x_3}", pos, pos};
 }
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

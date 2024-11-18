@@ -701,15 +701,18 @@ class MatrixEditorDialog final : public weld::GenericDialogController
     OUString mOldName;
     DECL_LINK(SpinButtonModifyHdl, weld::SpinButton&, void);
     DECL_LINK(RadioButtonModifyHdl, weld::Toggleable&, void);
+    DECL_LINK(KeyReleaseHdl, const ::KeyEvent&, bool);
     DECL_LINK(MousePressHdl, const MouseEvent&, bool);
     int mClickedColumn;
     int mEditedColumn;
     DECL_LINK(EditingEntryHdl, const weld::TreeIter&, bool);
     typedef std::pair<const weld::TreeIter&, OUString> IterString;
     DECL_LINK(EditedEntryHdl, const IterString&, bool);
+    DECL_LINK(EditingCanceledHdl, const IterString&, void);
+    bool mEscapePressed;
 
 public:
-    MatrixEditorDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, SmEditWindow* pEditWindow, const OUString& matrixText, const bool isVector, std::shared_ptr<iFormulaLine> pLine);
+    MatrixEditorDialog(weld::Window *pParent, ImGuiWindow* pGuiWindow, SmEditWindow* pEditWindow, const OUString& matrixText, std::shared_ptr<iFormulaLine> pLine);
     virtual ~MatrixEditorDialog() override;
 
     // Get textual representation of the matrix (including STACK/MATRIX and curly braces
@@ -717,6 +720,9 @@ public:
 
     // The model was reset, update the line pointer
     void setFormulaLinePointer(std::shared_ptr<iFormulaLine> pLine) { mpLine = pLine; }
+
+    // Scan the string for a MATRIX or STACK definition. Return the text found and the start and end positions
+    static std::tuple<OUString, sal_Int32, sal_Int32> scanForMatrix(const OUString& sText, const sal_Int32 pos);
 
 private:
     // Get name to be used for filling the matrix (default is "x")

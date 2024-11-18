@@ -4559,11 +4559,14 @@ bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter, int& col) const
     return pEntry != nullptr;
 }
 
-void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter)
+void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter, const int, const bool)
 {
+    // TODO Parameters col and start_editing not implemented
     const SalInstanceTreeIter& rVclIter = static_cast<const SalInstanceTreeIter&>(rIter);
     m_xTreeView->SetCurEntry(rVclIter.iter);
 }
+
+void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter) { set_cursor(rIter, -1, false); }
 
 bool SalInstanceTreeView::get_iter_first(weld::TreeIter& rIter) const
 {
@@ -4985,9 +4988,10 @@ tools::Rectangle SalInstanceTreeView::get_column_area(const int nColumn) const
     return tools::Rectangle(); // TODO Not implemented and not used?
 }
 
- tools::Rectangle SalInstanceTreeView::get_cell_area(const weld::TreeIter& rIter, const int nColumn) const
- {
-     return tools::Rectangle(); // TODO Not implemented and not used?
+tools::Rectangle SalInstanceTreeView::get_cell_area(const weld::TreeIter& rIter,
+                                                    const int nColumn) const
+{
+    return tools::Rectangle(); // TODO Not implemented and not used?
 }
 
 weld::TreeView* SalInstanceTreeView::get_drag_source() const { return g_DragSource; }

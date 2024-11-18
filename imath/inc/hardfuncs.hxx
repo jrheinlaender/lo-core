@@ -42,6 +42,8 @@ DECLARE_FUNCTION_3P(ifelse)
 DECLARE_FUNCTION_1P(vmax)
 DECLARE_FUNCTION_1P(vmin)
 DECLARE_FUNCTION_2P(concat)
+DECLARE_FUNCTION_2P(irem)
+DECLARE_FUNCTION_2P(iquo)
 // Matrix functions (as defined in GiNaC matrix.h). Note that diag_matrix() etc. are already declared in namespace GiNaC in matrix.h
 DECLARE_FUNCTION_1P(diagmatrix)
 DECLARE_FUNCTION_2P(identmatrix)

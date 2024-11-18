@@ -46,6 +46,7 @@
 #include <dialog.hxx>
 #include <logging.hxx>
 
+#include <imath/equation.hxx>
 #include <imath/option.hxx>
 #include <imath/printing.hxx>
 #include <imath/iFormulaLine.hxx>
@@ -593,8 +594,8 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     if (rMEvt.GetClicks() > 1)
         return false; // We only handle single clicks here
 
-    // Ensure that the clicked line is selected
-    mxFormulaList->select(*xIter);
+    // Ensure that the clicked cell is selected
+    mxFormulaList->set_cursor(*xIter, mClickedColumn, true); // This avoids one mouse click when changing entries
     auto pLine = GetSelectedLine();
     if (pLine == nullptr)
         return false; // line number not found
@@ -979,6 +980,9 @@ OUString getRhs(const OUString& equation)
 
 IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 {
+    const static OUString defaultSTACK{"STACK{x_1 # x_2 # x_3}"};
+    const static OUString defaultMATRIX{"MATRIX{x_11 # x_12 # x_13 ## x_21 # x_22 # x_23 ## x_31 # x_32 # x_33}"};
+
     SAL_INFO_LEVEL(1, "starmath.imath", "EditedEntryHdl, old string=" + mxFormulaList->get_text(rIterString.first, mEditedColumn));
     SmDocShell* pDoc = GetDoc();
     if (!pDoc)
@@ -1046,9 +1050,15 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                                                                      pExpr->getLabel(), GiNaC::equation(), pExpr->getHide());
                     }
                     else if (newType == "VECTORDEF")
+                    {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
+                        pNew->setFormula("vec v = " + defaultSTACK);
+                    }
                     else if (newType == "MATRIXDEF")
+                    {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
+                        pNew->setFormula("M = " + defaultMATRIX);
+                    }
                     else
                     {
                         useEq = pLine->getFormula();
@@ -1068,9 +1078,15 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                                                                      pExpr->getLabel(), GiNaC::equation(), pExpr->getHide());
                     }
                     else if (newType == "VECTORDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeVectordef>(pLine);
+                    {
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
+                        pNew->setFormula("vec v = (" + defaultSTACK + ")");
+                    }
                     else if (newType == "MATRIXDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeConst, iFormulaNodeMatrixdef>(pLine);
+                    {
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
+                        pNew->setFormula("M = (" + defaultMATRIX + ")");
+                    }
                     else
                     {
                         useEq = pLine->getFormula();
@@ -1084,9 +1100,15 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "CONSTDEF")
                         pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeConst>(pLine);
                     else if (newType == "VECTORDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeVectordef>(pLine);
+                    {
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
+                        pNew->setFormula("vec v = (" + defaultSTACK + ")");
+                    }
                     else if (newType == "MATRIXDEF")
-                        pNew = iFormulaLine::move<iFormulaNodeFuncdef, iFormulaNodeMatrixdef>(pLine);
+                    {
+                        pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
+                        pNew->setFormula("M = (" + defaultMATRIX + ")");
+                    }
                     else
                     {
                         useEq = pLine->getFormula();
@@ -1285,6 +1307,26 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     auto pos = rIterString.second.indexOfAsciiL("=", 1);
                     line->setPrefixname(rIterString.second.copy(0, pos).trim());
                     line->setExpression(rIterString.second.copy(pos + 1).trim());
+                }
+                else if (typeid(*pLine) == typeid(iFormulaNodeVectordef))
+                {
+                    if (rIterString.second.indexOfAsciiL("=", 1) < 0)
+                    {
+                        std::shared_ptr<iFormulaLine> pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeStmVectordef>(pLine);
+                        pDoc->insertFormulaLineBefore(pLine, pNew);
+                        pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
+                        break;
+                    }
+                }
+                else if (typeid(*pLine) == typeid(iFormulaNodeMatrixdef))
+                {
+                    if (rIterString.second.indexOfAsciiL("=", 1) < 0)
+                    {
+                        std::shared_ptr<iFormulaLine> pNew = iFormulaLine::move<iFormulaNodeMatrixdef, iFormulaNodeStmMatrixdef>(pLine);
+                        pDoc->insertFormulaLineBefore(pLine, pNew);
+                        pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
+                        break;
+                    }
                 }
                 else if (typeid(*pLine) == typeid(iFormulaNodePrintval))
                 {

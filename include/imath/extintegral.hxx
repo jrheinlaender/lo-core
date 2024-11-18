@@ -56,7 +56,7 @@ public:
 public:
   void set_integration_constant(const extsymbol& newconstant);
 protected:
-  ex derivative(const symbol & s) const override;
+  ex derivative(const symbol & s) const override; // TODO Will this cause problems with extsymbols that do not match the symbol?
 
   // non-virtual functions in this class
 protected:

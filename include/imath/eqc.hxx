@@ -296,7 +296,7 @@ public:
   Return the assignment that defines the value of this variable
 
   @params s The symbol
-  @returns An expression containing the assignment
+  @returns An expression containing the right-hand side of the assignment
   @exception range_error(Symbol is not registered with the compiler)
   **/
   GiNaC::expression get_assignment(const GiNaC::extsymbol& s) const;

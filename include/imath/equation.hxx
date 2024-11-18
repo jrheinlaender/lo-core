@@ -232,7 +232,7 @@ public:
 
 protected:
   // Implementation of derivative for equations
-  virtual ex derivative(const symbol& s) const override;
+  virtual ex derivative(const symbol& s) const override; // TODO Will this cause trouble with extsymbols that do not match the symbol?
 
 private:
     using basic::collect; // Shut up warning about our collect() hiding the base classes' collect

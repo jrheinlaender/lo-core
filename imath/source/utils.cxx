@@ -23,6 +23,7 @@
 #endif
 #include <ginac/mul.h>
 #include <ginac/operators.h>
+#include <ginac/idx.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -43,7 +44,6 @@
 #include "unit.hxx"
 #include "differential.hxx"
 #endif
-#include "operands.hxx"
 #include "exderivative.hxx"
 
 using namespace GiNaC;
@@ -270,6 +270,21 @@ bool is_unit(const expression &e) {
   }
 
   return false;
+}
+
+class check_scalar_visitor : public visitor, public matrix::visitor, public idx::visitor, public varidx::visitor {
+    bool result = true;
+    void visit(const matrix& m) { result = false; }
+    void visit(const idx& m) { result = false; }
+    void visit(const varidx& m) { result = false; }
+public:
+    bool get_result() { return result; }
+};
+
+bool is_scalar(const expression& e) {
+    check_scalar_visitor v;
+    e.traverse(v);
+    return v.get_result();
 }
 
 lst make_lst_from_matrix(const expression &e, const bool force) {

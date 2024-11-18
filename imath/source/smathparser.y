@@ -166,6 +166,9 @@
 using fparts = std::initializer_list<OUString>;
 using titems = std::initializer_list<std::shared_ptr<textItem>>;
 
+namespace
+{
+
 const ex calcvalue(const std::string& whatval, const ex& expr, const lst &assignments) {
   extsymbol var;
   if (!is_a<extsymbol>(expr)) {
@@ -258,6 +261,31 @@ bool check_anyvector(const ex& e) {
   if ((result.cols() > 1) && (result.rows() > 1)) return false;
 
   return true;
+}
+
+std::pair<GiNaC::expression, GiNaC::expression> split_scalar_and_matrix(const GiNaC::expression& e, const bool vector)
+{
+  // Check for matrix multiplied with scalar(s)
+  expression s(_ex1);
+  expression m(_ex0);
+  auto mu = ex_to<mul>(e);
+
+  for (size_t o = 0; o < mu.nops(); ++o) {
+    if (is_a<matrix>(mu.op(o))) {
+      if (!m.is_zero())
+        return {_ex1, _ex0}; // Found a second matrix
+      else
+        m = mu.op(o);
+
+      if (vector && ex_to<matrix>(m).cols() != 1 && ex_to<matrix>(m).rows() != 1)
+        return {_ex1, _ex0}; // No vector
+    } else if (is_scalar(mu.op(o)))
+      s *= mu.op(o);
+    else
+      return {_ex1, _ex0}; // Operand contains a matrix object
+  }
+
+  return {s, m};
 }
 
 lst make_lst_from_ex(const ex& e) {
@@ -354,6 +382,8 @@ void handle_label_error(const imath::location& labelStart,const std::string& lab
   errormessage = "Duplicate label: " + OUS8(label);
   handle_error(params, l, formulaStart);
 }
+
+} // end anonymous namespace
 
 #define GETARG(index) \
 OUS8(rawtext.substr(index.begin.column-1, index.end.column-index.begin.column)).trim()
@@ -1291,7 +1321,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
           // What is the value of the expression?
           auto expr = $4;
           expression value = (is_a<matrix>(expr) ? calcvalueofmatrix("VAL", expr, lst()) : calcvalue("VAL", expr, lst()));
-          expression definition = (is_a<extsymbol>(expr) ? ex_to<relational>(params.compiler->get_assignment(ex_to<extsymbol>(expr))).rhs() : expr);
+          expression definition = (is_a<extsymbol>(expr) ? params.compiler->get_assignment(ex_to<extsymbol>(expr)) : expr);
 
           params.lines.push_back(std::make_shared<iFormulaNodeExplainval>(
             unitConversions(), current_options, $1,
@@ -2102,22 +2132,6 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | NROOT '{' ex '}' IMPMUL '{' ex '}' {
       $$ = dynallocate<power>($7, 1 / $3);
     }
-    | QUO '(' ex ',' ex ')' {
-      // Note: Using numeric_ex here gives conflicts with the following rule
-      auto expr1 = $3;
-      auto expr2 = $5;
-      if (!is_a<numeric>(expr1)) {
-        error(@3, "Expression must be a numeric");
-        YYERROR;
-      }
-      if (!is_a<numeric>(expr2)) {
-        error(@5, "Expression must be a numeric");
-        YYERROR;
-      }
-
-      $$ = iquo(ex_to<numeric>(std::move(expr1)), ex_to<numeric>(std::move(expr2)));
-      must_autoformat = true;
-    }
     | QUO '(' ex ',' ex ',' symbol ')' {
       // Note: Using polynomial_ex here is not possible because the symbol is required to determine the polynomial
       auto expr1 = $3;
@@ -2133,20 +2147,6 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       }
 
       $$ = quo(std::move(expr1), std::move(expr2), std::move(sym));
-      must_autoformat = true;
-    }
-    | REM '(' ex ',' ex ')' {
-      auto expr1 = $3;
-      auto expr2 = $5;
-      if (!is_a<numeric>(expr1)) {
-        error(@3, "Expression must be a numeric");
-        YYERROR;
-      }
-      if (!is_a<numeric>(expr2)) {
-        error(@5, "Expression must be a numeric");
-        YYERROR;
-      }
-      $$ = irem(ex_to<numeric>(std::move(expr1)), ex_to<numeric>(std::move(expr2)));
       must_autoformat = true;
     }
     | REM '(' ex ',' ex ',' symbol ')' {
@@ -2174,7 +2174,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       must_autoformat = true;
     }
     | SUMFROM lowerbound TO upperbound IMPMUL '{' ex '}' { // We can't prevent the IMPMUL appearing here
-      $$ = Functionmanager::create_hard("sum", exprseq{$2, $4, $7}).evalm();
+      $$ = Functionmanager::create_hard("sum", exprseq{$2, $4, $7});
     }
 /*    | PRODUCT FROM ex TO upperbound IMPMUL '{' ex '}' { // We can't prevent the IMPMUL appearing here
         $$ = product(*$3, *$5, *$8);
@@ -2205,41 +2205,96 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       else
         $$ = Functionmanager::create_hard("transpose", {std::move(expr)});
     }
-    | VSYMBOL '[' ex ']' {
-      auto sym = $1;
-      expression val = sym;
-      const extsymbol& s = ex_to<extsymbol>(sym);
+    | ex '[' ex ']' {
+      auto v = $1;
+      auto idx = $3;
 
-      try {
-        if (params.compiler->has_value(s)) {
-          val = params.compiler->get_value(s); // save some time
+      if (is_a<matrix>(v)) {
+        if (ex_to<matrix>(v).cols() == 1)
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999});
+        else
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), -999, std::move(idx)});
+      } else if (is_a<extsymbol>(v) && compiler->getsymprop(ex_to<extsymbol>(v).get_name()) == p_vector) {
+        // Try hard to replace a vector symbol with the corresponding vector defined somewhere in an equation
+        auto sym = ex_to<extsymbol>(v);
+        if (!params.compiler->has_value(sym))
+          try {
+            // Fill the list of assignments. We don't use the value found because it may have substituted values in it
+            params.compiler->find_value_of(sym, {}, false);
+          } catch (std::exception&) {};
+
+        expression val = params.compiler->get_assignment(sym); // Returns _ex0 if no assignment exists
+
+        if (is_a<matrix>(val)) {
+          if (ex_to<matrix>(val).cols() == 1)
+            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), idx, -999});
+          else
+            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), -999, idx});
+
+          if (is_a<func>($$) && ex_to<func>($$).get_name() == "mindex")
+            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // mindex() changed nothing, keep original value
+        } else if (is_a<mul>(val)) {
+          auto [scalar, vec] = split_scalar_and_matrix(val, true);
+
+          if (scalar == _ex1)
+            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // Keep original value
+          else
+            $$ = scalar * Functionmanager::create_hard("mindex", exprseq{vec, idx, -999}); // Apply mindex on vector and multiply result with scalar
         } else {
-          val = params.compiler->find_value_of(s, {}, false);
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // Keep original value
         }
-      } catch(std::exception &) { /* e.g. s does not have a value, ignore error */ }
-
-      auto expr = $3;
-      $$ = Functionmanager::create_hard("mindex", exprseq{val, expr, -999});
-      // TODO: This test will fail on vectors that contain functions as elements!
-      if (is_a<func>($$)) $$ = Functionmanager::create_hard("mindex", exprseq{std::move(sym), std::move(expr), -999}); // mindex::eval() changed nothing
+      } else {
+        MSG_WARN(1, "Vector index without vector: " << endline);
+        $$ = std::move(v) * std::move(idx);
+      }
     }
-    | MSYMBOL '[' ex ',' ex ']' {
-      auto sym = $1;
-      expression val = sym;
-      const extsymbol& s = ex_to<extsymbol>(sym);
+    | ex '[' ex ',' ex ']' {
+      auto m = $1;
+      auto row = $3;
+      auto col = $5;
+      if (is_a<stringex>(row) && ex_to<stringex>(row).get_string() == "*")
+        row = wild();
+      if (is_a<stringex>(col) && ex_to<stringex>(col).get_string() == "*")
+        col = wild();
 
-      try {
-        if (params.compiler->has_value(s)) {
-          val = params.compiler->get_value(s);
+      if (is_a<matrix>(m)) {
+        $$ = Functionmanager::create_hard("mindex", exprseq{std::move(m), std::move(row), std::move(col)});
+      } else if (is_a<extsymbol>(m) && compiler->getsymprop(ex_to<extsymbol>(m).get_name()) == p_matrix) {
+        // Try hard to replace a vector symbol with the corresponding vector defined somewhere in an equation
+        auto sym = ex_to<extsymbol>(m);
+        if (!params.compiler->has_value(sym))
+          try {
+            // Fill the list of assignments. We don't use the value found because it may have substituted values in it
+            params.compiler->find_value_of(sym, {}, false);
+          } catch (std::exception&) {};
+
+        expression val = params.compiler->get_assignment(sym);
+
+        if (is_a<matrix>(val)) {
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), row, col});
+          if (is_a<func>($$) && ex_to<func>($$).get_name() == "mindex")
+            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(m), std::move(row), std::move(col)}); // mindex() changed nothing, keep original value
+        } else if (is_a<mul>(val)) {
+          auto [scalar, matr] = split_scalar_and_matrix(val, false);
+
+          if (scalar == _ex1)
+            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(matr), std::move(row), std::move(col)}); // Keep original value
+          else
+            $$ = scalar * Functionmanager::create_hard("mindex", exprseq{m, std::move(row), std::move(col)}); // Apply mindex on vector and multiply result with scalar
         } else {
-          val = params.compiler->find_value_of(s, {}, false);
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(m), std::move(row), std::move(col)}); // Keep original value
         }
-      } catch(std::exception &e) { (void)e; /* ignore (no value found) */ }
-
-      auto expr1 = $3;
-      auto expr2 = $5;
-      $$ = Functionmanager::create_hard("mindex", exprseq{val, expr1, expr2});
-      if (is_a<func>($$)) $$ = Functionmanager::create_hard("mindex", exprseq{std::move(sym), std::move(expr1), std::move(expr2)}); // mindex::eval() changed nothing
+      } else {
+        MSG_WARN(1, "Matrix index without matrix: " << endline);
+        $$ = std::move(m) * std::move(row) * std::move(col);
+      }
+    }
+    // Treat [] separately because it is also used as vector/matrix index
+    | '[' ex ']' {
+      $$ = $2;
+    }
+    | LEFT '[' ex RIGHT ']' {
+      $$ = $3;
     }
     | ex '!' {
       $$ = Functionmanager::create_hard("fact", {$1});
@@ -2383,16 +2438,14 @@ left: %empty  { $$ = std::string(""); }
 right: %empty { $$ = std::string(""); }
       | RIGHT { $$ = $1; }
 ;
-%type <std::string> openbracket "'(', '{' or '['";
+%type <std::string> openbracket "'(' or '{'";
 openbracket:    '(' { $$ = std::string("("); }
               | '{' { $$ = std::string("{"); }
-              | '[' { $$ = std::string("["); }
               | BOPEN { $$ = $1; }
 ;
-%type <std::string> closebracket "')', '}' or ']'";
+%type <std::string> closebracket "')' or '}'";
 closebracket:   ')' { $$ = std::string(")"); }
               | '}' { $$ = std::string("}"); }
-              | ']' { $$ = std::string("]"); }
               | BCLOSE { $$ = $1; }
 ;
 %type <std::string> leftbracket "opening bracket";
@@ -2444,40 +2497,6 @@ vector:   VSYMBOL { $$ = $1; }
           matrix& m = dynallocate<matrix>(1, (unsigned int)vec.nops());
           for (unsigned i = 0; i < vec.nops(); i++) m(0, i) = vec.op(i);
           $$ = std::move(m);
-        }
-        | MSYMBOL '[' ex ',' '*' ']' {
-          auto sym = $1;
-          expression val = sym;
-          const extsymbol& s = ex_to<extsymbol>(sym);
-
-          try {
-            if (params.compiler->has_value(s)) {
-              val = params.compiler->get_value(s);
-            } else {
-              val = params.compiler->find_value_of(s, {}, false);
-            }
-          } catch(std::exception &) { /* ignore (no value found) */ }
-
-          auto expr = $3;
-          $$ = Functionmanager::create_hard("mindex", exprseq{val, expr, wild()});
-          if (is_a<func>($$)) $$ = Functionmanager::create_hard("mindex", exprseq{std::move(sym), std::move(expr), wild()}); // mindex::eval() changed nothing
-        }
-        | MSYMBOL '[' '*' ',' ex ']' {
-          auto sym = $1;
-          expression val = sym;
-          const extsymbol& s = ex_to<extsymbol>(sym);
-
-          try {
-            if (params.compiler->has_value(s)) {
-              val = params.compiler->get_value(s);
-            } else {
-              val = params.compiler->find_value_of(s, {}, false);
-            }
-          } catch(std::exception &e) { (void)e; } // ignore (no value found)
-
-          auto expr = $5;
-          $$ = Functionmanager::create_hard("mindex", exprseq{val, wild(), expr});
-          if (is_a<func>($$)) $$ = Functionmanager::create_hard("mindex", exprseq{std::move(sym), wild(), std::move(expr)}); // mindex::eval() changed nothing
         }
         | ex ':' ex {
           // Note: Writing colvec_ex ':' ex produces 25 shift/reduce conflicts

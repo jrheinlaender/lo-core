@@ -93,7 +93,7 @@ public:
   inline ex dissolve() const { return numer / denom; }
 
 protected:
-  ex derivative(const symbol & s) const override;
+  ex derivative(const symbol & s) const override; // TODO Will this cause problems with extsymbols that do not match the symbol?
 
   // Calculate the partial derivative of the exderivative with respect to the given variable
   ex pderivative(const ex& v) const;

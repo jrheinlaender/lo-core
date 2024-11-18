@@ -232,6 +232,7 @@ public:
   void exclude(const GiNaC::ex &what);
 
   /// Remove all elements of a certain type
+  inline void clear_adds() { adds = type; }
   inline void clear_diffs() { differentials = type; }
   inline void clear_derivatives() { derivatives = type; }
   inline void clear_integrals() { integrals = type; }

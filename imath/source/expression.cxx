@@ -276,7 +276,7 @@ expression expression::subs(const expression& e, unsigned options) const {
 
 expression expression::subs(const exmap &m, unsigned options) const {
   MSG_INFO(2, "Substituting exmap " << m << " in " << ex(*this) << endline);
-  ex result(ex::subs(m, options | subs_options::algebraic));
+  ex result(ex::subs(m, options | subs_options::algebraic).evalm());
   MSG_INFO(2, "First result: " << result << endline);
 
   if (result.return_type() == return_types::commutative) {
@@ -298,7 +298,7 @@ expression expression::subs(const exmap &m, unsigned options) const {
           ltemp.emplace(_ex_1 * i.first * wild(j), _ex_1 * i.second * wild(j));
         }
       }
-      j++;
+      ++j;
     }
     if (!ltemp.empty()) {
       MSG_INFO(3, "Substituting exmap " << ltemp << " in " << result << endline);
@@ -463,11 +463,11 @@ struct expand_sum : public map_function {
       for (size_t i = 0; i < fargs.nops(); ++i)
         fargs[i] = expand_s(fargs[i]);
 
-      MSG_INFO(0,  "Lower bound: " << fargs[0] << endline);
+      MSG_INFO(2,  "Lower bound: " << fargs[0] << endline);
       extsymbol var = ex_to<extsymbol>(ex_to<equation>(fargs[0]).lhs()); // const& warns about dangling reference
       expression lbound = ex_to<equation>(fargs[0]).rhs();
       expression hbound = fargs[1];
-      MSG_INFO(0,  "Summing up " << fargs[2] << " from " << var << " = " << lbound
+      MSG_INFO(2,  "Summing up " << fargs[2] << " from " << var << " = " << lbound
                         << " to " << hbound << endline);
       int l, h;
       if (!lbound.info(info_flags::integer) || !hbound.info(info_flags::integer)) return e.map(*this);
@@ -476,8 +476,8 @@ struct expand_sum : public map_function {
 
       expression result;
       while (l <= h) {
-        MSG_INFO(0,  "Summing up: current value: " << result << endline);
-        result = result + expression(fargs[2].subs(var == l));
+        MSG_INFO(2,  "Summing up: current value: " << result << endline);
+        result = (result + expression(fargs[2]).subs(var == l)).evalm();
         ++l;
       }
       return result;

@@ -142,6 +142,7 @@ public:
 
 protected:
   /// Calculate the (total) derivative of the function with respect to s
+    // TODO Will this cause trouble if the expression contains extsysmbols that don't match?
   ex derivative(const symbol & s) const override;
 
   /**

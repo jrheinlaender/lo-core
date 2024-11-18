@@ -15,6 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "imath/utils.hxx"
 #include <iomanip>
 #include <sstream>
 #include <cmath>
@@ -308,7 +309,7 @@ void print_smath_ops(const ex &e, const std::string &sym, const imathprint& c,
         c.s << "(";
         if (turn_around && check_has_negop(*i)) {
           // This is a hassle, but there is no other way to turn around an add
-          // Reason: -a * (r^4 - R^2) sometimes, but not always gives a * (R^4 - r^4)
+          // Reason: -a * (r^4 - R^4) sometimes, but not always gives a * (R^4 - r^4)
           std::ostringstream os;
           imathprint cc(os, c);
           cc.add_turn_around = turn_around;
@@ -592,7 +593,6 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level) {
 
 // Helper method to print an operand of a certain type
 void printOperand(const GiNaC::ex& posop, const GiNaC::ex& negop, const imathprint& c, size_t opnum) {
-    // Print functions
     if (!negop.is_equal(_ex1)) {
       c.enter_fraction();
       c.s << "{{alignc ";
@@ -753,17 +753,18 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
     //if (opnum != 0) checksplit(toplevel, opnum, c);
 
     // Extract some stuff that shouldn't go onto a big common fraction
-    ex posdiffs = numer.get_differentials();
-    ex negdiffs = denom.get_differentials();
-    ex posderiv = numer.get_derivatives();
-    ex negderiv = denom.get_derivatives();
-    ex posinteg = numer.get_integrals();
-    ex neginteg = denom.get_integrals();
-    ex posfuncs = numer.get_functions();
-    ex negfuncs = denom.get_functions();
-    ex posmatrs = numer.get_matrices();
-    ex negmatrs = numer.get_matrices();
-    bool has_diffs = (!(posdiffs.is_equal(_ex1) && negdiffs.is_equal(_ex1) && posderiv.is_equal(_ex1) && negderiv.is_equal(_ex1)));
+    expression posdiffs = numer.get_differentials();
+    expression negdiffs = denom.get_differentials();
+    expression posderiv = numer.get_derivatives();
+    expression negderiv = denom.get_derivatives();
+    expression posinteg = numer.get_integrals();
+    expression neginteg = denom.get_integrals();
+    expression posfuncs = numer.get_functions();
+    expression negfuncs = denom.get_functions();
+    expression posmatrs = numer.get_matrices();
+    expression negmatrs = denom.get_matrices();
+    expression posadds  = numer.get_adds();
+    expression negadds  = denom.get_adds();
     numer.clear_diffs();
     numer.clear_derivatives();
     numer.clear_integrals();
@@ -775,6 +776,26 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
     denom.clear_functions();
     denom.clear_matrices();
 
+    // Check for a complex add on top of the fraction that itself contains fractions
+    exset powers;
+    bool add_has_fraction = false;
+    if (posadds.find(pow(wild(0), wild(1)), powers)) {
+        for (const auto& p : powers) {
+            if (is_negpower(p)) {
+                add_has_fraction = true;
+                break;
+            }
+        }
+    }
+    if (!negadds.is_equal(_ex1) || add_has_fraction) {
+        // Print complex adds outside of the big common fraction
+        numer.clear_adds();
+        denom.clear_adds();
+    } else {
+       posadds = _ex1;
+       negadds = _ex1;
+    }
+
     // Print everything that goes onto the big fraction
     c.enter_fraction();
     c.s << "{{alignc ";
@@ -784,9 +805,28 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
     c.s << "}}";
     c.exit_fraction();
 
+    // Print adds. printOperand() does not work for arguments consisting of a single add
+    if (is_a<add>(posadds) || is_a<add>(negadds)) {
+        if (!negadds.is_equal(_ex1)) {
+            c.enter_fraction();
+            c.s << "{{alignc ";
+            posadds.print(c);
+            c.s << "} over {alignc ";
+            negadds.print(c);
+            c.s << "}}";
+            c.exit_fraction();
+        } else {
+            c.s << "(";
+            posadds.print(c);
+            c.s << ")";
+        }
+    } else
+        printOperand(posadds, negadds, c, opnum);
+
     // Print things that should go after the big fraction
     printOperand(posfuncs, negfuncs, c, opnum);
     printOperand(posinteg, neginteg, c, opnum);
+    printOperand(posmatrs, negmatrs, c, opnum);
 
     // Print derivatives
     // Move partial derivatives to the front

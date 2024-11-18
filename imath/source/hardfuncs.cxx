@@ -52,7 +52,7 @@ namespace GiNaC {
 
 static ex round_eval(const ex &e, const ex &n) {
   if (!is_a<numeric>(expression(e).evalf()))
-    return Functionmanager::create_hard("round", exprseq{e, n});
+    return Functionmanager::create_hard("round", exprseq{e, n}, false);
   numeric num = ex_to<numeric>(expression(e).evalf());
   if (!num.info(info_flags::real))
     throw std::runtime_error("Can only round real numbers");
@@ -84,7 +84,7 @@ REGISTER_FUNCTION(round, eval_func(round_eval));
 
 static ex floor_eval(const ex &e, const ex &n) {
   if (!is_a<numeric>(expression(e).evalf()))
-    return Functionmanager::create_hard("floor", exprseq{e, n});
+    return Functionmanager::create_hard("floor", exprseq{e, n}, false);
   numeric num = ex_to<numeric>(expression(e).evalf());
   if (!num.info(info_flags::real))
     throw std::runtime_error("Can only floor real numbers");
@@ -115,7 +115,7 @@ REGISTER_FUNCTION(floor, eval_func(floor_eval));
 
 static ex ceil_eval(const ex &e, const ex &n) {
   if (!is_a<numeric>(expression(e).evalf()))
-    return Functionmanager::create_hard("ceil", exprseq{e, n});
+    return Functionmanager::create_hard("ceil", exprseq{e, n}, false);
   numeric num = ex_to<numeric>(expression(e).evalf());
   if (!num.info(info_flags::real))
     throw std::runtime_error("Can only ceil real numbers");
@@ -154,7 +154,7 @@ static ex sum_eval(const ex &lower, const ex &higher, const ex &e) {
   if (lower.is_equal(higher)) return e;
   // TODO: check if higher < lower
   if (e.is_zero()) return _ex0;
-  return Functionmanager::create_hard("sum", exprseq{lower, higher, e});
+  return Functionmanager::create_hard("sum", exprseq{lower, higher, e}, false);
 }
 
 static void sum_print_imath(const ex &lower, const ex &higher, const ex &e, const print_context& c) {
@@ -177,7 +177,7 @@ REGISTER_FUNCTION(sum, eval_func(sum_eval).
 static ex mindex_eval(const ex &e, const ex &r, const ex &c) {
   // Immediately evaluate if e is a matrix and r and c are integers
   MSG_INFO(3, "mindex eval: " << e << ", " << r << ", " << c << endline);
-  ex unchanged = Functionmanager::create_hard("mindex", exprseq{e, r, c});
+  ex unchanged = Functionmanager::create_hard("mindex", exprseq{e, r, c}, false);
 
   if (is_a<matrix>(e)) {
     const matrix& m = ex_to<matrix>(e);
@@ -203,7 +203,7 @@ static ex mindex_eval(const ex &e, const ex &r, const ex &c) {
       return unchanged;
     }
 
-    MSG_INFO(2, "mindex row: " << row << ", rows(): " << m.rows() << endline);
+    MSG_INFO(3, "mindex row: " << row << ", rows(): " << m.rows() << endline);
 
     if (is_a<numeric>(c)) {
       const numeric& cnum = ex_to<numeric>(c);
@@ -224,7 +224,7 @@ static ex mindex_eval(const ex &e, const ex &r, const ex &c) {
       return unchanged;
     }
 
-    MSG_INFO(2, "mindex col: " << col << ", cols(): " << m.cols() << endline);
+    MSG_INFO(3, "mindex col: " << col << ", cols(): " << m.cols() << endline);
 
     // Handle special case of vector index where row and column are not distinguished
     if (col == -1000) {
@@ -301,7 +301,7 @@ static ex hadamard_eval(const ex &e1, const ex &e2, const ex& op) {
 
   // Immediately evaluate if both expressions are matrices with matching dimensions
   MSG_INFO(1, "hadamard eval: " << e1 << (h_op == h_product ? "*" : (h_op == h_division ? "/" : "^")) << e2 << endline);
-  ex unchanged = Functionmanager::create_hard("hadamard", exprseq{e1, e2, op});
+  ex unchanged = Functionmanager::create_hard("hadamard", exprseq{e1, e2, op}, false);
 
   ex e1_e = e1.evalm();
   ex e2_e = e2.evalm();
@@ -366,7 +366,7 @@ static ex transpose_eval(const ex &e) {
   if (is_a<matrix>(e)) {
     return ex_to<matrix>(e).transpose();
   } else {
-    return Functionmanager::create_hard("transpose", exprseq{e});
+    return Functionmanager::create_hard("transpose", exprseq{e}, false);
   }
 }
 
@@ -409,7 +409,7 @@ static ex vecprod_eval(const ex& e1, const ex& e2) {
 
     return result;
   } else {
-    return Functionmanager::create_hard("vecprod", exprseq{e1, e2});
+    return Functionmanager::create_hard("vecprod", exprseq{e1, e2}, false);
   }
 }
 
@@ -425,7 +425,7 @@ REGISTER_FUNCTION(vecprod, eval_func(vecprod_eval).
 static ex scalprod_eval(const ex& e1, const ex& e2) {
   // Immediately evaluate if e is a matrix
   MSG_INFO(3, "scalprod: " << e1 << ", " << e2 << endline);
-  ex unchanged = Functionmanager::create_hard("scalprod", exprseq{e1, e2});
+  ex unchanged = Functionmanager::create_hard("scalprod", exprseq{e1, e2}, false);
 
   if (is_a<matrix>(e1) && is_a<matrix>(e2)) {
     const matrix& v1 = ex_to<matrix>(e1);
@@ -514,7 +514,7 @@ static ex ifelse_eval(const ex& condition, const ex& e1, const ex& e2) {
   ex e_condition = condition.eval();
   int result = eval_condition(e_condition);
   if (result == -1)
-    return Functionmanager::create_hard("ifelse", exprseq{e_condition, e1.eval(), e2.eval()});
+    return Functionmanager::create_hard("ifelse", exprseq{e_condition, e1.eval(), e2.eval()}, false);
 
   return result ? e1.eval() : e2.eval();
 }
@@ -526,7 +526,7 @@ static ex ifelse_evalf(const ex& condition, const ex& e1, const ex& e2) {
   ex e_condition = condition.evalf();
   int result = eval_condition(e_condition);
   if (result == -1)
-    return Functionmanager::create_hard("ifelse", exprseq{e_condition, e1.evalf(), e2.evalf()});
+    return Functionmanager::create_hard("ifelse", exprseq{e_condition, e1.evalf(), e2.evalf()}, false);
 
   return result ? e1.evalf() : e2.evalf();
 }
@@ -536,7 +536,7 @@ REGISTER_FUNCTION(ifelse, eval_func(ifelse_eval).evalf_func(ifelse_evalf));
 static ex vmax_eval(const ex& v) {
   // Immediately evaluate if vector contains a smallest member
   MSG_INFO(3, "vmax: "  << v << endline);
-  ex unchanged = Functionmanager::create_hard("vmax", exprseq{v});
+  ex unchanged = Functionmanager::create_hard("vmax", exprseq{v}, false);
   if (is_a<matrix>(v)) {
     const matrix& m = ex_to<matrix>(v);
 
@@ -584,7 +584,7 @@ REGISTER_FUNCTION(vmax, eval_func(vmax_eval).
 static ex vmin_eval(const ex& v) {
   // Immediately evaluate if vector contains a smallest member (works only for numerics)
   MSG_INFO(1, "vmin: "  << v << endline);
-  ex unchanged = Functionmanager::create_hard("vmin", exprseq{v});
+  ex unchanged = Functionmanager::create_hard("vmin", exprseq{v}, false);
 
   if (is_a<matrix>(v)) {
     const matrix& m = ex_to<matrix>(v);
@@ -633,7 +633,7 @@ REGISTER_FUNCTION(vmin, eval_func(vmin_eval).
 static ex concat_eval(const ex& v1, const ex& v2) {
   // Immediately evaluate if expressions are matrices or lists
   MSG_INFO(3, "concat: "  << v1 << ", " << v2 << endline);
-  ex unchanged = Functionmanager::create_hard("concat", exprseq{v1, v2});
+  ex unchanged = Functionmanager::create_hard("concat", exprseq{v1, v2}, false);
 
   if (is_a<matrix>(v1)) {
     const matrix& m1 = ex_to<matrix>(v1);
@@ -683,6 +683,44 @@ static ex concat_eval(const ex& v1, const ex& v2) {
 
 REGISTER_FUNCTION(concat, eval_func(concat_eval));
 
+static ex irem_eval(const ex& a, const ex& b) {
+    // Immediately evaluate if arguments are numeric
+    if (is_a<numeric>(a) && is_a<numeric>(b))
+        return irem(ex_to<numeric>(a), ex_to<numeric>(b));
+
+    return Functionmanager::create_hard("irem", exprseq{a, b}, false);
+}
+
+static void irem_print_imath(const ex& a, const ex& b, const print_context& c) {
+  c.s << "func irem( ";
+  a.print(c);
+  c.s << ", ";
+  b.print(c);
+  c.s << ")";
+}
+
+REGISTER_FUNCTION(irem, eval_func(irem_eval).
+                        print_func<imathprint>(irem_print_imath));
+
+static ex iquo_eval(const ex& a, const ex& b) {
+    // Immediately evaluate if arguments are numeric
+    if (is_a<numeric>(a) && is_a<numeric>(b))
+        return iquo(ex_to<numeric>(a), ex_to<numeric>(b));
+
+    return Functionmanager::create_hard("iquo", exprseq{a, b}, false);
+}
+
+static void iquo_print_imath(const ex& a, const ex& b, const print_context& c) {
+  c.s << "func iquo( ";
+  a.print(c);
+  c.s << ", ";
+  b.print(c);
+  c.s << ")";
+}
+
+REGISTER_FUNCTION(iquo, eval_func(iquo_eval).
+                        print_func<imathprint>(iquo_print_imath));
+
 static ex diagmatrix_eval(const ex &e) {
   // Immediately evaluate if e is a list or a vector
   MSG_INFO(3, "diag: " << e << endline);
@@ -693,7 +731,7 @@ static ex diagmatrix_eval(const ex &e) {
       return diag_matrix(make_lst_from_matrix(ex_to<matrix>(e), true));
   }
 
-  return Functionmanager::create_hard("diag", exprseq{e});
+  return Functionmanager::create_hard("diag", exprseq{e}, false);
 }
 
 static void diagmatrix_print_imath(const ex &e, const print_context& c) {
@@ -716,7 +754,7 @@ static ex identmatrix_eval(const ex &r, const ex &c) {
       return unit_matrix(rows.to_int(), cols.to_int());
   }
 
-  return Functionmanager::create_hard("ident", exprseq{r,c});
+  return Functionmanager::create_hard("ident", exprseq{r,c}, false);
 }
 
 static void identmatrix_print_imath(const ex &r, const ex& col, const print_context& c) {
@@ -746,7 +784,7 @@ static ex onesmatrix_eval(const ex &r, const ex &c) {
     }
   }
 
-  return Functionmanager::create_hard("ones", exprseq{r,c});
+  return Functionmanager::create_hard("ones", exprseq{r,c}, false);
 }
 
 static void onesmatrix_print_imath(const ex &r, const ex& col, const print_context& c) {
@@ -774,7 +812,7 @@ static ex submatrix_eval(const ex &e, const ex &r, const ex &nr, const ex& c, co
       return sub_matrix(m, row.to_int() - 1, nrows.to_int(), col.to_int() - 1, ncols.to_int());
   }
 
-  return Functionmanager::create_hard("submatrix", exprseq{e,r,nr,c,nc});
+  return Functionmanager::create_hard("submatrix", exprseq{e,r,nr,c,nc}, false);
 }
 
 REGISTER_FUNCTION(submatrix, eval_func(submatrix_eval));
@@ -791,7 +829,7 @@ static ex reducematrix_eval(const ex &e, const ex &r, const ex& c) {
       return reduced_matrix(m, rows.to_int() - 1, cols.to_int() - 1);
   }
 
-  return Functionmanager::create_hard("reducematrix", exprseq{e,r,c});
+  return Functionmanager::create_hard("reducematrix", exprseq{e,r,c}, false);
 }
 
 REGISTER_FUNCTION(reducematrix, eval_func(reducematrix_eval));
@@ -803,7 +841,7 @@ static ex determinant_eval(const ex &e) {
   if (is_a<matrix>(e))
     return ex_to<matrix>(e).determinant();
 
-  return Functionmanager::create_hard("det", exprseq{e});
+  return Functionmanager::create_hard("det", exprseq{e}, false);
 }
 
 static void determinant_print_imath(const ex &e, const print_context& c) {
@@ -822,7 +860,7 @@ static ex trace_eval(const ex &e) {
   if (is_a<matrix>(e))
     return ex_to<matrix>(e).trace();
 
-  return Functionmanager::create_hard("tr", exprseq{e});
+  return Functionmanager::create_hard("tr", exprseq{e}, false);
 }
 
 static void trace_print_imath(const ex &e, const print_context& c) {
@@ -841,7 +879,7 @@ static ex charpoly_eval(const ex &e, const ex& var) {
   if (is_a<matrix>(e))
     return ex_to<matrix>(e).charpoly(var);
 
-  return Functionmanager::create_hard("charpoly", exprseq{e, var});
+  return Functionmanager::create_hard("charpoly", exprseq{e, var}, false);
 }
 
 static void charpoly_print_imath(const ex &e, const ex& var, const print_context& c) {
@@ -862,7 +900,7 @@ static ex rank_eval(const ex &e) {
   if (is_a<matrix>(e))
     return ex_to<matrix>(e).rank();
 
-  return Functionmanager::create_hard("rank", exprseq{e});
+  return Functionmanager::create_hard("rank", exprseq{e}, false);
 }
 
 REGISTER_FUNCTION(rank, eval_func(rank_eval));
@@ -880,7 +918,7 @@ static ex solvematrix_eval(const ex &e, const ex& vars, const ex& rhs) {
       return m.solve(v, r);
   }
 
-  return Functionmanager::create_hard("solvematrix", exprseq{e,vars,rhs});
+  return Functionmanager::create_hard("solvematrix", exprseq{e,vars,rhs}, false);
 }
 
 REGISTER_FUNCTION(solvematrix, eval_func(solvematrix_eval));
@@ -892,7 +930,7 @@ static ex invertmatrix_eval(const ex &e) {
   if (is_a<matrix>(e))
     return ex_to<matrix>(e).inverse();
 
-  return Functionmanager::create_hard("invertmatrix", exprseq{e});
+  return Functionmanager::create_hard("invertmatrix", exprseq{e}, false);
 }
 
 static void invertmatrix_print_imath(const ex &e, const print_context& c) {
@@ -911,7 +949,7 @@ static ex matrixrows_eval(const ex &e) {
   if (is_a<matrix>(e))
     return ex_to<matrix>(e).rows();
 
-  return Functionmanager::create_hard("matrixrows", exprseq{e});
+  return Functionmanager::create_hard("matrixrows", exprseq{e}, false);
 }
 
 static void matrixrows_print_imath(const ex &e, const print_context& c) {
@@ -930,7 +968,7 @@ static ex matrixcols_eval(const ex &e) {
   if (is_a<matrix>(e))
     return ex_to<matrix>(e).cols();
 
-  return Functionmanager::create_hard("matrixcols", exprseq{e});
+  return Functionmanager::create_hard("matrixcols", exprseq{e}, false);
 }
 
 static void matrixcols_print_imath(const ex &e, const print_context& c) {

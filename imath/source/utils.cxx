@@ -23,6 +23,7 @@
 #endif
 #include <ginac/mul.h>
 #include <ginac/operators.h>
+#include <ginac/idx.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -43,7 +44,6 @@
 #include "unit.hxx"
 #include "differential.hxx"
 #endif
-#include "operands.hxx"
 #include "exderivative.hxx"
 
 using namespace GiNaC;
@@ -329,6 +329,27 @@ bool is_unit(const expression& e)
     return false;
 }
 
+class check_scalar_visitor : public visitor,
+                             public matrix::visitor,
+                             public idx::visitor,
+                             public varidx::visitor
+{
+    bool result = true;
+    void visit(const matrix& m) { result = false; }
+    void visit(const idx& m) { result = false; }
+    void visit(const varidx& m) { result = false; }
+
+public:
+    bool get_result() { return result; }
+};
+
+bool is_scalar(const expression& e)
+{
+    check_scalar_visitor v;
+    e.traverse(v);
+    return v.get_result();
+}
+
 lst make_lst_from_matrix(const expression& e, const bool force)
 {
     lst result;
@@ -398,441 +419,617 @@ lst make_lst_from_matrix(const expression& e, const bool force)
                 }
             }
 
-            for (unsigned i = 0; i < m.cols(); i++)
-                result.append(m(0, i));
-            MSG_INFO(1, "Create lst from matrix " << m << ", result: " << result << endline);
-        }
-        else if (is_a<lst>(e))
-        {
-            result = ex_to<lst>(e);
-        }
-        else
-        {
-            result.append(e);
-        }
-        return result;
-    }
-
-    exvector make_exvector(const expression& e)
-    {
-        if (is_a<lst>(e))
-        {
-            const lst& l = ex_to<lst>(e);
-            return exvector(l.begin(), l.end());
-        }
-        else
-        {
-            return exvector({ e });
-        }
-    } // make_exvector()
-
-    matrix make_matrix(const expression& e)
-    {
-        if (is_a<matrix>(e))
-        {
-            return ex_to<matrix>(e);
-        }
-        else if (is_a<lst>(e))
-        {
-            return matrix(1, (unsigned)ex_to<lst>(e).nops(), ex_to<lst>(e));
-        }
-        else
-        {
-            lst elements;
-            elements.append(e);
-            return matrix(1, (unsigned)elements.nops(), elements);
-        }
-    } // make_matrix()
-
-    unsigned numeric_to_uint(const numeric& n) { return std::round(n.to_double()); }
-
-    int numeric_to_int(const numeric& n) { return std::round(n.to_double()); }
-
-    // Helper function to convert to units that are numerics
-    struct convert_to_unit : public map_function
-    {
-        ex operator()(const ex& e)
-        {
-            MSG_INFO(3, "Converting units to " << conversion << " in " << e << endline);
-
-            if (is_a<numeric>(e))
-            {
-                return expression(e) / conversion;
-            }
-
-            return e.map(*this);
-        }
-        expression conversion;
-        convert_to_unit(const relational& c)
-        {
-            conversion = expression(c.lhs()).evalf() / expression(c.rhs());
-        }
-    };
-
-    expression subst_units(const expression& e, const unitvec& unitlist)
-    {
-        MSG_INFO(1, "Substituting units in " << e << endline);
-        expression result = e;
-
-        // Note that we can NOT substitute all units at once because there might be inter-dependencies
-        // between the preferred units (e.g., \mm and N/mm^2)
-        // Ginac documentation says all substitutions are done in parallel, but it doesn't work
-        for (const auto& i : unitlist)
-        {
-            MSG_INFO(2, "Substituting unit " << i << endline);
-
-            if (is_a<constant>(i.lhs()) && e.has(ex_to<constant>(i.lhs())))
-            {
-                // handles Pi = 180\degree
-                result = result.subs(i);
-            }
-            else if (is_a<numeric>(expression(i.lhs()).evalf()))
-            { // handles evalf()'ed cases for Pi = 180\degree
-                convert_to_unit c_to_unit(i);
-
-                if (is_a<equation>(e))
-                {
-                    const equation& eq = ex_to<equation>(e);
-                    result = equation(c_to_unit(eq.lhs()), c_to_unit(eq.rhs()), eq.getop(),
-                                      eq.getmod());
-                }
-                else
-                {
-                    result = c_to_unit(result);
-                }
-            }
-            else
-            {
-                result = result.subs(i);
-            }
-            MSG_INFO(2, "Current result: " << result << endline);
+            return false;
         }
 
-        return result;
-    }
-
-    // Map functions ================
-
-    // Helper function for expand_real_powers
-    // Reduce double powers in units. This can be done safely since a unit is
-    // always positive (otherwise sqrt(x^2) could be +x or -x)
-    power check_double_power(const ex& e, const ex& exp)
-    {
-        if (is_a<power>(e) && is_a<Unit>(get_basis(ex_to<power>(e))))
-            return power(get_basis(ex_to<power>(e)), get_exp(ex_to<power>(e)) * exp);
-        else
-            return power(e, exp);
-    } // check_double_power()
-
-    ex expand_real_powers::operator()(const ex& e)
-    {
-        MSG_INFO(3, "Special expanding powers in " << e << endline);
-
-        if (is_a<power>(e))
+        bool is_unit(const expression& e)
         {
-            expand_real_powers expand_power;
-            ex the_basis = expand_power(get_basis(ex_to<power>(e)));
-            ex the_exp = expand_power(get_exp(ex_to<power>(e)));
+            MSG_INFO(0, "Checking if " << e << " is an (extended) unit" << endline);
+            if (e.is_equal(_expr1) || e.is_equal(_exprPi))
+                return true; // Exception for radians etc.
 
-            if (is_a<mul>(the_basis) && !the_exp.info(info_flags::integer))
-            {
-                expression result(_expr1);
-                for (const auto& i : the_basis)
-                {
-                    result = result * check_double_power(i, the_exp);
-                }
-                return result;
-            }
-            else if (is_a<power>(the_basis))
-            {
-                return check_double_power(the_basis, the_exp);
-            }
-
-            return e.map(*this);
-        } // expand_real_powers::operator()
-
-        ex reduce_double_powers::operator()(const ex& e)
-        {
-            MSG_INFO(2, "Reducing double powers in " << e << endline);
+            if (is_a<Unit>(e))
+                return true;
 
             if (is_a<power>(e))
-            {
-                reduce_double_powers reduce_powers;
-                ex the_basis = reduce_powers(get_basis(ex_to<power>(e)));
-                ex the_exp = reduce_powers(get_exp(ex_to<power>(e)));
-                if (is_a<power>(the_basis))
-                {
-                    const power& ebasis = ex_to<power>(the_basis);
-                    return dynallocate<power>(get_basis(ebasis), get_exp(ebasis) * the_exp);
-                }
-                else
-                {
-                    return dynallocate<power>(the_basis, the_exp);
-                }
-            }
-            else if (is_a<mul>(e))
-            {
-                ex result(_ex1);
-                exhashmap<ex> powers;
-
-                for (const auto& i : e)
-                {
-                    reduce_double_powers reduce_powers;
-                    ex the_e = reduce_powers(i);
-
-                    if (is_a<power>(the_e))
-                    {
-                        ex the_basis = get_basis(ex_to<power>(the_e));
-                        ex the_exp = get_exp(ex_to<power>(the_e));
-
-                        if (powers.find(the_basis) != powers.end())
-                            powers[the_basis] = powers[the_basis] + the_exp;
-                        else
-                            powers[the_basis] = the_exp;
-                    }
-                    else
-                    {
-                        result *= the_e;
-                    }
-                }
-
-                for (const auto& p : powers)
-                    result *= power(p.first, p.second);
-
-                return result;
-            }
-            return e.map(*this);
-        } // reduce_double_powers::operator()
-
-        ex gather_sqrt::operator()(const ex& e)
-        {
-            MSG_INFO(2, "Gathering square roots in " << e << endline);
+                return (is_a<Unit>(get_basis(ex_to<power>(e)))
+                        && get_exp(ex_to<power>(e)).info(info_flags::real));
 
             if (is_a<mul>(e))
             {
-                ex sqrts(_ex1);
-                ex non_sqrt(_ex1);
-                gather_sqrt gather_sqrts;
+                for (const auto& ee : e)
+                    if (!is_unit(ee) && !is_a<numeric>(ee))
+                        return false;
+                return true;
+            }
 
-                for (const auto& i : e)
+            return false;
+        }
+
+        lst make_lst_from_matrix(const expression& e, const bool force)
+        {
+            lst result;
+            if (is_a<matrix>(e))
+            {
+                matrix m = ex_to<matrix>(e);
+                if (m.rows() > 1)
                 {
-                    if (is_a<power>(i) && get_exp(ex_to<power>(i)).is_equal(_ex1_2))
+                    if (force)
                     {
-                        ex the_basis = gather_sqrts(get_basis(ex_to<power>(i)));
-                        sqrts *= the_basis;
-                    }
-                    else if (is_a<power>(i) && get_exp(ex_to<power>(i)).is_equal(_ex_1_2))
-                    {
-                        ex the_basis = gather_sqrts(get_basis(ex_to<power>(i)));
-                        sqrts *= dynallocate<power>(the_basis, _ex_1);
+                        m = m.transpose();
                     }
                     else
                     {
-                        non_sqrt *= gather_sqrts(i);
+                        result.append(m);
+                        MSG_INFO(1,
+                                 "Create lst from matrix: argument is multi-row matrix, unchanged"
+                                     << endline);
+                        return result;
                     }
                 }
 
-                return sqrt(sqrts) * non_sqrt;
+                for (unsigned i = 0; i < m.cols(); i++)
+                    result.append(m(0, i));
+                MSG_INFO(1, "Create lst from matrix " << m << ", result: " << result << endline);
             }
-
-            return e.map(*this);
-        } // gather_sqrt::operator()
-
-        ex evalf_real_roots::operator()(const ex& e)
-        {
-            MSG_INFO(2, "Numerically evaluating nth roots to real values where possible "
-                            << e << endline);
-
-            if (is_a<power>(e))
+            else if (is_a<lst>(e))
             {
-                evalf_real_roots eval_roots;
-                ex the_basis = eval_roots(get_basis(ex_to<power>(e)));
-                ex the_exp = eval_roots(get_exp(ex_to<power>(e)));
-
-                if (the_exp.info(info_flags::rational))
-                {
-                    // Condition 1: exponent is rational
-                    const numeric& n_exp = ex_to<numeric>(the_exp);
-                    int denom = n_exp.denom().to_int();
-
-                    if ((denom > 1) && (denom % 2 == 1))
-                    {
-                        // Condition 2: denominator of exponent is odd
-                        ex e_basis = the_basis.evalf();
-                        if (e_basis.info(info_flags::negative))
-                        {
-                            // Condition 3: basis is negative and real
-                            int numer = n_exp.numer().to_int();
-                            if (numer % 2 == 0)
-                                return dynallocate<power>(-the_basis, the_exp); // numerator is even
-                            else
-                                return _ex_1 * power(-the_basis, the_exp); // numerator is odd
-                        }
-                    }
-                }
-
-                return dynallocate<power>(the_basis, the_exp);
+                result = ex_to<lst>(e);
             }
-
-            return e.map(*this);
+            else
+            {
+                result.append(e);
+            }
+            return result;
         }
 
-        /// Structure for storing a complete differential, e.g. d²f / (dx dy)
-        struct diff_fraction
+        exvector make_exvector(const expression& e)
         {
-            differential numer;
-            ex remaining_grade; // Unmatched remaining grade of the numerator
-            ex diffpower; // Power of the differential, e.g. (d²f)³ has grade 2 and power 3
-            ex denom;
-            diff_fraction();
-#ifdef DEBUG_CONSTR_DESTR
-            diff_fraction(const diff_fraction& other);
-            diff_fraction& operator=(const diff_fraction& other);
-            ~diff_fraction();
-#endif
-            void print_imath(const imathprint& c) const;
-            ex differentiate() const;
+            if (is_a<lst>(e))
+            {
+                const lst& l = ex_to<lst>(e);
+                return exvector(l.begin(), l.end());
+            }
+            else
+            {
+                return exvector({ e });
+            }
+        } // make_exvector()
+
+        matrix make_matrix(const expression& e)
+        {
+            if (is_a<matrix>(e))
+            {
+                return ex_to<matrix>(e);
+            }
+            else if (is_a<lst>(e))
+            {
+                return matrix(1, (unsigned)ex_to<lst>(e).nops(), ex_to<lst>(e));
+            }
+            else
+            {
+                lst elements;
+                elements.append(e);
+                return matrix(1, (unsigned)elements.nops(), elements);
+            }
+        } // make_matrix()
+
+        unsigned numeric_to_uint(const numeric& n) { return std::round(n.to_double()); }
+
+        int numeric_to_int(const numeric& n) { return std::round(n.to_double()); }
+
+        // Helper function to convert to units that are numerics
+        struct convert_to_unit : public map_function
+        {
+            ex operator()(const ex& e)
+            {
+                MSG_INFO(3, "Converting units to " << conversion << " in " << e << endline);
+
+                if (is_a<numeric>(e))
+                {
+                    return expression(e) / conversion;
+                }
+
+                return e.map(*this);
+            }
+            expression conversion;
+            convert_to_unit(const relational& c)
+            {
+                conversion = expression(c.lhs()).evalf() / expression(c.rhs());
+            }
         };
 
-        typedef std::list<diff_fraction> sorted_differentials;
-
-        diff_fraction::diff_fraction()
-            : remaining_grade(_ex0)
-            , diffpower(_ex1)
-            , denom(_ex1)
+        expression subst_units(const expression& e, const unitvec& unitlist)
         {
-            MSG_INFO(3, "Constructing empty diff_fraction" << endline);
-        }
+            MSG_INFO(1, "Substituting units in " << e << endline);
+            expression result = e;
 
-#ifdef DEBUG_CONSTR_DESTR
-        diff_fraction::diff_fraction(const diff_fraction& other)
-            : numer(other.numer)
-            , remaining_grade(other.remaining_grade)
-            , diffpower(other.diffpower)
-            , denom(other.denom)
-        {
-            MSG_INFO(3,
-                     "Copying diff_fraction from " << other.numer << "/" << other.denom << endline);
-        }
-        diff_fraction& diff_fraction::operator=(const diff_fraction& other)
-        {
-            MSG_INFO(3, "Assigning diff_fraction from " << other.numer << "/" << other.denom
-                                                        << endline);
-            numer = other.numer;
-            remaining_grade = other.remaining_grade;
-            diffpower = other.diffpower;
-            denom = other.denom;
-            return *this;
-        }
-        diff_fraction::~diff_fraction() { MSG_INFO(3, "Destructing diff_fraction" << endline); }
-#endif
-
-        // Try to match diff in the denominator to one of the entries in the list in the numerator
-        // The denominator always has grade 1, higher grades have been multiplied into dpower
-        ex match_differential(sorted_differentials & dlist, const differential& d, const ex& dpower,
-                              const bool matchparents)
-        {
-            MSG_INFO(2, "Trying to match numerators with denominator "
-                            << pow(d, dpower) << " by " << (matchparents ? "parent" : "diffvar")
-                            << endline);
-
-            if (matchparents && d.get_parent().is_equal(_ex0))
-                return dynallocate<power>(d, dpower); // No parent is known
-
-            ex diffvar = d.argument();
-            //if (!is_a<symbol>(diffvar) && !is_a<func>(diffvar)) return d; // Can't match this properly
-            ex restpower = dpower;
-
-            // Match the denominator with numerators, until no more powers of the denominator are left
-            // Preference is given to a match of the powers, e.g. (d²f)³ matches dx³ leaving one remaining grade of (d²f)³
-            for (auto& l : dlist)
+            // Note that we can NOT substitute all units at once because there might be inter-dependencies
+            // between the preferred units (e.g., \mm and N/mm^2)
+            // Ginac documentation says all substitutions are done in parallel, but it doesn't work
+            for (const auto& i : unitlist)
             {
-                MSG_INFO(2, "Testing numerator " << pow(l.numer, l.diffpower)
-                                                 << " with remaining grade " << l.remaining_grade
-                                                 << endline);
-                if (l.numer.is_partial() != d.is_partial())
-                    continue; // Type doesn't match
-                if (l.remaining_grade.is_zero())
-                    continue; // Nothing left to match in this numerator
+                MSG_INFO(2, "Substituting unit " << i << endline);
 
-                ex diffarg = l.numer.argument();
-                bool match;
-                if (matchparents)
+                if (is_a<constant>(i.lhs()) && e.has(ex_to<constant>(i.lhs())))
                 {
-                    match = diffarg.is_equal(d.get_parent());
-                    MSG_INFO(2, "Parent of denominator matches numerator: "
-                                    << (match ? "true" : "false") << endline);
+                    // handles Pi = 180\degree
+                    result = result.subs(i);
+                }
+                else if (is_a<numeric>(expression(i.lhs()).evalf()))
+                { // handles evalf()'ed cases for Pi = 180\degree
+                    convert_to_unit c_to_unit(i);
+
+                    if (is_a<equation>(e))
+                    {
+                        const equation& eq = ex_to<equation>(e);
+                        result = equation(c_to_unit(eq.lhs()), c_to_unit(eq.rhs()), eq.getop(),
+                                          eq.getmod());
+                    }
+                    else
+                    {
+                        result = c_to_unit(result);
+                    }
                 }
                 else
                 {
-                    // TODO: We should give preference to diffargs which contain the diffvar directly, that is
-                    //  g(x,y) -> matches dx
-                    // and in a third (!) iteration accept indirect matches
-                    // but g(x(t), y(t)) -> matches dt
-                    match = diffarg.has(diffvar);
-                    MSG_INFO(2, diffarg << " in numerator contains " << diffvar
-                                        << " of denominator: " << (match ? "true" : "false")
-                                        << endline);
+                    result = result.subs(i);
+                }
+                MSG_INFO(2, "Current result: " << result << endline);
+            }
+
+            return result;
+        }
+
+        // Map functions ================
+
+        // Helper function for expand_real_powers
+        // Reduce double powers in units. This can be done safely since a unit is
+        // always positive (otherwise sqrt(x^2) could be +x or -x)
+        power check_double_power(const ex& e, const ex& exp)
+        {
+            if (is_a<power>(e) && is_a<Unit>(get_basis(ex_to<power>(e))))
+                return power(get_basis(ex_to<power>(e)), get_exp(ex_to<power>(e)) * exp);
+            else
+                return power(e, exp);
+        } // check_double_power()
+
+        ex expand_real_powers::operator()(const ex& e)
+        {
+            MSG_INFO(3, "Special expanding powers in " << e << endline);
+
+            if (is_a<power>(e))
+            {
+                expand_real_powers expand_power;
+                ex the_basis = expand_power(get_basis(ex_to<power>(e)));
+                ex the_exp = expand_power(get_exp(ex_to<power>(e)));
+
+                if (is_a<mul>(the_basis) && !the_exp.info(info_flags::integer))
+                {
+                    expression result(_expr1);
+                    for (const auto& i : the_basis)
+                    {
+                        result = result * check_double_power(i, the_exp);
+                    }
+                    return result;
+                }
+                else if (is_a<power>(the_basis))
+                {
+                    return check_double_power(the_basis, the_exp);
                 }
 
-                if (match)
+                return e.map(*this);
+            } // expand_real_powers::operator()
+
+            ex reduce_double_powers::operator()(const ex& e)
+            {
+                MSG_INFO(2, "Reducing double powers in " << e << endline);
+
+                if (is_a<power>(e))
                 {
-                    MSG_INFO(2, "Remaining power of denominator: " << restpower << endline);
-                    if (restpower.is_equal(l.remaining_grade * l.diffpower))
+                    reduce_double_powers reduce_powers;
+                    ex the_basis = reduce_powers(get_basis(ex_to<power>(e)));
+                    ex the_exp = reduce_powers(get_exp(ex_to<power>(e)));
+                    if (is_a<power>(the_basis))
                     {
-                        MSG_INFO(2, "Complete match" << endline);
-                        l.denom *= dynallocate<differential>(diffvar, d.is_partial(),
-                                                             l.remaining_grade, diffarg, false);
-                        l.remaining_grade = _ex0;
-                        return _ex1;
+                        const power& ebasis = ex_to<power>(the_basis);
+                        return dynallocate<power>(get_basis(ebasis), get_exp(ebasis) * the_exp);
                     }
-
-                    ex p_quot = restpower / l.diffpower; // How many grades can we consume?
-
-                    if (!p_quot.info(info_flags::real))
+                    else
                     {
-                        MSG_INFO(2, "At least one power is non-numeric" << endline);
-                        ex g_quot
-                            = restpower / l.remaining_grade; // How many powers can we consume?
-                        // Note: The case p_quot == l.remaining_grade and g_quot == l.diffpower has already been handled!
+                        return dynallocate<power>(the_basis, the_exp);
+                    }
+                }
+                else if (is_a<mul>(e))
+                {
+                    ex result(_ex1);
+                    exhashmap<ex> powers;
 
-                        if ((l.diffpower.info(info_flags::real) && g_quot.info(info_flags::real))
-                            || l.diffpower.has(g_quot))
+                    for (const auto& i : e)
+                    {
+                        reduce_double_powers reduce_powers;
+                        ex the_e = reduce_powers(i);
+
+                        if (is_a<power>(the_e))
                         {
-                            MSG_INFO(2, "Splitting power of numerator and consuming denominator"
-                                            << endline);
-                            dlist.emplace_back(l);
-                            diff_fraction& remainder = dlist.back();
-                            remainder.diffpower = l.diffpower - g_quot;
-                            MSG_INFO(2, "Remaining numerator: "
-                                            << pow(remainder.numer, remainder.diffpower)
-                                            << endline);
+                            ex the_basis = get_basis(ex_to<power>(the_e));
+                            ex the_exp = get_exp(ex_to<power>(the_e));
 
-                            l.denom *= dynallocate<differential>(diffvar, d.is_partial(),
-                                                                 l.remaining_grade, diffarg, false);
-                            l.diffpower = g_quot;
-                            l.remaining_grade = _ex0;
-                            MSG_INFO(2, "Matched numerator: " << pow(l.numer / l.denom, l.diffpower)
-                                                              << endline);
-                            return _ex1; // The denominator was completely matched
+                            if (powers.find(the_basis) != powers.end())
+                                powers[the_basis] = powers[the_basis] + the_exp;
+                            else
+                                powers[the_basis] = the_exp;
                         }
                         else
                         {
-                            MSG_INFO(2,
-                                     "Grades and powers are non-numeric, not matching" << endline);
-                            continue;
+                            result *= the_e;
                         }
                     }
 
-                    if (!l.remaining_grade.info(info_flags::posint))
+                    for (const auto& p : powers)
+                        result *= power(p.first, p.second);
+
+                    return result;
+                }
+                return e.map(*this);
+            } // reduce_double_powers::operator()
+
+            ex gather_sqrt::operator()(const ex& e)
+            {
+                MSG_INFO(2, "Gathering square roots in " << e << endline);
+
+                if (is_a<mul>(e))
+                {
+                    ex sqrts(_ex1);
+                    ex non_sqrt(_ex1);
+                    gather_sqrt gather_sqrts;
+
+                    for (const auto& i : e)
                     {
-                        MSG_INFO(2, "Numerator has non-numeric grade, not matching" << endline);
-                        continue;
+                        if (is_a<power>(i) && get_exp(ex_to<power>(i)).is_equal(_ex1_2))
+                        {
+                            ex the_basis = gather_sqrts(get_basis(ex_to<power>(i)));
+                            sqrts *= the_basis;
+                        }
+                        else if (is_a<power>(i) && get_exp(ex_to<power>(i)).is_equal(_ex_1_2))
+                        {
+                            ex the_basis = gather_sqrts(get_basis(ex_to<power>(i)));
+                            sqrts *= dynallocate<power>(the_basis, _ex_1);
+                        }
+                        else
+                        {
+                            non_sqrt *= gather_sqrts(i);
+                        }
                     }
 
-                    MSG_INFO(2, "Grades of numerator and denominator are both real" << endline);
-                    int g = numeric_to_int(
-                        ex_to<numeric>(p_quot)); // Find integer part of consumable grades
+                    return sqrt(sqrts) * non_sqrt;
+                }
+
+                return e.map(*this);
+            } // gather_sqrt::operator()
+
+            ex evalf_real_roots::operator()(const ex& e)
+            {
+                MSG_INFO(2, "Numerically evaluating nth roots to real values where possible "
+                                << e << endline);
+
+                if (is_a<power>(e))
+                {
+                    evalf_real_roots eval_roots;
+                    ex the_basis = eval_roots(get_basis(ex_to<power>(e)));
+                    ex the_exp = eval_roots(get_exp(ex_to<power>(e)));
+
+                    if (the_exp.info(info_flags::rational))
+                    {
+                        // Condition 1: exponent is rational
+                        const numeric& n_exp = ex_to<numeric>(the_exp);
+                        int denom = n_exp.denom().to_int();
+
+                        if ((denom > 1) && (denom % 2 == 1))
+                        {
+                            // Condition 2: denominator of exponent is odd
+                            ex e_basis = the_basis.evalf();
+                            if (e_basis.info(info_flags::negative))
+                            {
+                                // Condition 3: basis is negative and real
+                                int numer = n_exp.numer().to_int();
+                                if (numer % 2 == 0)
+                                    return dynallocate<power>(-the_basis,
+                                                              the_exp); // numerator is even
+                                else
+                                    return _ex_1 * power(-the_basis, the_exp); // numerator is odd
+                            }
+                        }
+                    }
+
+                    return dynallocate<power>(the_basis, the_exp);
+                }
+
+                return e.map(*this);
+            }
+
+            /// Structure for storing a complete differential, e.g. d²f / (dx dy)
+            struct diff_fraction
+            {
+                differential numer;
+                ex remaining_grade; // Unmatched remaining grade of the numerator
+                ex diffpower; // Power of the differential, e.g. (d²f)³ has grade 2 and power 3
+                ex denom;
+                diff_fraction();
+#ifdef DEBUG_CONSTR_DESTR
+                diff_fraction(const diff_fraction& other);
+                diff_fraction& operator=(const diff_fraction& other);
+                ~diff_fraction();
+#endif
+                void print_imath(const imathprint& c) const;
+                ex differentiate() const;
+            };
+
+            typedef std::list<diff_fraction> sorted_differentials;
+
+            diff_fraction::diff_fraction()
+                : remaining_grade(_ex0)
+                , diffpower(_ex1)
+                , denom(_ex1)
+            {
+                MSG_INFO(3, "Constructing empty diff_fraction" << endline);
+            }
+
+#ifdef DEBUG_CONSTR_DESTR
+            diff_fraction::diff_fraction(const diff_fraction& other)
+                : numer(other.numer)
+                , remaining_grade(other.remaining_grade)
+                , diffpower(other.diffpower)
+                , denom(other.denom)
+            {
+                MSG_INFO(3, "Copying diff_fraction from " << other.numer << "/" << other.denom
+                                                          << endline);
+            }
+            diff_fraction& diff_fraction::operator=(const diff_fraction& other)
+            {
+                MSG_INFO(3, "Assigning diff_fraction from " << other.numer << "/" << other.denom
+                                                            << endline);
+                numer = other.numer;
+                remaining_grade = other.remaining_grade;
+                diffpower = other.diffpower;
+                denom = other.denom;
+                return *this;
+            }
+            diff_fraction::~diff_fraction() { MSG_INFO(3, "Destructing diff_fraction" << endline); }
+#endif
+
+            // Try to match diff in the denominator to one of the entries in the list in the numerator
+            // The denominator always has grade 1, higher grades have been multiplied into dpower
+            ex match_differential(sorted_differentials & dlist, const differential& d,
+                                  const ex& dpower, const bool matchparents)
+            {
+                MSG_INFO(2, "Trying to match numerators with denominator "
+                                << pow(d, dpower) << " by " << (matchparents ? "parent" : "diffvar")
+                                << endline);
+
+                if (matchparents && d.get_parent().is_equal(_ex0))
+                    return dynallocate<power>(d, dpower); // No parent is known
+
+                ex diffvar = d.argument();
+                //if (!is_a<symbol>(diffvar) && !is_a<func>(diffvar)) return d; // Can't match this properly
+                ex restpower = dpower;
+
+                // Match the denominator with numerators, until no more powers of the denominator are left
+                // Preference is given to a match of the powers, e.g. (d²f)³ matches dx³ leaving one remaining grade of (d²f)³
+                for (auto& l : dlist)
+                {
+                    MSG_INFO(2, "Testing numerator " << pow(l.numer, l.diffpower)
+                                                     << " with remaining grade "
+                                                     << l.remaining_grade << endline);
+                    if (l.numer.is_partial() != d.is_partial())
+                        continue; // Type doesn't match
+                    if (l.remaining_grade.is_zero())
+                        continue; // Nothing left to match in this numerator
+
+                    ex diffarg = l.numer.argument();
+                    bool match;
+                    if (matchparents)
+                    {
+                        match = diffarg.is_equal(d.get_parent());
+                        MSG_INFO(2, "Parent of denominator matches numerator: "
+                                        << (match ? "true" : "false") << endline);
+                    }
+                    else
+                    {
+                        // TODO: We should give preference to diffargs which contain the diffvar directly, that is
+                        //  g(x,y) -> matches dx
+                        // and in a third (!) iteration accept indirect matches
+                        // but g(x(t), y(t)) -> matches dt
+                        match = diffarg.has(diffvar);
+                        MSG_INFO(2, diffarg << " in numerator contains " << diffvar
+                                            << " of denominator: " << (match ? "true" : "false")
+                                            << endline);
+                    }
+
+                    if (match)
+                    {
+                        MSG_INFO(2, "Remaining power of denominator: " << restpower << endline);
+                        if (restpower.is_equal(l.remaining_grade * l.diffpower))
+                        {
+                            MSG_INFO(2, "Complete match" << endline);
+                            l.denom *= dynallocate<differential>(diffvar, d.is_partial(),
+                                                                 l.remaining_grade, diffarg, false);
+                            l.remaining_grade = _ex0;
+                            return _ex1;
+                        }
+
+                        ex p_quot = restpower / l.diffpower; // How many grades can we consume?
+
+                        if (!p_quot.info(info_flags::real))
+                        {
+                            MSG_INFO(2, "At least one power is non-numeric" << endline);
+                            ex g_quot
+                                = restpower / l.remaining_grade; // How many powers can we consume?
+                            // Note: The case p_quot == l.remaining_grade and g_quot == l.diffpower has already been handled!
+
+                            if ((l.diffpower.info(info_flags::real)
+                                 && g_quot.info(info_flags::real))
+                                || l.diffpower.has(g_quot))
+                            {
+                                MSG_INFO(2, "Splitting power of numerator and consuming denominator"
+                                                << endline);
+                                dlist.emplace_back(l);
+                                diff_fraction& remainder = dlist.back();
+                                remainder.diffpower = l.diffpower - g_quot;
+                                MSG_INFO(2, "Remaining numerator: "
+                                                << pow(remainder.numer, remainder.diffpower)
+                                                << endline);
+
+                                l.denom *= dynallocate<differential>(
+                                    diffvar, d.is_partial(), l.remaining_grade, diffarg, false);
+                                l.diffpower = g_quot;
+                                l.remaining_grade = _ex0;
+                                MSG_INFO(2, "Matched numerator: "
+                                                << pow(l.numer / l.denom, l.diffpower) << endline);
+                                return _ex1; // The denominator was completely matched
+                            }
+                            else
+                            {
+                                MSG_INFO(2, "Grades and powers are non-numeric, not matching"
+                                                << endline);
+                                continue;
+                            }
+                        }
+
+                        if (!l.remaining_grade.info(info_flags::posint))
+                        {
+                            MSG_INFO(2, "Numerator has non-numeric grade, not matching" << endline);
+                            continue;
+                        }
+
+                        MSG_INFO(2, "Grades of numerator and denominator are both real" << endline);
+                        int g = numeric_to_int(
+                            ex_to<numeric>(p_quot)); // Find integer part of consumable grades
+
+                        if (g >= numeric_to_int(ex_to<numeric>(l.remaining_grade)))
+                        {
+                            MSG_INFO(2, "Consuming all remaining " << l.remaining_grade
+                                                                   << " grades of the numerator"
+                                                                   << endline);
+                            l.denom *= dynallocate<differential>(diffvar, d.is_partial(),
+                                                                 l.remaining_grade, diffarg, false);
+                            restpower
+                                -= l.remaining_grade
+                                   * l.diffpower; // This cannot be zero since that case was already handled!
+                            l.remaining_grade = _ex0;
+                        }
+                        else if (g > 0)
+                        {
+                            MSG_INFO(2, "Consuming " << g << " grades of the numerator" << endline);
+                            l.denom *= dynallocate<differential>(diffvar, d.is_partial(), g,
+                                                                 diffarg, false);
+                            l.remaining_grade -= g;
+                            restpower
+                                -= g
+                                   * l.diffpower; // This cannot be zero since that case was already handled!
+                        } // otherwise no match (0 < p_quot < 1)
+                    }
+                }
+
+                return dynallocate<power>(d, restpower);
+            }
+
+            differential extract_differential(const ex& d, ex& diffpower)
+            {
+                MSG_INFO(3, "Extracting differential from " << d << endline);
+                differential result;
+
+                if (is_a<power>(d))
+                {
+                    result = ex_to<differential>(get_basis(ex_to<power>(d)));
+                    diffpower = get_exp(ex_to<power>(d));
+                    MSG_INFO(3, "Found differential: " << result << " with power " << diffpower
+                                                       << endline);
+                }
+                else if (is_a<differential>(d))
+                {
+                    // Note: Differentials of differentials e.g. d(d(x)) cannot occur because they are eliminated in differential::eval()
+                    result = ex_to<differential>(d);
+                    diffpower = _ex1;
+                    MSG_INFO(3, "Found differential: " << result << endline);
+                }
+
+                return result;
+            }
+
+            ex match_negdiffs(sorted_differentials & result, const ex& negdiffs,
+                              const bool matchparents)
+            {
+                if (negdiffs.is_equal(_ex1))
+                    return _ex1;
+
+                ex negrest = _ex1;
+
+                for (const auto& n : (is_a<mul>(negdiffs) ? negdiffs : lst{ negdiffs }))
+                {
+                    ex npow;
+                    differential ndiff = extract_differential(n, npow);
+                    negrest = negrest * match_differential(result, ndiff, npow, matchparents);
+                }
+
+                return negrest;
+            }
+
+            ex match_differentials::operator()(const ex& e)
+            {
+                MSG_INFO(3, "match_differentials() for " << e << endline);
+                // TODO: Check for is_a<exderivative>(e) and return straight away?
+
+                if (is_a<mul>(e))
+                {
+                    ex mapped_e = e.map(*this); // First handle sub-expressions
+
+                    // Collect differentials with positive and negative powers
+                    ex rest(_ex1);
+                    ex posdiffs(_ex1);
+                    ex negdiffs(_ex1);
+                    for (const auto& m : mapped_e)
+                    {
+                        if (is_a<differential>(m))
+                        {
+                            posdiffs *= m;
+                        }
+                        else if (is_a<power>(m))
+                        {
+                            const power& p = ex_to<power>(m);
+                            if (is_a<differential>(get_basis(p)))
+                            {
+                                if (is_negpower(p))
+                                {
+                                    const differential& d = ex_to<differential>(get_basis(p));
+                                    // Move all grades of negdiffs into the power, so that same differentials will be grouped into a single power
+                                    negdiffs *= dynallocate<power>(
+                                        dynallocate<differential>(d.argument(), d.is_partial(),
+                                                                  _ex1, d.get_parent(), false),
+                                        d.get_grade() * _ex_1 * get_exp(p));
+                                }
+                                else
+                                {
+                                    posdiffs *= m;
+                                }
+                            }
+                            else
+                            {
+                                rest *= m;
+                            }
+                        }
+                        else
+                        {
+                            rest *= m;
+                        }
+                    }
+
+                    MSG_INFO(2, "Sorting differentials: numerator: "
+                                    << posdiffs << ", denominator: " << negdiffs << endline);
+                    if (negdiffs.is_equal(_ex1) || posdiffs.is_equal(_ex1))
+                        return mapped_e;
+
+                    sorted_differentials sorteddiffs;
 
                     if (g >= numeric_to_int(ex_to<numeric>(l.remaining_grade)))
                     {
@@ -929,7 +1126,7 @@ lst make_lst_from_matrix(const expression& e, const bool force)
                         {
                             if (is_negpower(p))
                             {
-                                const differential& d = ex_to<differential>(get_basis(p));
+                                differential d = ex_to<differential>(get_basis(p));
                                 // Move all grades of negdiffs into the power, so that same differentials will be grouped into a single power
                                 negdiffs *= dynallocate<power>(
                                     dynallocate<differential>(d.argument(), d.is_partial(), _ex1,
@@ -945,452 +1142,334 @@ lst make_lst_from_matrix(const expression& e, const bool force)
                         {
                             rest *= m;
                         }
-                    }
-                    else
-                    {
-                        rest *= m;
-                    }
-                }
-
-                MSG_INFO(2, "Sorting differentials: numerator: " << posdiffs << ", denominator: "
-                                                                 << negdiffs << endline);
-                if (negdiffs.is_equal(_ex1) || posdiffs.is_equal(_ex1))
-                    return mapped_e;
-
-                sorted_differentials sorteddiffs;
-
-                if (g >= numeric_to_int(ex_to<numeric>(l.remaining_grade)))
-                {
-                    MSG_INFO(2, "Consuming all remaining "
-                                    << l.remaining_grade << " grades of the numerator" << endline);
-                    l.denom *= dynallocate<differential>(diffvar, d.is_partial(), l.remaining_grade,
-                                                         diffarg, false);
-                    restpower
-                        -= l.remaining_grade
-                           * l.diffpower; // This cannot be zero since that case was already handled!
-                    l.remaining_grade = _ex0;
-                }
-                else if (g > 0)
-                {
-                    MSG_INFO(2, "Consuming " << g << " grades of the numerator" << endline);
-                    l.denom
-                        *= dynallocate<differential>(diffvar, d.is_partial(), g, diffarg, false);
-                    l.remaining_grade -= g;
-                    restpower
-                        -= g
-                           * l.diffpower; // This cannot be zero since that case was already handled!
-                } // otherwise no match (0 < p_quot < 1)
-            }
-        }
-
-        return dynallocate<power>(d, restpower);
-    }
-
-    differential extract_differential(const ex& d, ex& diffpower)
-    {
-        MSG_INFO(3, "Extracting differential from " << d << endline);
-        differential result;
-
-        if (is_a<power>(d))
-        {
-            result = ex_to<differential>(get_basis(ex_to<power>(d)));
-            diffpower = get_exp(ex_to<power>(d));
-            MSG_INFO(3, "Found differential: " << result << " with power " << diffpower << endline);
-        }
-        else if (is_a<differential>(d))
-        {
-            // Note: Differentials of differentials e.g. d(d(x)) cannot occur because they are eliminated in differential::eval()
-            result = ex_to<differential>(d);
-            diffpower = _ex1;
-            MSG_INFO(3, "Found differential: " << result << endline);
-        }
-
-        return result;
-    }
-
-    ex match_negdiffs(sorted_differentials & result, const ex& negdiffs, const bool matchparents)
-    {
-        if (negdiffs.is_equal(_ex1))
-            return _ex1;
-
-        ex negrest = _ex1;
-
-        for (const auto& n : (is_a<mul>(negdiffs) ? negdiffs : lst{ negdiffs }))
-        {
-            ex npow;
-            differential ndiff = extract_differential(n, npow);
-            negrest = negrest * match_differential(result, ndiff, npow, matchparents);
-        }
-
-        return negrest;
-    }
-
-    ex match_differentials::operator()(const ex& e)
-    {
-        MSG_INFO(3, "match_differentials() for " << e << endline);
-        // TODO: Check for is_a<exderivative>(e) and return straight away?
-
-        if (is_a<mul>(e))
-        {
-            ex mapped_e = e.map(*this); // First handle sub-expressions
-
-            // Collect differentials with positive and negative powers
-            ex rest(_ex1);
-            ex posdiffs(_ex1);
-            ex negdiffs(_ex1);
-            for (const auto& m : mapped_e)
-            {
-                if (is_a<differential>(m))
-                {
-                    posdiffs *= m;
-                }
-                else if (is_a<power>(m))
-                {
-                    const power& p = ex_to<power>(m);
-                    if (is_a<differential>(get_basis(p)))
-                    {
-                        if (is_negpower(p))
-                        {
-                            differential d = ex_to<differential>(get_basis(p));
-                            // Move all grades of negdiffs into the power, so that same differentials will be grouped into a single power
-                            negdiffs *= dynallocate<power>(
-                                dynallocate<differential>(d.argument(), d.is_partial(), _ex1,
-                                                          d.get_parent(), false),
-                                d.get_grade() * _ex_1 * get_exp(p));
-                        }
                         else
                         {
-                            posdiffs *= m;
+                            sorteddiffs.emplace_back();
+                            diff_fraction& df = sorteddiffs.back();
+                            df.numer = extract_differential(posdiffs, df.diffpower);
+                            df.remaining_grade = df.numer.get_grade();
                         }
-                    }
-                    else
-                    {
-                        rest *= m;
-                    }
-                    else
-                    {
-                        sorteddiffs.emplace_back();
-                        diff_fraction& df = sorteddiffs.back();
-                        df.numer = extract_differential(posdiffs, df.diffpower);
-                        df.remaining_grade = df.numer.get_grade();
-                    }
 
-                    // Now we try to find the corresponding negdiffs
-                    ex negrest2
-                        = match_negdiffs(sorteddiffs, negdiffs,
-                                         true); // Match by parent of the negative differential
-                    MSG_INFO(2, "Negative differentials left-over after matching by parent: "
-                                    << negrest2 << endline);
-                    ex negrest
-                        = match_negdiffs(sorteddiffs, negrest2,
-                                         false); // Match by diffvar of the negative differential
-                    MSG_INFO(2, "Negative differentials left-over after matching by diffvar: "
-                                    << negrest << endline);
+                        // Now we try to find the corresponding negdiffs
+                        ex negrest2
+                            = match_negdiffs(sorteddiffs, negdiffs,
+                                             true); // Match by parent of the negative differential
+                        MSG_INFO(2, "Negative differentials left-over after matching by parent: "
+                                        << negrest2 << endline);
+                        ex negrest = match_negdiffs(
+                            sorteddiffs, negrest2,
+                            false); // Match by diffvar of the negative differential
+                        MSG_INFO(2, "Negative differentials left-over after matching by diffvar: "
+                                        << negrest << endline);
 
-                    // Now remove incomplete entries
-                    ex posrest(_ex1);
-                    ex result(_ex1);
+                        // Now remove incomplete entries
+                        ex posrest(_ex1);
+                        ex result(_ex1);
 
-                    for (auto& l : sorteddiffs)
-                    {
-                        if (l.denom.is_equal(_ex1))
+                        for (auto& l : sorteddiffs)
                         {
-                            // No denominator
-                            l.numer.set_numerator(true);
-                            posrest = posrest * dynallocate<power>(l.numer, l.diffpower);
+                            if (l.denom.is_equal(_ex1))
+                            {
+                                // No denominator
+                                l.numer.set_numerator(true);
+                                posrest = posrest * dynallocate<power>(l.numer, l.diffpower);
+                            }
+                            else if (!l.remaining_grade.is_zero())
+                            {
+                                // Grades of numerator and denominator are not equal
+                                l.numer.set_numerator(true);
+                                posrest = posrest * dynallocate<power>(l.numer, l.diffpower);
+                                negrest = negrest * dynallocate<power>(l.denom, l.diffpower);
+                            }
+                            else
+                            {
+                                result *= dynallocate<power>(
+                                    dynallocate<exderivative>(l.numer, l.denom), l.diffpower);
+                            }
                         }
-                        else if (!l.remaining_grade.is_zero())
+
+                        MSG_INFO(2, "Matched differentials: " << result << endline);
+                        MSG_INFO(2, "Negative differentials left-over: " << negrest << endline);
+                        MSG_INFO(2, "Positive differentials left-over: " << posrest << endline);
+
+                        return result * posrest / negrest * rest;
+                    }
+
+                    return e.map(*this);
+                }
+
+                ex remove_units::operator()(const ex& e)
+                {
+                    if (is_a<Unit>(e))
+                        return _ex1;
+
+                    return e.map(*this);
+                }
+
+                ex special_ignore_units::operator()(const ex& e)
+                {
+                    if (is_a<func>(e))
+                    {
+                        const func& f = ex_to<func>(e);
+
+                        if (f.get_name() == "log" || f.get_name() == "ln")
                         {
-                            // Grades of numerator and denominator are not equal
-                            l.numer.set_numerator(true);
-                            posrest = posrest * dynallocate<power>(l.numer, l.diffpower);
-                            negrest = negrest * dynallocate<power>(l.denom, l.diffpower);
+                            remove_units remove_u;
+                            return remove_u(f);
                         }
+                    }
+
+                    return e.map(*this);
+                }
+
+                bool check_modulus(const expression& e)
+                {
+                    MSG_INFO(2, "Checking whether " << e << " is a valid modulus" << endline);
+                    if (is_a<numeric>(e))
+                        return e.info(info_flags::posint)
+                               || (e.info(info_flags::cinteger) && !e.is_zero());
+                    else if (is_a<symbol>(e))
+                        return true;
+
+                    return false;
+                }
+
+                expression apply_modulus(const expression& e, const expression& mod)
+                {
+                    // Note: this only handles powers, products and sums correctly!
+                    if (mod.is_zero())
+                        return e;
+
+                    MSG_INFO(2, "Applying modulus " << mod << " on " << e << endline);
+
+                    if (e.info(info_flags::cinteger) && is_a<numeric>(mod))
+                    {
+                        if (e.info(info_flags::integer) && mod.info(info_flags::posint))
+                            return GiNaC::mod(ex_to<numeric>(e), ex_to<numeric>(mod));
                         else
                         {
-                            result *= dynallocate<power>(
-                                dynallocate<exderivative>(l.numer, l.denom), l.diffpower);
+                            // This handles only congruence to zero, that is, e is a multiple of the modulus
+                            numeric factor = ex_to<numeric>(e) / ex_to<numeric>(mod);
+
+                            if ((mod.info(info_flags::posint) && factor.info(info_flags::posint))
+                                || (mod.info(info_flags::cinteger)
+                                    && factor.info(info_flags::cinteger)))
+                                return _expr0;
+                            else
+                                return e;
                         }
                     }
-
-                    MSG_INFO(2, "Matched differentials: " << result << endline);
-                    MSG_INFO(2, "Negative differentials left-over: " << negrest << endline);
-                    MSG_INFO(2, "Positive differentials left-over: " << posrest << endline);
-
-                    return result * posrest / negrest * rest;
-                }
-
-                return e.map(*this);
-            }
-
-            ex remove_units::operator()(const ex& e)
-            {
-                if (is_a<Unit>(e))
-                    return _ex1;
-
-                return e.map(*this);
-            }
-
-            ex special_ignore_units::operator()(const ex& e)
-            {
-                if (is_a<func>(e))
-                {
-                    const func& f = ex_to<func>(e);
-
-                    if (f.get_name() == "log" || f.get_name() == "ln")
+                    else if (is_a<symbol>(e) && e.is_equal(mod))
                     {
-                        remove_units remove_u;
-                        return remove_u(f);
+                        return _expr0; // Replace the symbol with 0, since s ~= 0 (mod s)
                     }
-                }
+                    else if (is_a<power>(e))
+                    {
+                        const power& p = ex_to<power>(e);
+                        expression applied = apply_modulus(get_basis(p), mod);
+                        expression exponent = get_exp(p);
+                        if (applied.is_zero() && is_a<numeric>(exponent)
+                            && ex_to<numeric>(exponent).is_negative())
+                            return e; // avoid division by zero
+                        else
+                            return dynallocate<power>(applied, exponent);
+                    }
+                    else if (is_a<mul>(e))
+                    {
+                        expression result(_expr1);
+                        for (const auto& f : e)
+                            result = result * apply_modulus(f, mod);
+                        return result;
+                    }
+                    else if (is_a<add>(e))
+                    {
+                        expression result(_expr0);
+                        for (const auto& s : e)
+                            result = result + apply_modulus(s, mod);
+                        return result;
+                    }
 
-                return e.map(*this);
-            }
-
-            bool check_modulus(const expression& e)
-            {
-                MSG_INFO(2, "Checking whether " << e << " is a valid modulus" << endline);
-                if (is_a<numeric>(e))
-                    return e.info(info_flags::posint)
-                           || (e.info(info_flags::cinteger) && !e.is_zero());
-                else if (is_a<symbol>(e))
-                    return true;
-
-                return false;
-            }
-
-            expression apply_modulus(const expression& e, const expression& mod)
-            {
-                // Note: this only handles powers, products and sums correctly!
-                if (mod.is_zero())
                     return e;
+                }
 
-                MSG_INFO(2, "Applying modulus " << mod << " on " << e << endline);
-
-                if (e.info(info_flags::cinteger) && is_a<numeric>(mod))
+                std::string get_oper(const print_context& c, const unsigned o,
+                                     const expression& mod)
                 {
-                    if (e.info(info_flags::integer) && mod.info(info_flags::posint))
-                        return GiNaC::mod(ex_to<numeric>(e), ex_to<numeric>(mod));
+                    if (is_a<imathprint>(c))
+                    {
+                        switch (o)
+                        {
+                            case relational::equal:
+                                return (mod.is_zero() ? "=" : " EQUIV ");
+                            case relational::not_equal:
+                                return "<>";
+                            case relational::less:
+                                return "<";
+                            case relational::less_or_equal:
+                                return "<=";
+                            case relational::greater:
+                                return ">";
+                            case relational::greater_or_equal:
+                                return ">=";
+                            default:
+                                return "[invalid operator]";
+                        }
+                    }
                     else
                     {
-                        // This handles only congruence to zero, that is, e is a multiple of the modulus
-                        numeric factor = ex_to<numeric>(e) / ex_to<numeric>(mod);
-
-                        if ((mod.info(info_flags::posint) && factor.info(info_flags::posint))
-                            || (mod.info(info_flags::cinteger)
-                                && factor.info(info_flags::cinteger)))
-                            return _expr0;
-                        else
-                            return e;
+                        switch (o)
+                        {
+                            case relational::equal:
+                                return (mod.is_zero() ? "=" : "~=");
+                            case relational::not_equal:
+                                return "!=";
+                            case relational::less:
+                                return "<";
+                            case relational::less_or_equal:
+                                return "<=";
+                            case relational::greater:
+                                return ">";
+                            case relational::greater_or_equal:
+                                return ">=";
+                            default:
+                                return "[invalid operator]";
+                        }
                     }
                 }
-                else if (is_a<symbol>(e) && e.is_equal(mod))
+
+                bool get_inhibit_floating_point_underflow()
                 {
-                    return _expr0; // Replace the symbol with 0, since s ~= 0 (mod s)
-                }
-                else if (is_a<power>(e))
-                {
-                    const power& p = ex_to<power>(e);
-                    expression applied = apply_modulus(get_basis(p), mod);
-                    expression exponent = get_exp(p);
-                    if (applied.is_zero() && is_a<numeric>(exponent)
-                        && ex_to<numeric>(exponent).is_negative())
-                        return e; // avoid division by zero
-                    else
-                        return dynallocate<power>(applied, exponent);
-                }
-                else if (is_a<mul>(e))
-                {
-                    expression result(_expr1);
-                    for (const auto& f : e)
-                        result = result * apply_modulus(f, mod);
-                    return result;
-                }
-                else if (is_a<add>(e))
-                {
-                    expression result(_expr0);
-                    for (const auto& s : e)
-                        result = result + apply_modulus(s, mod);
-                    return result;
+                    return cln::cl_inhibit_floating_point_underflow;
                 }
 
+                if (f.get_name() == "log" || f.get_name() == "ln")
+                {
+                    remove_units remove_u;
+                    return remove_u(f);
+                }
+            }
+
+            return e.map(*this);
+        }
+
+        bool check_modulus(const expression& e)
+        {
+            MSG_INFO(2, "Checking whether " << e << " is a valid modulus" << endline);
+            if (is_a<numeric>(e))
+                return e.info(info_flags::posint) || (e.info(info_flags::cinteger) && !e.is_zero());
+            else if (is_a<extsymbol>(e))
+                return true;
+
+            return false;
+        }
+
+        expression apply_modulus(const expression& e, const expression& mod)
+        {
+            // Note: this only handles powers, products and sums correctly!
+            if (mod.is_zero())
                 return e;
-            }
 
-            std::string get_oper(const print_context& c, const unsigned o, const expression& mod)
+            MSG_INFO(2, "Applying modulus " << mod << " on " << e << endline);
+
+            if (e.info(info_flags::cinteger) && is_a<numeric>(mod))
             {
-                if (is_a<imathprint>(c))
-                {
-                    switch (o)
-                    {
-                        case relational::equal:
-                            return (mod.is_zero() ? "=" : " EQUIV ");
-                        case relational::not_equal:
-                            return "<>";
-                        case relational::less:
-                            return "<";
-                        case relational::less_or_equal:
-                            return "<=";
-                        case relational::greater:
-                            return ">";
-                        case relational::greater_or_equal:
-                            return ">=";
-                        default:
-                            return "[invalid operator]";
-                    }
-                }
+                if (e.info(info_flags::integer) && mod.info(info_flags::posint))
+                    return GiNaC::mod(ex_to<numeric>(e), ex_to<numeric>(mod));
                 else
                 {
-                    switch (o)
-                    {
-                        case relational::equal:
-                            return (mod.is_zero() ? "=" : "~=");
-                        case relational::not_equal:
-                            return "!=";
-                        case relational::less:
-                            return "<";
-                        case relational::less_or_equal:
-                            return "<=";
-                        case relational::greater:
-                            return ">";
-                        case relational::greater_or_equal:
-                            return ">=";
-                        default:
-                            return "[invalid operator]";
-                    }
+                    // This handles only congruence to zero, that is, e is a multiple of the modulus
+                    numeric factor = ex_to<numeric>(e) / ex_to<numeric>(mod);
+
+                    if ((mod.info(info_flags::posint) && factor.info(info_flags::posint))
+                        || (mod.info(info_flags::cinteger) && factor.info(info_flags::cinteger)))
+                        return _expr0;
+                    else
+                        return e;
                 }
             }
-
-            bool get_inhibit_floating_point_underflow()
+            else if (is_a<extsymbol>(e) && e.is_equal(mod))
             {
-                return cln::cl_inhibit_floating_point_underflow;
+                return _expr0; // Replace the symbol with 0, since s ~= 0 (mod s)
+            }
+            else if (is_a<power>(e))
+            {
+                const power& p = ex_to<power>(e);
+                expression applied = apply_modulus(get_basis(p), mod);
+                expression exponent = get_exp(p);
+                if (applied.is_zero() && is_a<numeric>(exponent)
+                    && ex_to<numeric>(exponent).is_negative())
+                    return e; // avoid division by zero
+                else
+                    return dynallocate<power>(applied, exponent);
+            }
+            else if (is_a<mul>(e))
+            {
+                expression result(_expr1);
+                for (const auto& f : e)
+                    result = result * apply_modulus(f, mod);
+                return result;
+            }
+            else if (is_a<add>(e))
+            {
+                expression result(_expr0);
+                for (const auto& s : e)
+                    result = result + apply_modulus(s, mod);
+                return result;
             }
 
-            if (f.get_name() == "log" || f.get_name() == "ln")
-            {
-                remove_units remove_u;
-                return remove_u(f);
-            }
-        }
-
-        return e.map(*this);
-    }
-
-    bool check_modulus(const expression& e)
-    {
-        MSG_INFO(2, "Checking whether " << e << " is a valid modulus" << endline);
-        if (is_a<numeric>(e))
-            return e.info(info_flags::posint) || (e.info(info_flags::cinteger) && !e.is_zero());
-        else if (is_a<extsymbol>(e))
-            return true;
-
-        return false;
-    }
-
-    expression apply_modulus(const expression& e, const expression& mod)
-    {
-        // Note: this only handles powers, products and sums correctly!
-        if (mod.is_zero())
             return e;
+        }
 
-        MSG_INFO(2, "Applying modulus " << mod << " on " << e << endline);
-
-        if (e.info(info_flags::cinteger) && is_a<numeric>(mod))
+        std::string get_oper(const print_context& c, const unsigned o, const expression& mod)
         {
-            if (e.info(info_flags::integer) && mod.info(info_flags::posint))
-                return GiNaC::mod(ex_to<numeric>(e), ex_to<numeric>(mod));
+            if (is_a<imathprint>(c))
+            {
+                switch (o)
+                {
+                    case relational::equal:
+                        return (mod.is_zero() ? "=" : " EQUIV ");
+                    case relational::not_equal:
+                        return "<>";
+                    case relational::less:
+                        return "<";
+                    case relational::less_or_equal:
+                        return "<=";
+                    case relational::greater:
+                        return ">";
+                    case relational::greater_or_equal:
+                        return ">=";
+                    default:
+                        return "[invalid operator]";
+                }
+            }
             else
             {
-                // This handles only congruence to zero, that is, e is a multiple of the modulus
-                numeric factor = ex_to<numeric>(e) / ex_to<numeric>(mod);
-
-                if ((mod.info(info_flags::posint) && factor.info(info_flags::posint))
-                    || (mod.info(info_flags::cinteger) && factor.info(info_flags::cinteger)))
-                    return _expr0;
-                else
-                    return e;
+                switch (o)
+                {
+                    case relational::equal:
+                        return (mod.is_zero() ? "=" : "~=");
+                    case relational::not_equal:
+                        return "!=";
+                    case relational::less:
+                        return "<";
+                    case relational::less_or_equal:
+                        return "<=";
+                    case relational::greater:
+                        return ">";
+                    case relational::greater_or_equal:
+                        return ">=";
+                    default:
+                        return "[invalid operator]";
+                }
             }
         }
-        else if (is_a<extsymbol>(e) && e.is_equal(mod))
+
+        bool get_inhibit_floating_point_underflow()
         {
-            return _expr0; // Replace the symbol with 0, since s ~= 0 (mod s)
-        }
-        else if (is_a<power>(e))
-        {
-            const power& p = ex_to<power>(e);
-            expression applied = apply_modulus(get_basis(p), mod);
-            expression exponent = get_exp(p);
-            if (applied.is_zero() && is_a<numeric>(exponent)
-                && ex_to<numeric>(exponent).is_negative())
-                return e; // avoid division by zero
-            else
-                return dynallocate<power>(applied, exponent);
-        }
-        else if (is_a<mul>(e))
-        {
-            expression result(_expr1);
-            for (const auto& f : e)
-                result = result * apply_modulus(f, mod);
-            return result;
-        }
-        else if (is_a<add>(e))
-        {
-            expression result(_expr0);
-            for (const auto& s : e)
-                result = result + apply_modulus(s, mod);
-            return result;
+            return cln::cl_inhibit_floating_point_underflow;
         }
 
-        return e;
-    }
-
-    std::string get_oper(const print_context& c, const unsigned o, const expression& mod)
-    {
-        if (is_a<imathprint>(c))
+        void set_inhibit_floating_point_underflow(const bool val)
         {
-            switch (o)
-            {
-                case relational::equal:
-                    return (mod.is_zero() ? "=" : " EQUIV ");
-                case relational::not_equal:
-                    return "<>";
-                case relational::less:
-                    return "<";
-                case relational::less_or_equal:
-                    return "<=";
-                case relational::greater:
-                    return ">";
-                case relational::greater_or_equal:
-                    return ">=";
-                default:
-                    return "[invalid operator]";
-            }
+            cln::cl_inhibit_floating_point_underflow = val;
         }
-        else
-        {
-            switch (o)
-            {
-                case relational::equal:
-                    return (mod.is_zero() ? "=" : "~=");
-                case relational::not_equal:
-                    return "!=";
-                case relational::less:
-                    return "<";
-                case relational::less_or_equal:
-                    return "<=";
-                case relational::greater:
-                    return ">";
-                case relational::greater_or_equal:
-                    return ">=";
-                default:
-                    return "[invalid operator]";
-            }
-        }
-    }
-
-    bool get_inhibit_floating_point_underflow() { return cln::cl_inhibit_floating_point_underflow; }
-
-    void set_inhibit_floating_point_underflow(const bool val)
-    {
-        cln::cl_inhibit_floating_point_underflow = val;
-    }

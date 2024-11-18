@@ -1616,6 +1616,8 @@ public:
 
     virtual void set_column_title(int nColumn, const OUString& rTitle) override;
 
+    virtual void set_column_visible(int nColumn, const bool bVisible) override;
+
     virtual void set_column_custom_renderer(int nColumn, bool bEnable) override;
 
     virtual void queue_draw() override;
@@ -1775,6 +1777,7 @@ public:
     virtual void set_cursor(const weld::TreeIter& rIter) override;
 
     virtual void set_cursor(const weld::TreeIter& rIter, const int nCol, const bool start_editing) override;
+
     virtual bool get_iter_first(weld::TreeIter& rIter) const override;
 
     bool get_iter_abs_pos(weld::TreeIter& rIter, int nPos) const;

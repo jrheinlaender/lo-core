@@ -3995,6 +3995,36 @@ void SalInstanceTreeView::set_column_title(int nColumn, const OUString& rTitle)
     }
 }
 
+void SalInstanceTreeView::set_column_visible(int nColumn, const bool bVisible)
+{
+    LclHeaderTabListBox* pHeaderBox = dynamic_cast<LclHeaderTabListBox*>(m_xTreeView.get());
+    HeaderBar* pHeaderBar = pHeaderBox ? pHeaderBox->GetHeaderBar() : nullptr;
+    if (!pHeaderBar)
+        return;
+    if (nColumn >= pHeaderBar->GetItemCount())
+        return;
+
+    std::vector<tools::Long> aTabPositions{ 0 };
+    std::vector<int> rWidths;
+    for (size_t col = 0; col < pHeaderBar->GetItemCount(); ++col)
+    {
+        if (col == size_t(nColumn))
+        {
+            rWidths.push_back(bVisible ? get_column_width(col) : 0);
+            aTabPositions.push_back(aTabPositions[col] + rWidths[col]);
+        }
+        else
+        {
+            rWidths.push_back(get_column_width(col));
+            aTabPositions.push_back(aTabPositions[col] + rWidths[col]);
+        }
+    }
+
+    m_xTreeView->SetTabs(aTabPositions.size(), aTabPositions.data(), MapUnit::MapPixel);
+    set_header_item_width(rWidths);
+    m_xTreeView->Resize();
+}
+
 void SalInstanceTreeView::set_column_custom_renderer(int nColumn, bool bEnable)
 {
     assert(n_children() == 0 && "tree must be empty");

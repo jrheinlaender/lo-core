@@ -25,8 +25,8 @@
 
 #include <ginac/function.h>
 
-namespace GiNaC {
-
+namespace GiNaC
+{
 // Note: The order here should correspond to the order of REGISTER_FUNCTION
 // and VERY IMPORTANT round must be first, because of eval() using round_SERIAL::serial
 DECLARE_FUNCTION_2P(round)
@@ -42,6 +42,8 @@ DECLARE_FUNCTION_3P(ifelse)
 DECLARE_FUNCTION_1P(vmax)
 DECLARE_FUNCTION_1P(vmin)
 DECLARE_FUNCTION_2P(concat)
+DECLARE_FUNCTION_2P(irem)
+DECLARE_FUNCTION_2P(iquo)
 // Matrix functions (as defined in GiNaC matrix.h). Note that diag_matrix() etc. are already declared in namespace GiNaC in matrix.h
 DECLARE_FUNCTION_1P(diagmatrix)
 DECLARE_FUNCTION_2P(identmatrix)
@@ -56,6 +58,5 @@ DECLARE_FUNCTION_3P(solvematrix)
 DECLARE_FUNCTION_1P(invertmatrix)
 DECLARE_FUNCTION_1P(matrixrows)
 DECLARE_FUNCTION_1P(matrixcols)
-
 }
 #endif

@@ -984,6 +984,26 @@ bool eqc::store_assgn(const std::vector<std::string>& names, const expression& r
             return t_none; // symbol does not exist
     } // eqc::getsymtype()
 
+    void eqc::setsymprop(const std::string& varname, const symprop p)
+    {
+        symrec_it v = vars.find(varname);
+
+        if (v != vars.end())
+        {
+            v->second.setsymprop(p);
+            v->second.make_unknown(); // The value certainly gets lost here
+        }
+    }
+
+    symtype eqc::getsymtype(const std::string& varname)
+    {
+        symrec_cit v = vars.find(varname);
+        if (v != vars.end())
+            return v->second.getsymtype();
+        else
+            return t_none; // symbol does not exist
+    } // eqc::getsymtype()
+
     symprop eqc::getsymprop(const std::string& varname)
     {
         symrec_cit v = vars.find(varname);
@@ -1038,8 +1058,10 @@ bool eqc::store_assgn(const std::vector<std::string>& names, const expression& r
                                    + "' is not registered with the compiler"));
         if (v->second.assignments.empty())
             return equation();
+        if (v->second.assignments.size() > 1)
+            MSG_WARN(1, "Multiple possible assignments for " << s.get_name() << endline);
 
-        return (v->second.assignments.front()->eq);
+        return (v->second.assignments.front()->eq.rhs());
     }
 
     expression eqc::get_value(const extsymbol& s) const
@@ -1114,399 +1136,550 @@ bool eqc::store_assgn(const std::vector<std::string>& names, const expression& r
             }
         }
 
-        // 1.1 Check if the variable is a constant or already has a value, then we can skip
-        // all the iterations
-        std::string varname = var.get_name();
-        if (has_value(var))
+        bool eqc::is_label(const std::string& s) const
         {
-            found_value = true;
-            MSG_INFO(1, "Variable/constant already has a value. Not iterating." << endline);
+            MSG_INFO(3, "Checking if label exists: " << s << endline);
+            return (equations.find(s) != equations.end());
+        } // eqc::is_label()
+
+        bool eqc::is_expression_label(const std::string& s) const
+        {
+            MSG_INFO(3, "Checking if expression label exists: " << s << endline);
+            return (expressions.find(s) != expressions.end());
         }
 
-        symrec_it it_varname = vars.find(varname);
-        symrec_it v;
-        eqrec_it e;
-
-        if (msg::info().checkprio(2))
+        bool eqc::is_lib(const std::string& s) const
         {
-            msg::info() << "Available other equations: " << endline;
-            for (const auto& eqr : other_equations)
+            return (std::string(s, 0, 4) == "lib:");
+        } // eqc::is_lib()
+
+        bool eqc::is_external_ns(const std::string& s) const
+        {
+            auto pos = s.find("::");
+            if (pos == std::string::npos)
+                return false;
+
+            return (s.substr(0, pos) != current_namespace);
+        }
+
+        bool eqc::is_func(const std::string& fname) const { return funcmgr->is_a_func(fname); }
+
+        bool eqc::has_value(const extsymbol& s) const
+        {
+            symrec_cit v = vars.find(s.get_name());
+            if (v == vars.end())
+                throw(std::range_error("has_value: Symbol '" + s.get_name()
+                                       + "' is not registered with the compiler"));
+            return (v->second.has_value());
+        } // eqc::has_value()
+
+        expression eqc::get_assignment(const extsymbol& s) const
+        {
+            symrec_cit v = vars.find(s.get_name());
+            if (v == vars.end())
+                throw(std::range_error("has_value: Symbol '" + s.get_name()
+                                       + "' is not registered with the compiler"));
+            if (v->second.assignments.empty())
+                return equation();
+
+            return (v->second.assignments.front()->eq);
+        }
+
+        expression eqc::get_value(const extsymbol& s) const
+        {
+            symrec_cit v = vars.find(s.get_name());
+            if (v == vars.end())
+                throw(std::range_error("get_value: Symbol '" + s.get_name()
+                                       + "' is not registered with the compiler"));
+            return (v->second.val);
+        } // eqc::get_value()
+
+        bool eqc::find_values(const extsymbol& var, numeric& val, expression& unit,
+                              expression& value, const lst& assgn, const bool toquantity)
+        {
+            bool found_value = false;
+            MSG_INFO(1, "Searching value of " << var.get_name() << endline);
+
+            // 1.0 Prepare the equation list if optional parameters are being used
+            std::list<eqrec_it> tempeqs;
+            eqrec_it preveq = previous_it; // Needs to be restored later
+
+            if (assgn.nops() != 0)
             {
-                msg::info() << eqr->label << ": " << eqr->eq << endline;
-            }
-        }
-        if (msg::info().checkprio(2))
-        {
-            msg::info() << "Available equations: " << endline;
-            for (const auto& eqrp : equations)
-                if (!is_lib(eqrp.first))
-                    msg::info() << eqrp.first << ": " << eqrp.second.eq << endline;
-        }
-        if (msg::info().checkprio(2))
-        {
-            msg::info() << "Available assignments: " << assignments << endline
-                        << "Recent assignments: " << recent_assgn << endline;
-        }
-
-        exmap new_assgn; // Collect new assignments found during an iteration loop
-        unsigned num_it = 0; // just for the statistics...
-        expression result;
-        expression aresult;
-        std::vector<std::string> names;
-
-        // 2. Find all possible assignments and further equations for the variable
-        do
-        {
-            if (msg::info().checkprio(1) && !found_value)
-                msg::info() << "Starting iteration #" << ++num_it << endline;
-
-            // 2.1 Iterate over other_equations and check each equation whether it evaluates
-            // to an assignment or even a quantity
-            // For the special case of searching for the value of VALSYM (which means that the user
-            // asked for the value of an expression, not of a symbol, e.g. \val{\tan\alpha}),
-            // there are two possible solutions:
-            // a) The rhs of the equation VALLABEL: VALSYM = ... evaluates to the result
-            // b) The lhs or rhs of another equation correspond to this expression. If yes, we
-            // use this as a new assignment for VALSYM. Example:
-            // User: \val{\tan\alpha} -> eqc creates equation: VALSYM = \tan\alpha. Another equation exists
-            // with \tan\alpha = 3 \tan\beta, then this amounts to an assignment VALSYM = 3 \tan\beta
-            // TODO: This is not always usefull, e.g. we have y = a x^2 + b x + c and then ask for VAL(a x^2 + b x + c)
-            // By the above logic, this would be equivalent to VALSYM = y...
-            //
-            if (!found_value)
-            {
-                for (auto it_othereqr = other_equations.begin();
-                     it_othereqr != other_equations.end(); ++it_othereqr)
+                for (const auto& a : assgn)
                 {
-                    MSG_INFO(2, "Investigating other equation " << (*it_othereqr)->eq << endline);
-
-                    if (check_eq(*it_othereqr, names, result, aresult))
+                    if (is_a<equation>(a))
                     {
-                        // The equation is an assignment. This also handles case a) for varname = VALSYM
+                        MSG_INFO(2, "Creating temporary equation " << a << endline);
                         try
                         {
-                            if (store_assgn(names, result, aresult, *it_othereqr))
-                            {
-                                const matrix& res = ex_to<matrix>(aresult);
-                                for (unsigned r = 0; r < names.size(); ++r)
-                                {
-                                    if ((*it_othereqr)->label != VALLABEL)
-                                    {
-                                        new_assgn.emplace(vars.at(names[r]).getsym(), res(r, 0));
-                                        MSG_INFO(1, "Found value from other_equations: "
-                                                        << names[r] << " == " << res(r, 0)
-                                                        << endline);
-                                    }
-                                    if (names[r] == varname)
-                                        found_value = true;
-                                }
-                                if (found_value)
-                                {
-                                    MSG_INFO(1, "Found value of " << varname
-                                                                  << ". Stopping iteration."
-                                                                  << endline);
-                                    other_equations.erase(
-                                        it_othereqr); // The equation is stored with the variable now
-                                    break; // jump out of the for... loop
-                                }
-                            }
-                            it_othereqr = other_equations.erase(
-                                it_othereqr); // The equation is stored with the variable now
-                            --it_othereqr;
+                            check_and_register(ex_to<equation>(
+                                a)); // previous_it is set to the newly registered equation
+                            tempeqs.emplace_back(previous_it);
                         }
-                        catch (std::exception& except)
+                        catch (std::exception& e)
                         {
-                            MSG_ERROR(0, except.what() << endline);
+                            MSG_ERROR(0, "Failed to register temporary equation. Reason: "
+                                             << e.what() << endline);
+                            for (auto it_eqr : tempeqs)
+                                deleq(it_eqr);
+                            throw(std::invalid_argument("Error: Could not find quantity of "
+                                                        + var.get_name()));
                         }
                     }
-                } // for(it_othereqr ...)
-            }
-
-            // 2.1.5 For the special case of varname being VALSYM, we also need to look at all the equations
-            // because they might have been moved out of other_equations by now. The reason is that the
-            // symrec for VALSYM gets deleted every time
-            if (!found_value && (varname == VALSYM))
-            {
-                for (auto& eqrp : equations)
-                {
-                    if ((previous_it != equations.end()) && (eqrp.first == previous_it->first))
-                        continue; // Avoid "duplicate value" warning
-                    if (is_lib(eqrp.first))
-                        continue; // Generic library equation
-                    if (eqrp.first == VALLABEL)
-                        continue;
-                    MSG_INFO(2, "VALSYM: Investigating equation '"
-                                    << eqrp.first << "': " << eqrp.second.eq << endline);
-
-                    for (auto it_assignmenteqr = v->second.assignments.begin();
-                         it_assignmenteqr != v->second.assignments.end(); ++it_assignmenteqr)
-                    {
-                        // For all the assignments stored with this variable
-                        MSG_INFO(2, "Investigating " << (*it_assignmenteqr)->eq << endline);
-
-                        if (check_eq(*it_assignmenteqr, names, result, aresult))
+                    else if (is_a<relational>(a))
+                    { // TODO: WHY WHY WHY???
+                        MSG_INFO(2, "Creating temporary equation from relational " << a << endline);
+                        try
                         {
-                            // Note: Using store_assgn() here is not useful
-                            const matrix& res = ex_to<matrix>(result);
-                            const matrix& ares = ex_to<matrix>(aresult);
-                            unsigned r = 0;
-                            for (; r < names.size(); ++r)
-                                if (v->first == names[r])
-                                    break; // Find this variable in the matrix of assignments
-                            if (r == names.size())
-                                continue; // Variable not found: How can this be?
-                            MSG_INFO(2, "Found assignment " << names[r] << " == " << ares(r, 0)
-                                                            << endline);
-
-                            // If the result is a quantity, store the value for later
-                            // If this is the symbol we are searching a value for, the search is finished
-                            bool isqty = is_quantity(res(r, 0));
-                            if (isqty || is_a<matrix>(res(r, 0)))
-                            {
-                                v->second.val = res(r, 0); // A value was found for the variable
-                                v->second.aval = ares(r, 0);
-                                v->second.set_quantity(isqty);
-                                if (names[r] != VALSYM)
-                                    new_assgn.emplace(vars.at(names[r]).getsym(), ares(r, 0));
-                                MSG_INFO(1, "Found value from equations: "
-                                                << names[r] << " == " << ares(r, 0) << endline);
-                                // Move this equation label to the front of vars[...].assignments
-                                v->second.assignments.emplace_front(*it_assignmenteqr);
-                                it_assignmenteqr = v->second.assignments.erase(it_assignmenteqr);
-                                --it_assignmenteqr;
-
-                                if (v->first == varname)
-                                {
-                                    found_value = true;
-                                    MSG_INFO(1, "Found value of " << varname
-                                                                  << ". Stopping iteration."
-                                                                  << endline);
-                                }
-
-                                break; // jump out of the for(it_assignmenteqr ...) loop, this variable has a value
-                            }
-                            else if (eqrp.second.eq.rhs().is_equal(equations.at(VALLABEL).eq.rhs()))
-                            {
-                                matrix l(1, 1);
-                                l(0, 0) = eqrp.second.eq.lhs();
-                                std::vector<std::string> vec;
-                                vec.push_back(VALSYM);
-                                store_assgn(vec, l, l, &(eqrp.second));
-                            }
+                            const relational& r = ex_to<relational>(a);
+                            equation eqr(r.lhs(), r.rhs(), relational::equal, _expr0);
+                            check_and_register(eqr);
+                            tempeqs.emplace_back(previous_it);
                         }
-                    }
-
-                    // 2.2 Iterate over the equations stored in vars[...].assignments and check
-                    // each equation whether it evaluates to an assignment
-                    if (!found_value)
-                    {
-                        v = it_varname;
-                        do
+                        catch (std::exception& e)
                         {
-                            if (!v->second.has_value() && (v->second.getsymtype() != t_function))
-                            {
-                                // For every variable that has no value yet
-                                if (msg::info().checkprio(2))
-                                    if (!is_internal(
-                                            v->first)) // Avoid unnecessary debug output. Note: is_internal() is probably more expensive than checking begin() against end()
-                                        MSG_INFO(2, "Investigating assignments for " << v->first
-                                                                                     << endline);
-
-                                for (auto it_assignmenteqr = v->second.assignments.begin();
-                                     it_assignmenteqr != v->second.assignments.end();
-                                     ++it_assignmenteqr)
-                                {
-                                    // For all the assignments stored with this variable
-                                    MSG_INFO(2, "Investigating " << (*it_assignmenteqr)->eq
-                                                                 << endline);
-
-                                    if (check_eq(*it_assignmenteqr, names, result, aresult))
-                                    {
-                                        // Note: Using store_assgn() here is not useful
-                                        const matrix& res = ex_to<matrix>(result);
-                                        const matrix& ares = ex_to<matrix>(aresult);
-                                        unsigned r = 0;
-                                        for (; r < names.size(); ++r)
-                                            if (v->first == names[r])
-                                                break; // Find this variable in the matrix of assignments
-                                        if (r == names.size())
-                                            continue; // Variable not found: How can this be?
-                                        MSG_INFO(2, "Found assignment " << names[r] << " == "
-                                                                        << ares(r, 0) << endline);
-
-                                        // If the result is a quantity, store the value for later
-                                        // If this is the symbol we are searching a value for, the search is finished
-                                        if (is_quantity(res(r, 0)) || is_a<matrix>(res(r, 0)))
-                                        {
-                                            v->second.val
-                                                = res(r, 0); // A value was found for the variable
-                                            v->second.aval = ares(r, 0);
-                                            if (names[r] != VALSYM)
-                                                new_assgn.emplace(vars.at(names[r]).getsym(),
-                                                                  ares(r, 0));
-                                            MSG_INFO(1, "Found value from equations: "
-                                                            << names[r] << " == " << ares(r, 0)
-                                                            << endline);
-                                            // Move this equation label to the front of vars[...].assignments
-                                            v->second.assignments.emplace_front(*it_assignmenteqr);
-                                            it_assignmenteqr
-                                                = v->second.assignments.erase(it_assignmenteqr);
-                                            --it_assignmenteqr;
-
-                                            if (v->first == varname)
-                                            {
-                                                found_value = true;
-                                                MSG_INFO(1, "Found value of "
-                                                                << varname
-                                                                << ". Stopping iteration."
-                                                                << endline);
-                                            }
-
-                                            break; // jump out of the for(it_assignmenteqr ...) loop, this variable has a value
-                                        }
-                                    } // if (check_eq ...)
-                                } // for (it_assignmenteqr ...)
-                            } // if (has_value ...)
-                            if (found_value)
-                                break; // jump out of the do {} while(v ...) loop
-                            v++;
-                            if (v == vars.end())
-                                v = vars.begin();
-                        } while (v != it_varname); // do {} while()
-                    } // if (!found_value)
-
-                    // 2.3 All the assignments stored in recent_assgn have been applied to the equations in
-                    // this iteration. Merge them with the global assignments and move the contents of
-                    // new_assgn to recent_assgn
-                    if (!found_value)
-                    { // If a value was found, the iteration was incomplete!
-                        MSG_INFO(
-                            1,
-                            "Completed iteration. Recent assignments that have been substituted: "
-                                << recent_assgn << endline
-                                << "New assignments for next iteration: " << new_assgn << endline);
-
-                        assignments.insert(recent_assgn.begin(), recent_assgn.end());
-                        recent_assgn.swap(new_assgn);
-                        new_assgn.clear();
-                    }
-                }
-                while (!recent_assgn.empty() && !found_value)
-                    ;
-
-                // 2.4 Add the new assignments found to the recent assignments, for the next call of this function
-                if (!new_assgn.empty())
-                {
-                    recent_assgn.insert(new_assgn.begin(), new_assgn.end());
-                    new_assgn.clear();
-                }
-
-                // 3. Check whether we found too few or too many assignments for the variable
-                symrec& varsr = vars.at(varname);
-                if ((varname == VALSYM) && (varsr.assignments.size() > 1))
-                    varsr.assignments.remove(&(equations.at(VALLABEL)));
-
-                if (!varsr.has_value() && varsr.assignments.empty())
-                {
-                    for (auto it_eqr : tempeqs)
-                        deleq(it_eqr);
-                    throw(std::invalid_argument("Variable " + varname + " does not have a value"));
-                }
-
-                // The variable does not have a value, but multiple assignments try to define one
-                if (!has_value(var) && varsr.assignments.size() > 1)
-                {
-                    MSG_WARN(0, "Warning: Variable " << varname << " has "
-                                                     << (long)varsr.assignments.size()
-                                                     << " possible values." << endline);
-                    MSG_INFO(1,
-                             "Possible equations for " << varname << " after search: " << endline);
-                    for (auto it_assignmenteqr = varsr.assignments.begin();
-                         it_assignmenteqr != varsr.assignments.end();)
-                    {
-                        if ((varname != VALSYM)
-                            && ((*it_assignmenteqr)->subsed_lhs != varsr.getsym()))
-                        {
-                            // This also catches the case that subsed_lhs is empty because there was an error in check_eq subs/evalf
-                            MSG_INFO(1, (*it_assignmenteqr)->label
-                                            << ": " << (*it_assignmenteqr)->eq
-                                            << ", removing because symbol is on right-hand side"
-                                            << endline);
-                            it_assignmenteqr = varsr.assignments.erase(it_assignmenteqr);
+                            MSG_ERROR(0, "Failed to register temporary equation. Reason: "
+                                             << e.what() << endline);
+                            for (auto it_eqr : tempeqs)
+                                deleq(it_eqr);
+                            throw(std::invalid_argument("Error: Could not find quantity of "
+                                                        + var.get_name()));
                         }
-                        else
-                        {
-                            MSG_INFO(1, (*it_assignmenteqr)->label
-                                            << ": " << (*it_assignmenteqr)->eq << endline);
-                            ++it_assignmenteqr;
-                        }
-                    }
-                }
-
-                // 4. Find the best value for the variable
-                std::list<expression> values;
-                if (has_value(var))
-                {
-                    // 4.1 The variable has a value
-
-                    // If optional parameters were used, clean up
-                    if (assgn.nops() != 0)
-                    {
-                        for (auto it_eqr : tempeqs)
-                            deleq(it_eqr);
-                        previous_it = preveq;
-                    }
-
-                    if (varsr.is_quantity() && toquantity)
-                    {
-                        // 4.1.1 The variable has a value which is a quantity. Return result that was evalf()ed
-                        ::operands n(GINAC_MUL), d(GINAC_MUL);
-                        ::operands::split_ex(varsr.val, n, d);
-                        val = ex_to<numeric>(n.get_coefficient());
-                        unit = n.get_units() / d.get_units();
-                        value = varsr.val;
-                        MSG_INFO(0, "Found value which is a quantity: " << value << endline);
-                        return true;
                     }
                     else
                     {
-                        // 4.1.2 The variable has a value which is not a quantity. Return result that was not evalf()ed
-                        value = varsr.aval;
-                        MSG_INFO(0, "Found value which is no quantity: " << value << endline);
-                        return false;
+                        MSG_INFO(2, "Not an equation: " << a << endline);
+                        for (auto it_eqr : tempeqs)
+                            deleq(it_eqr);
+                        throw(std::invalid_argument("Error: Equation expected"));
                     }
+                }
+            }
+
+            var = std::move(nextvar);
+            iter++;
+            // Extra security check, to avoid lock-up of the office
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - startTime)
+                > std::chrono::milliseconds(1000))
+            {
+                MSG_ERROR(0, "Stopped iteration because calculation time exceeded one second");
+                break;
+            }
+            startTime = std::chrono::steady_clock::now();
+        }
+        while (!converged && (iter < maxiter))
+            ;
+
+        return var;
+    }
+
+    void eqc::clear()
+    {
+        if (msg::info().checkprio(3))
+            for (const auto& i : remember_split)
+                msg::info() << i.second.hits << " hits for " << i.second.e << endline;
+        remember_split.clear();
+
+        other_equations.clear();
+        previous_it = equations.end();
+        for (eqrec_it it_eqr = equations.begin(); it_eqr != equations.end();)
+        {
+            if (!is_lib(it_eqr->first) && !is_external_ns(it_eqr->first))
+            {
+                MSG_INFO(3, "Deleting equation " << it_eqr->first << ": " << it_eqr->second.eq
+                                                 << endline);
+                it_eqr = equations.erase(it_eqr);
+            }
+            else
+            {
+                ++it_eqr;
+            }
+        }
+        expressions.clear();
+
+        if (!funcmgr_writable)
+        {
+            funcmgr = std::make_shared<Functionmanager>(*funcmgr);
+            funcmgr_writable = true;
+        }
+
+        // Clear only variables and non-library functions in current namespace
+        assignments.clear();
+        recent_assgn.clear();
+        for (auto & [ varname, var ] : vars)
+        {
+            if (is_internal(varname))
+            {
+                MSG_INFO(3, "Keeping internal " << varname << endline);
+                if (var.has_value())
+                    assignments.emplace(var.getsym(), var.val);
+                continue;
+            }
+            if (is_external_ns(varname))
+            {
+                MSG_INFO(3, "Keeping from external namespace " << varname << endline);
+                if (var.has_value())
+                    assignments.emplace(var.getsym(), var.val);
+                continue;
+            }
+
+            if (var.getsymtype() == t_variable)
+            {
+                MSG_INFO(3, "Deleting variable " << varname << endline);
+                var.make_unknown();
+                var.setsymprop(p_complex);
+                var.assignments.clear();
+            }
+            else if (var.getsymtype() == t_function)
+            {
+                if (!funcmgr->is_lib(varname))
+                {
+                    MSG_INFO(3, "Deleting function " << varname << endline);
+                    funcmgr->remove(varname);
+                    var.setsymtype(
+                        t_variable); // Keep this variable because it might have been shadowed by a function
+                    var.setsymprop(p_complex);
+                    var.make_unknown();
+                    var.assignments.clear();
                 }
                 else
                 {
-                    // 4.2 Collect all the possible values, detect if assignment is the wrong way around
-                    //     (symbol on the left-hand side).
-                    // TODO: This doesn't work if we are searching for VALSYM
-                    for (const auto& assignmenteqr : varsr.assignments)
+                    MSG_INFO(3, "Keeping " << varname << endline);
+                    // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
+                    var.make_unknown();
+                    var.assignments.clear();
+                }
+            }
+            else
+            {
+                MSG_INFO(3, "Keeping " << varname << endline);
+                if (var.has_value())
+                    assignments.emplace(var.getsym(), var.val);
+            }
+        }
+    } //eqc::clear()
+
+    symrec_it it_varname = vars.find(varname);
+    symrec_it v;
+    eqrec_it e;
+
+    if (msg::info().checkprio(2))
+    {
+        msg::info() << "Available other equations: " << endline;
+        for (const auto& eqr : other_equations)
+        {
+            msg::info() << eqr->label << ": " << eqr->eq << endline;
+        }
+    }
+    if (msg::info().checkprio(2))
+    {
+        msg::info() << "Available equations: " << endline;
+        for (const auto& eqrp : equations)
+            if (!is_lib(eqrp.first))
+                msg::info() << eqrp.first << ": " << eqrp.second.eq << endline;
+    }
+    if (msg::info().checkprio(2))
+    {
+        msg::info() << "Available assignments: " << assignments << endline
+                    << "Recent assignments: " << recent_assgn << endline;
+    }
+
+    exmap new_assgn; // Collect new assignments found during an iteration loop
+    unsigned num_it = 0; // just for the statistics...
+    expression result;
+    expression aresult;
+    std::vector<std::string> names;
+
+    // 2. Find all possible assignments and further equations for the variable
+    do
+    {
+        if (msg::info().checkprio(1) && !found_value)
+            msg::info() << "Starting iteration #" << ++num_it << endline;
+
+        // 2.1 Iterate over other_equations and check each equation whether it evaluates
+        // to an assignment or even a quantity
+        // For the special case of searching for the value of VALSYM (which means that the user
+        // asked for the value of an expression, not of a symbol, e.g. \val{\tan\alpha}),
+        // there are two possible solutions:
+        // a) The rhs of the equation VALLABEL: VALSYM = ... evaluates to the result
+        // b) The lhs or rhs of another equation correspond to this expression. If yes, we
+        // use this as a new assignment for VALSYM. Example:
+        // User: \val{\tan\alpha} -> eqc creates equation: VALSYM = \tan\alpha. Another equation exists
+        // with \tan\alpha = 3 \tan\beta, then this amounts to an assignment VALSYM = 3 \tan\beta
+        // TODO: This is not always usefull, e.g. we have y = a x^2 + b x + c and then ask for VAL(a x^2 + b x + c)
+        // By the above logic, this would be equivalent to VALSYM = y...
+        //
+        if (!found_value)
+        {
+            for (auto it_othereqr = other_equations.begin(); it_othereqr != other_equations.end();
+                 ++it_othereqr)
+            {
+                MSG_INFO(2, "Investigating other equation " << (*it_othereqr)->eq << endline);
+
+                if (check_eq(*it_othereqr, names, result, aresult))
+                {
+                    // The equation is an assignment. This also handles case a) for varname = VALSYM
+                    try
                     {
-                        if (assignmenteqr->subsed_rhs.is_empty())
-                            values.emplace_back((assignmenteqr->eq.rhs() == varsr.getsym())
-                                                    ? assignmenteqr->eq.lhs()
-                                                    : assignmenteqr->eq.rhs());
-                        else
-                            values.emplace_back((assignmenteqr->subsed_rhs == varsr.getsym())
-                                                    ? assignmenteqr->subsed_lhs
-                                                    : assignmenteqr->subsed_rhs);
+                        if (store_assgn(names, result, aresult, *it_othereqr))
+                        {
+                            const matrix& res = ex_to<matrix>(aresult);
+                            for (unsigned r = 0; r < names.size(); ++r)
+                            {
+                                if ((*it_othereqr)->label != VALLABEL)
+                                {
+                                    new_assgn.emplace(vars.at(names[r]).getsym(), res(r, 0));
+                                    MSG_INFO(1, "Found value from other_equations: "
+                                                    << names[r] << " == " << res(r, 0) << endline);
+                                }
+                                if (names[r] == varname)
+                                    found_value = true;
+                            }
+                            if (found_value)
+                            {
+                                MSG_INFO(1, "Found value of " << varname << ". Stopping iteration."
+                                                              << endline);
+                                other_equations.erase(
+                                    it_othereqr); // The equation is stored with the variable now
+                                break; // jump out of the for... loop
+                            }
+                        }
+                        it_othereqr = other_equations.erase(
+                            it_othereqr); // The equation is stored with the variable now
+                        --it_othereqr;
+                    }
+                    catch (std::exception& except)
+                    {
+                        MSG_ERROR(0, except.what() << endline);
+                    }
+                }
+            } // for(it_othereqr ...)
+        }
+
+        // 2.1.5 For the special case of varname being VALSYM, we also need to look at all the equations
+        // because they might have been moved out of other_equations by now. The reason is that the
+        // symrec for VALSYM gets deleted every time
+        if (!found_value && (varname == VALSYM))
+        {
+            for (auto& eqrp : equations)
+            {
+                if ((previous_it != equations.end()) && (eqrp.first == previous_it->first))
+                    continue; // Avoid "duplicate value" warning
+                if (is_lib(eqrp.first))
+                    continue; // Generic library equation
+                if (eqrp.first == VALLABEL)
+                    continue;
+                MSG_INFO(2, "VALSYM: Investigating equation '"
+                                << eqrp.first << "': " << eqrp.second.eq << endline);
+
+                for (auto it_assignmenteqr = v->second.assignments.begin();
+                     it_assignmenteqr != v->second.assignments.end(); ++it_assignmenteqr)
+                {
+                    // For all the assignments stored with this variable
+                    MSG_INFO(2, "Investigating " << (*it_assignmenteqr)->eq << endline);
+
+                    if (check_eq(*it_assignmenteqr, names, result, aresult))
+                    {
+                        // Note: Using store_assgn() here is not useful
+                        const matrix& res = ex_to<matrix>(result);
+                        const matrix& ares = ex_to<matrix>(aresult);
+                        unsigned r = 0;
+                        for (; r < names.size(); ++r)
+                            if (v->first == names[r])
+                                break; // Find this variable in the matrix of assignments
+                        if (r == names.size())
+                            continue; // Variable not found: How can this be?
+                        MSG_INFO(2, "Found assignment " << names[r] << " == " << ares(r, 0)
+                                                        << endline);
+
+                        // If the result is a quantity, store the value for later
+                        // If this is the symbol we are searching a value for, the search is finished
+                        bool isqty = is_quantity(res(r, 0));
+                        if (isqty || is_a<matrix>(res(r, 0)))
+                        {
+                            v->second.val = res(r, 0); // A value was found for the variable
+                            v->second.aval = ares(r, 0);
+                            v->second.set_quantity(isqty);
+                            if (names[r] != VALSYM)
+                                new_assgn.emplace(vars.at(names[r]).getsym(), ares(r, 0));
+                            MSG_INFO(1, "Found value from equations: " << names[r] << " == "
+                                                                       << ares(r, 0) << endline);
+                            // Move this equation label to the front of vars[...].assignments
+                            v->second.assignments.emplace_front(*it_assignmenteqr);
+                            it_assignmenteqr = v->second.assignments.erase(it_assignmenteqr);
+                            --it_assignmenteqr;
+
+                            if (v->first == varname)
+                            {
+                                found_value = true;
+                                MSG_INFO(1, "Found value of " << varname << ". Stopping iteration."
+                                                              << endline);
+                            }
+
+                            break; // jump out of the for(it_assignmenteqr ...) loop, this variable has a value
+                        }
+                        else if (eqrp.second.eq.rhs().is_equal(equations.at(VALLABEL).eq.rhs()))
+                        {
+                            matrix l(1, 1);
+                            l(0, 0) = eqrp.second.eq.lhs();
+                            std::vector<std::string> vec;
+                            vec.push_back(VALSYM);
+                            store_assgn(vec, l, l, &(eqrp.second));
+                        }
                     }
                 }
 
-                // 5. The variable does not have a quantity. Return the best of the values found
-                // TODO: Choose the equation with the least
-                // unknown variables in it or the last one defined by the user?
-                if (msg::info().checkprio(0))
+                // 2.2 Iterate over the equations stored in vars[...].assignments and check
+                // each equation whether it evaluates to an assignment
+                if (!found_value)
                 {
-                    msg::info() << "Possible values for " << varname << " after simplification: ";
-                    std::ostringstream os;
-                    copy(values.begin(), values.end(), std::ostream_iterator<expression>(os, "; "));
-                    msg::info() << os.str();
-                    msg::info() << endline;
-                }
-                value = values.front(); // Returns the last equation defined by the user
+                    v = it_varname;
+                    do
+                    {
+                        if (!v->second.has_value() && (v->second.getsymtype() != t_function))
+                        {
+                            // For every variable that has no value yet
+                            if (msg::info().checkprio(2))
+                                if (!is_internal(
+                                        v->first)) // Avoid unnecessary debug output. Note: is_internal() is probably more expensive than checking begin() against end()
+                                    MSG_INFO(2, "Investigating assignments for " << v->first
+                                                                                 << endline);
 
+                            for (auto it_assignmenteqr = v->second.assignments.begin();
+                                 it_assignmenteqr != v->second.assignments.end();
+                                 ++it_assignmenteqr)
+                            {
+                                // For all the assignments stored with this variable
+                                MSG_INFO(2, "Investigating " << (*it_assignmenteqr)->eq << endline);
+
+                                if (check_eq(*it_assignmenteqr, names, result, aresult))
+                                {
+                                    // Note: Using store_assgn() here is not useful
+                                    const matrix& res = ex_to<matrix>(result);
+                                    const matrix& ares = ex_to<matrix>(aresult);
+                                    unsigned r = 0;
+                                    for (; r < names.size(); ++r)
+                                        if (v->first == names[r])
+                                            break; // Find this variable in the matrix of assignments
+                                    if (r == names.size())
+                                        continue; // Variable not found: How can this be?
+                                    MSG_INFO(2, "Found assignment "
+                                                    << names[r] << " == " << ares(r, 0) << endline);
+
+                                    // If the result is a quantity, store the value for later
+                                    // If this is the symbol we are searching a value for, the search is finished
+                                    if (is_quantity(res(r, 0)) || is_a<matrix>(res(r, 0)))
+                                    {
+                                        v->second.val
+                                            = res(r, 0); // A value was found for the variable
+                                        v->second.aval = ares(r, 0);
+                                        if (names[r] != VALSYM)
+                                            new_assgn.emplace(vars.at(names[r]).getsym(),
+                                                              ares(r, 0));
+                                        MSG_INFO(1, "Found value from equations: "
+                                                        << names[r] << " == " << ares(r, 0)
+                                                        << endline);
+                                        // Move this equation label to the front of vars[...].assignments
+                                        v->second.assignments.emplace_front(*it_assignmenteqr);
+                                        it_assignmenteqr
+                                            = v->second.assignments.erase(it_assignmenteqr);
+                                        --it_assignmenteqr;
+
+                                        if (v->first == varname)
+                                        {
+                                            found_value = true;
+                                            MSG_INFO(1, "Found value of " << varname
+                                                                          << ". Stopping iteration."
+                                                                          << endline);
+                                        }
+
+                                        break; // jump out of the for(it_assignmenteqr ...) loop, this variable has a value
+                                    }
+                                } // if (check_eq ...)
+                            } // for (it_assignmenteqr ...)
+                        } // if (has_value ...)
+                        if (found_value)
+                            break; // jump out of the do {} while(v ...) loop
+                        v++;
+                        if (v == vars.end())
+                            v = vars.begin();
+                    } while (v != it_varname); // do {} while()
+                } // if (!found_value)
+
+                // 2.3 All the assignments stored in recent_assgn have been applied to the equations in
+                // this iteration. Merge them with the global assignments and move the contents of
+                // new_assgn to recent_assgn
+                if (!found_value)
+                { // If a value was found, the iteration was incomplete!
+                    MSG_INFO(1,
+                             "Completed iteration. Recent assignments that have been substituted: "
+                                 << recent_assgn << endline
+                                 << "New assignments for next iteration: " << new_assgn << endline);
+
+                    assignments.insert(recent_assgn.begin(), recent_assgn.end());
+                    recent_assgn.swap(new_assgn);
+                    new_assgn.clear();
+                }
+            }
+            while (!recent_assgn.empty() && !found_value)
+                ;
+
+            // 2.4 Add the new assignments found to the recent assignments, for the next call of this function
+            if (!new_assgn.empty())
+            {
+                recent_assgn.insert(new_assgn.begin(), new_assgn.end());
+                new_assgn.clear();
+            }
+
+            // 3. Check whether we found too few or too many assignments for the variable
+            symrec& varsr = vars.at(varname);
+            if ((varname == VALSYM) && (varsr.assignments.size() > 1))
+                varsr.assignments.remove(&(equations.at(VALLABEL)));
+
+            if (!varsr.has_value() && varsr.assignments.empty())
+            {
+                for (auto it_eqr : tempeqs)
+                    deleq(it_eqr);
+                throw(std::invalid_argument("Variable " + varname + " does not have a value"));
+            }
+
+            // The variable does not have a value, but multiple assignments try to define one
+            if (!has_value(var) && varsr.assignments.size() > 1)
+            {
+                MSG_WARN(0, "Warning: Variable " << varname << " has "
+                                                 << (long)varsr.assignments.size()
+                                                 << " possible values." << endline);
+                MSG_INFO(1, "Possible equations for " << varname << " after search: " << endline);
+                for (auto it_assignmenteqr = varsr.assignments.begin();
+                     it_assignmenteqr != varsr.assignments.end();)
+                {
+                    if ((varname != VALSYM) && ((*it_assignmenteqr)->subsed_lhs != varsr.getsym()))
+                    {
+                        // This also catches the case that subsed_lhs is empty because there was an error in check_eq subs/evalf
+                        MSG_INFO(1, (*it_assignmenteqr)->label
+                                        << ": " << (*it_assignmenteqr)->eq
+                                        << ", removing because symbol is on right-hand side"
+                                        << endline);
+                        it_assignmenteqr = varsr.assignments.erase(it_assignmenteqr);
+                    }
+                    else
+                    {
+                        MSG_INFO(1, (*it_assignmenteqr)->label << ": " << (*it_assignmenteqr)->eq
+                                                               << endline);
+                        ++it_assignmenteqr;
+                    }
+                }
+            }
+
+            // 4. Find the best value for the variable
+            std::list<expression> values;
+            if (has_value(var))
+            {
+                // 4.1 The variable has a value
+
+                // If optional parameters were used, clean up
                 if (assgn.nops() != 0)
                 {
                     for (auto it_eqr : tempeqs)
@@ -1514,418 +1687,473 @@ bool eqc::store_assgn(const std::vector<std::string>& names, const expression& r
                     previous_it = preveq;
                 }
 
-                return false;
-            } // eqc::find_values()
-
-            expression eqc::find_value_of(const extsymbol& var, const lst& assgn,
-                                          const bool toquantity)
-            {
-                numeric v;
-                expression u, value;
-                find_values(var, v, u, value, assgn, toquantity);
-                return (value);
-            } // eqc::find_value_of()
-
-            expression eqc::find_quantity_of(const extsymbol& var, const lst& assgn)
-            {
-                numeric v;
-                expression u, value;
-                if (!find_values(var, v, u, value, assgn, true))
+                if (varsr.is_quantity() && toquantity)
                 {
-                    MSG_ERROR(0, "Value found: " << value << endline);
-                    throw(std::invalid_argument("Variable '" + var.get_name()
-                                                + "' does not have a quantity"));
+                    // 4.1.1 The variable has a value which is a quantity. Return result that was evalf()ed
+                    ::operands n(GINAC_MUL), d(GINAC_MUL);
+                    ::operands::split_ex(varsr.val, n, d);
+                    val = ex_to<numeric>(n.get_coefficient());
+                    unit = n.get_units() / d.get_units();
+                    value = varsr.val;
+                    MSG_INFO(0, "Found value which is a quantity: " << value << endline);
+                    return true;
                 }
-                return (value.evalf());
-            } // eqc::find_quantity_of()
-
-            numeric eqc::find_numval_of(const extsymbol& var, const lst& assgn)
-            {
-                // Note: This function discards any units the result might contain!
-                numeric v;
-                expression u, value;
-                if (!find_values(var, v, u, value, assgn, true))
+                else
                 {
-                    MSG_ERROR(0, "Value found: " << value << endline);
-                    throw(std::invalid_argument("Variable '" + var.get_name()
-                                                + "' does not have a numeric value"));
+                    // 4.1.2 The variable has a value which is not a quantity. Return result that was not evalf()ed
+                    value = varsr.aval;
+                    MSG_INFO(0, "Found value which is no quantity: " << value << endline);
+                    return false;
                 }
-                if (!u.is_equal(_ex1))
-                    MSG_ERROR(0, "Warning: Numerical value requested, but units were found for "
-                                     << var << endline);
-                return (v);
-            } //eqc::find_numval_of()
-
-            expression eqc::find_units_of(const extsymbol& var, const lst& assgn)
-            {
-                numeric v;
-                expression u, value;
-                if (!find_values(var, v, u, value, assgn, true))
-                {
-                    MSG_ERROR(0, "Value found: " << value << endline);
-                    throw(std::invalid_argument("Error: Variable '" + var.get_name()
-                                                + "' does not have a quantity"));
-                }
-                if (v != 1)
-                    MSG_ERROR(0, "Warning: Units requested, but numerical value was found for "
-                                     << var << endline);
-                return (u);
-            } //eqc::find_units_of()
-
-            exhashmap<ex> eqc::find_variable_values(const expression& e) const
-            {
-                MSG_INFO(1, "Searching variable values for " << e << endline);
-                exhashmap<ex> result;
-
-                for (const_preorder_iterator i = e.preorder_begin(); i != e.preorder_end(); ++i)
-                {
-                    if (is_a<extsymbol>(*i) && (result.find(*i) == result.end()))
-                    {
-                        MSG_INFO(3, "Found contained symbol " << *i << " with value "
-                                                              << get_value(ex_to<extsymbol>(*i))
-                                                              << endline);
-                        result[*i] = get_value(ex_to<extsymbol>(*i)); // exhashmap has no emplace()
-                    }
-                }
-
-                return result;
             }
-
-            matrix eqc::iterate(const matrix& syms, const matrix& exprs, const matrix& start,
-                                const matrix& conv, const unsigned maxiter)
+            else
             {
-                unsigned rows = syms.rows();
-
-                // Convert convergence criteria to numerics
-                matrix criteria(rows, 1);
-                bool ignore_convergence
-                    = true; // If all criteria are exactly 0, then we want to run all the specified iterations
-                for (unsigned row = 0; row < rows; ++row)
+                // 4.2 Collect all the possible values, detect if assignment is the wrong way around
+                //     (symbol on the left-hand side).
+                // TODO: This doesn't work if we are searching for VALSYM
+                for (const auto& assignmenteqr : varsr.assignments)
                 {
-                    criteria(row, 0) = conv(row, 0);
-                    if (!criteria(row, 0).is_zero())
-                        ignore_convergence = false;
-                }
-
-                // Iteration zero
-                unsigned iter = 0;
-                matrix var(rows, 1);
-                for (unsigned row = 0; row < rows; ++row)
-                {
-                    var(row, 0) = expression(start(row, 0)).evalf();
-                    MSG_INFO(2, "s0 = " << var(row, 0) << endline);
-                }
-
-                bool converged;
-                iter++;
-                auto startTime = std::chrono::steady_clock::now();
-
-                do
-                {
-                    matrix nextvar(rows, 1);
-                    // Collect substitutions
-                    exmap substvars; // Cannot use exhashmap because subs() doesn't accept it
-                    for (unsigned row = 0; row < rows; ++row)
-                        substvars[syms(row, 0)] = var(row, 0);
-
-                    for (unsigned row = 0; row < rows; ++row)
-                    {
-                        nextvar(row, 0) = expression(exprs(row, 0).subs(substvars)).evalf();
-                        MSG_INFO(2, "s" << iter << " = " << nextvar(row, 0) << endline);
-                    }
-
-                    var = std::move(nextvar);
-                    iter++;
-                    // Extra security check, to avoid lock-up of the office
-                    if (std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::steady_clock::now() - startTime)
-                        > std::chrono::milliseconds(1000))
-                    {
-                        MSG_ERROR(0,
-                                  "Stopped iteration because calculation time exceeded one second");
-                        break;
-                    }
-                    startTime = std::chrono::steady_clock::now();
-                } while (!converged && (iter < maxiter));
-
-                return var;
-            }
-
-            void eqc::clear()
-            {
-                if (msg::info().checkprio(1))
-                    for (const auto& i : remember_split)
-                        msg::info() << i.second.hits << " hits for " << i.second.e << endline;
-                remember_split.clear();
-
-                other_equations.clear();
-                previous_it = equations.end();
-                for (eqrec_it it_eqr = equations.begin(); it_eqr != equations.end();)
-                {
-                    if (!is_lib(it_eqr->first) && !is_external_ns(it_eqr->first))
-                    {
-                        MSG_INFO(3, "Deleting equation " << it_eqr->first << ": "
-                                                         << it_eqr->second.eq << endline);
-                        it_eqr = equations.erase(it_eqr);
-                    }
+                    if (assignmenteqr->subsed_rhs.is_empty())
+                        values.emplace_back((assignmenteqr->eq.rhs() == varsr.getsym())
+                                                ? assignmenteqr->eq.lhs()
+                                                : assignmenteqr->eq.rhs());
                     else
-                    {
-                        ++it_eqr;
-                    }
+                        values.emplace_back((assignmenteqr->subsed_rhs == varsr.getsym())
+                                                ? assignmenteqr->subsed_lhs
+                                                : assignmenteqr->subsed_rhs);
                 }
-                expressions.clear();
+            }
 
-                if (!funcmgr_writable)
+            // 5. The variable does not have a quantity. Return the best of the values found
+            // TODO: Choose the equation with the least
+            // unknown variables in it or the last one defined by the user?
+            if (msg::info().checkprio(0))
+            {
+                msg::info() << "Possible values for " << varname << " after simplification: ";
+                std::ostringstream os;
+                copy(values.begin(), values.end(), std::ostream_iterator<expression>(os, "; "));
+                msg::info() << os.str();
+                msg::info() << endline;
+            }
+            value = values.front(); // Returns the last equation defined by the user
+
+            if (assgn.nops() != 0)
+            {
+                for (auto it_eqr : tempeqs)
+                    deleq(it_eqr);
+                previous_it = preveq;
+            }
+
+            return false;
+        } // eqc::find_values()
+
+        expression eqc::find_value_of(const extsymbol& var, const lst& assgn, const bool toquantity)
+        {
+            numeric v;
+            expression u, value;
+            find_values(var, v, u, value, assgn, toquantity);
+            return (value);
+        } // eqc::find_value_of()
+
+        expression eqc::find_quantity_of(const extsymbol& var, const lst& assgn)
+        {
+            numeric v;
+            expression u, value;
+            if (!find_values(var, v, u, value, assgn, true))
+            {
+                MSG_ERROR(0, "Value found: " << value << endline);
+                throw(std::invalid_argument("Variable '" + var.get_name()
+                                            + "' does not have a quantity"));
+            }
+            return (value.evalf());
+        } // eqc::find_quantity_of()
+
+        numeric eqc::find_numval_of(const extsymbol& var, const lst& assgn)
+        {
+            // Note: This function discards any units the result might contain!
+            numeric v;
+            expression u, value;
+            if (!find_values(var, v, u, value, assgn, true))
+            {
+                MSG_ERROR(0, "Value found: " << value << endline);
+                throw(std::invalid_argument("Variable '" + var.get_name()
+                                            + "' does not have a numeric value"));
+            }
+            if (!u.is_equal(_ex1))
+                MSG_ERROR(0, "Warning: Numerical value requested, but units were found for "
+                                 << var << endline);
+            return (v);
+        } //eqc::find_numval_of()
+
+        expression eqc::find_units_of(const extsymbol& var, const lst& assgn)
+        {
+            numeric v;
+            expression u, value;
+            if (!find_values(var, v, u, value, assgn, true))
+            {
+                MSG_ERROR(0, "Value found: " << value << endline);
+                throw(std::invalid_argument("Error: Variable '" + var.get_name()
+                                            + "' does not have a quantity"));
+            }
+            if (v != 1)
+                MSG_ERROR(0, "Warning: Units requested, but numerical value was found for "
+                                 << var << endline);
+            return (u);
+        } //eqc::find_units_of()
+
+        exhashmap<ex> eqc::find_variable_values(const expression& e) const
+        {
+            MSG_INFO(1, "Searching variable values for " << e << endline);
+            exhashmap<ex> result;
+
+            for (const_preorder_iterator i = e.preorder_begin(); i != e.preorder_end(); ++i)
+            {
+                if (is_a<extsymbol>(*i) && (result.find(*i) == result.end()))
                 {
-                    funcmgr = std::make_shared<Functionmanager>(*funcmgr);
-                    funcmgr_writable = true;
+                    MSG_INFO(3, "Found contained symbol " << *i << " with value "
+                                                          << get_value(ex_to<extsymbol>(*i))
+                                                          << endline);
+                    result[*i] = get_value(ex_to<extsymbol>(*i)); // exhashmap has no emplace()
+                }
+            }
+
+            return result;
+        }
+
+        matrix eqc::iterate(const matrix& syms, const matrix& exprs, const matrix& start,
+                            const matrix& conv, const unsigned maxiter)
+        {
+            unsigned rows = syms.rows();
+
+            // Convert convergence criteria to numerics
+            matrix criteria(rows, 1);
+            bool ignore_convergence
+                = true; // If all criteria are exactly 0, then we want to run all the specified iterations
+            for (unsigned row = 0; row < rows; ++row)
+            {
+                criteria(row, 0) = conv(row, 0);
+                if (!criteria(row, 0).is_zero())
+                    ignore_convergence = false;
+            }
+
+            // Iteration zero
+            unsigned iter = 0;
+            matrix var(rows, 1);
+            for (unsigned row = 0; row < rows; ++row)
+            {
+                var(row, 0) = expression(start(row, 0)).evalf();
+                MSG_INFO(2, "s0 = " << var(row, 0) << endline);
+            }
+
+            bool converged;
+            iter++;
+            auto startTime = std::chrono::steady_clock::now();
+
+            do
+            {
+                matrix nextvar(rows, 1);
+                // Collect substitutions
+                exmap substvars; // Cannot use exhashmap because subs() doesn't accept it
+                for (unsigned row = 0; row < rows; ++row)
+                    substvars[syms(row, 0)] = var(row, 0);
+
+                for (unsigned row = 0; row < rows; ++row)
+                {
+                    nextvar(row, 0) = expression(exprs(row, 0).subs(substvars)).evalf();
+                    MSG_INFO(2, "s" << iter << " = " << nextvar(row, 0) << endline);
                 }
 
-                // Clear only variables and non-library functions in current namespace
-                assignments.clear();
-                recent_assgn.clear();
-                for (auto & [ varname, var ] : vars)
+                var = std::move(nextvar);
+                iter++;
+                // Extra security check, to avoid lock-up of the office
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - startTime)
+                    > std::chrono::milliseconds(1000))
                 {
-                    if (is_internal(varname))
-                    {
-                        MSG_INFO(0, "Keeping internal " << varname << endline);
-                        assignments.emplace(var.getsym(), var.val);
-                        continue;
-                    }
-                    if (is_external_ns(varname))
-                    {
-                        MSG_INFO(0, "Keeping from external namespace " << varname << endline);
-                        assignments.emplace(var.getsym(), var.val);
-                        continue;
-                    }
+                    MSG_ERROR(0, "Stopped iteration because calculation time exceeded one second");
+                    break;
+                }
+                startTime = std::chrono::steady_clock::now();
+            } while (!converged && (iter < maxiter));
 
-                    if (var.getsymtype() == t_variable)
+            return var;
+        }
+
+        void eqc::clear()
+        {
+            if (msg::info().checkprio(1))
+                for (const auto& i : remember_split)
+                    msg::info() << i.second.hits << " hits for " << i.second.e << endline;
+            remember_split.clear();
+
+            other_equations.clear();
+            previous_it = equations.end();
+            for (eqrec_it it_eqr = equations.begin(); it_eqr != equations.end();)
+            {
+                if (!is_lib(it_eqr->first) && !is_external_ns(it_eqr->first))
+                {
+                    MSG_INFO(3, "Deleting equation " << it_eqr->first << ": " << it_eqr->second.eq
+                                                     << endline);
+                    it_eqr = equations.erase(it_eqr);
+                }
+                else
+                {
+                    ++it_eqr;
+                }
+            }
+            expressions.clear();
+
+            if (!funcmgr_writable)
+            {
+                funcmgr = std::make_shared<Functionmanager>(*funcmgr);
+                funcmgr_writable = true;
+            }
+
+            // Clear only variables and non-library functions in current namespace
+            assignments.clear();
+            recent_assgn.clear();
+            for (auto & [ varname, var ] : vars)
+            {
+                if (is_internal(varname))
+                {
+                    MSG_INFO(0, "Keeping internal " << varname << endline);
+                    assignments.emplace(var.getsym(), var.val);
+                    continue;
+                }
+                if (is_external_ns(varname))
+                {
+                    MSG_INFO(0, "Keeping from external namespace " << varname << endline);
+                    assignments.emplace(var.getsym(), var.val);
+                    continue;
+                }
+
+                if (var.getsymtype() == t_variable)
+                {
+                    MSG_INFO(0, "Deleting variable " << varname << endline);
+                    var.make_unknown();
+                    var.setsymprop(p_complex);
+                    var.assignments.clear();
+                }
+                else if (var.getsymtype() == t_function)
+                {
+                    if (!funcmgr->is_lib(varname))
                     {
-                        MSG_INFO(0, "Deleting variable " << varname << endline);
-                        var.make_unknown();
+                        MSG_INFO(0, "Deleting function " << varname << endline);
+                        funcmgr->remove(varname);
+                        var.setsymtype(
+                            t_variable); // Keep this variable because it might have been shadowed by a function
                         var.setsymprop(p_complex);
+                        var.make_unknown();
                         var.assignments.clear();
-                    }
-                    else if (var.getsymtype() == t_function)
-                    {
-                        if (!funcmgr->is_lib(varname))
-                        {
-                            MSG_INFO(0, "Deleting function " << varname << endline);
-                            funcmgr->remove(varname);
-                            var.setsymtype(
-                                t_variable); // Keep this variable because it might have been shadowed by a function
-                            var.setsymprop(p_complex);
-                            var.make_unknown();
-                            var.assignments.clear();
-                        }
-                        else
-                        {
-                            MSG_INFO(0, "Keeping " << varname << endline);
-                            // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
-                            var.make_unknown();
-                            var.assignments.clear();
-                        }
                     }
                     else
                     {
                         MSG_INFO(0, "Keeping " << varname << endline);
-                        assignments.emplace(var.getsym(), var.val);
-                    }
-                }
-            } //eqc::clear()
-
-            void eqc::clearall(const bool persist_symbols)
-            {
-                MSG_INFO(3, "eqc::clearall, persisting symbols: "
-                                << (persist_symbols ? "yes" : "no") << endline);
-                if (msg::info().checkprio(1))
-                    for (const auto& i : remember_split)
-                        msg::info() << i.second.hits << " hits for " << i.second.e << endline;
-                remember_split.clear();
-
-                other_equations.clear();
-                equations.clear();
-                expressions.clear();
-                previous_it = equations.end();
-                assignments.clear();
-                recent_assgn.clear();
-                if (persist_symbols)
-                {
-                    for (auto& v : vars)
-                    {
-                        v.second.setsymtype(t_variable);
-                        v.second.setsymprop(p_complex);
-                        v.second.make_unknown();
-                        v.second.assignments.clear();
-                        MSG_INFO(3, "Persisting symbol " << v.first << endline);
+                        // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
+                        var.make_unknown();
+                        var.assignments.clear();
                     }
                 }
                 else
                 {
-                    vars.clear();
+                    MSG_INFO(0, "Keeping " << varname << endline);
+                    assignments.emplace(var.getsym(), var.val);
                 }
+            }
+        } //eqc::clear()
 
-                if (!unitmgr_writable)
-                {
-                    unitmgr = std::make_shared<Unitmanager>(*unitmgr);
-                    unitmgr_writable = true;
-                }
-                unitmgr->clear();
+        void eqc::clearall(const bool persist_symbols)
+        {
+            MSG_INFO(3, "eqc::clearall, persisting symbols: " << (persist_symbols ? "yes" : "no")
+                                                              << endline);
+            if (msg::info().checkprio(1))
+                for (const auto& i : remember_split)
+                    msg::info() << i.second.hits << " hits for " << i.second.e << endline;
+            remember_split.clear();
 
-                if (!funcmgr_writable)
-                {
-                    funcmgr = std::make_shared<Functionmanager>(*funcmgr);
-                    funcmgr_writable = true;
-                }
-
-                funcmgr->clearall();
-                nextlabel = 0;
-
-                MSG_INFO(1, "Re-Registering hard-coded functions"
-                                << endline); // TODO Identical code as in eqc::eqc()
-                for (const auto& n : Functionmanager::get_hard_names())
-                {
-                    MSG_INFO(1, "Function " << n << endline);
-                    getsym(n);
-                    vars.at(n).setsymtype(t_function);
-                }
-            } //eqc::clearall()
-
-            void eqc::print(std::ostream & os) const
+            other_equations.clear();
+            equations.clear();
+            expressions.clear();
+            previous_it = equations.end();
+            assignments.clear();
+            recent_assgn.clear();
+            if (persist_symbols)
             {
-                os << "List of variables:" << std::endl;
-                for (auto& variable : vars)
-                    os << variable.first << std::endl;
-
-                os << "List of equations:" << std::endl;
-                for (auto& eq : equations)
-                    os << eq.first << ": " << ex(eq.second.eq) << std::endl;
-
-                os << "List of expressions:" << std::endl;
-                for (auto& ex : expressions)
-                    os << ex.first << ": " << ex.second << std::endl;
-
-                unitmgr->print(os);
+                for (auto& v : vars)
+                {
+                    v.second.setsymtype(t_variable);
+                    v.second.setsymprop(p_complex);
+                    v.second.make_unknown();
+                    v.second.assignments.clear();
+                    MSG_INFO(3, "Persisting symbol " << v.first << endline);
+                }
+            }
+            else
+            {
+                vars.clear();
             }
 
-            void eqc::dumpvars(std::ostream & os)
+            if (!unitmgr_writable)
             {
-                std::vector<symrec> v_values;
-                std::vector<symrec> v_novalues;
+                unitmgr = std::make_shared<Unitmanager>(*unitmgr);
+                unitmgr_writable = true;
+            }
+            unitmgr->clear();
 
-                // Collect variables, distinguishing whether they have a value or not
-                for (const auto& v : vars)
-                {
-                    if (is_internal(v.first))
-                        continue;
-                    if ((v.first != VALSYM) && (v.second.getsymtype() != t_function)
-                        && (v.second.getsymtype() != t_none) && !is_internal(v.first))
-                    {
-                        if (v.second.has_value())
-                            v_values.emplace_back(v.second);
-                        else
-                            v_novalues.emplace_back(v.second);
-                    }
-                }
-
-                // Dump variables with values first
-                for (const auto& v : v_values)
-                {
-                    os << v.get_name() << " = " << v.val;
-
-                    if (!v.assignments.empty())
-                    {
-                        os << " (";
-                        for (const auto& l : v.assignments)
-                            os << "@" << l->label << "@ ";
-                        os << ")";
-                    }
-
-                    os << std::endl;
-                }
-
-                for (const auto& v : v_novalues)
-                    os << v.get_name() << " = (?)" << std::endl;
+            if (!funcmgr_writable)
+            {
+                funcmgr = std::make_shared<Functionmanager>(*funcmgr);
+                funcmgr_writable = true;
             }
 
-            const expression& eqc::at(const std::string& label) const
+            funcmgr->clearall();
+            nextlabel = 0;
+
+            MSG_INFO(1, "Re-Registering hard-coded functions"
+                            << endline); // TODO Identical code as in eqc::eqc()
+            for (const auto& n : Functionmanager::get_hard_names())
             {
-                if (label == "prev")
+                MSG_INFO(1, "Function " << n << endline);
+                getsym(n);
+                vars.at(n).setsymtype(t_function);
+            }
+        } //eqc::clearall()
+
+        void eqc::print(std::ostream & os) const
+        {
+            os << "List of variables:" << std::endl;
+            for (auto& variable : vars)
+                os << variable.first << std::endl;
+
+            os << "List of equations:" << std::endl;
+            for (auto& eq : equations)
+                os << eq.first << ": " << ex(eq.second.eq) << std::endl;
+
+            os << "List of expressions:" << std::endl;
+            for (auto& ex : expressions)
+                os << ex.first << ": " << ex.second << std::endl;
+
+            unitmgr->print(os);
+        }
+
+        void eqc::dumpvars(std::ostream & os)
+        {
+            std::vector<symrec> v_values;
+            std::vector<symrec> v_novalues;
+
+            // Collect variables, distinguishing whether they have a value or not
+            for (const auto& v : vars)
+            {
+                if (is_internal(v.first))
+                    continue;
+                if ((v.first != VALSYM) && (v.second.getsymtype() != t_function)
+                    && (v.second.getsymtype() != t_none) && !is_internal(v.first))
                 {
-                    if (previous_it != equations.end())
-                        return previous_it->second.eq;
+                    if (v.second.has_value())
+                        v_values.emplace_back(v.second);
                     else
-                        throw std::runtime_error("Currently no previous equation exists.");
+                        v_novalues.emplace_back(v.second);
                 }
-
-                eqrec_cit result = equations.find(label);
-                if (result != equations.end())
-                    return result->second.eq;
-                throw std::range_error("equation label " + label + " does not exist.");
             }
 
-            const expression& eqc::expression_at(const std::string& label) const
+            // Dump variables with values first
+            for (const auto& v : v_values)
             {
-                const auto& result = expressions.find(label);
-                if (result != expressions.end())
-                    return result->second;
-                throw std::range_error("expression label " + label + " does not exist.");
-            }
+                os << v.get_name() << " = " << v.val;
 
-            // TODO: Implement this without using previous_it, and get rid of previous_it completely
-            std::string eqc::getPreviousEquationLabel(const unsigned n) const
-            {
-                if (previous_it == equations.end())
-                    return "";
-
-                std::string label = previous_it->second.label; // This is already @prev1@
-                for (unsigned i = 1; i < n; ++i)
+                if (!v.assignments.empty())
                 {
-                    eqrec_cit next = equations.find(label);
-                    if (next == equations.end())
-                        return "";
-                    label = next->second.prevlabel;
+                    os << " (";
+                    for (const auto& l : v.assignments)
+                        os << "@" << l->label << "@ ";
+                    os << ")";
                 }
-                return label;
+
+                os << std::endl;
             }
 
-            bool eqrec::is_automatic() const
+            for (const auto& v : v_novalues)
+                os << v.get_name() << " = (?)" << std::endl;
+        }
+
+        const expression& eqc::at(const std::string& label) const
+        {
+            if (label == "prev")
             {
-                return ((label == "") || ((label[0] == '{') && (label[label.size() - 1] == '}')));
+                if (previous_it != equations.end())
+                    return previous_it->second.eq;
+                else
+                    throw std::runtime_error("Currently no previous equation exists.");
             }
 
-            eqrec::eqrec(const expression& e, const std::string& l, const std::string& pl)
-                : eq(e)
-                , label(l)
-                , prevlabel(pl)
+            eqrec_cit result = equations.find(label);
+            if (result != equations.end())
+                return result->second.eq;
+            throw std::range_error("equation label " + label + " does not exist.");
+        }
+
+        const expression& eqc::expression_at(const std::string& label) const
+        {
+            const auto& result = expressions.find(label);
+            if (result != expressions.end())
+                return result->second;
+            throw std::range_error("expression label " + label + " does not exist.");
+        }
+
+        // TODO: Implement this without using previous_it, and get rid of previous_it completely
+        std::string eqc::getPreviousEquationLabel(const unsigned n) const
+        {
+            if (previous_it == equations.end())
+                return "";
+
+            std::string label = previous_it->second.label; // This is already @prev1@
+            for (unsigned i = 1; i < n; ++i)
             {
-                MSG_INFO(3, "Constructing eqrec from " << e << endline);
+                eqrec_cit next = equations.find(label);
+                if (next == equations.end())
+                    return "";
+                label = next->second.prevlabel;
             }
+            return label;
+        }
+
+        bool eqrec::is_automatic() const
+        {
+            return ((label == "") || ((label[0] == '{') && (label[label.size() - 1] == '}')));
+        }
+
+        eqrec::eqrec(const expression& e, const std::string& l, const std::string& pl)
+            : eq(e)
+            , label(l)
+            , prevlabel(pl)
+        {
+            MSG_INFO(3, "Constructing eqrec from " << e << endline);
+        }
 
 #ifdef DEBUG_CONSTR_DESTR
-            eqrec::eqrec()
-                : eq(dynallocate<equation>())
-            {
-                MSG_INFO(3, "Constructing empty eqrec" << endline);
-            }
-            eqrec::eqrec(const eqrec& other)
-                : eq(other.eq)
-                , subsed_lhs(other.subsed_lhs)
-                , subsed_rhs(other.subsed_rhs)
-                , label(other.label)
-                , prevlabel(other.prevlabel)
-            {
-                MSG_INFO(3, "Copying eqrec from " << other.label << endline);
-            }
-            eqrec& eqrec::operator=(const eqrec& other)
-            {
-                MSG_INFO(3, "Assigning eqrec from " << other.label << endline);
-                eq = other.eq;
-                subsed_lhs = other.subsed_lhs;
-                subsed_rhs = other.subsed_rhs;
-                label = other.label;
-                prevlabel = other.prevlabel;
-                return *this;
-            }
-            eqrec::~eqrec() { MSG_INFO(3, "Destructing eqrec for " << label << endline); }
+        eqrec::eqrec()
+            : eq(dynallocate<equation>())
+        {
+            MSG_INFO(3, "Constructing empty eqrec" << endline);
+        }
+        eqrec::eqrec(const eqrec& other)
+            : eq(other.eq)
+            , subsed_lhs(other.subsed_lhs)
+            , subsed_rhs(other.subsed_rhs)
+            , label(other.label)
+            , prevlabel(other.prevlabel)
+        {
+            MSG_INFO(3, "Copying eqrec from " << other.label << endline);
+        }
+        eqrec& eqrec::operator=(const eqrec& other)
+        {
+            MSG_INFO(3, "Assigning eqrec from " << other.label << endline);
+            eq = other.eq;
+            subsed_lhs = other.subsed_lhs;
+            subsed_rhs = other.subsed_rhs;
+            label = other.label;
+            prevlabel = other.prevlabel;
+            return *this;
+        }
+        eqrec::~eqrec() { MSG_INFO(3, "Destructing eqrec for " << label << endline); }
 #endif

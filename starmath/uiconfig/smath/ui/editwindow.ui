@@ -331,6 +331,7 @@
                 </child>
                 <child>
                   <object class="GtkTreeViewColumn" id="col_child">
+                    <property name="min-width">30</property>
                     <child>
                       <object class="GtkCellRendererPixbuf" id="img_child"/>
                       <attributes>

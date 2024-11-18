@@ -17,6 +17,7 @@
  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
  */
 
+#include <memory>
 #include <sal/config.h>
 
 #include <com/sun/star/accessibility/AccessibleEventId.hpp>
@@ -80,6 +81,7 @@
 
 #include <unomodel.hxx>
 #include <view.hxx>
+#include <dialog.hxx>
 #include <cfgitem.hxx>
 #include <dialog.hxx>
 #include <document.hxx>
@@ -1575,6 +1577,38 @@ void SmViewShell::Execute(SfxRequest& rReq)
                             SID_PASTEOBJECT, SfxCallMode::RECORD,
                             { new SfxVoidItem(SID_PASTEOBJECT) });
                 }
+            }
+            break;
+
+        case SID_MATRIXEDITOR:
+            {
+                ESelection eSelection = pWin->GetSelection();
+                sal_Int32 nPara = std::min(eSelection.nStartPara, eSelection.nEndPara);
+
+                // Get all text starting with the paragraph of the selection up to the end
+                auto pEngine = pWin->GetEditEngine();
+                OUString sText;
+                for (sal_Int32 p = nPara; p < pEngine->GetParagraphCount(); ++p)
+                    sText += pEngine->GetText(p) + "\n";
+                int pos = std::min(eSelection.nStartPos, eSelection.nEndPos);
+
+                const auto [matrixText, startPos, endPos] (MatrixEditorDialog::scanForMatrix(sText, pos));
+                auto pMatrixEditorDialog = std::make_unique<MatrixEditorDialog>(rReq.GetFrameWeld(), nullptr, nullptr, matrixText, nullptr);
+                pMatrixEditorDialog->run();
+                OUString result = pMatrixEditorDialog->getMatrix();
+                sText = sText.replaceAt(startPos, endPos - startPos, result);
+                OUString sTextBefore;
+
+                for (sal_Int32 p = 0; p < nPara; ++p)
+                    sTextBefore += pEngine->GetText(p) + "\n";
+
+                if (pWin->IsImWindow())
+                    GetDoc()->SetImText(sTextBefore + sText);
+                else
+                    GetDoc()->SetText(sTextBefore + sText);
+                SetStatusText(OUString());
+                ShowError( nullptr );
+                GetDoc()->Repaint();
             }
             break;
 

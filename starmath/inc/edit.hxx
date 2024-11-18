@@ -239,6 +239,8 @@ private:
     DECL_LINK(EditedEntryHdl, const IterString&, bool);
     int mEditedColumn;
     DECL_LINK(EditingCanceledHdl, const IterString&, void);
+    typedef std::tuple<const weld::TreeIter&, OUString, int, MouseEvent> IterClick;
+    DECL_LINK(EditingClickedHdl, const IterClick&, bool);
 
 public:
     ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder);

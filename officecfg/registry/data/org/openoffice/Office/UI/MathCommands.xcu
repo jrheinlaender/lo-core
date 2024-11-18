@@ -163,6 +163,11 @@
       </node>
     </node>
     <node oor:name="Popups">
+      <node oor:name=".uno:MatrixEditor" oor:op="replace">
+        <prop oor:name="Label" oor:type="xs:string">
+          <value xml:lang="en-US">~Matrix editor</value>
+        </prop>
+      </node>
       <node oor:name=".uno:UnaryBinaryMenu" oor:op="replace">
         <prop oor:name="Label" oor:type="xs:string">
           <value xml:lang="en-US">~Unary/Binary Operators</value>

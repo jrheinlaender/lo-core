@@ -16,6 +16,8 @@
   <menu:menuitem menu:id=".uno:Copy"/>
   <menu:menuitem menu:id=".uno:Paste"/>
   <menu:menuseparator/>
+  <menu:menuitem menu:id=".uno:MatrixEditor"/>
+  <menu:menuseparator/>
   <menu:menu menu:id=".uno:UnaryBinaryMenu">
     <menu:menupopup>
       <menu:menuitem menu:label="+a" menu:id=".uno:InsertCommandText?Text:string=+&lt;?&gt; "/>

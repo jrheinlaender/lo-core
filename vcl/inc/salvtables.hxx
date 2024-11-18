@@ -1735,6 +1735,8 @@ public:
 
     virtual void set_cursor(const weld::TreeIter& rIter) override;
 
+    virtual void set_cursor(const weld::TreeIter& rIter, const int nCol,
+                            const bool start_editing) override;
     virtual bool get_iter_first(weld::TreeIter& rIter) const override;
 
     bool get_iter_abs_pos(weld::TreeIter& rIter, int nPos) const;
@@ -1841,7 +1843,9 @@ public:
 
     virtual tools::Rectangle get_column_area(const int nColumn) const override;
 
-    virtual tools::Rectangle get_cell_area(const weld::TreeIter& rIter, const int nColumn) const override;;
+    virtual tools::Rectangle get_cell_area(const weld::TreeIter& rIter,
+                                           const int nColumn) const override;
+    ;
 
     virtual TreeView* get_drag_source() const override;
 

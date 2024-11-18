@@ -14507,6 +14507,11 @@ private:
 
     DECL_LINK(async_stop_cell_editing, void*, void);
 
+    static void dataFreeNotify(gpointer data, GClosure*)
+    {
+        g_free(data);
+    }
+
     static void signalCellEditingStarted(GtkCellRenderer* pRenderer, GtkCellEditable* pEditable, const gchar *path, gpointer widget)
     {
         GtkInstanceTreeView* pThis = static_cast<GtkInstanceTreeView*>(widget);
@@ -14520,6 +14525,8 @@ private:
             // Allow accepting a cancelled edit e.g. when the user clicks somewhere outside of the cell renderers parent window, closing the window and normally losing the edit
             auto user_data1 = new std::pair<GtkInstanceTreeView*, const gchar*>(pThis, g_strdup(path));
             g_signal_connect(pEditable, "remove-widget", G_CALLBACK(signalCellEntryEditingCanceled), user_data1);
+            auto user_data2 = new std::pair<GtkInstanceTreeView*, const gchar*>(pThis, g_strdup(path)); // Note: We can't re-use the data because memory gets freed in signalCellEntryEditingCanceled()
+            g_signal_connect_data(pEditable, "button-press-event", G_CALLBACK(signalCellEntryButtonPress), user_data2, dataFreeNotify, G_CONNECT_DEFAULT);
         }
 
         if (!pThis->signal_cell_editing_started(path))
@@ -14606,6 +14613,36 @@ private:
         pThis->signal_editing_canceled(iter_string(aGtkIter, sText));
 
         g_free(user_data);
+    }
+
+    static void signalCellEntryButtonPress(GtkEntry* pEntry, GdkEventButton* pEvent, gpointer user_data)
+    {
+        int nClicks = 1;
+        if (pEvent->type == GDK_2BUTTON_PRESS)
+            nClicks = 2;
+        if (pEvent->type == GDK_3BUTTON_PRESS)
+            nClicks = 3;
+        int nButtons = MOUSE_LEFT;
+        if (pEvent->button == 2)
+            nButtons = MOUSE_MIDDLE;
+        if (pEvent->button == 3)
+            nButtons = MOUSE_RIGHT;
+        // Note: Modifiers are ignored for now
+        MouseEvent event(Point(pEvent->x, pEvent->y), nClicks, MouseEventModifiers::SIMPLECLICK, nButtons, 0);
+
+        gchar *pText = g_strdup(gtk_entry_get_text(pEntry)); // Edited text before cancel signal
+        OUString sText(pText, pText ? strlen(pText) : 0, RTL_TEXTENCODING_UTF8);
+
+        int pos = gtk_editable_get_position( GTK_EDITABLE(pEntry) );
+
+        auto [pThis, path] = *static_cast<std::pair<GtkInstanceTreeView*, const gchar*>*>(user_data);
+        GtkInstanceTreeIter aGtkIter(nullptr);
+        GtkTreePath *tree_path = gtk_tree_path_new_from_string(path);
+        gtk_tree_model_get_iter(pThis->m_pTreeModel, &aGtkIter.iter, tree_path);
+        gtk_tree_path_free(tree_path);
+
+        pThis->signal_editing_clicked(iter_click(aGtkIter, sText, pos, event));
+        // Note: don't free user_data because this signal may occur multiple times
     }
 
     void signal_column_clicked(GtkTreeViewColumn* pClickedColumn)

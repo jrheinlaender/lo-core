@@ -754,8 +754,10 @@ bool is_internal(const std::string& varname) {
       throw(std::range_error("has_value: Symbol '" + s.get_name() + "' is not registered with the compiler"));
     if (v->second.assignments.empty())
       return equation();
+    if (v->second.assignments.size() > 1)
+      MSG_WARN(1, "Multiple possible assignments for " << s.get_name() << endline);
 
-    return (v->second.assignments.front()->eq);
+    return (v->second.assignments.front()->eq.rhs());
   }
 
   expression eqc::get_value(const extsymbol &s) const {
@@ -1205,7 +1207,7 @@ bool is_internal(const std::string& varname) {
   }
 
   void eqc::clear() {
-    if (msg::info().checkprio(1))
+    if (msg::info().checkprio(3))
       for (const auto& i : remember_split)
         msg::info() << i.second.hits << " hits for " << i.second.e << endline;
     remember_split.clear();
@@ -1233,38 +1235,41 @@ bool is_internal(const std::string& varname) {
     recent_assgn.clear();
     for (auto& [varname, var] : vars) {
       if (is_internal(varname)) {
-          MSG_INFO(0, "Keeping internal " << varname << endline);
-          assignments.emplace(var.getsym(), var.val);
+          MSG_INFO(3, "Keeping internal " << varname << endline);
+          if (var.has_value())
+              assignments.emplace(var.getsym(), var.val);
           continue;
       }
       if (is_external_ns(varname)) {
-          MSG_INFO(0, "Keeping from external namespace " << varname << endline);
-          assignments.emplace(var.getsym(), var.val);
+          MSG_INFO(3, "Keeping from external namespace " << varname << endline);
+          if (var.has_value())
+            assignments.emplace(var.getsym(), var.val);
           continue;
       }
 
       if (var.getsymtype() == t_variable) {
-        MSG_INFO(0, "Deleting variable " << varname << endline);
+        MSG_INFO(3, "Deleting variable " << varname << endline);
         var.make_unknown();
         var.setsymprop(p_complex);
         var.assignments.clear();
       } else if (var.getsymtype() == t_function) {
         if (!funcmgr->is_lib(varname)) {
-          MSG_INFO(0, "Deleting function " << varname << endline);
+          MSG_INFO(3, "Deleting function " << varname << endline);
           funcmgr->remove(varname);
           var.setsymtype(t_variable); // Keep this variable because it might have been shadowed by a function
           var.setsymprop(p_complex);
           var.make_unknown();
           var.assignments.clear();
         } else {
-          MSG_INFO(0, "Keeping " << varname << endline);
+          MSG_INFO(3, "Keeping " << varname << endline);
           // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
           var.make_unknown();
           var.assignments.clear();
         }
       } else {
-        MSG_INFO(0, "Keeping " << varname << endline);
-        assignments.emplace(var.getsym(), var.val);
+        MSG_INFO(3, "Keeping " << varname << endline);
+        if (var.has_value())
+            assignments.emplace(var.getsym(), var.val);
       }
     }
   } //eqc::clear()

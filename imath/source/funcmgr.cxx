@@ -148,6 +148,8 @@ Functionmanager::Functionmanager() {
       {"floor",    {floor_SERIAL::serial,    {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "floor"}},
       {"hadamard", {hadamard_SERIAL::serial, {m1, m2, n1}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "hadamard"}},
       {"ifelse",   {ifelse_SERIAL::serial,   {x,  e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ifelse"}},
+      {"irem",     {irem_SERIAL::serial,     {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "irem"}},
+      {"iquo  ",   {iquo_SERIAL::serial,     {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "iquo"}},
       {"mindex",   {mindex_SERIAL::serial,   {m1, e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "mindex"}},
       {"round",    {round_SERIAL::serial,    {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "round"}},
       {"scalprod", {scalprod_SERIAL::serial, {v1, v2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "scalprod"}},
@@ -215,7 +217,7 @@ expression Functionmanager::create(const std::string& n, exprseq &&args) const {
   return dynallocate<func>(n, std::move(args), fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname).eval(); // The eval() is required for FUNCHINT_EXPAND functions
 }
 
-expression Functionmanager::create_hard(const std::string& n, const exprseq &args) {
+expression Functionmanager::create_hard(const std::string& n, const exprseq &args, const bool eval) {
   MSG_INFO(2, "Creating hard-coded function " << n << "(" << args << ")" << endline);
   auto it_frec = hard_functions.find(n);
   if (it_frec == hard_functions.end())
@@ -227,10 +229,14 @@ expression Functionmanager::create_hard(const std::string& n, const exprseq &arg
   if (args.nops() != fr.vars.size())
     throw std::invalid_argument("Number of arguments does not match for " + n + ". Expected " + std::to_string(fr.vars.size()) + " arguments, found " + std::to_string(args.nops()) + " arguments");
 
-  return expression(dynallocate<func>(n, args, fr.serial, true, fr.vars, fr.definition, fr.hints, fr.printname).hold());
+  expression result(dynallocate<func>(n, args, fr.serial, true, fr.vars, fr.definition, fr.hints, fr.printname).hold());
+  if (eval)
+      return result.eval();
+
+  return result; // eval() cannot be called always becuase the hardfuncs call create_hard() in their eval() methods
 }
 
-expression Functionmanager::create_hard(const std::string& n, exprseq &&args) {
+expression Functionmanager::create_hard(const std::string& n, exprseq &&args, const bool eval) {
   MSG_INFO(2, "Creating hard-coded function " << n << "(" << args << ")" << endline);
   auto it_frec = hard_functions.find(n);
   if (it_frec == hard_functions.end())
@@ -239,7 +245,11 @@ expression Functionmanager::create_hard(const std::string& n, exprseq &&args) {
     throw std::invalid_argument("Function " + n + " cannot have zero arguments");
 
   const funcrec& fr = it_frec->second;
-  return expression(dynallocate<func>(n, std::move(args), fr.serial, true, fr.vars, fr.definition, fr.hints, fr.printname).hold());
+  expression result(dynallocate<func>(n, std::move(args), fr.serial, true, fr.vars, fr.definition, fr.hints, fr.printname).hold());
+  if (eval)
+      return result.eval();
+
+  return result;
 }
 
 expression Functionmanager::find_integral(const std::string& name, const exprseq& seq) {

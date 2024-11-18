@@ -23,9 +23,7 @@
  * @short Some utitlity functions for eqc
  */
 
-#include <set>
 #include <string>
-#include <stdexcept>
 #include <ginac/constant.h>
 #include <ginac/power.h>
 #include <ginac/lst.h>
@@ -172,7 +170,10 @@ bool is_quantity (const GiNaC::expression &quantity);
 bool is_symbolic (const GiNaC::expression &e);
 
 /// Check whether the expression is a unit or a product of (powers of) units
-IMATH_DLLPUBLIC bool is_unit(const GiNaC::expression &e);
+bool is_unit(const GiNaC::expression &e);
+
+// Check if the expression contains any matrices or indexed objects
+bool is_scalar(const GiNaC::expression& e);
 
 /// Return the expression as a GiNaC lst object
 inline GiNaC::lst make_lst(const GiNaC::expression &e) {

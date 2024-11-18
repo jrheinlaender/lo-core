@@ -24,6 +24,7 @@
  */
 
 #include <string>
+#include <ginac/exprseq.h>
 #ifdef INSIDE_SM
 #include <imath/msgdriver.hxx>
 #include <imath/expression.hxx>
@@ -67,8 +68,8 @@ public:
   GiNaC::expression create(const std::string& n, const GiNaC::exprseq &args = GiNaC::exprseq()) const;
   GiNaC::expression create(const std::string& n, GiNaC::exprseq &&args) const;
   /// Return a new function object (hard-coded version)
-  static GiNaC::expression create_hard(const std::string& n, const GiNaC::exprseq &args = GiNaC::exprseq());
-  static GiNaC::expression create_hard(const std::string& n, GiNaC::exprseq &&args);
+  static GiNaC::expression create_hard(const std::string& n, const GiNaC::exprseq &args = GiNaC::exprseq(), const bool eval = true);
+  static GiNaC::expression create_hard(const std::string& n, GiNaC::exprseq &&args, const bool eval = true);
 
   /// Find an integral for a hard-coded function. Returns an empty expression if not possible
   // Note: It is assumed that the function has only one argument and that this argument is linear in the integration variable

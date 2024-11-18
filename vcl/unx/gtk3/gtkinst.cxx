@@ -16158,7 +16158,7 @@ public:
         return nRet;
     }
 
-    virtual void set_cursor(const weld::TreeIter& rIter) override
+    virtual void set_cursor(const weld::TreeIter& rIter, const int nCol, const bool start_editing) override
     {
         disable_notify_events();
         const GtkInstanceTreeIter& rGtkIter = static_cast<const GtkInstanceTreeIter&>(rIter);
@@ -16171,10 +16171,35 @@ public:
             gtk_tree_path_free(path);
         }
         GtkTreePath* path = gtk_tree_model_get_path(m_pTreeModel, const_cast<GtkTreeIter*>(&rGtkIter.iter));
-        gtk_tree_view_scroll_to_cell(m_pTreeView, path, nullptr, false, 0, 0);
-        gtk_tree_view_set_cursor(m_pTreeView, path, nullptr, false);
+
+        GtkTreeViewColumn* pColumn(nullptr);
+
+        if (nCol >= 0)
+        {
+            for (GList* pEntry = g_list_first(m_pColumns); pEntry; pEntry = g_list_next(pEntry))
+            {
+                pColumn = GTK_TREE_VIEW_COLUMN(pEntry->data);
+                GList *pRenderers = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(pColumn));
+                for (GList* pRenderer = g_list_first(pRenderers); pRenderer; pRenderer = g_list_next(pRenderer))
+                {
+                    GtkCellRenderer* pCellRenderer = GTK_CELL_RENDERER(pRenderer->data);
+                    void* pData = g_object_get_data(G_OBJECT(pCellRenderer), "g-lo-CellIndex");
+                    if (reinterpret_cast<sal_IntPtr>(pData) == nCol)
+                        break;
+                }
+                g_list_free(pRenderers);
+            }
+        }
+
+        gtk_tree_view_scroll_to_cell(m_pTreeView, path, pColumn, false, 0, 0);
+        gtk_tree_view_set_cursor(m_pTreeView, path, pColumn, start_editing);
         gtk_tree_path_free(path);
         enable_notify_events();
+    }
+
+    virtual void set_cursor(const weld::TreeIter& rIter) override
+    {
+        set_cursor(rIter, -1, false);
     }
 
     virtual bool get_iter_first(weld::TreeIter& rIter) const override

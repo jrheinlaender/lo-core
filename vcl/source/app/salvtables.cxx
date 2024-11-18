@@ -4680,12 +4680,18 @@ bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter, int& col) const
     return pEntry != nullptr;
 }
 
-void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter)
+void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter, const int, const bool)
 {
+    // TODO Parameters col and start_editing not implemented
     const SalInstanceTreeIter& rVclIter = static_cast<const SalInstanceTreeIter&>(rIter);
     disable_notify_events();
     m_xTreeView->SetCurEntry(rVclIter.iter);
     enable_notify_events();
+}
+
+void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter)
+{
+    set_cursor(rIter, -1, false);
 }
 
 bool SalInstanceTreeView::get_iter_first(weld::TreeIter& rIter) const

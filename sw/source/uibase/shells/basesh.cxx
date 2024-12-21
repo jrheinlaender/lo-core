@@ -210,6 +210,10 @@ void SwBaseShell::ExecDelete(SfxRequest &rReq)
 {
     SwWrtShell &rSh = GetShell();
     SwEditWin& rTmpEditWin = GetView().GetEditWin();
+
+    auto pDocSh = rSh.GetDoc()->GetDocShell();
+    const auto& iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+
     switch(rReq.GetSlot())
     {
         case SID_DELETE:
@@ -283,6 +287,10 @@ void SwBaseShell::ExecDelete(SfxRequest &rReq)
             OSL_FAIL("wrong Dispatcher");
             return;
     }
+
+    // Have iFormulas been deleted?
+    pDocSh->UpdateIFormulas(iFormulaNames, false, true);
+
     rReq.Done();
 
     //#i42732# - notify the edit window that from now on we do not use the input language
@@ -328,7 +336,15 @@ void SwBaseShell::ExecClpbrd(SfxRequest &rReq)
                 rtl::Reference<SwTransferable> pTransfer = new SwTransferable( rSh );
 
                 if ( nId == SID_CUT && FlyProtectFlags::NONE == rSh.IsSelObjProtected(FlyProtectFlags::Content|FlyProtectFlags::Parent) )
+                {
+                    auto pDocSh = rSh.GetDoc()->GetDocShell();
+                    const auto& iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+
                     pTransfer->Cut();
+
+                    // Have iFormulas been deleted?
+                    pDocSh->UpdateIFormulas(iFormulaNames, false, true);
+                }
                 else
                 {
                     const bool bLockedView = rSh.IsViewLocked();
@@ -365,6 +381,9 @@ void SwBaseShell::ExecClpbrd(SfxRequest &rReq)
                 if( aDataHelper.GetXTransferable().is()
                     && SwTransferable::IsPaste( rSh, aDataHelper ) )
                 {
+                    auto pDocSh = rSh.GetDoc()->GetDocShell();
+                    auto iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+
                     // Temporary variables, because the shell could already be
                     // destroyed after the paste.
                     SwView* pView = &m_rView;
@@ -385,6 +404,9 @@ void SwBaseShell::ExecClpbrd(SfxRequest &rReq)
 
                     // Fold pasted outlines that have outline content visible attribute false
                     MakeAllOutlineContentTemporarilyVisible a(rSh.GetDoc());
+
+                    // have new iFormulas been inserted?
+                    pDocSh->UpdateIFormulas(iFormulaNames, true, false);
                 }
                 else
                     return;
@@ -613,6 +635,9 @@ void SwBaseShell::StateClpbrd(SfxItemSet &rSet)
 
 void SwBaseShell::ExecUndo(SfxRequest &rReq)
 {
+    auto pDocSh = GetShell().GetDoc()->GetDocShell();
+    const auto& iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+
     MakeAllOutlineContentTemporarilyVisible a(GetShell().GetDoc(), true);
 
     SwWrtShell &rWrtShell = GetShell();
@@ -696,6 +721,9 @@ void SwBaseShell::ExecUndo(SfxRequest &rReq)
     {
         rReq.SetReturnValue( SfxUInt32Item(nId, static_cast<sal_uInt32>(SID_REPAIRPACKAGE)) );
     }
+
+    // Have iFormulas been added or removed?
+    pDocSh->UpdateIFormulas(iFormulaNames, true, true);
 
     rViewFrame.GetBindings().InvalidateAll(false);
 }

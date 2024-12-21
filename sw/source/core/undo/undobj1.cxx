@@ -103,7 +103,6 @@ void SwUndoFlyBase::dumpAsXml(xmlTextWriterPtr pWriter) const
 
 void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
 {
-    SAL_INFO_LEVEL(1, "sw.imath", "SwUndoFlyBase::InsFly");
     SwDoc *const pDoc = & rContext.GetDoc();
 
     // add again into array
@@ -214,31 +213,12 @@ void SwUndoFlyBase::InsFly(::sw::UndoRedoContext & rContext, bool bShowSelFrame)
     default: break;
     }
     m_bDelFormat =  false;
-
-    SAL_INFO_LEVEL(1, "sw.imath", OUString("Fly frame inserted from undo: ") << m_pFrameFormat->GetName());
-    uno::Reference< lang::XComponent > xFormulaComp = getObjectByName(pDoc->GetDocShell()->GetModel(), m_pFrameFormat->GetName());
-    if ( xFormulaComp.is() )
-    {
-        uno::Reference< frame::XModel > xFormulaModel = extractModel(xFormulaComp);
-        if ( xFormulaModel.is() )
-        {
-            uno::Reference < beans::XPropertySet > xFormulaProps( xFormulaModel, uno::UNO_QUERY );
-            if ( xFormulaProps.is() )
-            {
-                xFormulaProps->setPropertyValue("iFormulaPendingAction", com::sun::star::uno::Any(OUString("compile")));
-            }
-        }
-    }
-
-    pDoc->GetDocShell()->RecalculateDependentIFormulas(m_pFrameFormat->GetName());
 }
 
 void SwUndoFlyBase::DelFly( SwDoc* pDoc )
 {
     // Note: We could check whether this fly frame is a Math OLE but it seems simpler to just attempt a delete
     // TODO: Can there be two different fly frames with identical names?
-    SAL_INFO_LEVEL(1, "sw.imath", OUString("Fly frame deleted: ") << m_pFrameFormat->GetName());
-    pDoc->GetDocShell()->RemoveIFormula(m_pFrameFormat->GetName());
 
     m_bDelFormat = true;                 // delete Format in DTOR
     m_pFrameFormat->DelFrames();                 // destroy Frames

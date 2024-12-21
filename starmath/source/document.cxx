@@ -308,6 +308,8 @@ void SmDocShell::PreventFormulaClose(const bool prevent)
         }
     }
     */
+
+    SetIFormulaPendingAction("");
 }
 
 void SmDocShell::SetImText(const OUString& rBuffer, const bool doCompile)

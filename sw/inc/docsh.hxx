@@ -351,11 +351,15 @@ public:
     void UpdatePreviousIFormulaLinks();
 
     /// Recalculate formulas that depend on the given formula
-    // The dependencies may be overridden (useful for the case of formula deletion)
-    void RecalculateDependentIFormulas(const OUString& formulaName, const OUString& useDependencies = "");
+    void RecalculateDependentIFormulas(const OUString& formulaName);
 
+    /// Insert the formula, compile it and trigger a recalculation of all dependent formulas
+    void InsertIFormula(const OUString& formulaName);
     /// Remove the formula and trigger a recalculation of all dependent formulas
     void RemoveIFormula(const OUString& formulaName);
+    /// Check for added or removed iFormulas compared to the previous iFormulaNames
+    // Note: previousIFormulaNames must NOT be passed by const reference, since they will be invalidated inside this method
+    void UpdateIFormulas(std::vector<OUString> previousIFormulaNames, const bool added, const bool removed);
 
     /// Merge the formula with the previous iFormula, keeping the previous formula's OLE object
     void MergeIFormula(const OUString& formulaName);

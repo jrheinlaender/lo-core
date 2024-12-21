@@ -127,6 +127,7 @@ void SwOleShell::Deactivate(bool bMDI)
     if (mIFormulaName.getLength() > 0)
     {
         SAL_INFO_LEVEL(1, "sw.imath", "Shell for Math object '" << mIFormulaName << "' was deactivated");
+        auto pDocSh = GetShell().GetDoc()->GetDocShell();
 
         if (!mFormulaTextChanged)
         {
@@ -136,12 +137,13 @@ void SwOleShell::Deactivate(bool bMDI)
         {
             // Notify document that dependent iFormulas need to be recompiled
             SAL_INFO_LEVEL(1, "sw.imath", "Recalculating dependent iFormulas");
-            GetShell().GetDoc()->GetDocShell()->RecalculateDependentIFormulas(mIFormulaName);
+            pDocSh->RecalculateDependentIFormulas(mIFormulaName);
         }
         else
         {
             SAL_INFO_LEVEL(1, "sw.imath", "iFormula became empty, removing...");
-            GetShell().GetDoc()->GetDocShell()->RemoveIFormula(mIFormulaName); // Note: This will recalculate dependent iFormulas after the deletion
+            pDocSh->RemoveIFormula(mIFormulaName);
+            pDocSh->RecalculateDependentIFormulas(mIFormulaName);
         }
     }
 }
@@ -167,23 +169,6 @@ SwOleShell::SwOleShell(SwView &_rView) :
             SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object name set to '" << mIFormulaName << "'");
 
             Reference < lang::XComponent > formulaComponent(xObj->getComponent(), UNO_QUERY);
-            if (!formulaComponent.is())
-            {
-                // Note: Sequence when inserting a formula from clipboard
-                // Constructor - Activate - user removes focus - Deactivate
-                SAL_INFO_LEVEL(1, "sw.imath", "Pasted math object, triggering compile");
-                GetShell().GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // TODO It would be sufficient to update the links of this and the immediately following formula
-                formulaComponent = Reference < lang::XComponent >(xObj->getComponent(), UNO_QUERY); // try again (we must extract the formula text into mIFormulaText)
-                if ( formulaComponent.is() )
-                {
-                    Reference < beans::XPropertySet > xFormulaProps(formulaComponent, uno::UNO_QUERY );
-                    if ( xFormulaProps.is() )
-                    {
-                        xFormulaProps->setPropertyValue("iFormulaPendingAction", uno::Any(OUString("compile")));
-                    }
-                }
-                GetShell().GetDoc()->GetDocShell()->RecalculateDependentIFormulas(mIFormulaName);
-            }
 
             if (formulaComponent.is())
             {

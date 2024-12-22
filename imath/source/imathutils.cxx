@@ -1845,7 +1845,7 @@ bool checkTextmodeFormula(const Reference< XTextContent >& (formula)) {
 // Iterate through all formulas of the document IN THEIR TEXTUAL ORDER. The list supplied by getEmbeddedObjects() is only in this order after
 // loading a document, before the user modifies the order of the elements (closing and re-opening a document seems to re-order the elements in textual order)
 // This returns a list of formula labels which allows the formulas to be accessed by XNameAccess from getEmbeddedObjects() when required
-void orderXText(const Reference<XText>& xText, std::list< OUString >& formulas, unsigned& count, const Reference < XStatusIndicator >& xStatus) {
+void orderXText(const Reference<XText>& xText, std::vector< OUString >& formulas, unsigned& count, const Reference < XStatusIndicator >& xStatus) {
   Reference< XEnumerationAccess > xEnum(xText, UNO_QUERY_THROW);
   Reference< XEnumeration > xParaEnum = xEnum->createEnumeration();
   //MSG_INFO(3,  "orderXText called" << endline);
@@ -1919,7 +1919,7 @@ void orderXText(const Reference<XText>& xText, std::list< OUString >& formulas, 
   //MSG_INFO(3,  "orderXText() finished" << endline);
 } // orderXText()
 
-void orderPresentation(const Reference< XModel >& xModel, std::list< OUString >& formulas, unsigned& count, const Reference < XStatusIndicator >& xStatus) {
+void orderPresentation(const Reference< XModel >& xModel, std::vector< OUString >& formulas, unsigned& count, const Reference < XStatusIndicator >& xStatus) {
   Reference< XDrawPagesSupplier > xPresDoc(xModel, UNO_QUERY);
   Reference< XIndexAccess > xDrawPages(xPresDoc->getDrawPages(), UNO_QUERY_THROW);
 

@@ -92,8 +92,8 @@
 %%
 %%theorems
 %%ii@lib:trig:sincos1@ EQDEF square{sin{wild}} + square{cos{wild}} = 1
-%%ii@lib:trig:cosine@  EQDEF c^2 = a^2 + b^2 - 2ab cos{gamma}
-%%ii@lib:trig:sine@    EQDEF a over sin{%alpha} = b over sin{beta}
+%%ii@lib:trig:cosine@  EQDEF c^2 = a^2 + b^2 - 2 a b cos{%gamma}
+%%ii@lib:trig:sine@    EQDEF a over sin{%alpha} = b over sin{%beta}
 %%
 %%-------------- Basic Physics
 %%ii@lib:phys:u@     EQDEF u = %omega r

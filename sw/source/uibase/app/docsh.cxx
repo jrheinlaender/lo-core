@@ -17,6 +17,7 @@
  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
  */
 
+#include <cerrno>
 #include <config_features.h>
 
 #include <officecfg/Office/Common.hxx>
@@ -1249,7 +1250,7 @@ void updateFormatting(const Reference< XComponent >& xFormulaComp)
                 textExistsInParagraph = (xCursor->getString().trim().getLength() > 0);
             }
 
-            if (textExistsInParagraph)
+            if (textExistsInParagraph != getFormulaProperty<bool>(xFormulaComp, "IsTextMode"))
                 setFormulaProperty(xFormulaComp, "IsTextMode", uno::Any(textExistsInParagraph));
             SAL_INFO_LEVEL(2, "sw.imath", "Set text mode to " << (getFormulaProperty<bool>(xFormulaComp, "IsTextMode") ? "true" : "false"));
         }
@@ -1262,8 +1263,10 @@ void updateFormatting(const Reference< XComponent >& xFormulaComp)
         Reference < XPropertySet > xPropertySet (xTextContent, UNO_QUERY);
         if (xPropertySet.is())
         {
-            xPropertySet->setPropertyValue(OU("LeftMargin"), uno::Any(sal_Int16(0)));
-            xPropertySet->setPropertyValue(OU("RightMargin"), uno::Any(sal_Int16(0)));
+            if (xPropertySet->getPropertyValue("LeftMargin") != uno::Any(sal_Int16(0)))
+                xPropertySet->setPropertyValue(OU("LeftMargin"), uno::Any(sal_Int16(0)));
+            if (xPropertySet->getPropertyValue("RightMargin") != uno::Any(sal_Int16(0)))
+                xPropertySet->setPropertyValue(OU("RightMargin"), uno::Any(sal_Int16(0)));
         }
     }
 }

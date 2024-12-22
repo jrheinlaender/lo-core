@@ -464,7 +464,7 @@ void SmModel::_setPropertyValues(const PropertyMapEntry** ppEntries, const Any* 
                 if (bVal.equalsAscii("compile"))
                      pDocSh->Compile(); // Clears the action afterwards or sets a new one
                 else if (bVal.equalsAscii("delete"))
-                     pDocSh->PreventFormulaClose(false);
+                     pDocSh->PreventFormulaClose(false); // Clears the action afterwards
                 else
                     pDocSh->SetIFormulaPendingAction(bVal);
             }

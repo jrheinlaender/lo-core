@@ -164,7 +164,7 @@ class SW_DLLPUBLIC SwDocShell
     /** iMath stuff
      */
     /// List of iFormula names, in document text flow order
-    std::list<OUString> m_IFormulaNames;
+    std::vector<OUString> m_IFormulaNames;
 
     /// Next available iFormula equation number
     unsigned m_nextIFormulaNumber;
@@ -342,6 +342,8 @@ public:
 
     /** iMath stuff
      */
+    /// Get the list of iformula names
+    const std::vector<OUString>& GetIFormulaNames() const { return m_IFormulaNames; }
     /// Retrieve the next available iFormula equation number
     unsigned GetNextIFormulaNumber() { return m_nextIFormulaNumber++; }
     /// Check if the formula has a higher number than the current number

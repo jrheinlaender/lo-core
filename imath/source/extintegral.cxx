@@ -15,6 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <ginac/flags.h>
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4099 4100 4996)
@@ -192,7 +193,8 @@ void extintegral::do_print_imath(const imathprint& c, unsigned level) const
     }
     if (is_a<add>(op(3)))
         c.s << "(";
-    op(3).print(c, level + 1);
+    if (!op(3).is_equal(_ex1))
+        op(3).print(c, level + 1);
     if (is_a<add>(op(3)))
         c.s << ")";
     c.s << "} ";
@@ -396,13 +398,16 @@ ex DELTA2;
 ex Y1p;
 ex Y2p;
 ex Y2m;
+ex sinax;
+ex cosax;
+ex tanax;
 exmap integrals; // Cannot use exhashmap because it does not understand the initializer list
 
 void init_table()
 {
     // Note: Doing this with static initializers fails for DLLs
     x = symbol("x");
-    a = wild(1);
+    a = symbol("a");
     b = wild(2);
     c = wild(3);
     d = wild(4);
@@ -429,6 +434,9 @@ void init_table()
     Y2m = Functionmanager::create_hard("ln",
                                        { (a + b * GiNaC::sqrt(x)) / (a - b * GiNaC::sqrt(x)) })
           / 2;
+    sinax = Functionmanager::create_hard("sin", { a * x });
+    cosax = Functionmanager::create_hard("cos", { a * x });
+    tanax = Functionmanager::create_hard("tan", { a * x });
 
     // Taken from Bronstein/Semendjajew, Taschenbuch der Mathematik
     // Beware: The compiler views 1/2 as an integer expression with value 0!
@@ -554,22 +562,211 @@ void init_table()
         /*268 is contained in 001 */
         /*274 is a basic function */
         /*275*/
-        { pow(Functionmanager::create_hard("sin", { a * x }), 2),
-          x / 2 - Functionmanager::create_hard("sin", { 2 * a * x }) / (4 * a) },
-        /*345*/
-        { pow(1 - pow(Functionmanager::create_hard("cos", { a * x }), 2), -1),
-          -1 / (Functionmanager::create_hard("tan", { a * x }) * a) },
-        /*345*/
-        { pow(pow(Functionmanager::create_hard("cos", { a * x }), 2) - 1, -1),
-          1 / (Functionmanager::create_hard("tan", { a * x }) * a) },
-        /*354*/
-        { ex(Functionmanager::create_hard("sin", { a * x }))
-              * ex(Functionmanager::create_hard("cos", { a * x })),
-          pow(Functionmanager::create_hard("sin", { a * x }), 2) / (2 * a) },
+        { pow(sinax, 2), x / 2 - Functionmanager::create_hard("sin", { 2 * a * x }) / (4 * a) },
+        /*276*/ { pow(sinax, 3), -1 / a * cosax + 1 / (3 * a) * pow(cosax, 3) },
+        /*277*/
+        { pow(sinax, 4), 3 / (8 * x)
+                             - 1 / (4 * a) * Functionmanager::create_hard("sin", { 2 * a * x })
+                             + 1 / (32 * a) * Functionmanager::create_hard("sin", { 4 * a * x }) },
+        /*278 is a recursive partial integral*/
+        /*279*/ { x * sinax, sinax / pow(a, 2) - x * cosax / a },
+        /*280*/
+        { pow(x, 2) * sinax, 2 * x / pow(a, 2) * sinax - (pow(x, 2) / a - 2 / pow(a, 3)) * cosax },
+        /*281*/
+        { pow(x, 3) * sinax, (3 * pow(x, 2) / pow(a, 2) - 6 / pow(a, 4)) * sinax
+                                 - (pow(x, 3) / a - 6 * x / pow(a, 3)) * cosax },
+        /*282 is a recursive partial integral*/
+        /*283 is a infinite series*/
+        /*284 is a infinite series*/
+        /*285 is a infinite series*/
+        /*286*/
+        { pow(sinax, -1), 1 / a
+                              * Functionmanager::create_hard(
+                                    "ln", { Functionmanager::create_hard("tan", { a * x / 2 }) }) },
+        /*287*/ { pow(sinax, -2), -1 / a * 1 / Functionmanager::create_hard("tan", { a * x }) },
+        /*288*/
+        { pow(sinax, -3),
+          -cosax / (2 * a * pow(sinax, 2))
+              + 1 / (2 * a)
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("tan", { a * x / 2 }) }) },
+        /*289 is a recursive partial integral*/
+        /*290 is a infinite series*/
+        /*291*/
+        { x * pow(sinax, -2),
+          -x / a * 1 / tanax + 1 / pow(a, 2) * Functionmanager::create_hard("ln", { sinax }) },
+        /*292 is a recursive partial integral*/
+        /*293*/
+        { pow(1 + sinax, -1),
+          -1 / a * Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 }) },
+        /*294*/
+        { pow(1 - sinax, -1),
+          +1 / a * Functionmanager::create_hard("tan", { Pi / 4 + a * x / 2 }) },
+        /*295*/
+        { x * pow(1 + sinax, -1),
+          -x / a * Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 })
+              + 2 / pow(a, 2)
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("cos", { Pi / 4 - a * x / 2 }) }) },
+        /*296*/
+        { x * pow(1 - sinax, -1),
+          +x / a * 1 / Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 })
+              + 2 / pow(a, 2)
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("sin", { Pi / 4 - a * x / 2 }) }) },
+        /*297*/
+        { sinax * pow(1 + sinax, -1),
+          +x + 1 / a * Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 }) },
+        /*297*/
+        { sinax * pow(1 - sinax, -1),
+          -x + 1 / a * Functionmanager::create_hard("tan", { Pi / 4 + a * x / 2 }) },
+        /*298*/
+        { pow(sinax * (1 + sinax), -1),
+          1 / a * Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 })
+              + 1 / a
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("tan", { a * x / 2 }) }) },
+        /*298*/
+        { pow(sinax * (1 - sinax), -1),
+          1 / a * Functionmanager::create_hard("tan", { Pi / 4 + a * x / 2 })
+              + 1 / a
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("tan", { a * x / 2 }) }) },
+        /*299*/
+        { pow(1 + sinax, -2),
+          -1 / (2 * a) * Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 })
+              - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 }), 3) },
+        /*300*/
+        { pow(1 - sinax, -2),
+          +1 / (2 * a) * 1 / Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 })
+              + 1 / (6 * a) * 1
+                    / pow(Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 }), 3) },
+        /*301*/
+        { sinax * pow(1 + sinax, -2),
+          -1 / (2 * a) * Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 })
+              + 1 / (6 * a) * pow(Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 }), 3) },
+        /*302*/
+        { sinax * pow(1 - sinax, -2),
+          -1 / (2 * a) * 1 / Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 })
+              + 1 / (6 * a) * 1
+                    / pow(Functionmanager::create_hard("tan", { Pi / 4 - a * x / 2 }), 3) },
+        /*303*/
+        { pow(1 + pow(sinax, 2), -1),
+          1 / (2 * sqrt(numeric(2)) * a)
+              * Functionmanager::create_hard("arcsin",
+                                             { (3 * pow(sinax, 2) - 1) / ((pow(sinax, 2) + 1)) }) },
+        /*304*/ { pow(1 - pow(sinax, 2), -1), 1 / a * tanax },
+        /*305*/
+        { sinax * Functionmanager::create_hard("sin", { b * x }),
+          Functionmanager::create_hard("sin", { (a - b) * x }) / (2 * (a - b))
+              - Functionmanager::create_hard("sin", { (a + b) * x }) / (2 * (a + b)) },
+        /*306 has two cases depending on the parameters*/
+        /*307 depends on 306 */
+        /*308 depends on 306 */
+        /*309 depends on 306 */
+        /*310 depends on 306 */
+        /*311*/
+        { pow(pow(b, 2) + pow(c, 2) * pow(sinax, 2), -1),
+          1 / (a * b * sqrt(pow(b, 2) + pow(c, 2)))
+              * Functionmanager::create_hard("arctan",
+                                             { sqrt(pow(b, 2) + pow(c, 2)) * tanax / b }) },
+        /*312 has two cases depending on the parameters*/
+        /*313 is a basic function */
+        /*314*/
+        { pow(cosax, 2), x / 2 + Functionmanager::create_hard("sin", { 2 * a * x }) / (4 * a) },
+        /*315*/ { pow(cosax, 3), 1 / a * sinax - pow(sinax, 3) / (3 * a) },
+        /*316*/
+        { pow(cosax, 4),
+          numeric(3, 8) * x + 1 / (4 * a) * Functionmanager::create_hard("sin", { 2 * a * x })
+              + pow(Functionmanager::create_hard("sin", { 4 * a * x }), 3) / (32 * a) },
+        /*317 is a recursive partial integral */
+        /*318*/ { x * cosax, cosax / pow(a, 2) + x * sinax / a },
+        /*319*/
+        { pow(x, 2) * cosax, 2 * x / pow(a, 2) * cosax + (pow(x, 2) / a - 2 / pow(a, 3)) * sinax },
+        /*320*/
+        { pow(x, 3) * cosax, (3 * pow(x, 2) / pow(a, 2) - 6 / pow(a, 4)) * cosax
+                                 + (pow(x, 3) / a - 6 * x / pow(a, 3)) * sinax },
+        /*321 is a recursive partial integral */
+        /*322 is a infinite series */
+        /*323 is a partial integral using 283 */
+        /*324 is a recursive partial integral */
+        /*325*/
+        { pow(cosax, -1),
+          1 / a
+              * Functionmanager::create_hard(
+                    "ln", { Functionmanager::create_hard("tan", { a * x / 2 + Pi / 4 }) }) },
+        /*326*/ { pow(cosax, -2), 1 / a * tanax },
+        /*327*/
+        { pow(cosax, -3),
+          sinax / (2 * a * pow(cosax, 2))
+              + 1 / (2 * a)
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("tan", { a * x / 2 + Pi / 4 }) }) },
+        /*328 is a recursive partial integral */
+        /*329 is a infinite series */
+        /*330*/
+        { x * pow(cosax, -2),
+          x / a * tanax + 1 / pow(a, 2) * Functionmanager::create_hard("ln", { cosax }) },
+        /*331 is a recursive partial integral */
+        /*332*/ { pow(1 + cosax, -1), +1 / a * Functionmanager::create_hard("tan", { a * x / 2 }) },
+        /*333*/
+        { pow(1 - cosax, -1), -1 / a * 1 / Functionmanager::create_hard("tan", { a * x / 2 }) },
+        /*334*/
+        { x * pow(1 + cosax, -1),
+          +x / a * Functionmanager::create_hard("tan", { a * x / 2 })
+              + 2 / pow(a, 2)
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("cos", { a * x / 2 }) }) },
+        /*335*/
+        { x * pow(1 - cosax, -1),
+          -x / a * 1 / Functionmanager::create_hard("tan", { a * x / 2 })
+              + 2 / pow(a, 2)
+                    * Functionmanager::create_hard(
+                          "ln", { Functionmanager::create_hard("sin", { a * x / 2 }) }) },
+        /*336*/
+        { cosax * pow(1 + cosax, -1),
+          +x - 1 / a * Functionmanager::create_hard("tan", { a * x / 2 }) },
+        /*337*/
+        { cosax * pow(1 - cosax, -1),
+          -x - 1 / a * 1 / Functionmanager::create_hard("tan", { a * x / 2 }) },
+        /*338*/
+        { pow(cosax * (1 + cosax), -1),
+          1 / a
+                  * Functionmanager::create_hard(
+                        "ln", { Functionmanager::create_hard("tan", { Pi / 4 + a * x / 2 }) })
+              - 1 / a * Functionmanager::create_hard("tan", { a * x / 2 }) },
+        /*339*/
+        { pow(cosax * (1 - cosax), -1),
+          1 / a
+                  * Functionmanager::create_hard(
+                        "ln", { Functionmanager::create_hard("tan", { Pi / 4 + a * x / 2 }) })
+              - 1 / a * 1 / Functionmanager::create_hard("tan", { a * x / 2 }) },
+        /*340*/
+        { pow(1 + cosax, -2),
+          +1 / (2 * a) * Functionmanager::create_hard("tan", { a * x / 2 })
+              + 1 / (6 * a) * pow(Functionmanager::create_hard("tan", { a * x / 2 }), 3) },
+        /*341*/
+        { pow(1 - cosax, -2),
+          -1 / (2 * a) * 1 / Functionmanager::create_hard("tan", { a * x / 2 })
+              - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", { a * x / 2 }), -3) },
+        /*342*/
+        { cosax * pow(1 + cosax, -2),
+          1 / (2 * a) * Functionmanager::create_hard("tan", { a * x / 2 })
+              - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", { a * x / 2 }), 3) },
+        /*343*/
+        { cosax * pow(1 - cosax, -2),
+          1 / (2 * a) * 1 / Functionmanager::create_hard("tan", { a * x / 2 })
+              - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", { a * x / 2 }), -3) },
+        /*344*/
+        { pow(1 + pow(cosax, 2), -1),
+          1 / (2 * sqrt(numeric(2)) * a)
+              * Functionmanager::create_hard("arcsin",
+                                             { (1 - 3 * pow(cosax, 2)) / (1 + pow(cosax, 2)) }) },
+        /*345*/ { pow(1 - pow(cosax, 2), -1), -1 / (tanax * a) },
+        /*345*/ { pow(pow(cosax, 2) - 1, -1), +1 / (tanax * a) },
+        /*354*/ { ex(sinax) * ex(cosax), pow(sinax, 2) / (2 * a) },
         /*409 is a basic function */
-        /*410*/
-        { pow(Functionmanager::create_hard("tan", { a * x }), 2),
-          Functionmanager::create_hard("tan", { a * x }) / a - x },
+        /*410*/ { pow(tanax, 2), tanax / a - x },
         /*418 is a basic function */
         /*426 is a basic function */
         /*427 is a basic function */
@@ -792,6 +989,165 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
 
     nonintegrable = remainder;
     return _ex0;
+}
+
+ex extintegral::subs(const exmap& m, unsigned options) const
+{
+    MSG_INFO(2, "Substituting " << m << " in integral " << *this << endline);
+    ex result = inherited::subs(m, options);
+
+    // Handle substitution of the differential
+    if (is_a<extintegral>(result))
+    {
+        for (const auto& r : m)
+        {
+            if (is_a<differential>(r.first))
+            {
+                const differential& lhs = ex_to<differential>(r.first);
+                if (lhs.op(0).is_equal(result.op(0)))
+                {
+                    extintegral res(op(3) * r.second,
+                                    C); // Construct new extintegral from expression
+                    res.hasboundaries = hasboundaries;
+                    if (hasboundaries)
+                    {
+                        res.let_op(1) = op(1);
+                        res.let_op(2) = op(2);
+                    }
+                    return res;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+else if (is_a<func>(remainder))
+{
+    expression result = ex_to<func>(remainder).find_integral(var);
+    if (!result.is_empty())
+        return result;
+}
+else if (is_a<exderivative>(remainder))
+{
+    const exderivative& e = ex_to<exderivative>(remainder);
+
+    if (!e.is_partial())
+    {
+        // TODO Integration of partial derivatives is possible but the integration constant becomes a function of the remaining variables (that disappeared through partial derivation)
+        if (e.get_numer().get_grade().info(info_flags::posint))
+        {
+            int grade = ex_to<numeric>(e.get_numer().get_grade()).to_int();
+
+            if (grade == 1)
+            {
+                const differential& d = ex_to<differential>(e.get_denom());
+                if (d.argument().is_equal(var))
+                    return e.get_numer().argument(); // int df/dt dt = df
+            }
+            else
+            {
+                // Denominator can be any combination of differentials (in different variables) and their powers
+                // Search for matching differential in the denominator, and reduce its grade by one
+                ex d_new = _ex1;
+                bool found = false;
+
+                for (const auto dd :
+                     (is_a<mul>(e.get_denom()) ? e.get_denom() : lst{ e.get_denom() }))
+                {
+                    if (is_a<differential>(dd) && ex_to<differential>(dd).argument().is_equal(var))
+                    {
+                        // Omit from new denominator
+                        found = true;
+                    }
+                    else if (is_a<power>(dd))
+                    {
+                        const power& p = ex_to<power>(dd);
+                        const differential& d = ex_to<differential>(get_basis(p));
+
+                        if (d.argument().is_equal(var))
+                        {
+                            d_new *= dynallocate<power>(d, get_exp(p) - 1); // Reduce grade by 1
+                            found = true;
+                        }
+                        else
+                        {
+                            d_new *= dd;
+                        }
+                    }
+                    else
+                    {
+                        d_new *= dd; // Keep unchanged
+                    }
+
+                    if (found)
+                    {
+                        differential n = e.get_numer();
+                        n.set_grade(grade - 1);
+                        return dynallocate<exderivative>(
+                            n, d_new); // int d^n f / dt^n du^m ... = d^(n-1) f / d t^(n-1) du^m ...
+                    }
+                }
+            }
+        }
+    }
+}
+else
+{
+    exmap repl;
+
+    for (const auto& i : integral_table::integrals)
+    {
+        MSG_INFO(1, "Checking match of " << remainder << " with " << i.first << " --> " << i.second
+                                         << endline);
+        try
+        {
+            relational substitution = integral_table::a == wild(1);
+            bool success
+                = remainder.match(i.first.subs(integral_table::x == var).subs(substitution), repl);
+            if (!success)
+            {
+                // Try harder. E.g. the first match will fail on cos(x)^2 == cos(a * x)^2
+                // Note: If GiNaC ever has the algebraic option to match() then this is probably not necessary any more
+                substitution = integral_table::a == _ex1;
+                success = remainder.match(i.first.subs(integral_table::x == var).subs(substitution),
+                                          repl);
+            }
+
+            if (success)
+            {
+                MSG_INFO(1, "Found match with " << repl << endline);
+                bool nonconst = false;
+
+                for (const auto& r : repl)
+                    if (r.second.has(var))
+                    {
+                        nonconst = true;
+                        repl.clear();
+                        break; // non-constant factor
+                    }
+
+                if (!nonconst)
+                {
+                    repl.emplace(integral_table::x, var);
+                    repl.emplace(substitution.lhs(), substitution.rhs());
+                    return Functionmanager::replace_function_by_func(
+                        i.second.subs(repl, subs_options::no_pattern));
+                }
+            }
+        }
+        catch (std::exception& e)
+        {
+            (void)e;
+            // ignore, might happen when substitution leads to division by zero
+            MSG_INFO(1,
+                     "Discarding match because of exception thrown during substitution" << endline);
+        }
+    }
+}
+
+nonintegrable = remainder;
+return _ex0;
 }
 
 ex extintegral::subs(const exmap& m, unsigned options) const

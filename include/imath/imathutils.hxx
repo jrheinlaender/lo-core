@@ -502,10 +502,10 @@ bool checkTextmodeFormula(const Reference<XTextContent>& formula);
 
 /// Get all formulas in a text document in the order they appear in the text
 // Also count total of all XTextContent on the page for setInlineCache hack
-IMATH_DLLPUBLIC void orderXText(const Reference<XText>& xText, std::list<OUString>& formulas,
+IMATH_DLLPUBLIC void orderXText(const Reference<XText>& xText, std::vector<OUString>& formulas,
                                 unsigned& count, const Reference<XStatusIndicator>& xStatus);
 
-void orderPresentation(const Reference<XModel>& xModel, std::list<OUString>& formulas,
+void orderPresentation(const Reference<XModel>& xModel, std::vector<OUString>& formulas,
                        unsigned& count, const Reference<XStatusIndicator>& xStatus);
 
 /// Return the content of the given DDE text field

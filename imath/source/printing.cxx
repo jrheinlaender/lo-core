@@ -1098,13 +1098,16 @@ else
     numer.clear_diffs();
     numer.clear_derivatives();
     numer.clear_integrals();
-    numer.clear_functions();
     numer.clear_matrices();
     denom.clear_diffs();
     denom.clear_derivatives();
     denom.clear_integrals();
-    denom.clear_functions();
     denom.clear_matrices();
+    if (!posfuncs.is_equal(_ex1))
+    {
+        numer.clear_functions();
+        denom.clear_functions();
+    }
 
     // Check for a complex add on top of the fraction that itself contains fractions
     exset powers;
@@ -1133,13 +1136,21 @@ else
     }
 
     // Print everything that goes onto the big fraction
-    c.enter_fraction();
-    c.s << "{{alignc ";
-    print_smath_mul(numer, c, opnum, turn_around == 1);
-    c.s << "} over {alignc ";
-    print_smath_mul(denom, c, opnum, turn_around == 2);
-    c.s << "}}";
-    c.exit_fraction();
+    if (!denom.is_trivial())
+    {
+        c.enter_fraction();
+        c.s << "{{alignc ";
+        print_smath_mul(numer, c, opnum, turn_around == 1);
+        c.s << "} over {alignc ";
+        print_smath_mul(denom, c, opnum, turn_around == 2);
+        c.s << "}}";
+        c.exit_fraction();
+    }
+    else if (!numer.is_trivial())
+    {
+        c.s << " ";
+        print_smath_mul(numer, c, opnum);
+    }
 
     // Print adds. printOperand() does not work for arguments consisting of a single add
     if (is_a<add>(posadds) || is_a<add>(negadds))
@@ -1165,7 +1176,8 @@ else
         printOperand(posadds, negadds, c, opnum);
 
     // Print things that should go after the big fraction
-    printOperand(posfuncs, negfuncs, c, opnum);
+    if (!posfuncs.is_equal(_ex1))
+        printOperand(posfuncs, negfuncs, c, opnum);
     printOperand(posinteg, neginteg, c, opnum);
     printOperand(posmatrs, negmatrs, c, opnum);
 

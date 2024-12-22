@@ -389,8 +389,41 @@ void SmDocShell::Parse()
     maUsedSymbols = maParser->GetUsedSymbols();
 }
 
+OUString compileIncludes(const std::list<OUString>& files, imath::parserParameters& pParams, const OUString& folder, std::list<iFormulaLine_ptr>& mLines, std::shared_ptr<GiNaC::optionmap>& initialOptions)
+{
+    // Read all files in one parser run
+    for (const auto& f : files) {
+        if (f.getLength() > 2)
+            pParams.rawtext += OU("%%ii READFILE {\"") + folder + f.copy(2) + OU(".imath") + OU("\"}\n");
+    }
+
+    if (!pParams.rawtext.isEmpty()) {
+        SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(pParams.rawtext));
+        pParams.lines.clear();
+        imath::imathparse parser;
+        if (parser.parse(pParams) != 0)
+        {
+            SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
+            OUString error("");
+            for (const auto& l : mLines)
+                if (l->hasError())
+                    error += l->getErrorMessage() + "\n";
+            return error;
+        }
+        if (mLines.size() > 0)
+            initialOptions = mLines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
+    }
+
+    return {};
+}
 OUString SmDocShell::ImInitializeCompiler() {
     SAL_INFO_LEVEL(1, "starmath.imath", "Preparing formula for compilation");
+
+    // Get access to the registry that contains the global options
+    Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
+    Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
+
+    std::list<OUString> masterDocFiles;
 
     if (mPreviousFormula.getLength() > 0) {
         // Find previous iFormula from parent document. If this fails, a error message is returned
@@ -402,11 +435,9 @@ OUString SmDocShell::ImInitializeCompiler() {
         {
             SAL_INFO_LEVEL(1, "starmath.imath", "Searching for master document '" << mIFormulaMasterDocument << "'");
             // Note: We assume that the parent document has already loaded the master document
-            Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
             Reference<XDesktop> xDesktop(xContext->getServiceManager()->createInstanceWithContext("com.sun.star.frame.Desktop", xContext), UNO_QUERY_THROW);
             Reference<container::XEnumerationAccess> xLoadedDocsEnumAccess = xDesktop->getComponents();
             Reference<container::XEnumeration> xDocsEnum = xLoadedDocsEnumAccess->createEnumeration();
-            bool foundMasterDocument = false;
 
             while (xDocsEnum->hasMoreElements()) {
                 Any docModel = xDocsEnum->nextElement();
@@ -420,13 +451,21 @@ OUString SmDocShell::ImInitializeCompiler() {
                 if (xDocumentStorable->getLocation() == mIFormulaMasterDocument)
                 {
                     SAL_INFO_LEVEL(1, "starmath.imath", "Found master document");
-                    foundMasterDocument = true;
+                    Reference<XNamedGraph> xGraph = getGraph(xContext, xParent);
+                    if (xGraph.is())
+                    {
+                        masterDocFiles = splitString(getTextProperty(xContext, xParent, xGraph, xProperties, OU("includes_txt_references"), OU("Includes/txt_References")), ' ');
+                        masterDocFiles.emplace_back(getTextProperty(xContext, xParent, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include1")));
+                        masterDocFiles.emplace_back(getTextProperty(xContext, xParent, xGraph, xProperties, OU("includes_txt_include2"), OU("Includes/txt_Include2")));
+                        masterDocFiles.emplace_back(getTextProperty(xContext, xParent, xGraph, xProperties, OU("includes_txt_include3"), OU("Includes/txt_Include3")));
+                        masterDocFiles.unique();
+                    }
                     break;
                 }
             }
 
-            if (!foundMasterDocument)
-                return OUString("Master document ") + mIFormulaMasterDocument + " could not be found";
+            if (masterDocFiles.empty())
+                return OUString("Master document ") + mIFormulaMasterDocument + " could not be found"; // Note: We rely on at lest 00init reference to exist
         }
 
         if (!xParent.is())
@@ -469,10 +508,6 @@ OUString SmDocShell::ImInitializeCompiler() {
         }
     }
 
-    // Get access to the registry that contains the global options
-    Reference<XComponentContext> xContext(comphelper::getProcessComponentContext());
-    Reference<XHierarchicalPropertySet> xProperties = getRegistryAccess(xContext, OU("/org.openoffice.Office.iMath/"));
-
     // Check for stand-alone formula or part of Text / Presentation
     OUString documentType;
     Reference<XModel> xParent = GetDocumentModel(documentType);
@@ -491,13 +526,61 @@ OUString SmDocShell::ImInitializeCompiler() {
     Reference<XNamedGraph> xGraph = getGraph(xContext, xModel);
     if (!xGraph.is()) xGraph = createGraph(xContext, xModel);
 
+    // Path to iMath's own include files (references)
+    OUString shareFolder;
+    // TODO Fix build system to include share/imath into the Windows msi files
+    //OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/imath/references/");
+    OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/calc/");
+    rtl::Bootstrap::expandMacros(shareURL);
+    osl::FileBase::getSystemPathFromFileURL(shareURL, shareFolder);
+
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr)
     {
         if (mIFormulaMasterDocument.getLength() > 0)
         {
-            // TODO Implement additional includes specified in the subdocument
+            // Read additional references and includes in the sub-document of the master document
+            auto files = splitString(getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_references"), OU("Includes/txt_References")), ' ');
+            files.emplace_back(getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include1")));
+            files.emplace_back(getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include2"), OU("Includes/txt_Include2")));
+            files.emplace_back(getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include3"), OU("Includes/txt_Include3")));
+            files.unique();
+            for (const auto& mFile : masterDocFiles)
+            {
+                auto it = std::find(files.begin(), files.end(), mFile);
+                if (it != files.end())
+                    files.erase(it);
+            }
+
+            // Update option map with options from sub-document
             Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, true);
+
+            try
+            {
+                imath::parserParameters pParams(mLines);
+                pParams.xContext = comphelper::getProcessComponentContext();
+                pParams.xDocumentModel = GetDocumentModel();
+                pParams.rawtext = OU("");
+                pParams.copyPasteActive = false; // TODO: Check if LO still crashes when a formula is changed during a copy+paste action
+                pParams.compiler = mpInitialCompiler;
+                pParams.global_options = mpInitialOptions;
+                pParams.cached_results = nullptr; // Cached results are not useful for include files
+
+                OUString error = compileIncludes(files, pParams, shareFolder, mLines, mpInitialOptions);
+
+                if (!error.isEmpty())
+                return error;
+            }
+            catch (Exception &e)
+            {
+                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.Message);
+                return e.Message;
+            }
+            catch (std::exception &e)
+            {
+                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.what());
+                return OUS8(e.what());
+            }
         }
 
         return "";
@@ -525,13 +608,6 @@ OUString SmDocShell::ImInitializeCompiler() {
     // Formatting
     Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, false);
 
-    // Path to iMath's own include files (references)
-    OUString shareFolder;
-    // TODO Fix build system to include share/imath into the Windows msi files
-    //OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/imath/references/");
-    OUString shareURL("$BRAND_BASE_DIR/" LIBO_SHARE_FOLDER "/calc/");
-    rtl::Bootstrap::expandMacros(shareURL);
-    osl::FileBase::getSystemPathFromFileURL(shareURL, shareFolder);
     imath::parserParameters pParams(mLines);
 
     try {
@@ -547,27 +623,9 @@ OUString SmDocShell::ImInitializeCompiler() {
         pParams.cached_results = nullptr; // Cached results are not useful for include files
 
         // Read all files in one parser run
-        for (const auto& f : files) {
-            if (f.getLength() > 2)
-                pParams.rawtext += OU("%%ii READFILE {\"") + shareFolder + f.copy(2) + OU(".imath") + OU("\"}\n");
-        }
-
-        if (!pParams.rawtext.equalsAscii("")) {
-            SAL_INFO_LEVEL(0, "starmath.imath", "Reading referenced files\n" << STR(pParams.rawtext));
-            pParams.lines.clear();
-            imath::imathparse parser;
-            if (parser.parse(pParams) != 0)
-            {
-                SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
-                OUString error("");
-                for (const auto& l : mLines)
-                    if (l->hasError())
-                        error += l->getErrorMessage() + "\n";
-                return error;
-            }
-            if (mLines.size() > 0)
-                mpInitialOptions = mLines.back()->getGlobalOptions(); // Options might have been changed by the OPTIONS keyword
-        }
+        OUString error = compileIncludes(files, pParams, shareFolder, mLines, mpInitialOptions);
+        if (!error.isEmpty())
+            return error;
 
         // units must be set AFTER units.imath is read, because the preferred units list might use user-defined units
         // Note that this will delete any preferred units declared in the previous include files (there shouldn't be any!)
@@ -613,7 +671,7 @@ OUString SmDocShell::ImInitializeCompiler() {
             if (parser.parse(pParams) != 0)
             {
                 SAL_WARN_LEVEL(-1, "starmath.imath", "Parser error: " << mLines.back()->getErrorMessage());
-                OUString error("");
+                error = "";
                 for (const auto& l : mLines)
                     if (l->hasError())
                         error += l->getErrorMessage() + "\n";
@@ -767,7 +825,6 @@ void SmDocShell::Compile()
         }
 
         OUString result;
-
         for (const auto& i : mLines)
             if (typeid(*i) == typeid(iFormulaNodeResult))
                 result += i->print() + OU("\n");
@@ -897,6 +954,8 @@ void SmDocShell::Compile()
     }
 
     //setlocale(LC_NUMERIC, ""); // Reset to system locale
+    if (GetIFormulaPendingAction() == "compile")
+        SetIFormulaPendingAction("");
     SAL_INFO_LEVEL(0, "starmath.imath", "Recalculation finished" << endline);
 }
 

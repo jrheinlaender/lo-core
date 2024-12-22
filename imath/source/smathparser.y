@@ -980,6 +980,11 @@ statement: OPTIONS options {
             YYABORT;
           }
          | UPDATE STRING {
+#ifdef INSIDE_SM
+            error(@1, "Internal iMath does not (yet) support the UPDATE statement");
+            handle_error(params, std::make_shared<iFormulaNodeStmUpdate>(current_options, fparts({GETARG(@2)})), @2);
+            YYABORT;
+#else
            if (include_level == 0) {
              params.lines.push_back(std::make_shared<iFormulaNodeStmUpdate>(current_options, fparts({GETARG(@2)})));
              line = params.lines.back();
@@ -987,6 +992,7 @@ statement: OPTIONS options {
            }
            params.updateFormulas.push_back(OUS8($2));
            params.cacheable = false;
+#endif
          }
          | UPDATE error {
             handle_error(params, std::make_shared<iFormulaNodeStmUpdate>(current_options, fparts({})), @2);

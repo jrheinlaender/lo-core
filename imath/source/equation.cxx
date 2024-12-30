@@ -574,6 +574,30 @@ GINAC_IMPLEMENT_REGISTERED_CLASS_OPT(equation, relational,
       case 2: return equation (e_sym, qsolve(coeff, num), o, mod).subs(e_subs_rev);
       case 3: return equation (e_sym, csolve(coeff, num), o, mod).subs(e_subs_rev);
       case 4: return equation (e_sym, quarticsolve(coeff, num), o, mod).subs(e_subs_rev);
+      case 6: {
+        if (coeff[1].is_zero() && coeff[3].is_zero() && coeff[5].is_zero()) {
+            exprvector bicoeff;
+            for (unsigned c = 0; c <= 3; ++c)
+                bicoeff.emplace_back(coeff[2 * c]);
+            if (num % 2 == 0)
+                return equation (e_sym, sqrt(csolve(bicoeff, num/2)), o, mod).subs(e_subs_rev);
+            else
+                return equation (e_sym, -sqrt(csolve(bicoeff, num/2)), o, mod).subs(e_subs_rev);
+        }
+        [[fallthrough]];
+      }
+      case 8: {
+          if (coeff[1].is_zero() && coeff[3].is_zero() && coeff[5].is_zero() && coeff[7].is_zero()) {
+            exprvector bicoeff;
+            for (unsigned c = 0; c <= 4; ++c)
+                bicoeff.emplace_back(coeff[2 * c]);
+            if (num % 2 == 0)
+                return equation (e_sym, sqrt(quarticsolve(bicoeff, num/2)), o, mod).subs(e_subs_rev);
+            else
+                return equation (e_sym, -sqrt(quarticsolve(bicoeff, num/2)), o, mod).subs(e_subs_rev);
+        }
+        [[fallthrough]];
+      }
       default: {
         throw std::invalid_argument("Solving for higher degrees than 4 is not generally possible");
         // TODO: Check whether degree() - ldegree() > 1 instead

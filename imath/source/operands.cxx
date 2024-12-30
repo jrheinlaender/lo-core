@@ -198,6 +198,14 @@ void operands::split_ex(const expression &e, operands &o1, operands &o2) {
   MSG_INFO(3, "split_ex: Cached result for " << e << endline);
 }
 
+GiNaC::ex operands::get() const
+{
+    if (type == GINAC_ADD)
+        return symbols + constants + units + functions + integrals + differentials + derivatives + adds + muls + powers + matrices + others + coefficient;
+    else
+        return symbols * constants * units * functions * integrals * differentials * derivatives * adds * muls * powers * matrices * others * coefficient;
+}
+
 void operands::include(const ex &what) {
   // Find the type of what and include it in the receiver
        if (is_a<extsymbol>(what)) symbols = oper(symbols, what);

@@ -140,6 +140,11 @@ public:
   static void split_ex(const GiNaC::expression &e, operands &o1, operands &o2);
 
   /**
+  @returns The sum or product of all operands
+  **/
+  GiNaC::ex get() const;
+
+  /**
   @returns The numeric coefficient of the operands.
   **/
   inline const GiNaC::ex& get_coefficient() const { return coefficient; }

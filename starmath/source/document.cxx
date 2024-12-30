@@ -1195,6 +1195,9 @@ bool SmDocShell::addResultLines()
         {
             auto& displayLine = *displayLine_it;
             SAL_INFO_LEVEL(4, "starmath.imath", "Processing display line");
+            /*for (const auto& col : displayLine)
+                std::cout << "'" << col << "' ";
+            std::cout << std::endl;*/
 
             if (displayLine.empty())
             {

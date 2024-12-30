@@ -174,13 +174,45 @@ static void sum_print_imath(const ex &lower, const ex &higher, const ex &e, cons
 REGISTER_FUNCTION(sum, eval_func(sum_eval).
                        print_func<imathprint>(sum_print_imath));
 
+namespace {
+    std::pair<GiNaC::expression, GiNaC::expression> split_scalar_and_matrix(const GiNaC::expression& e, const bool vector)
+    {
+        // Check for matrix multiplied with scalar(s)
+        if (!is_a<mul>(e))
+            return {_ex1, e};
+
+        expression s(_ex1);
+        expression m(_ex0);
+        auto mu = ex_to<mul>(e);
+
+        for (size_t o = 0; o < mu.nops(); ++o) {
+            if (is_a<matrix>(mu.op(o))) {
+                if (!m.is_zero())
+                    return {_ex1, _ex0}; // Found a second matrix
+                else
+                    m = mu.op(o);
+
+                if (vector && ex_to<matrix>(m).cols() != 1 && ex_to<matrix>(m).rows() != 1)
+                    return {_ex1, e}; // No vector
+            } else if (is_scalar(mu.op(o)))
+                s *= mu.op(o);
+            else
+                return {_ex1, e}; // Operand contains a matrix object
+        }
+
+        return {s, m};
+    }
+}
+
 static ex mindex_eval(const ex &e, const ex &r, const ex &c) {
   // Immediately evaluate if e is a matrix and r and c are integers
   MSG_INFO(3, "mindex eval: " << e << ", " << r << ", " << c << endline);
   ex unchanged = Functionmanager::create_hard("mindex", exprseq{e, r, c}, false);
 
-  if (is_a<matrix>(e)) {
-    const matrix& m = ex_to<matrix>(e);
+  auto [scalar, matr] = split_scalar_and_matrix(e, c == -999);
+
+  if (is_a<matrix>(matr)) {
+    const matrix& m = ex_to<matrix>(matr);
     int row = 0;
     int col = 0;
 
@@ -193,7 +225,7 @@ static ex mindex_eval(const ex &e, const ex &r, const ex &c) {
         row = numeric_to_int(rnum);
       }
       row--; // Adjust index to count from 0
-      if (row >= (int)m.rows() || row < 0) {
+      if (row >= (int)m.rows() || (row < 0 && row != -1000)) {
         MSG_WARN(0,  "mindex: Warning: Row index " << row+1 << " out of bounds for " << m << endline);
         return unchanged;
       }
@@ -229,34 +261,34 @@ static ex mindex_eval(const ex &e, const ex &r, const ex &c) {
     // Handle special case of vector index where row and column are not distinguished
     if (col == -1000) {
       if (m.rows() == 1)
-        return m(0, row);
+        return scalar * m(0, row);
       else
-        return m(row, 0);
+        return scalar * m(row, 0);
     }
 
     if (row == -1) {
       if (col == -1) {
-        return e; // m[wild, wild] returns complete matrix
+        return scalar * matr; // m[wild, wild] returns complete matrix
       } else {
         if (m.rows() == 1) {
-          return m(0, col); // Special treatment for vector: Return one element only
+          return scalar * m(0, col); // Special treatment for vector: Return one element only
         } else {
           matrix result(m.rows(), 1);
           for (unsigned i = 0; i < m.rows(); i++) result(i, 0) = m(i, col);
-          return result;
+          return scalar * result;
         }
       }
     } else {
       if (col == -1) {
         if (m.cols() == 1) {
-          return m(row, 0); // Special treatment for vector: Return one element only
+          return scalar * m(row, 0); // Special treatment for vector: Return one element only
         } else {
           matrix result(1, m.cols());
           for (unsigned i = 0; i < m.cols(); i++) result(0, i) = m(row, i);
-          return result;
+          return scalar * result;
         }
       } else {
-        return m(row, col);
+        return scalar * m(row, col);
       }
     }
   } else {
@@ -720,6 +752,45 @@ static void iquo_print_imath(const ex& a, const ex& b, const print_context& c) {
 
 REGISTER_FUNCTION(iquo, eval_func(iquo_eval).
                         print_func<imathprint>(iquo_print_imath));
+
+static ex numer_eval(const ex& e) {
+    operands denom(GINAC_MUL);
+    operands numer(GINAC_MUL);
+    operands::split_ex(e, numer, denom);
+    if (denom.is_trivial())
+        return e;
+
+    return numer.get();
+}
+
+static void numer_print_imath(const ex& e, const print_context& c) {
+  c.s << "func numer( ";
+  e.print(c);
+  c.s << ")";
+}
+
+REGISTER_FUNCTION(numer, eval_func(numer_eval).
+                        print_func<imathprint>(numer_print_imath));
+
+static ex denom_eval(const ex& e) {
+    operands denom(GINAC_MUL);
+    operands numer(GINAC_MUL);
+    operands::split_ex(e, numer, denom);
+
+    if (denom.is_trivial())
+        return Functionmanager::create_hard("denom", exprseq{e}, false);
+
+    return denom.get();
+}
+
+static void denom_print_imath(const ex& e, const print_context& c) {
+  c.s << "func denom( ";
+  e.print(c);
+  c.s << ")";
+}
+
+REGISTER_FUNCTION(denom, eval_func(denom_eval).
+                        print_func<imathprint>(denom_print_imath));
 
 static ex diagmatrix_eval(const ex &e) {
   // Immediately evaluate if e is a list or a vector

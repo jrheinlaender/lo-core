@@ -263,31 +263,6 @@ bool check_anyvector(const ex& e) {
   return true;
 }
 
-std::pair<GiNaC::expression, GiNaC::expression> split_scalar_and_matrix(const GiNaC::expression& e, const bool vector)
-{
-  // Check for matrix multiplied with scalar(s)
-  expression s(_ex1);
-  expression m(_ex0);
-  auto mu = ex_to<mul>(e);
-
-  for (size_t o = 0; o < mu.nops(); ++o) {
-    if (is_a<matrix>(mu.op(o))) {
-      if (!m.is_zero())
-        return {_ex1, _ex0}; // Found a second matrix
-      else
-        m = mu.op(o);
-
-      if (vector && ex_to<matrix>(m).cols() != 1 && ex_to<matrix>(m).rows() != 1)
-        return {_ex1, _ex0}; // No vector
-    } else if (is_scalar(mu.op(o)))
-      s *= mu.op(o);
-    else
-      return {_ex1, _ex0}; // Operand contains a matrix object
-  }
-
-  return {s, m};
-}
-
 lst make_lst_from_ex(const ex& e) {
   if (!is_a<matrix>(e)) {
     lst result;
@@ -2216,10 +2191,11 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       auto idx = $3;
 
       if (is_a<matrix>(v)) {
-        if (ex_to<matrix>(v).cols() == 1)
-          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999});
+        if (ex_to<matrix>(v).rows() == 1)
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), -999, std::move(idx)}); // Row vector, index is column
         else
-          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), -999, std::move(idx)});
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // Column vector, index is row (default)
+
       } else if (is_a<extsymbol>(v) && compiler->getsymprop(ex_to<extsymbol>(v).get_name()) == p_vector) {
         // Try hard to replace a vector symbol with the corresponding vector defined somewhere in an equation
         auto sym = ex_to<extsymbol>(v);
@@ -2231,24 +2207,13 @@ ex:   SUBST '(' ex ',' eqlist ')' {
 
         expression val = params.compiler->get_assignment(sym); // Returns _ex0 if no assignment exists
 
-        if (is_a<matrix>(val)) {
-          if (ex_to<matrix>(val).cols() == 1)
-            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), idx, -999});
-          else
-            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), -999, idx});
+        if (is_a<matrix>(val) && ex_to<matrix>(val).rows() == 1)
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), -999, idx}); // Special handling, assumes column index if matrix has only one row
+        else
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), idx, -999}); // By default, column vector with row index is assumed
 
-          if (is_a<func>($$) && ex_to<func>($$).get_name() == "mindex")
-            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // mindex() changed nothing, keep original value
-        } else if (is_a<mul>(val)) {
-          auto [scalar, vec] = split_scalar_and_matrix(val, true);
-
-          if (scalar == _ex1)
-            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // Keep original value
-          else
-            $$ = scalar * Functionmanager::create_hard("mindex", exprseq{vec, idx, -999}); // Apply mindex on vector and multiply result with scalar
-        } else {
-          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // Keep original value
-        }
+        if (is_a<func>($$) && ex_to<func>($$).get_name() == "mindex")
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // mindex() changed nothing, keep original value
       } else {
         MSG_WARN(1, "Vector index without vector: " << endline);
         $$ = std::move(v) * std::move(idx);
@@ -2276,20 +2241,9 @@ ex:   SUBST '(' ex ',' eqlist ')' {
 
         expression val = params.compiler->get_assignment(sym);
 
-        if (is_a<matrix>(val)) {
-          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), row, col});
-          if (is_a<func>($$) && ex_to<func>($$).get_name() == "mindex")
-            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(m), std::move(row), std::move(col)}); // mindex() changed nothing, keep original value
-        } else if (is_a<mul>(val)) {
-          auto [scalar, matr] = split_scalar_and_matrix(val, false);
-
-          if (scalar == _ex1)
-            $$ = Functionmanager::create_hard("mindex", exprseq{std::move(matr), std::move(row), std::move(col)}); // Keep original value
-          else
-            $$ = scalar * Functionmanager::create_hard("mindex", exprseq{m, std::move(row), std::move(col)}); // Apply mindex on vector and multiply result with scalar
-        } else {
-          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(m), std::move(row), std::move(col)}); // Keep original value
-        }
+        $$ = Functionmanager::create_hard("mindex", exprseq{std::move(val), row, col});
+        if (is_a<func>($$) && ex_to<func>($$).get_name() == "mindex")
+          $$ = Functionmanager::create_hard("mindex", exprseq{std::move(m), std::move(row), std::move(col)}); // mindex() changed nothing, keep original value
       } else {
         MSG_WARN(1, "Matrix index without matrix: " << endline);
         $$ = std::move(m) * std::move(row) * std::move(col);

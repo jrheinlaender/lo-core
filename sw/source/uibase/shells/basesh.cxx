@@ -213,6 +213,7 @@ void SwBaseShell::ExecDelete(SfxRequest &rReq)
 
     auto pDocSh = rSh.GetDoc()->GetDocShell();
     const auto& iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+    unsigned numOLE = pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size();
 
     switch(rReq.GetSlot())
     {
@@ -295,7 +296,9 @@ void SwBaseShell::ExecDelete(SfxRequest &rReq)
     }
 
     // Have iFormulas been deleted?
-    pDocSh->UpdateIFormulas(iFormulaNames, false, true);
+    // Note: We must avoid running UpdateIFormulas() at every delete of a single character, for performance reasons
+    if (numOLE != pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size())
+        pDocSh->UpdateIFormulas(iFormulaNames, false, true);
 
     rReq.Done();
 
@@ -326,11 +329,13 @@ void SwBaseShell::ExecClpbrd(SfxRequest &rReq)
                 {
                     auto pDocSh = rSh.GetDoc()->GetDocShell();
                     const auto& iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+                    unsigned numOLE = pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size();
 
                     pTransfer->Cut();
 
                     // Have iFormulas been deleted?
-                    pDocSh->UpdateIFormulas(iFormulaNames, false, true);
+                    if (numOLE != pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size())
+                        pDocSh->UpdateIFormulas(iFormulaNames, false, true);
                 }
                 else
                 {
@@ -370,6 +375,7 @@ void SwBaseShell::ExecClpbrd(SfxRequest &rReq)
                 {
                     auto pDocSh = rSh.GetDoc()->GetDocShell();
                     auto iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+                    unsigned numOLE = pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size();
 
                     // Temporary variables, because the shell could already be
                     // destroyed after the paste.
@@ -393,7 +399,8 @@ void SwBaseShell::ExecClpbrd(SfxRequest &rReq)
                     MakeAllOutlineContentTemporarilyVisible a(rSh.GetDoc());
 
                     // have new iFormulas been inserted?
-                    pDocSh->UpdateIFormulas(iFormulaNames, true, false);
+                    if (numOLE != pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size())
+                        pDocSh->UpdateIFormulas(iFormulaNames, true, false);
                 }
                 else
                     return;
@@ -622,6 +629,7 @@ void SwBaseShell::ExecUndo(SfxRequest &rReq)
 {
     auto pDocSh = GetShell().GetDoc()->GetDocShell();
     const auto& iFormulaNames = pDocSh->GetIFormulaNames(); // Names of existing iFormula Math objects
+    unsigned numOLE = pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size();
 
     MakeAllOutlineContentTemporarilyVisible a(GetShell().GetDoc(), true);
 
@@ -714,7 +722,8 @@ void SwBaseShell::ExecUndo(SfxRequest &rReq)
     }
 
     // Have iFormulas been added or removed?
-    pDocSh->UpdateIFormulas(iFormulaNames, true, true);
+    if (numOLE != pDocSh->GetEmbeddedObjectContainer().GetObjectNames().size())
+        pDocSh->UpdateIFormulas(iFormulaNames, true, true);
 
     rViewFrame.GetBindings().InvalidateAll(false);
 }

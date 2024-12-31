@@ -855,7 +855,7 @@ BEGIN(INITIAL);
          last_token = token::ATTRIBUTE;
          // don't return the attribute because it must be concatenated with the identifier
        }
-<II>({IDENTIFIER}?::)?{IDENTIFIER}|({IDENTIFIER}?::)?nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\}|({IDENTIFIER}?::)\{{ATTRIBUTE}{BLANK}+{IDENTIFIER}\} {
+<II>({IDENTIFIER}?::)*{IDENTIFIER}|({IDENTIFIER}?::)*nospace\{{IDENTIFIER}{BLANK}+{IDENTIFIER}\}|({IDENTIFIER}?::)+\{{ATTRIBUTE}{BLANK}+{IDENTIFIER}\} {
          // Note: f \rhs{"prev"} does not mean f * rhs{"prev"}, but f(\rhs{"prev"})
          CHECK_IMPLICIT_MUL(token::IDENTIFIER)
          if (checkresult) return (token::IMPMUL);

@@ -92,10 +92,19 @@
 %%
 %%theorems
 %%ii@lib:trig:sincos1@ EQDEF square{sin{wild}} + square{cos{wild}} = 1
-%%ii@lib:trig:cosine@  EQDEF c^2 = a^2 + b^2 - 2 a b cos{%gamma}
-%%ii@lib:trig:sine@    EQDEF a over sin{%alpha} = b over sin{%beta}
+%%
+%%templates
+%%-------------- Theorems
+%%ii BEGIN lib
+%%ii BEGIN trig
+%%ii@cosine@  EQDEF ::lib::c^2 = ::lib::a^2 + ::lib::b^2 - 2 ::lib::a ::lib::b cos{::lib::%gamma}
+%%ii@sine@    EQDEF ::lib::a over sin{::lib::%alpha} = ::lib::b over sin{::lib::%beta}
+%%ii END trig
 %%
 %%-------------- Basic Physics
-%%ii@lib:phys:u@     EQDEF u = %omega r
-%%ii@lib:phys:omega@ EQDEF %omega = 2 %pi N
-%%ii@lib:phys:P@     EQDEF P = T %omega
+%% BEGIN phys
+%%ii@u@     EQDEF ::lib::u = ::lib::%omega ::lib::r
+%%ii@omega@ EQDEF ::lib::%omega = 2 %pi ::lib::N
+%%ii@P@     EQDEF ::lib::P = ::lib::T ::lib::%omega
+%%ii END phys
+%%ii END lib

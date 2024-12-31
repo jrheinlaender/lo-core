@@ -762,7 +762,11 @@ statement: OPTIONS options {
             YYABORT;
          }
          | BEGIN_NS IDENTIFIER {
-           params.compiler->begin_namespace($2);
+           auto ns = $2;
+           auto pos = ns.rfind("::");
+           if (pos != std::string::npos)
+             ns = ns.substr(pos+2);
+           params.compiler->begin_namespace(ns);
 
            if (include_level == 0) {
              params.lines.push_back(std::make_shared<iFormulaNodeStmNamespace>(current_options, OU("BEGIN"), fparts({GETARG(@2)})));
@@ -775,7 +779,11 @@ statement: OPTIONS options {
             YYABORT;
          }
          | END_NS IDENTIFIER {
-           params.compiler->end_namespace($2);
+           auto ns = $2;
+           auto pos = ns.rfind("::");
+           if (pos != std::string::npos)
+             ns = ns.substr(pos+2);
+           params.compiler->end_namespace(ns);
 
            if (include_level == 0) {
              params.lines.push_back(std::make_shared<iFormulaNodeStmNamespace>(current_options, OU("END"), fparts({GETARG(@2)})));

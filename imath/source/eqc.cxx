@@ -563,7 +563,7 @@ bool is_internal(const std::string& varname) {
     if (cpos == std::string::npos)
       current_namespace = "";
     else
-      current_namespace = current_namespace.substr(0, cpos);
+      current_namespace = current_namespace.substr(0, cpos - 1);
 
     MSG_INFO(0, "Current namespace: '" << current_namespace << "'" << endline);
   }
@@ -650,8 +650,8 @@ bool is_internal(const std::string& varname) {
       sym.make_nc();
       sym.make_complex();
     } else {
-      sym.make_complex();
       sym.make_c();
+      sym.make_complex();
     }
   }
 
@@ -1233,36 +1233,42 @@ bool is_internal(const std::string& varname) {
     // Clear only variables and non-library functions in current namespace
     assignments.clear();
     recent_assgn.clear();
-    for (auto& [varname, var] : vars) {
+    for (auto v = vars.begin(); v != vars.end(); ) {
+      auto& [varname, var] = *v;
+
       if (is_internal(varname)) {
           MSG_INFO(3, "Keeping internal " << varname << endline);
+          // Note: This must be kept so that substitution works
           if (var.has_value())
               assignments.emplace(var.getsym(), var.val);
+          ++v;
           continue;
       }
       if (is_external_ns(varname)) {
           MSG_INFO(3, "Keeping from external namespace " << varname << endline);
           if (var.has_value())
             assignments.emplace(var.getsym(), var.val);
+          ++v;
           continue;
       }
 
       if (var.getsymtype() == t_variable) {
         MSG_INFO(3, "Deleting variable " << varname << endline);
-        var.make_unknown();
-        var.setsymprop(p_complex);
-        var.assignments.clear();
+        v = vars.erase(v);
+        continue;
       } else if (var.getsymtype() == t_function) {
         if (!funcmgr->is_lib(varname)) {
           MSG_INFO(3, "Deleting function " << varname << endline);
           funcmgr->remove(varname);
           var.setsymtype(t_variable); // Keep this variable because it might have been shadowed by a function
-          var.setsymprop(p_complex);
+          var.setsymprop(p_complex); // TODO But the symprop might have been a different one ...
           var.make_unknown();
           var.assignments.clear();
         } else {
           MSG_INFO(3, "Keeping " << varname << endline);
           // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
+          // Note: This may lead to problems if later the symbol properties are changed, which will also affect earlier uses of the symbol
+          // But we assume that very seldom a user will declare a function as real-valued or positive
           var.make_unknown();
           var.assignments.clear();
         }
@@ -1271,6 +1277,8 @@ bool is_internal(const std::string& varname) {
         if (var.has_value())
             assignments.emplace(var.getsym(), var.val);
       }
+
+      ++v;
     }
   } //eqc::clear()
 

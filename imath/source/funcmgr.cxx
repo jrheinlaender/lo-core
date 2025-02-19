@@ -141,10 +141,11 @@ expression Functionmanager::replace_function_by_func(const ex& e)
         const auto& fr = Functionmanager::hard_functions.find(fname)->second;
         const function& f = ex_to<function>(e_mapped);
         return dynallocate<func>(fname, exprseq(f.begin(), f.end()), fr.serial, fr.hard, fr.vars,
-                                 fr.definition, fr.hints, fr.printname)
-            .setflag(status_flags::evaluated); // Avoid infinite recursion in func::eval()
+                                 fr.definition, fr.hints, fr.printname);
     }
     return e.map(*this);
+}
+return e.map(*this);
 }
 }
 ;
@@ -238,12 +239,7 @@ Functionmanager::Functionmanager()
                 FUNCHINT_LIB | FUNCHINT_TRIG,
                 "cosh" } },
             { "exp",
-              { function::find_function("exp", 1),
-                { x },
-                true,
-                empty,
-                FUNCHINT_LIB | FUNCHINT_NOBRACKET,
-                "exp" } },
+              { function::find_function("exp", 1), { x }, true, empty, FUNCHINT_LIB, "exp" } },
             { "fact",
               { function::find_function("factorial", 1),
                 { x },

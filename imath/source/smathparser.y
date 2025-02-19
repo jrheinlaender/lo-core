@@ -263,20 +263,6 @@ bool check_anyvector(const ex& e) {
   return true;
 }
 
-lst make_lst_from_ex(const ex& e) {
-  if (!is_a<matrix>(e)) {
-    lst result;
-    result.append(e);
-    return result;
-  } else {
-    lst result;
-    const matrix& m = ex_to<matrix>(e);
-    for (unsigned r = 0; r < m.rows(); ++r)
-      result.append(m(r,0));
-    return result;
-  }
-}
-
 bool hasLineOption(const option_name& o) {
   return (line_options.find(o) != line_options.end()) ||
          ((current_options != nullptr) && (current_options->find(o) != current_options->end()));
@@ -1179,12 +1165,16 @@ prefixname: IDENTIFIER {
           }
 ;
 
+%type <std::string> label "equation or expression label";
+label:  LABEL { $$ = $1; }
+      | EXLABEL { $$ = $1; }
+;
 %type <strvec> labellist "list of labels";
-labellist: LABEL  {
+labellist: label  {
             $$ = std::vector<std::string>{};
             $$.emplace_back(params.compiler->label_ns($1, true));
           }
-          | labellist ';' LABEL {
+          | labellist ';' label {
             $$ = $1;
             $$.emplace_back(params.compiler->label_ns($3, true));
           }
@@ -1769,6 +1759,12 @@ eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equ
       MSG_INFO(1, "Applying function " << fname << " to " << eq << endline);
       $$ = dynallocate<equation>(params.compiler->create_function(fname, {eq.lhs()}), params.compiler->create_function(fname, {eq.rhs()}), eq.getop(), eq.getmod());
     }
+    | FUNC '[' eq ']' {
+      auto fname = $1;
+      const equation& eq = ex_to<equation>($3);
+      MSG_INFO(1, "Applying function " << fname << " to " << eq << endline);
+      $$ = dynallocate<equation>(params.compiler->create_function(fname, {eq.lhs()}), params.compiler->create_function(fname, {eq.rhs()}), eq.getop(), eq.getmod());
+    }
     | SIZE sizestr IMPMUL eq { $$ = $4; }
     | '-' eq %prec NEGATION {
       const equation& eq = ex_to<equation>($2);
@@ -2098,6 +2094,9 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     }
     | WILD { $$ = wild(); }
     | FUNC leftbracket ex rightbracket {
+      $$ = params.compiler->create_function($1, {$3}).evalm();
+    }
+    | FUNC '[' ex ']' {
       $$ = params.compiler->create_function($1, {$3}).evalm();
     }
     | FUNC leftbracket exvec rightbracket {

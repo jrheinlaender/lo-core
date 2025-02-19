@@ -417,55 +417,6 @@ ex func::conjugate() const
     return Functionmanager::create_hard("conjugate", { ex(*this) });
 }
 
-ex func::real_part() const
-{
-    if (hard)
-    { // Fall through to GiNaC::function::real_part()
-        ex result
-            = function(serial, seq)
-                  .setflag(status_flags::evaluated)
-                  .real_part(); // Note: Omitting setting the flag results in an infinite loop!
-        return Functionmanager::replace_function_by_func(result)
-            .eval(); // get rid of GiNaC functions that might have been introduced
-    }
-
-    return Functionmanager::create_hard("Re", { ex(*this) });
-}
-
-ex func::imag_part() const
-{
-    if (hard)
-    { // Fall through to GiNaC::function::imag_part()
-        ex result
-            = function(serial, seq)
-                  .setflag(status_flags::evaluated)
-                  .imag_part(); // Note: Omitting setting the flag results in an infinite loop!
-        return Functionmanager::replace_function_by_func(result)
-            .eval(); // get rid of GiNaC functions that might have been introduced
-    }
-
-    return Functionmanager::create_hard("Im", { ex(*this) });
-}
-
-bool func::has(const ex& other, unsigned options) const
-{
-    MSG_INFO(3, "Checking if " << *this << " has " << other << endline);
-    if (is_a<func>(other) && this->is_equal_same_type(ex_to<func>(other)))
-        return true;
-    else if (seq.empty())
-    {
-        for (const auto& v : vars)
-        {
-            MSG_INFO(3, "Checking if " << v << " has " << other << endline);
-            if (v.has(other, options))
-                return true;
-        }
-        return false;
-    }
-    else
-        return basic::has(other, options);
-}
-
 ex func::eval() const
 {
     // If the function is hardcoded, drop through to the GiNaC::function::eval() method
@@ -483,13 +434,9 @@ ex func::eval() const
                 {
                     // Take advantage of the hard-coded GiNac eval rules, e.g. tan(atan(x)) = x
                     ex func_arg = function(f0.serial, f0.seq);
-                    ex result = function(serial, func_arg).eval();
-#ifndef _MSC_VER
-                    // Note: MSVC does not guarantee the order of initialization so this test sometimes fails
-                    if (serial >= round_SERIAL::serial)
-                        return result;
-#endif
-                    if (is_a<function>(result) && ex_to<function>(result).get_serial() == serial)
+                    ex original = function(serial, func_arg).hold();
+                    ex result = original.eval();
+                    if (original.is_equal(result))
                         return this->hold(); // Nothing appears to have happened
 
                     // Don't introduce any GiNaC::function into the system!
@@ -514,11 +461,12 @@ ex func::eval() const
         {
             MSG_INFO(3, "Drop through to GinaC eval rules" << endline);
             // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
-            ex result = function(serial, seq).eval();
-#ifndef _MSC_VER
-            if (serial >= round_SERIAL::serial)
-                return result;
-#endif
+            ex original = function(serial, seq).hold();
+            ex result = function(serial, seq);
+            if (original.is_equal(result))
+                return this->hold(); // Nothing appears to have happened
+
+            // Don't introduce any GiNaC::function into the system!
             return Functionmanager::replace_function_by_func(result);
         }
         else
@@ -527,10 +475,45 @@ ex func::eval() const
         }
     }
 
-    if (is_expand() && !definition.is_empty())
-        return this->expand_definition(); // no full expansion! Just the function, not the arguments
-    else
-        return this->hold();
+    // Don't introduce any GiNaC::function into the system!
+    return Functionmanager::replace_function_by_func(result);
+}
+}
+else if (name == "ln")
+{
+    if (is_a<constant>(seq[0]) && seq[0].is_equal(Euler_number))
+    { // handle ln e = 1
+        return _ex1;
+    }
+    else if (is_a<power>(seq[0]))
+    {
+        const power& p = ex_to<power>(seq[0]);
+        if (get_basis(p).is_equal(Euler_number)) // handle ln e^x = x
+            return get_exp(p);
+    }
+}
+}
+if (!seq.empty())
+{
+    MSG_INFO(3, "Drop through to GinaC eval rules" << endline);
+    // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
+    ex result = function(serial, seq).eval();
+#ifndef _MSC_VER
+    if (serial >= round_SERIAL::serial)
+        return result;
+#endif
+    return Functionmanager::replace_function_by_func(result);
+}
+else
+{
+    return (this->hold());
+}
+}
+
+if (is_expand() && !definition.is_empty())
+    return this->expand_definition(); // no full expansion! Just the function, not the arguments
+else
+    return this->hold();
 }
 
 ex func::subs(const exmap& m, unsigned options) const

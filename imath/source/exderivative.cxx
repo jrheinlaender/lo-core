@@ -256,8 +256,19 @@ ex exderivative::subs(const exmap& m, unsigned options) const
 {
     MSG_INFO(2, "Substituting exmap " << m << " in " << *this << endline);
 
-    const ex& subsed_n = numer.subs(m, options);
-    const ex& subsed_d = denom.subs(m, options);
+    ex subsed_n = numer.subs(m, options);
+
+    ex subsed_d(denom);
+    for (const auto& mm : m)
+    {
+        if (!is_a<numeric>(mm.second))
+            subsed_d = subsed_d.subs(
+                { mm },
+                options); // Substituting a number into the denominator will result in an error when the derivative is evaluated
+    }
+
+    if (subsed_d.is_zero())
+        subsed_d = denom;
 
     if (are_ex_trivially_equal(numer, subsed_n) && are_ex_trivially_equal(denom, subsed_d))
         return subs_one_level(m, options);
@@ -269,7 +280,7 @@ ex exderivative::subs(const exmap& m, unsigned options) const
 }
 
 // Exderivatives can only occur in iMath in two cases
-// 1. By differentiation a func()
+// 1. By differentiation of a func()
 // 2. By matching of user-defined differentials
 ex exderivative::derivative(const symbol& s) const
 {

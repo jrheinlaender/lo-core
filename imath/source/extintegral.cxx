@@ -170,6 +170,11 @@ void extintegral::do_print(const print_context & c, unsigned level) const
 
 void extintegral::do_print_imath(const imathprint& c, unsigned level) const
 {
+  // Prevent propagation to higher levels
+  // Note: The only caller that may se tthe turn_around flag is printMulItem() in printing.cxx
+  bool turn_around = c.add_turn_around();
+  c.set_add_turn_around(false);
+
   if (!hasboundaries) {
     c.s << "int {";
   } else {
@@ -181,12 +186,31 @@ void extintegral::do_print_imath(const imathprint& c, unsigned level) const
     op(2).print(c, level+1);
     c.s << "} {";
   }
+
+  // Integrand
   if (is_a<add>(op(3))) c.s << "(";
-  if (!op(3).is_equal(_ex1))
-    op(3).print(c, level+1);
+
+  if (!op(3).is_equal(_ex1)) {
+    if (turn_around) {
+        std::stringstream resultstream;
+        imathprint result(resultstream, c);
+        ( _ex_1 * op(3)).print(c, 0); // Print negative value and see if - sign is removed
+        auto resultstring = resultstream.str();
+        if (resultstring[0] == '-') {
+            c.s << resultstring.substr(1); // turn-around not successful
+        } else {
+            c.s << resultstring;
+            turn_around = false; // Set flag for caller
+        }
+    } else
+        op(3).print(c, level+1);
+  }
+
   if (is_a<add>(op(3))) c.s << ")";
   c.s << "} ";
   differential(op(0)).do_print_imath(c, level+1, false);
+
+  c.set_add_turn_around(turn_around);
 }
 
 int extintegral::compare_same_type(const basic & other) const
@@ -221,8 +245,15 @@ ex ensure_extintegral(const ex& e, const unsigned& flags)
 // This is for consistency in the user interface: Evaluation will always take
 // place in a simplify(..., "integrate") call
 ex extintegral::eval() const {
-  MSG_INFO(2, "Doing eval of extintegral" << endline);
+  MSG_INFO(3, "Doing eval of extintegral" << endline);
   if (flags & status_flags::evaluated) return *this;
+
+  if (is_negex(op(3))) {
+      if (hasboundaries)
+        return dynallocate<extintegral>(op(0), op(1), op(2), _ex_1 * op(3)) * _ex_1;
+      else
+        return dynallocate<extintegral>(op(0), _ex_1 * op(3), C) * _ex_1;
+  }
 
   if (op(3).is_zero()) return C;
 
@@ -406,30 +437,33 @@ void init_table() {
         { a,                a * x },
         { pow(x, n),        1 / (n+1) * pow(x, n+1) },
 /*001*/ { pow(X1, n),       1 / (a * (n+1)) * pow(X1, n+1) },
-/*002*/ { pow(X1, -1),       1 / a * Functionmanager::create_hard("ln", {X1}) },
-/*002*/ { pow(x, -1),       Functionmanager::create_hard("ln", {x}) },
+/*002*/ { pow(X1, -1),      1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {X1})}) },
+/*002*/ { pow(x, -1),       Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {x})}) },
 /*003*/ { x * pow(X1, n),   1 / (pow(a,2) * (n+2)) * pow(X1, n+2) - b / (pow(a,2) * (n+1)) * pow(X1, n+1) },
 /*004 is partial integration */
-/*005*/ { x * pow(X1, -1),  x / a - b / pow(a,2) * Functionmanager::create_hard("ln", {X1}) },
-/*006*/ { x * pow(X1, -2),  b / (pow(a,2) * X1) + 1 / pow(a,2) * Functionmanager::create_hard("ln", {X1}) },
+/*005*/ { x * pow(X1, -1),  x / a - b / pow(a,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {X1})}) },
+/*006*/ { x * pow(X1, -2),  b / (pow(a,2) * X1) + 1 / pow(a,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {X1})}) },
 /*007 is contained in 003 */
 /*008*/ { x * pow(X1, -n),  1 / pow(a,2) * (-1 / ((n-2) * pow(X1, n-2)) + b / ((n-1) * pow(X1, n-1))) },
 /*008*/ { x * pow(pow(X1, n), -1), 1 / pow(a,2) * (-1 / ((n-2) * pow(X1, n-2)) + b / ((n-1) * pow(X1, n-1))) },
-/*009*/ { pow(x,2) * pow(X1, -1),  1 / pow(a,3) * (pow(X1, 2) / 2 - 2 * b * X1 + pow(b,2) * Functionmanager::create_hard("ln", {X1})) },
-/*010*/ { pow(x,2) * pow(X1, -2),  1 / pow(a,3) * (X1 - 2 * b * Functionmanager::create_hard("ln", {X1}) - pow(b,2) / X1) },
-/*011*/ { pow(x,2) * pow(X1, -3),  1 / pow(a,3) * (Functionmanager::create_hard("ln", {X1}) + 2 * b / X1 - pow(b,2) / (2 * pow(X1, 2))) },
+/*009*/ { pow(x,2) * pow(X1, -1),  1 / pow(a,3) * (pow(X1, 2) / 2 - 2 * b * X1 + pow(b,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {X1})})) },
+/*010*/ { pow(x,2) * pow(X1, -2),  1 / pow(a,3) * (X1 - 2 * b * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {X1})}) - pow(b,2) / X1) },
+/*011*/ { pow(x,2) * pow(X1, -3),  1 / pow(a,3) * (Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {X1})}) + 2 * b / X1 - pow(b,2) / (2 * pow(X1, 2))) },
 /*012*/ { pow(x,2) * pow(X1, -n),  1 / pow(a,3) * (-1 / ((n-3)*pow(X1, n-3)) + 2 * b / ((n-2) * pow(X1, n-2)) - pow(b,2) / ((n-1) * pow(X1, n-1))) },
 /*012*/ { pow(x,2) * pow(pow(X1, n), -1),    1 / pow(a,3) * (-1 / ((n-3)*pow(X1, n-3)) + 2 * b / ((n-2) * pow(X1, n-2)) - pow(b,2) / ((n-1) * pow(X1, n-1))) },
-/*018*/ { pow(x,-1) * pow(X1, -1), -1/b * Functionmanager::create_hard("ln", {X1/x}) },
-/*031*/ { X1 * pow(f * x + g, -1), a * x / f + DELTA1 / pow(f,2) * Functionmanager::create_hard("ln", {f * x + g}) },
-/*032*/ { pow(X1, -1) * pow(f * x + g, -1), 1/DELTA1 * Functionmanager::create_hard("ln", {(f * x + g) * pow(X1, -1)}) },
+/*018*/ { pow(x,-1) * pow(X1, -1), -1/b * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {X1/x})}) },
+/*031*/ { X1 * pow(f * x + g, -1), a * x / f + DELTA1 / pow(f,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {f * x + g})}) },
+/*032*/ { pow(X1, -1) * pow(f * x + g, -1), 1/DELTA1 * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {(f * x + g) * pow(X1, -1)})}) },
 /*040*/ { pow(X2, -1),       2/GiNaC::sqrt(DELTA2) * Functionmanager::create_hard("arctan", {(2 * a * x + b) / GiNaC::sqrt(DELTA2)}) }, // TODO: Two results depending on DELTA2
 /*041 to 056 are partial integrals depending on prior entries in the table */
 /*057*/ { pow(a2pX2, -1),     1/a * Y1p }, // TODO negative branch depends on abs(x)
 /*058*/ { pow(a2pX2, -2),     x / (2 * pow(a,2) * a2pX2) + 1/(2 * pow(a,3)) * Y1p }, // TODO negative branch depends on abs(x)
-/*083*/ { pow(a3pX3, -1),               1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {pow(a + x, 2) / (pow(a,2) - a * x + pow(x,2))}) + 1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x - a) / (a * pow(3, numeric(1,2)))}) },
-/*083*/ { pow(a3mX3, -1),              -1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))}) + 1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
-/*083*/ { pow(pow(x,3)-pow(a,3), -1),   1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))}) - 1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
+/*083*/ { pow(a3pX3, -1),               1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a + x, 2) / (pow(a,2) - a * x + pow(x,2))})}) +
+                                        1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x - a) / (a * pow(3, numeric(1,2)))}) },
+/*083*/ { pow(a3mX3, -1),              -1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))})}) +
+                                        1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
+/*083*/ { pow(pow(x,3)-pow(a,3), -1),   1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))})}) -
+                                        1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
 /*109*/ { GiNaC::sqrt(x) / a2pb2X,  2 * GiNaC::sqrt(x) / pow(b,2) - 2 * a / pow(b,3) * Y2p },
 /*109*/ { GiNaC::sqrt(x) / a2mb2X, -2 * GiNaC::sqrt(x) / pow(b,2) + 2 * a / pow(b,3) * Y2p },
 /*121 is contained in 001 */
@@ -450,7 +484,7 @@ void init_table() {
 /*274 is a basic function */
 /*275*/ { pow(sinax, 2), x / 2 - Functionmanager::create_hard("sin", {2 * a * x}) / (4 * a) },
 /*276*/ { pow(sinax, 3), -1 / a * cosax + 1 / (3 * a) * pow(cosax, 3) },
-/*277*/ { pow(sinax, 4), 3 / (8 * x) - 1 / (4 * a) * Functionmanager::create_hard("sin", {2 * a * x}) + 1 / (32 * a) * Functionmanager::create_hard("sin", {4 * a * x}) },
+/*277*/ { pow(sinax, 4), numeric(3,8) / x - 1 / (4 * a) * Functionmanager::create_hard("sin", {2 * a * x}) + 1 / (32 * a) * Functionmanager::create_hard("sin", {4 * a * x}) },
 /*278 is a recursive partial integral*/
 /*279*/ { x * sinax, sinax / pow(a, 2) - x * cosax / a },
 /*280*/ { pow(x, 2) * sinax, 2 * x / pow(a, 2) * sinax - (pow(x, 2) / a - 2 / pow(a, 3)) * cosax },
@@ -459,26 +493,30 @@ void init_table() {
 /*283 is a infinite series*/
 /*284 is a infinite series*/
 /*285 is a infinite series*/
-/*286*/ { pow(sinax, -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {a * x / 2 })}) },
+/*286*/ { pow(sinax, -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {a * x / 2 })})}) },
 /*287*/ { pow(sinax, -2), -1 / a * 1 / Functionmanager::create_hard("tan", {a * x}) },
-/*288*/ { pow(sinax, -3), -cosax / (2 * a * pow(sinax, 2)) + 1 / (2 * a) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {a * x / 2 })}) },
+/*288*/ { pow(sinax, -3), -cosax / (2 * a * pow(sinax, 2)) + 1 / (2 * a) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {a * x / 2 })})}) },
 /*289 is a recursive partial integral*/
 /*290 is a infinite series*/
-/*291*/ { x * pow(sinax, -2), -x / a * 1 / tanax + 1 / pow(a, 2) * Functionmanager::create_hard("ln", {sinax}) },
+/*291*/ { x * pow(sinax, -2), -x / a * 1 / tanax + 1 / pow(a, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {sinax})}) },
 /*292 is a recursive partial integral*/
 /*293*/ { pow(1 + sinax, -1), -1 / a * Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}) },
 /*294*/ { pow(1 - sinax, -1), +1 / a * Functionmanager::create_hard("tan", {Pi / 4 + a * x / 2}) },
-/*295*/ { x * pow(1 + sinax, -1), -x / a * Functionmanager::create_hard("tan", {Pi/4 - a * x / 2})  + 2 / pow(a,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("cos", {Pi/4 - a * x / 2 })}) },
-/*296*/ { x * pow(1 - sinax, -1), +x / a * 1 / Functionmanager::create_hard("tan", {Pi/4 - a * x / 2})  + 2 / pow(a,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("sin", {Pi/4 - a * x / 2 })}) },
+/*295*/ { x * pow(1 + sinax, -1),  -x / a * Functionmanager::create_hard("tan", {Pi/4 - a * x / 2})  +
+                                    2 / pow(a,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("cos", {Pi/4 - a * x / 2 })})}) },
+/*296*/ { x * pow(1 - sinax, -1),  +x / a * 1 / Functionmanager::create_hard("tan", {Pi/4 - a * x / 2})  +
+                                    2 / pow(a,2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("sin", {Pi/4 - a * x / 2 })})}) },
 /*297*/ { sinax * pow(1 + sinax, -1), +x + 1 / a * Functionmanager::create_hard("tan", {Pi/4 - a * x / 2 }) },
 /*297*/ { sinax * pow(1 - sinax, -1), -x + 1 / a * Functionmanager::create_hard("tan", {Pi/4 + a * x / 2 }) },
-/*298*/ { pow(sinax * (1 + sinax), -1), 1 / a * Functionmanager::create_hard("tan", {Pi/4 - a * x / 2 }) + 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {a * x / 2 })}) },
-/*298*/ { pow(sinax * (1 - sinax), -1), 1 / a * Functionmanager::create_hard("tan", {Pi/4 + a * x / 2 }) + 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {a * x / 2 })}) },
+/*298*/ { pow(sinax * (1 + sinax), -1), 1 / a * Functionmanager::create_hard("tan", {Pi/4 - a * x / 2 }) +
+                                        1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {a * x / 2 })})}) },
+/*298*/ { pow(sinax * (1 - sinax), -1), 1 / a * Functionmanager::create_hard("tan", {Pi/4 + a * x / 2 }) +
+                                        1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {a * x / 2 })})}) },
 /*299*/ { pow(1 + sinax, -2), -1 / (2 * a) * Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}) - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}), 3) },
 /*300*/ { pow(1 - sinax, -2), +1 / (2 * a) * 1 / Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}) + 1 / (6 * a) * 1 / pow(Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}), 3) },
 /*301*/ { sinax * pow(1 + sinax, -2), -1 / (2 * a) * Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}) + 1 / (6 * a) * pow(Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}), 3) },
 /*302*/ { sinax * pow(1 - sinax, -2), -1 / (2 * a) * 1 / Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}) + 1 / (6 * a) * 1 / pow(Functionmanager::create_hard("tan", {Pi / 4 - a * x / 2}), 3) },
-/*303*/ { pow(1 + pow(sinax, 2), -1), 1 / (2 * sqrt(numeric(2)) * a) * Functionmanager::create_hard("arcsin", {(3 * pow(sinax, 2) - 1) / ((pow(sinax, 2) + 1))}) },
+/*303*/ { pow(1 + pow(sinax, 2), -1), 1 / (2 * GiNaC::sqrt(ex(2)) * a) * Functionmanager::create_hard("arcsin", {(3 * pow(sinax, 2) - 1) / ((pow(sinax, 2) + 1))}) },
 /*304*/ { pow(1 - pow(sinax, 2), -1), 1 / a * tanax },
 /*305*/ { sinax * Functionmanager::create_hard("sin", {b * x}), Functionmanager::create_hard("sin", {(a - b) * x}) / (2 * (a - b)) - Functionmanager::create_hard("sin", {(a + b) * x}) / (2 * (a + b)) },
 /*306 has two cases depending on the parameters*/
@@ -486,7 +524,7 @@ void init_table() {
 /*308 depends on 306 */
 /*309 depends on 306 */
 /*310 depends on 306 */
-/*311*/ { pow(pow(b, 2) + pow(c, 2) * pow(sinax, 2), -1),  1 / (a * b * sqrt(pow(b, 2) + pow(c, 2))) * Functionmanager::create_hard("arctan", {sqrt(pow(b, 2) + pow(c, 2)) * tanax / b}) },
+/*311*/ { pow(pow(b, 2) + pow(c, 2) * pow(sinax, 2), -1),  1 / (a * b * GiNaC::sqrt(pow(b, 2) + pow(c, 2))) * Functionmanager::create_hard("arctan", {GiNaC::sqrt(pow(b, 2) + pow(c, 2)) * tanax / b}) },
 /*312 has two cases depending on the parameters*/
 /*313 is a basic function */
 /*314*/ { pow(cosax, 2), x / 2 + Functionmanager::create_hard("sin", {2 * a * x}) / (4 * a) },
@@ -500,29 +538,35 @@ void init_table() {
 /*322 is a infinite series */
 /*323 is a partial integral using 283 */
 /*324 is a recursive partial integral */
-/*325*/ { pow(cosax, -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {a * x / 2 + Pi / 4})}) },
+/*325*/ { pow(cosax, -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {a * x / 2 + Pi / 4})})}) },
 /*326*/ { pow(cosax, -2), 1 / a * tanax },
-/*327*/ { pow(cosax, -3), sinax / (2 * a * pow(cosax, 2)) + 1 / (2 * a) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {a * x / 2 + Pi / 4})}) },
+/*327*/ { pow(cosax, -3), sinax / (2 * a * pow(cosax, 2)) +
+                          1 / (2 * a) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {a * x / 2 + Pi / 4})})}) },
 /*328 is a recursive partial integral */
 /*329 is a infinite series */
-/*330*/ { x * pow(cosax, -2), x / a * tanax + 1 / pow(a, 2) * Functionmanager::create_hard("ln", {cosax}) },
+/*330*/ { x * pow(cosax, -2), x / a * tanax + 1 / pow(a, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {cosax})}) },
 /*331 is a recursive partial integral */
 /*332*/ { pow(1 + cosax, -1), +1 / a * Functionmanager::create_hard("tan", {a * x / 2}) },
 /*333*/ { pow(1 - cosax, -1), -1 / a * 1 / Functionmanager::create_hard("tan", {a * x / 2}) },
-/*334*/ { x * pow(1 + cosax, -1), +x / a * Functionmanager::create_hard("tan", {a * x / 2}) + 2 / pow(a, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("cos", {a * x / 2 })}) },
-/*335*/ { x * pow(1 - cosax, -1), -x / a * 1 / Functionmanager::create_hard("tan", {a * x / 2}) + 2 / pow(a, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("sin", {a * x / 2 })}) },
+/*334*/ { x * pow(1 + cosax, -1),   +x / a * Functionmanager::create_hard("tan", {a * x / 2}) +
+                                    2 / pow(a, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("cos", {a * x / 2 })})}) },
+/*335*/ { x * pow(1 - cosax, -1),   -x / a * 1 / Functionmanager::create_hard("tan", {a * x / 2}) +
+                                    2 / pow(a, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("sin", {a * x / 2 })})}) },
 /*336*/ { cosax * pow(1 + cosax, -1), +x - 1 / a * Functionmanager::create_hard("tan", {a * x / 2}) },
 /*337*/ { cosax * pow(1 - cosax, -1), -x - 1 / a * 1 / Functionmanager::create_hard("tan", {a * x / 2}) },
-/*338*/ { pow(cosax * (1 + cosax), -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {Pi / 4 + a * x / 2 })}) - 1 / a * Functionmanager::create_hard("tan", {a * x / 2}) },
-/*339*/ { pow(cosax * (1 - cosax), -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("tan", {Pi / 4 + a * x / 2 })}) - 1 / a * 1 / Functionmanager::create_hard("tan", {a * x / 2}) },
+/*338*/ { pow(cosax * (1 + cosax), -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {Pi / 4 + a * x / 2 })})}) -
+                                        1 / a * Functionmanager::create_hard("tan", {a * x / 2}) },
+/*339*/ { pow(cosax * (1 - cosax), -1), 1 / a * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {Functionmanager::create_hard("tan", {Pi / 4 + a * x / 2 })})}) -
+                                        1 / a * 1 / Functionmanager::create_hard("tan", {a * x / 2}) },
 /*340*/ { pow(1 + cosax, -2), +1 / (2 * a) * Functionmanager::create_hard("tan", {a * x / 2}) + 1 / (6 * a) * pow(Functionmanager::create_hard("tan", {a * x / 2}), 3) },
 /*341*/ { pow(1 - cosax, -2), -1 / (2 * a) * 1 / Functionmanager::create_hard("tan", {a * x / 2}) - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", {a * x / 2}), -3) },
 /*342*/ { cosax * pow(1 + cosax, -2), 1 / (2 * a) * Functionmanager::create_hard("tan", {a * x / 2}) - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", {a * x / 2}), 3) },
 /*343*/ { cosax * pow(1 - cosax, -2), 1 / (2 * a) * 1 / Functionmanager::create_hard("tan", {a * x / 2}) - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", {a * x / 2}), -3) },
-/*344*/ { pow(1 + pow(cosax, 2), -1), 1 / (2 * sqrt(numeric(2)) * a)* Functionmanager::create_hard("arcsin", {(1 - 3 * pow(cosax, 2)) / (1 + pow(cosax, 2))}) },
+/*344*/ { pow(1 + pow(cosax, 2), -1), 1 / (2 * GiNaC::sqrt(numeric(2)) * a)* Functionmanager::create_hard("arcsin", {(1 - 3 * pow(cosax, 2)) / (1 + pow(cosax, 2))}) },
 /*345*/ { pow(1 - pow(cosax, 2), -1), -1 / (tanax * a) },
 /*345*/ { pow(pow(cosax, 2) - 1, -1), +1 / (tanax * a) },
 /*354*/ { ex(sinax) * ex(cosax), pow(sinax, 2) / (2 * a) },
+/*xxx*/ { sinax * (b * cosax - c) / pow(pow(b, 2) + pow(c, 2) - 2 * b * c * cosax, numeric(3, 2)), (c * cosax - b) / (a * pow(c, 2) * GiNaC::sqrt(pow(b, 2) + pow(c, 2) - 2 * b * c * cosax)) },
 /*409 is a basic function */
 /*410*/ { pow(tanax, 2),  tanax / a - x },
 /*418 is a basic function */
@@ -533,8 +577,8 @@ void init_table() {
 /*438*/ { pow(Functionmanager::create_hard("tanh", {a * x}), 2), x - Functionmanager::create_hard("tanh", {a * x}) / a },
 /*447 is a basic function */
 /*448*/ { x * ex(Functionmanager::create_hard("exp", {a * x})), Functionmanager::create_hard("exp", {a * x}) / pow(a, 2) * (a * x - 1) },
-/*---*/ { pow(a, b * x + c), pow(a, b * x + c) / (b * Functionmanager::create_hard("ln", {a})) },
-/*---*/ { pow(a, x), pow(a, x) / Functionmanager::create_hard("ln", {a}) }
+/*---*/ { pow(a, b * x + c), pow(a, b * x + c) / (b * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {a})})) },
+/*---*/ { pow(a, x), pow(a, x) / Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {a})}) }
 /*465 is a basic function */
 /*488 is a basic function */
 /*493 is a basic function */
@@ -661,19 +705,19 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
       }
     }
   } else {
-    exmap repl;
+    for (const auto& [expr, integ] : integral_table::integrals) {
+      MSG_INFO(1, "Checking match of " << remainder << " with " << expr << " --> " << integ << endline);
+      exmap repl;
 
-    for (const auto& i : integral_table::integrals) {
-      MSG_INFO(1, "Checking match of " << remainder << " with " << i.first << " --> " << i.second << endline);
       try {
         relational substitution = integral_table::a == wild(1);
-        bool success = remainder.match(i.first.subs(integral_table::x == var).subs(substitution), repl);
+        bool success = remainder.match(expr.subs(integral_table::x == var).subs(substitution), repl);
         if (!success)
         {
             // Try harder. E.g. the first match will fail on cos(x)^2 == cos(a * x)^2
             // Note: If GiNaC ever has the algebraic option to match() then this is probably not necessary any more
             substitution = integral_table::a == _ex1;
-            success = remainder.match(i.first.subs(integral_table::x == var).subs(substitution), repl);
+            success = remainder.match(expr.subs(integral_table::x == var).subs(substitution), repl);
         }
 
         if (success) {
@@ -683,15 +727,14 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
           for (const auto& r : repl)
             if (r.second.has(var)) {
               nonconst = true;
-              repl.clear();
+              MSG_INFO(1, "Discarding match because of non-constant factor " << r.second << endline);
               break; // non-constant factor
             }
 
           if (!nonconst)
           {
             repl.emplace(integral_table::x, var);
-            repl.emplace(substitution.lhs(), substitution.rhs());
-            return Functionmanager::replace_function_by_func(i.second.subs(repl, subs_options::no_pattern));
+            return Functionmanager::replace_function_by_func(integ.subs(substitution).subs(repl, subs_options::no_pattern));
           }
         }
       } catch (std::exception& e) {

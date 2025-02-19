@@ -357,12 +357,17 @@ bool is_internal(const std::string& varname) {
 
   void eqc::deleq (const std::string &which) {
     eqrec_it it_eqr = equations.find(which);
-    if (it_eqr == equations.end())
-      // An equation with this label does not exist
-      // This is frequently the case if an equation was never registered, therefore no error message
-      return;
+    if (it_eqr != equations.end()) {
+        deleq(it_eqr);
+        return;
+    }
 
-    deleq(it_eqr);
+    // An equation with this label does not exist
+    // This is frequently the case if an equation was never registered, therefore no error message
+    // Or maybe it was a expression label?
+    auto it_exr = expressions.find(which);
+    if (it_exr != expressions.end())
+      expressions.erase(it_exr);
   }
 
   void eqc::deleq(eqrec_it& which) {
@@ -454,6 +459,8 @@ bool is_internal(const std::string& varname) {
     varr->second.setsymtype(t_constant);
     if (!is_quantity(varr->second.val))
       throw std::invalid_argument("Warning: Constant " + varname + " is no quantity.");
+    else
+      varr->second.set_quantity(true);
     recent_assgn.emplace(varr->second.getsym(), varr->second.val);
     MSG_INFO(1, "Registered constant: " << varname << " = " << varr->second.val << endline);
   } // eqc::register_constant()
@@ -1009,7 +1016,7 @@ bool is_internal(const std::string& varname) {
                           << " possible values." << endline);
       MSG_INFO(1,  "Possible equations for " << varname << " after search: " << endline);
       for (auto it_assignmenteqr = varsr.assignments.begin(); it_assignmenteqr != varsr.assignments.end(); ) {
-        if ((varname != VALSYM) && ((*it_assignmenteqr)->subsed_lhs != varsr.getsym())) {
+        if ((varname != VALSYM) && ((*it_assignmenteqr)->subsed_lhs != varsr.getsym()) && varsr.assignments.size() > 1) {
           // This also catches the case that subsed_lhs is empty because there was an error in check_eq subs/evalf
           MSG_INFO(1,  (*it_assignmenteqr)->label << ": " << (*it_assignmenteqr)->eq
             << ", removing because symbol is on right-hand side" << endline);
@@ -1352,7 +1359,7 @@ bool is_internal(const std::string& varname) {
     // Collect variables, distinguishing whether they have a value or not
     for (const auto& v : vars) {
       if (is_internal(v.first)) continue;
-      if ((v.first != VALSYM) && (v.second.getsymtype() != t_function) && (v.second.getsymtype() != t_none) && !is_internal(v.first)) {
+      if ((v.first != VALSYM) && (v.second.getsymtype() != t_function) && (v.second.getsymtype() != t_none)) {
         if (v.second.has_value())
           v_values.emplace_back(v.second);
         else

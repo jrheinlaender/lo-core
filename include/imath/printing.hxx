@@ -58,14 +58,20 @@ typedef std::map<option_name, option> optionmap;
 class IMATH_DLLPUBLIC imathprint : public print_dflt {
   GINAC_DECLARE_PRINT_CONTEXT(imathprint, print_dflt)
 public:
+  // TODO Hack, use pointer to allow modifying state in const& GiNaC print contexts
   optionmap* poptions; // iMath-specific print options
-  bool add_turn_around; // iMath-specific flag
-  imathprint(std::ostream & os, optionmap* popt) : print_dflt(os), poptions(popt), add_turn_around(false) {};
+  imathprint(std::ostream & os, optionmap* popt);
   imathprint(std::ostream & os, const imathprint& c);
+  ~imathprint();
+  bool add_turn_around() const { return *ata; }
+  void set_add_turn_around(bool value) const { *ata = value; }
   void enter_fraction() const; // Reduce the font size for continued fractions
   void exit_fraction() const;
   static void init();
   static std::string decimalpoint;
+private:
+  // TODO Hack, use pointer to allow modifying state in const& GiNaC print contexts
+  bool* ata; // iMath-specific flag
 };
 
 // iMath printing functions

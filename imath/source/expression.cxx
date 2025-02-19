@@ -576,7 +576,7 @@ expression expression::diff(const expression &var, const expression& nth, bool t
   // Handle trivial cases
   int i_nth = numeric_to_int(ex_to<numeric>(nth));
   if (i_nth == 0) return *this;
-  if (are_ex_trivially_equal(*this, var)) {
+  if (this->is_equal(var)) {
     if (i_nth == 1)
       return _ex1;
     else
@@ -595,7 +595,7 @@ expression expression::diff(const expression &var, const expression& nth, bool t
     }
   } else if (is_a<func>(var)) {
     const func& v = ex_to<func>(var);
-    symbol diffsym(v.get_name()); // Create a temporary symbol
+    extsymbol diffsym(v.get_name() + "_diff"); // Create a temporary symbol
     MSG_INFO(2, "Differentiating to function " << v << endline);
     if (toplevel) {
       match_differentials match_diffs;

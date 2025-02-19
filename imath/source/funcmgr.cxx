@@ -91,7 +91,7 @@ expression Functionmanager::replace_function_by_func(const ex& e) {
 
         const auto& fr = Functionmanager::hard_functions.find(fname)->second;
         const function& f = ex_to<function>(e_mapped);
-        return dynallocate<func>(fname, exprseq(f.begin(), f.end()), fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname).setflag(status_flags::evaluated); // Avoid infinite recursion in func::eval()
+        return dynallocate<func>(fname, exprseq(f.begin(), f.end()), fr.serial, fr.hard, fr.vars, fr.definition, fr.hints, fr.printname);
       }
       return e.map(*this);
     }
@@ -129,7 +129,7 @@ Functionmanager::Functionmanager() {
       {"artanh", {function::find_function("atanh", 1), {x}, true, empty, FUNCHINT_LIB|FUNCHINT_TRIG,      "artanh"}},
       {"cos",    {function::find_function("cos",   1), {x}, true, empty, FUNCHINT_LIB|FUNCHINT_TRIG,      "cos"}},
       {"cosh",   {function::find_function("cosh",  1), {x}, true, empty, FUNCHINT_LIB|FUNCHINT_TRIG,      "cosh"}},
-      {"exp",    {function::find_function("exp",   1), {x}, true, empty, FUNCHINT_LIB|FUNCHINT_NOBRACKET, "exp"}},
+      {"exp",    {function::find_function("exp",   1), {x}, true, empty, FUNCHINT_LIB,                    "exp"}},
       {"fact",   {function::find_function("factorial", 1), {x}, true, empty, FUNCHINT_LIB,                "fact"}},
       {"ln",     {function::find_function("log",   1), {x}, true, empty, FUNCHINT_LIB,                    "ln"}},
       {"sin",    {function::find_function("sin",   1), {x}, true, empty, FUNCHINT_LIB|FUNCHINT_TRIG,      "sin"}},

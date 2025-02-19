@@ -357,12 +357,9 @@ bool func::has(const ex & other, unsigned options) const {
         if (f0.hard) {
           // Take advantage of the hard-coded GiNac eval rules, e.g. tan(atan(x)) = x
           ex func_arg = function(f0.serial, f0.seq);
-          ex result = function(serial, func_arg).eval();
-  #ifndef _MSC_VER
-          // Note: MSVC does not guarantee the order of initialization so this test sometimes fails
-          if (serial >= round_SERIAL::serial) return result;
-  #endif
-          if (is_a<function>(result) && ex_to<function>(result).get_serial() == serial)
+          ex original = function(serial, func_arg).hold();
+          ex result = original.eval();
+          if (original.is_equal(result))
             return this->hold(); // Nothing appears to have happened
 
           // Don't introduce any GiNaC::function into the system!
@@ -381,10 +378,12 @@ bool func::has(const ex & other, unsigned options) const {
     if (!seq.empty()) {
       MSG_INFO(3, "Drop through to GinaC eval rules" << endline);
       // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
-      ex result = function(serial, seq).eval();
-#ifndef _MSC_VER
-      if (serial >= round_SERIAL::serial) return result;
-#endif
+      ex original = function(serial, seq).hold();
+      ex result = function(serial, seq);
+      if (original.is_equal(result))
+        return this->hold(); // Nothing appears to have happened
+
+      // Don't introduce any GiNaC::function into the system!
       return Functionmanager::replace_function_by_func(result);
     } else {
       return (this->hold());

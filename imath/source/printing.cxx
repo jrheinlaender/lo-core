@@ -2,7 +2,7 @@
     printing.cpp  -  Functions for pretty-printing expressions in iMath format
                              -------------------
     begin                : Sat Mar 2 2002
-    copyright            : (C) 2002 by Jan Rheinlaender
+    copyright            : (C) 2025 by Jan Rheinlaender
     email                : jrheinlaender@users.sourceforge.net
  ***************************************************************************/
 
@@ -20,6 +20,7 @@
 #include <sstream>
 #include <cmath>
 #include <cfloat>
+#include <regex>
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4099 4100 4996)
@@ -57,11 +58,22 @@ namespace GiNaC {
 
 GINAC_IMPLEMENT_PRINT_CONTEXT(imathprint, print_dflt)
 
-imathprint::imathprint() : print_dflt(std::cout), add_turn_around(false) {};
+imathprint::imathprint() : print_dflt(std::cout) {
+    ata = new bool(false);
+}
+
+imathprint::imathprint(std::ostream & os, optionmap* popt) : print_dflt(os), poptions(popt) {
+    ata = new bool(false);
+}
 
 imathprint::imathprint(std::ostream & os, const imathprint& c) :
-  print_dflt(os, c.options), poptions(c.poptions), add_turn_around(c.add_turn_around)
+  print_dflt(os, c.options), poptions(c.poptions)
 {
+    ata = new bool(c.add_turn_around());
+}
+
+imathprint::~imathprint() {
+    delete ata;
 }
 
 void imathprint::enter_fraction() const {
@@ -71,7 +83,7 @@ void imathprint::enter_fraction() const {
     unsigned basefontheight = (*poptions)[o_basefontheight].value.uinteger;
 
     if ((basefontheight >= (*poptions)[o_minimumtextsize].value.uinteger + fractionlevel))
-      s << "size-1";
+      s << "size-1{";
   }
 
   (*poptions)[o_fractionlevel] = fractionlevel + 1;
@@ -79,6 +91,15 @@ void imathprint::enter_fraction() const {
 
 void imathprint::exit_fraction() const {
   (*poptions)[o_fractionlevel] = (*poptions)[o_fractionlevel].value.uinteger - 1;
+
+  unsigned fractionlevel = (*poptions)[o_fractionlevel].value.uinteger;
+
+  if ((*poptions)[o_autofraction].value.boolean && (fractionlevel > 0)) {
+    unsigned basefontheight = (*poptions)[o_basefontheight].value.uinteger;
+
+    if ((basefontheight >= (*poptions)[o_minimumtextsize].value.uinteger + fractionlevel))
+      s << "}";
+  }
 }
 
 std::string imathprint::decimalpoint = ".";
@@ -103,34 +124,6 @@ void imathprint::init() {
     Functions for pretty-printing expressions in starmath
  ***************************************************************************/
 
-// Adapted from libeqc/operands.cpp
-/*
-void imathchecksplit(const bool toplevel, const int opnum, std::ostream &os) {
-  if (toplevel) {
-    if (opnum == c.poptions->get(o_eqsplit).integer) {
-      MSG_INFO(1, "Splitting equation at operand " << opnum << endline);
-      MSG_INFO(2, "Interjected text: " << *c.poptions->get(o_eqsplittext).str << endline);
-      if (c.poptions->get(o_eqalign).align == onlyleft) {
-        os << "\\\\" << endline);
-        if (*c.poptions->get(o_eqsplittext).str == "") {
-          os << "&\\quad\\,\\,";
-        } else {
-          os << *c.poptions->get(o_eqsplittext).str;
-        }
-      } else if (c.poptions->get(o_eqalign).align == both) {
-        os << "\\nonumber\\\\" << endline);
-        if (*c.poptions->get(o_eqsplittext).str == "") {
-          os << "&&";
-        } else {
-          os << *c.poptions->get(o_eqsplittext).str;
-        }
-      } else {
-        os << "\\\\" << std::endl << *c.poptions->get(o_eqsplittext).str;
-      }
-    }
-  }
-} // operands::()
-*/
 
 std::string ex_get_name(const ex& e);
 std::string differential_get_name(const differential& d);
@@ -246,292 +239,346 @@ std::vector<ex> order_ex(const ex& e) {
   return result;
 } // order_ex()
 
-// Check whether at least one add is of the form a-b so that it can be "turned around" to b-a to get rid of the negative coefficient
-// Two cases:
-// a) There are several adds in the ex, then we need to do the "j" iteration
-// b) There is only one add, then the "i" iteration is enough
-bool check_has_negop(const ex& adds) {
-  if (adds.is_equal(_ex1)) return false;
+namespace {
+exvector orderDerivatives(const ex& derivatives) {
+    // Move partial derivatives to the front
+    exvector result;
 
-  bool found = false;
-  size_t negops = 0;
-
-  if (is_a<add>(adds)) { // There is only one add
-    if (adds.nops() != 2) return false; // We don't touch things like a - b + c because we want alphabetical ordering
-
-    for (const auto& i : adds)
-      if (is_negex(i)) negops++;
-
-    found = ((negops > 0) && (negops != adds.nops()));
-  } else {
-    for (const auto& i : adds) { // We have several adds in 'adds'
-      negops = 0;
-      if (i.nops() != 2) continue;
-
-      for (const auto& j : i)
-        if (is_negex(j)) negops++;
-
-      found = ((negops > 0) && (negops != i.nops()));
-      if (found) break;
-    }
-  }
-
-  return found;
-} // check_has_negop()
-
-void print_smath_ops(const ex &e, const std::string &sym, const imathprint& c,
-                     const bool toplevel, size_t &opnum, const bool add_turn_around = false) {
-  (void)toplevel;
-  bool turn_around = add_turn_around;
-
-  if (opnum > 0) {
-    c.s << sym;
-//    checksplit(toplevel, opnum, c);
-  }
-
-  if (is_a<add>(e)) {
-    std::vector<ex> sorted = order_ex(e);
-    for (std::vector<ex>::const_iterator i = sorted.begin(); i != sorted.end(); i++) {
-      //if (i != e.begin()) checksplit(toplevel, opnum, c, 1);
-      i->print(c, 1);
-      std::vector<ex>::const_iterator j = i;
-      j++;
-      if ((j != sorted.end()) && !is_negex(*j)) c.s << sym;
-      opnum++;
-    }
-    return; // Don't increment opnum again!
-  } else if (is_a<mul>(e)) {
-    std::vector<ex> sorted = order_ex(e);
-
-    for (std::vector<ex>::const_iterator i = sorted.begin(); i != sorted.end(); i++) {
-      //if (i != e.end()) checksplit(toplevel, opnum, c, 1);
-      if (is_a<add>(*i)) {
-        c.s << "(";
-        if (turn_around && check_has_negop(*i)) {
-          // This is a hassle, but there is no other way to turn around an add
-          // Reason: -a * (r^4 - R^4) sometimes, but not always gives a * (R^4 - r^4)
-          std::ostringstream os;
-          imathprint cc(os, c);
-          cc.add_turn_around = turn_around;
-          imathprint_add(ex_to<add>(*i), cc, 1);
-          turn_around = false;
-          c.s << os.str();
-        } else {
-          imathprint_add(ex_to<add>(*i), c, 1);
+    if (is_a<exderivative>(derivatives))
+        result.emplace_back(derivatives);
+    else if (is_a<power>(derivatives)) {
+        if (ex_to<exderivative>(get_basis(ex_to<power>(derivatives))).is_partial())
+            result.emplace(result.begin(), derivatives);
+        else
+            result.emplace_back(derivatives);
+    } else {
+        for (const auto& e : derivatives) {
+            if ((is_a<exderivative>(e) && ex_to<exderivative>(e).is_partial()) ||
+                (is_a<power>(e) && ex_to<exderivative>(get_basis(ex_to<power>(e))).is_partial()))
+                result.emplace(result.begin(), e);
+            else
+                result.emplace_back(e);
         }
-        c.s << " )";
-      } else {
-        i->print(c, 1);
-      }
-      std::vector<ex>::const_iterator j = i;
-      j++;
-      if (j != sorted.end()) c.s << sym;
-      opnum++;
     }
-    return;
-  } else {
-    e.print(c, 1);
-  }
 
-  opnum++;
-} // print_smath_ops()
+    return result;
+}
+void printSortedAdd(const ex& a, const imathprint& c, const char op) {
+    MSG_INFO(1, "printSortedAdd() for " << a << " with operator " << op << endline);
 
-void print_smath_mul(const operands &m, const imathprint& c, const size_t ops, const bool add_turn_around = false) {
-  MSG_INFO(5, "print_smath_mul for " << m << endline);
-  bool turn_around = add_turn_around;
+    if (is_a<add>(a)) {
+        std::vector<ex> sorted = order_ex(a);
+        for (auto i = sorted.begin(); i != sorted.end(); ) {
+            i->print(c, 1);
+            ++i;
+            if (i != sorted.end())
+                c.s << " " << op << " ";
+        }
+    } else
+        a.print(c, 1);
+}
 
-  // Print the coefficient
-  size_t opnum = ops;
-  if (!is_equal_int(ex_to<numeric>(m.get_coefficient()), 1, (*c.poptions)[o_precision].value.uinteger) || m.is_trivial()) {
-    if (m.get_coefficient().info(info_flags::real)) {
-      imathprint_numeric(ex_to<numeric>(m.get_coefficient()), c, (unsigned)opnum);
-      c.s << " ";
-    } else {
-      c.s << "(";
-      imathprint_numeric(ex_to<numeric>(m.get_coefficient()), c, (unsigned)opnum);
-      c.s << ")";
+std::string printAddItem(const std::string& item, const operands& ops, const imathprint& c, const char op) {
+    std::stringstream resultstream;
+    imathprint result(resultstream, c);
+
+    if (item == "n") {
+        printSortedAdd(ops.get_coefficient(), result, op);
+    } else if (item == "c") {
+        printSortedAdd(ops.get_constants(), result, op);
+    } else if (item == "x") {
+        printSortedAdd(ops.get_symbols(), result, op);
+    } else if (item == "u") {
+        printSortedAdd(ops.get_units(), result, op);
+    } else if (item == "e") {
+        printSortedAdd(ops.get_powers(), result, op);
+    } else if (item == "f") {
+        printSortedAdd(ops.get_functions(), result, op);
+    } else if (item == "i") {
+        printSortedAdd(ops.get_integrals(), result, op);
+    } else if (item == "d") {
+        printSortedAdd(ops.get_differentials(), result, op);
+    } else if (item == "r") {
+        exvector deriv = orderDerivatives(ops.get_derivatives());
+
+        for (auto r = deriv.begin(); r != deriv.end(); ) {
+            r->print(result, 1);
+            ++r;
+            if (r != deriv.end())
+                result.s << op;
+        }
+    } else if (item == "a") {
+        result.s << " ADD? "; // This shouldn't happen
+    } else if (item == "p") {
+        const ex& p = ops.get_muls();
+
+        if (op != '-') {
+            printSortedAdd(p, result, op);
+        } else if (is_a<mul>(p)) {
+            // Only muls can contain other adds, which may be turned around to get rid of the negative sign
+            printSortedAdd(_ex_1 * p, result, op);
+            std::string resultstring = resultstream.str();
+            if (resultstring[0] == '-')
+                return resultstring.substr(1); // Remove - that was multiplied into the expression. Caller will supply leading minus sign
+            else
+                return "-" + resultstring; // Caller will detect double minus sign
+        } else if (is_a<add>(p)) {
+            // Print several muls
+            for (auto a = p.begin(); a != p.end(); ++a) {
+                std::stringstream innerresultstream;
+                imathprint innerresult(innerresultstream, c);
+                printSortedAdd(_ex_1 * *a, innerresult, op);
+                std::string innerresultstring = innerresultstream.str();
+
+                if (a == p.begin()) {
+                    if (innerresultstring[0] == '-')
+                        result.s << innerresultstring.substr(1); // Remove - that was multiplied into the expression. Caller will supply leading minus sign
+                    else
+                        result.s << "-" + innerresultstring; // Caller will detect leading double minus sign
+                } else {
+                    if (innerresultstring[0] == '-')
+                        result.s << " " << innerresultstring; // Use - that was multiplied into the expression
+                    else
+                        result.s << " + " + innerresultstring; // Double minus sign
+                }
+            }
+        } else
+            printSortedAdd(p, result, op);
+    } else if (item == "m") {
+        printSortedAdd(ops.get_matrices(), result, op);
+    } else if (item == "o") {
+        printSortedAdd(ops.get_others(), result, op);
     }
-    opnum++;
-  }
 
-  const std::string separator = " "; // The multiplication "symbol"
+    return resultstream.str();
+}
+ex collectSubmatch(const std::string& subMatch, const operands& ops) {
+    ex result(_ex0);
 
-  // Print powers of numerics
-  ex restpowers(_ex1);
-  if (!m.get_powers().is_equal(_ex1)) {
-    for (const auto& i : (is_a<mul>(m.get_powers()) ? m.get_powers() : lst{m.get_powers()})) {
-      if (is_a<numeric>(get_basis(ex_to<power>(i))) && is_a<numeric>(get_exp(ex_to<power>(i)))) {
-        print_smath_ops(i, separator, c, false, opnum);
-      } else {
-        restpowers = restpowers * i;
-      }
+    for (size_t m = 0; m < subMatch.size(); ++m) {
+        char sm = static_cast<char>(std::tolower(subMatch[m]));
+
+        if (sm == 'n')
+            result += ops.get_coefficient();
+        else if (sm == 'c')
+            result += ops.get_constants();
+        else if (sm == 'x')
+            result += ops.get_symbols();
+        else if (sm == 'u')
+            result += ops.get_units();
+        else if (sm == 'e')
+            result += ops.get_powers();
+        else if (sm == 'f')
+            result += ops.get_functions();
+        else if (sm == 'i')
+            result += ops.get_integrals();
+        else if (sm == 'd')
+            result += ops.get_differentials();
+        else if (sm == 'r')
+            result += ops.get_derivatives();
+        else if (sm == 'a')
+            result += stringex(" ADD? "); // This shouldn't happen
+        else if (sm == 'p')
+            result += ops.get_muls();
+        else if (sm == 'm')
+            result += ops.get_matrices();
+        else if (sm == 'o')
+            result += ops.get_others();
     }
-  }
 
-  // Functions must be printed last to avoid ambiguities like tan xa -> tan (x*a) or tan (x) * a ?
-  if (!m.get_units().is_equal(_ex1)) {
-    if (opnum == 0) c.s << "1"; // Avoid "blank" unit
-    print_smath_ops(m.get_units(), separator, c, false, opnum);
-  }
-  if (!m.get_constants().is_equal(_ex1))
-    print_smath_ops(m.get_constants(), separator, c, false, opnum);
-  if (!m.check_symbols(_ex1))
-    print_smath_ops(m.get_symbols(), separator, c, false, opnum);
-  if (!restpowers.is_equal(_ex1))
-    print_smath_ops(restpowers, separator, c, false, opnum);
-  if (!m.get_adds().is_equal(_ex1)) {
-    if (opnum > 0) c.s << separator;
+    return result;
+}
+// Syntax notes:
+// The default operand order, as returned by operands::pattern(), is nucxeapfirdmo
+// $x is a submatch, which will be printed in the matched order
+// $*x is a submatch, but all elements will be skipped in the order given by sort_ex()
+// Empty submatches will be silently skipped
+static const std::vector<std::pair<std::regex, std::string>> addPrintFormats = {
+    // Units by themselves always require a numeric
+    {std::regex("(u|U)([^-]*)"),            "1 $0 $1"},
+    {std::regex("-(u|U)(.*)"),              "- 1 $0 $1"},
+    {std::regex("(u|U)([^-]*)-(u|U)(.*)"),  "1 $0 $1 - 1 $2 $3"},
 
-    if (is_a<mul>(m.get_adds())) { // There are several adds in this mul
-      opnum++; // suppress op_symbol here!
-      print_smath_ops(m.get_adds(), separator, c, false, opnum, turn_around);
-      opnum--; // correct operator count
-    } else {
-      if ((opnum == ops) && m.get_others().is_equal(_ex1) && m.check_functions(_ex1) &&
-          m.get_muls().is_equal(_ex1) && m.check_matrices(_ex1) && m.get_integrals().is_equal(_ex1) &&
-          m.get_differentials().is_equal(_ex1) && m.get_derivatives().is_equal(_ex1)) {
-        // In other words, if there is only this one add in the mul, and nothing else
-        std::ostringstream os;
-        imathprint cc(os, c);
-        cc.add_turn_around = turn_around;
-        imathprint_add(ex_to<add>(m.get_adds()), cc, (unsigned)opnum);
-        c.s << os.str();
-      } else {
-        c.s << "(";
-        std::ostringstream os;
-        imathprint cc(os, c);
-        cc.add_turn_around = turn_around;
-        imathprint_add(ex_to<add>(m.get_adds()), cc, (unsigned)opnum);
-        c.s << os.str();
-        c.s << ") ";
-      }
-      //checksplit(toplevel, opnum, c);
-    }
-  }
-  // Warning: The preceding code depends on these statements following AFTER it!
-  if (!m.get_muls().is_equal(_ex1)) {
-    imathprint_mul(ex_to<mul>(m.get_muls()), c, (unsigned)opnum);
-    opnum += m.get_muls().nops();
-  }
-  if (!m.check_matrices(_ex1))
-    print_smath_ops(m.get_matrices(), separator, c, false, opnum);
-  if (!m.get_others().is_equal(_ex1))
-    print_smath_ops(m.get_others(), separator, c, false, opnum);
-  if (!m.check_functions(_ex1))
-    print_smath_ops(m.get_functions(), "`", c, false, opnum);
-  if (!m.get_integrals().is_equal(_ex1))
-    print_smath_ops(m.get_integrals(), separator, c, false, opnum);
-  if (!m.get_derivatives().is_equal(_ex1))
-    print_smath_ops(m.get_derivatives(), separator, c, false, opnum);
-  if (!m.get_differentials().is_equal(_ex1))
-    print_smath_ops(m.get_differentials(), separator, c, false, opnum);
-  c.s << ' ';
-} // print_smath_mul()
+    {std::regex("nx"),                      "x n"},
+
+    // $*: treat single symbols as part of the products, to avoid things like c + 3a + 2b + 4d
+    {std::regex("([nuc]*)(x[pP])([^-]*)"),                "$0 $*1 $2"},
+    {std::regex("-(x[pP])(.*)"),                          "- $*0 $1"},
+    {std::regex("([nuc]*)(x[pP])([^-]*)-(x?[pP]?)(.*)"),  "$0 $*1 $2 - $*3 $4"},
+
+    // Catchall for everything that remains. Prints operands in the default order
+    {std::regex("([^-]+)"),                 "$0"},
+    {std::regex("-(.+)"),                   "- $0"},
+    {std::regex("([^-]+)-(.+)"),            "$0 - $1"}
+};
+}
 
 void imathprint_add(const add& a, const imathprint& c, unsigned level) {
   MSG_INFO(3, "imathprint_add " << a << endline);
-  ex sym;
-  bool turn_around = c.add_turn_around;
-  std::ostringstream os;
-  imathprint cc(os, c); // prevent propagation to other print functions
-  cc.add_turn_around = false;
+  if (level > 0)
+      c.s << "(";
 
-  // Handle special case of e.g. a - x^2, this should not print as -x^2 + a
-  if ((a.nops() == 2) && (is_negex(a.op(0)) != is_negex(a.op(1)))) { // Only two operands, only one is negative
-    // We don't really want to re-arrange for more than two operands, though
-    std::vector<ex> ops;
-    ops.emplace_back(turn_around ? (-1 * a.op(0)) : a.op(0));
-    ops.emplace_back(turn_around ? (-1 * a.op(1)) : a.op(1));
-    if (is_negex(ops[0])) ops[0].swap(ops[1]);
-
-    for (std::vector<ex>::const_iterator i = ops.begin(); i != ops.end(); i++) {
-      if (i != ops.begin()) {
-        if (is_negex(*i)) {
-          // Try to avoid unnecessary - signs
-          std::ostringstream tstream;
-          imathprint tprint(tstream, cc);
-          tprint.add_turn_around = false;
-          i->print(tprint, level+1); // This will try to get rid of negative coefficients
-          std::string tstring = tstream.str();
-          if (tstring[0] != '-') cc.s << " + "; // It worked!
-          cc.s << tstring;
-        } else {
-          cc.s << " + ";
-          i->print(cc, level+1);
-        }
-      } else {
-        i->print(cc, level+1);
-      }
-    }
-
-    c.s << os.str();
-    return;
+  bool add_turn_around = false;
+  if (c.add_turn_around()) {
+      // Prevent propagation of this flag to lower levels where it would be erroneous
+      add_turn_around = true;
+      c.set_add_turn_around(false);
   }
 
   // Print polynomials nicely
+  ex sym;
   if (check_polynomial(a, sym)) {
     MSG_INFO(3, a << " is a polynomial in " << sym << endline);
     bool first_coeff_printed = false;
 
     for (int i = a.degree(sym); i >= a.ldegree(sym); --i) {
-      ex coeff = turn_around ? (-1 * a.coeff(sym,i)) : a.coeff(sym,i);
+      ex coeff = a.coeff(sym,i);
       MSG_INFO(3, "coeff of degree " << i << ": " << coeff << endline);
 
       if (!coeff.is_zero()) {
         bool changed_sign = false;
         if (is_negex(coeff)) {
           changed_sign = true;
-          cc.s << " -";
+          c.s << " -";
           coeff = -coeff;
         } else
           if (first_coeff_printed)
-            cc.s << " + ";
+            c.s << " + ";
 
         if (i >= 0) {
           if (!coeff.is_equal(_ex1)) {
-            if (is_a<add>(coeff) && ((i != 0) || changed_sign)) cc.s << "(";
-            coeff.print(cc, level+1);
-            if (is_a<add>(coeff) && ((i != 0) || changed_sign)) cc.s << ")";
+            if (is_a<add>(coeff) && ((i != 0) || changed_sign)) c.s << "(";
+            coeff.print(c, level+1);
+            if (is_a<add>(coeff) && ((i != 0) || changed_sign)) c.s << ")";
           } else if (i == 0) {
-            coeff.print(cc, level+1);
+            coeff.print(c, level+1);
           }
 
           if (i > 0) {
-            cc.s << " ";
-            imathprint_power(power(sym, i), cc, level+1);
+            c.s << " ";
+            imathprint_power(power(sym, i), c, level+1);
           }
         } else {
-          (coeff * power(sym,i)).print(cc, level+1);
+          (coeff * power(sym,i)).print(c, level+1);
         }
 
         first_coeff_printed = true;
       }
     }
-  } else { // Everything else is sorted alphabetically if possible
-    MSG_INFO(4, "Ordered add" << endline);
-    std::vector<ex> sorted = order_ex(a);
-    // TODO: Move operands around to avoid a leading - sign? Or pull out the - sign if the add is part of a mul?
 
-    for (std::vector<ex>::const_iterator i = sorted.begin(); i != sorted.end(); i++) {
-      MSG_INFO(4, "Printing add component: " << *i << endline);
-      ex the_ex = turn_around ? (_ex_1 * (*i)) : *i;
-      if (is_negex(the_ex) && (i == sorted.begin())) {
-        cc.s << "-";
-        the_ex = the_ex * _ex_1;
-      }
-      // Try to avoid unnecessary + signs
-      std::ostringstream tstream;
-      imathprint tprint(tstream, cc);
-      cc.add_turn_around = false;
-      the_ex.print(tprint, level);
-      std::string tstring = tstream.str();
-      if ((tstring[0] != '-') && (i != sorted.begin())) cc.s << " + ";
-      if (is_a<Unit>(the_ex)) cc.s << "1 ";
-      cc.s << tstring;
-    }
+    if (level > 0)
+      c.s << ")";
+
+    return;
   }
 
-  c.s << os.str();
+  operands posops(GINAC_ADD), negops(GINAC_ADD);
+  operands::split_ex(a, posops, negops);
+
+  // Extract a minus sign, if requested and possible
+  if (add_turn_around && !negops.is_trivial()) {
+      std::swap(posops, negops);
+      MSG_INFO(1, "Turning around add" << endline);
+      add_turn_around = false;
+  }
+
+  // TODO: It would be nice to print all the negops first onto separate strings, check for leading minus signs, and move them over into the posops
+
+  // Print expression according to pattern
+  std::string pattern = posops.pattern();
+  if (!negops.is_trivial())
+      pattern += "-" + negops.pattern();
+  MSG_INFO(1, "Additive pattern '" << pattern << "'" << endline);
+
+  for (const auto& [pat, format] : addPrintFormats) {
+    std::smatch subMatches;
+    if (!std::regex_match(pattern, subMatches, pat))
+        continue;
+
+    //c.s << " \"H: |" << pattern << "|\" " << std::endl;
+
+    // Extract pattern into a vector (required for iterating with index)
+    std::vector<std::string> itemVector;
+    std::istringstream formatstream(format);
+    std::string item;
+    while (std::getline(formatstream, item, ' '))
+        itemVector.emplace_back(item);
+
+    bool is_positive(true);
+    bool firstItem(true); // Note: Checking for i > 0 is not sufficient, since there might be empty submatches at the beginning of the pattern
+    char sign('+');
+
+    for (size_t i = 0; i < itemVector.size(); ++i) {
+        item = itemVector[i]; // Need to iterate by index to be able to test for i > 0
+
+        if (item == "+") {
+            is_positive = true;
+            sign = '+';
+        } else if (item == "-") {
+            is_positive = false;
+            sign = '-';
+        } else if (item.substr(0, 2) == "$*") {
+            size_t subMatchIdx = std::stoi(item.substr(2));
+            if (subMatches.size() > 1)
+                ++subMatchIdx; // Index 0 is the whole pattern
+            assert(subMatchIdx < subMatches.size());
+            const std::string& subMatch = subMatches[subMatchIdx++].str();
+            MSG_INFO(1, "Printing mixed submatch '" << subMatch << "'" << endline);
+            if (!subMatch.empty()) {
+                if (!firstItem || sign == '-')
+                    c.s << " " << sign;
+                // Note: No attempt to turn around adds here, since priority is on the ordering of the operands
+                printSortedAdd(collectSubmatch(subMatch, is_positive ? posops : negops), c, sign);
+                firstItem = false;
+            }
+        } else if (item[0] == '$') {
+            // TODO If the last submatch is empty, then we will have a trailing + or - sign
+            size_t subMatchIdx = std::stoi(item.substr(1));
+            if (subMatches.size() > 1)
+                ++subMatchIdx; // Index 0 is the whole pattern
+            assert(subMatchIdx < subMatches.size());
+            const std::string& subMatch = subMatches[subMatchIdx++].str();
+            MSG_INFO(1, "Printing ordered submatch '" << subMatch << "'" << endline);
+            for (size_t m = 0; m < subMatch.size(); ++m) {
+                // Note: printAddItem tries to eliminate a negative sign by turning around one add inside a product
+                auto result = printAddItem(std::string(1, static_cast<char>(std::tolower(subMatch[m]))), is_positive ? posops : negops, c, sign);
+
+                if (result[0] == '-') { // Note: Result can only start with - if sign == '-'
+                    if (!firstItem)
+                        c.s << " +"; // Double minus becomes plus
+                    result = result.substr(1);
+                } else if (!firstItem || m > 0 || sign == '-') {
+                    c.s << " " << sign;
+                }
+
+                c.s << " " << result;
+                firstItem = false;
+            }
+        } else {
+            auto result = printAddItem(item, is_positive ? posops : negops, c, sign);
+
+            if (result[0] == '-') {
+                if (!firstItem)
+                    c.s << " +";
+                result = result.substr(1);
+            } else if (!firstItem || sign == '-')
+                c.s << " " << sign;
+
+            c.s << " " << result;
+            firstItem = false;
+        }
+    }
+
+    if (level > 0)
+      c.s << ")";
+
+    // Set flag so caller knows what happend
+    c.set_add_turn_around(add_turn_around);
+
+    return;
+  }
+
+  c.s << " \"NH: |" << pattern << "|\" " << std::endl;
 } // imathprint_add()
 
 void imathprint_constant(const constant& cn, const imathprint& c, unsigned level) {
@@ -591,296 +638,190 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level) {
   c.s << "})";
 }
 
-// Helper method to print an operand of a certain type
-void printOperand(const GiNaC::ex& posop, const GiNaC::ex& negop, const imathprint& c, size_t opnum) {
-    if (!negop.is_equal(_ex1)) {
-      c.enter_fraction();
-      c.s << "{{alignc ";
-      print_smath_ops(posop, " ", c, false, opnum);
-      c.s << "} over {alignc ";
-      print_smath_ops(negop, " ", c, false, opnum);
-      c.s << "}}";
-      c.exit_fraction();
-    } else if (!posop.is_equal(_ex1)) {
-      c.s << " ";
-      print_smath_ops(posop, " ", c, false, opnum);
+namespace {
+void printSortedMul(const ex& m, imathprint& c, unsigned level) {
+    if (is_a<mul>(m)) {
+        std::vector<ex> sorted = order_ex(m);
+        for (auto i = sorted.begin(); i != sorted.end(); ) {
+            i->print(c, 1); // Multiple adds must always be bracketed. Other types ignore the level
+            ++i;
+            if (i != sorted.end())
+                c.s << " ";
+        }
+    } else {
+        m.print(c, level);
     }
 }
 
+bool printMulItem(const std::string& item, const operands& ops, imathprint& c, unsigned level, bool& turn_around) {
+    bool handled = true;
+
+    if (item == "n") {
+        printSortedMul(ops.get_coefficient(), c, level);
+    } else if (item == "c") {
+        printSortedMul(ops.get_constants(), c, level);
+    } else if (item == "x") {
+        printSortedMul(ops.get_symbols(), c, level);
+    } else if (item == "u") {
+        printSortedMul(ops.get_units(), c, level);
+    } else if (item == "e") {
+        // TODO turn-around would be possible for adds with integer exponents
+        printSortedMul(ops.get_powers(), c, level);
+    } else if (item == "f") {
+        // TODO turn-around would be possible for some functions
+        printSortedMul(ops.get_functions(), c, level);
+    } else if (item == "i") {
+        c.set_add_turn_around(turn_around);
+        printSortedMul(ops.get_integrals(), c, level);
+        turn_around = c.add_turn_around();
+        c.set_add_turn_around(false);
+    } else if (item == "d") {
+        printSortedMul(ops.get_differentials(), c, level);
+    } else if (item == "r") {
+        exvector deriv = orderDerivatives(ops.get_derivatives());
+
+        for (const auto& d : deriv) {
+            d.print(c, 1);
+            c.s << " ";
+        }
+    } else if (item == "a") {
+        // Note: imathprint_add handles the turn_around but prevents propagation to higher levels
+        c.set_add_turn_around(turn_around);
+        printSortedMul(ops.get_adds(), c, level);
+        turn_around = c.add_turn_around();
+        c.set_add_turn_around(false);
+    } else if (item == "p") {
+        c.s << " MUL? "; // This shouldn't happen
+    } else if (item == "m") {
+        printSortedMul(ops.get_matrices(), c, level);
+    } else if (item == "o") {
+        printSortedMul(ops.get_others(), c, level);
+    } else
+        handled = false;
+
+    return handled;
+}
+
+// Syntax notes:
+// The default operand order, as returned by operands::pattern(), is nucxeapfirdmo
+// Any 'a' appearing on the right-hand side will be bracketed automatically, put it inside a submatch to avoid that
+// Empty submatches will print the number 1
+// TODO treat user-defined functions separately?
+static const std::vector<std::pair<std::regex, std::string>> mulPrintFormats = {
+    // Units by themselves always require a numeric
+    {std::regex("(u|U)"),                           "1 $0"},
+
+    // Print units by themselves, in front of everything
+    {std::regex("n([uU]?)/[uU]"),                   "n { frac{ alignc $0 } over { alignc u frac} }"},
+    {std::regex("n([uU]?)([^/]+)/[uU]"),            "n { frac{ alignc $0 } over { alignc u frac} } $1"},
+    {std::regex("n([uU]?)([^/]*)/[uU]([^/]+)"),     "n { frac{ alignc $0 } over { alignc u frac} } { frac{ alignc $1 } over { alignc $2 } }"},
+
+    {std::regex("([^/]+)"),                         "$0"}, // Catchall for muls without fractions. Prints operands in the default order
+
+    {std::regex("([ef]?)r/([ef])"),                       "{ frac{ alignc $0 } over { alignc $1 frac} } r"},
+    {std::regex("([nNcCxX]+)([ef]?)r/([ef])"),            "$0 { frac{ alignc $1 } over { alignc $2 frac} } r"},
+    {std::regex("([nNcCxX]+)([ef]?)r/([nNcCxX]+)([ef])"), "{ frac{ alignc $0 } over { alignc $2 frac} } { frac{ alignc $1 } over { alignc $3 frac} } r"},
+
+    {std::regex("([nNcCxX]+)a/([nNcCxX]+)"),              "{ frac{ alignc $0 } over { alignc $1 frac} } a"},
+    {std::regex("([nNcCxX]+)([^/nNcCxX]+)/([nNcCxX]+)"),  "{ frac{ alignc $0 } over { alignc $2 frac} } $1"},
+    {std::regex("a/([nNcXxX]+)"),                         "{ frac{ alignc 1 }  over { alignc $0 frac} } a"},
+    {std::regex("([^/nNcCxX]+)/([nNcCxX]+)"),             "{ frac{ alignc 1 }  over { alignc $1 frac} } $0"},
+
+    {std::regex("/(.+)"),                           "{ frac{ alignc 1 }  over { alignc $0 frac} }"}, // Catchall for everything that remains
+    {std::regex("([^/]+)/(.+)"),                    "{ frac{ alignc $0 } over { alignc $1 frac} }"}
+};
+
+}
+
 void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
-  MSG_INFO(4, "imathprint_mul() for " << m << endline);
+  MSG_INFO(1, "imathprint_mul() for " << m << endline);
+  // Note: The level parameter is ignored and used for other purposes
+
   operands numer(GINAC_MUL), denom(GINAC_MUL), tempn(GINAC_MUL), tempd(GINAC_MUL), temp(GINAC_MUL);
   operands::split_ex(m, numer, denom);
-  size_t opnum = 0; // original was: ops;
-//  checksplit(toplevel, opnum, c.s);
-  int turn_around = 0;
 
-  if (numer.get_coefficient().info(info_flags::negative)) { // The coefficient is negative
-    // GiNaC likes to pull out a minus sign from adds ... so let's see if we can get rid of the minus sign of the coefficient
-    if (check_has_negop(numer.get_adds()))
-      turn_around = 1;
-    else if (check_has_negop(denom.get_adds()))
-      turn_around = 2;
-    else
-      c.s << '-';
+  // Print expression according to pattern
+  std::string pattern = numer.pattern();
+  if (!denom.is_trivial())
+      pattern += "/" + denom.pattern();
+  MSG_INFO(1, "Multiplicative pattern '" << pattern << "'" << endline);
 
-    numer.include(_ex_1); // we have dealt with minus sign of the coefficient
+  // This avoids having duplicate mulPrintFormats entries for everything, differing just by the minus sign
+  bool negative = false;
+  if (pattern[0] == '-') {
+      negative = true;
+      pattern.erase(0, 1);
+      numer.include(_ex_1);
   }
 
-  ex n_units = numer.get_units();
-  ex d_units = denom.get_units();
-  ex coefficient = numer.get_coefficient(); // Note that denom.get_coefficient() is always 1
-  ex nsymbols = numer.get_symbols();
-  ex nconstants = numer.get_constants();
+  for (const auto& [pat, format] : mulPrintFormats) {
+    std::smatch subMatches;
+    if (!std::regex_match(pattern, subMatches, pat))
+        continue;
 
-  // Check for "spurious" complex part of the coefficient (often happens when solving cubic equations)
-  if (!ex_to<numeric>(coefficient).info(info_flags::real))
-    if (is_equal_int(imag(ex_to<numeric>(coefficient)), 0, Digits))
-      coefficient = real(ex_to<numeric>(coefficient));
+    //c.s << " \"H: |" << pattern << "|\" " << std::endl;
 
-  // Check if the denominator has one single symbol only
-  ex coeff_nd = coefficient.numer_denom();
-  bool d_one_symbol = denom.is_symbol() && (coeff_nd.op(1).is_equal(_ex1));
-  // Check if the numerator has one single symbol (or constant) only
-  bool n_one_symbol = ((is_a<symbol>(nsymbols) || is_a<constant>(nconstants)) &&
-                       coeff_nd.op(0).is_equal(_ex1) && numer.get_adds().is_equal(_ex1) &&
-                       numer.check_functions(_ex1) && numer.check_matrices(_ex1) && numer.get_muls().is_equal(_ex1) &&
-                       numer.get_others().is_equal(_ex1) && numer.get_powers().is_equal(_ex1) && numer.get_units().is_equal(_ex1) &&
-                       numer.get_integrals().is_equal(_ex1) && numer.get_differentials().is_equal(_ex1) && numer.get_derivatives().is_equal(_ex1));
+    // Extract pattern into a vector (required for lookahead functionality)
+    std::vector<std::string> itemVector;
+    std::istringstream formatstream(format);
+    std::string item;
+    while (std::getline(formatstream, item, ' '))
+        itemVector.emplace_back(item);
 
-  // Print the coefficient with its units first to get nicer output
-  if (!n_one_symbol){
-    // Because a simple fraction is nicer like this: x/2 than like this; 1/2 x, in my opinion
-    bool has_quantity = (!coefficient.is_equal(_ex1) && (!n_units.is_equal(_ex1) || !d_units.is_equal(_ex1)));
+    // GiNaC likes to pull out a minus sign from adds and put it in the coefficient
+    // Print to intermediate stream, so that leading minus can be removed after "turning around" an add, if possible
+    std::stringstream resultstream;
+    imathprint result(resultstream, c);
 
-    if (!has_quantity && (!coefficient.is_equal(_ex1) && d_one_symbol && numer.check_symbols(_ex1))) { //Prevent things like 2 1/x , make them 2/x
-      c.enter_fraction();
-      c.s << "{{alignc ";
-      (coeff_nd.op(0) * nconstants).print(c, level+1);
-      c.s << "} over {alignc ";
-      if (!coeff_nd.op(1).is_equal(_ex1)) coeff_nd.op(1).print(c, level+1);
-      denom.get_symbols().print(c, level+1);
-      c.s << "}}";
-      c.exit_fraction();
-      d_one_symbol = false; // It has already been printed
-      denom.clear_symbols();
-      numer.clear_constants();
-      opnum++;
-    } else {
-      // Note that testing for is_real() does not work properly!!!
-      if (!imag(ex_to<numeric>(coefficient)).is_zero() && !real(ex_to<numeric>(coefficient)).is_zero()) c.s << "("; // put complex expression into brackets)
-      if (!coefficient.is_equal(_ex1)) {
-        imathprint_numeric(ex_to<numeric>(coefficient), c, level+1);
-        c.s << " "; // if there is no space between coefficient and the following symbol, smath views them as one symbol
-        opnum++;
-      }
-      if (!imag(ex_to<numeric>(coefficient)).is_zero() && !real(ex_to<numeric>(coefficient)).is_zero()) c.s << ")";
-    }
+    bool is_numer = true;
 
-    if (!d_units.is_equal(_ex1)) {
-      c.enter_fraction();
-      c.s << "{{alignc ";
-    }
+    for (size_t i = 0; i < itemVector.size(); ++i) {
+        item = itemVector[i];
 
-    if (!(n_units.is_equal(_ex1) && d_units.is_equal(_ex1))) {
-      operands::split_ex(n_units, tempn, temp); // avoid infinite recursion
-      print_smath_mul(tempn, c, opnum);
-      if (opnum != 0) opnum++;  // The quantity counts as a single operand
-    }
+        if (item == "frac{") {
+            result.enter_fraction();
+            result.s << "{";
+            is_numer = true;
+        } else if (item == "over") {
+            result.s << " over ";
+            is_numer = false;
+        } else if (item == "frac}") {
+            result.s << "}";
+            result.exit_fraction();
+            is_numer = true;
+        } else if (item[0] == '$') {
+            size_t subMatchIdx = std::stoi(item.substr(1));
+            if (subMatches.size() > 1)
+                ++subMatchIdx; // Index 0 is the whole pattern
+            assert(subMatchIdx < subMatches.size());
 
-    if (!d_units.is_equal(_ex1)) {
-      c.s << "} over {alignc ";
-      operands::split_ex(d_units, tempd, temp); // *** avoid infinite recursion
-      print_smath_mul(tempd, c, opnum);
-      if (opnum != 0) opnum++;  // The quantity counts as a single operand
-      c.s << "}}";
-      c.exit_fraction();
-    }
+            const std::string& subMatch = subMatches[subMatchIdx++].str();
+            MSG_INFO(1, "Printing submatch '" << subMatch << "'" << endline);
+            if (subMatch.empty())
+                result.s << "1"; // Empty matches by definition print 1
 
-    numer.exclude(numer.get_coefficient()); // The coefficient and units have already been printed
-    denom.exclude(denom.get_coefficient());
-    numer.clear_units();
-    denom.clear_units();
-  } else {
-    ex tempcoeff = numer.get_coefficient();
-    numer.include(tempcoeff.denom()); // This has the effect of removing the denominator part ...
-    denom.include(tempcoeff.denom()); // ... and including it here!
-  }
-
-  // If the denominator has only one single symbol, print it first
-  // This looks nicer in my opinion: (abc (x - 1)) / g -> (abc)/g (x-1)
-
-  if (d_one_symbol && !nsymbols.is_equal(_ex1)) { // There is only one symbol in the denominator
-    //if (opnum != 0) checksplit(toplevel, opnum, c);
-    c.enter_fraction();
-    c.s << "{{alignc ";
-    nsymbols.print(c, level+1);
-    c.s << "} over {alignc ";
-    denom.get_symbols().print(c, level+1);
-    c.s << "}}";
-    c.exit_fraction();
-    numer.clear_symbols();
-    denom.clear_symbols();
-    opnum++; // Count all this as one operand
-  }
-
-  // A single differential in the numerator should not be printed d²x but dx² (but that is mostly a matter of taste)
-  if (denom.get_differentials().is_equal(_ex1) && !numer.get_derivatives().is_equal(_ex1)) {
-    if (is_a<differential>(numer.get_differentials())) {
-      differential df = ex_to<differential>(numer.get_differentials());
-      df.set_numerator(false);
-      numer.set_differentials(df);
-    } else if (is_a<power>(numer.get_differentials())) {
-      const power& p = ex_to<power>(numer.get_differentials());
-      differential df = ex_to<differential>(get_basis(p));
-      df.set_numerator(false);
-      numer.set_differentials(dynallocate<power>(df, get_exp(p)));
-    }
-  }
-
-  // Print the rest
-  if (denom.is_trivial()) {
-    if (!numer.is_trivial()) {
-      bool is_only_one_add = (numer.check_symbols(_ex1) && numer.get_constants().is_equal(_ex1) && is_a<add>(numer.get_adds()) &&
-                              numer.check_functions(_ex1) && numer.check_matrices(_ex1) && numer.get_muls().is_equal(_ex1) &&
-                              numer.get_others().is_equal(_ex1) && numer.get_powers().is_equal(_ex1) && numer.get_units().is_equal(_ex1) &&
-                              numer.get_integrals().is_equal(_ex1) && numer.get_differentials().is_equal(_ex1) && numer.get_derivatives().is_equal(_ex1));
-      if (is_only_one_add) c.s << "(";
-      print_smath_mul(numer, c, opnum, turn_around == 1); // checksplit is taken care of here
-      if (is_only_one_add) c.s << ")";
-    }
-  } else  {
-    //if (opnum != 0) checksplit(toplevel, opnum, c);
-
-    // Extract some stuff that shouldn't go onto a big common fraction
-    expression posdiffs = numer.get_differentials();
-    expression negdiffs = denom.get_differentials();
-    expression posderiv = numer.get_derivatives();
-    expression negderiv = denom.get_derivatives();
-    expression posinteg = numer.get_integrals();
-    expression neginteg = denom.get_integrals();
-    expression posfuncs = numer.get_functions();
-    expression negfuncs = denom.get_functions();
-    expression posmatrs = numer.get_matrices();
-    expression negmatrs = denom.get_matrices();
-    expression posadds  = numer.get_adds();
-    expression negadds  = denom.get_adds();
-    numer.clear_diffs();
-    numer.clear_derivatives();
-    numer.clear_integrals();
-    numer.clear_matrices();
-    denom.clear_diffs();
-    denom.clear_derivatives();
-    denom.clear_integrals();
-    denom.clear_matrices();
-    if (!posfuncs.is_equal(_ex1))
-    {
-        numer.clear_functions();
-        denom.clear_functions();
-    }
-
-    // Check for a complex add on top of the fraction that itself contains fractions
-    exset powers;
-    bool add_has_fraction = false;
-    if (posadds.find(pow(wild(0), wild(1)), powers)) {
-        for (const auto& p : powers) {
-            if (is_negpower(p)) {
-                add_has_fraction = true;
-                break;
+            for (size_t m = 0; m < subMatch.size(); ++m) {
+                if (subMatch.size() != 1 && subMatch[m] == 'a')
+                    printMulItem("a", is_numer ? numer : denom, result, 1, negative); // A single add with preceding or following other operands must be bracketed
+                else
+                    printMulItem(std::string(1, static_cast<char>(std::tolower(subMatch[m]))), is_numer ? numer : denom, result, 0, negative);
+                result.s << " ";
             }
-        }
-    }
-    if (!negadds.is_equal(_ex1) || add_has_fraction) {
-        // Print complex adds outside of the big common fraction
-        numer.clear_adds();
-        denom.clear_adds();
-    } else {
-       posadds = _ex1;
-       negadds = _ex1;
-    }
-
-    // Print everything that goes onto the big fraction
-    if (!denom.is_trivial())
-    {
-        c.enter_fraction();
-        c.s << "{{alignc ";
-        print_smath_mul(numer, c, opnum, turn_around == 1);
-        c.s << "} over {alignc ";
-        print_smath_mul(denom, c, opnum, turn_around == 2);
-        c.s << "}}";
-        c.exit_fraction();
-    }
-    else if (!numer.is_trivial())
-    {
-      c.s << " ";
-      print_smath_mul(numer, c, opnum);
-    }
-
-    // Print adds. printOperand() does not work for arguments consisting of a single add
-    if (is_a<add>(posadds) || is_a<add>(negadds)) {
-        if (!negadds.is_equal(_ex1)) {
-            c.enter_fraction();
-            c.s << "{{alignc ";
-            posadds.print(c);
-            c.s << "} over {alignc ";
-            negadds.print(c);
-            c.s << "}}";
-            c.exit_fraction();
         } else {
-            c.s << "(";
-            posadds.print(c);
-            c.s << ")";
+            if (!printMulItem(item, is_numer ? numer : denom, result, item == "a" ? 1 : 0, negative))
+                result.s << item; // Everything else
         }
-    } else
-        printOperand(posadds, negadds, c, opnum);
 
-    // Print things that should go after the big fraction
-    if (!posfuncs.is_equal(_ex1))
-        printOperand(posfuncs, negfuncs, c, opnum);
-    printOperand(posinteg, neginteg, c, opnum);
-    printOperand(posmatrs, negmatrs, c, opnum);
-
-    // Print derivatives
-    // Move partial derivatives to the front
-    lst v_posderiv;
-    if (!posderiv.is_equal(_ex1)) {
-      for (const auto& mm : (is_a<mul>(posderiv) ? posderiv : lst{posderiv})) {
-        if (ex_to<exderivative>(mm).is_partial())
-          v_posderiv.prepend(mm);
-        else
-          v_posderiv.append(mm);
-      }
-    }
-    lst v_negderiv;
-    if (!negderiv.is_equal(_ex1)) {
-      for (const auto& mm : (is_a<mul>(negderiv) ? negderiv : lst{negderiv})) {
-        if (ex_to<exderivative>(mm).is_partial())
-          v_negderiv.prepend(mm);
-        else
-          v_negderiv.append(mm);
-      }
+        result.s << " ";
     }
 
-    if (v_negderiv.nops() > 0) {
-      c.enter_fraction();
-      c.s << "{{alignc ";
-      if (v_posderiv.nops() == 0)
-        c.s << "1";
-      else
-        for (const auto& d : v_posderiv) d.print(c, level+1);
-      c.s << "} over {alignc ";
-      for (const auto& d : v_negderiv) d.print(c, level+1);
-      c.s << "}}";
-      c.exit_fraction();
-    } else if (v_posderiv.nops() > 0) {
-      c.s << " ";
-      for (const auto& d : v_posderiv) d.print(c, level+1);
-    }
-
-    // Print differentials (incomplete derivatives)
-    MSG_INFO(3, "Remaining incomplete differentials: " << posdiffs << " / " << negdiffs << endline);
-    printOperand(posdiffs, negdiffs, c, opnum);
+    if (negative)
+        c.s << "-"; // "turn around" was not successful
+    c.s << resultstream.str();
+    return;
   }
+
+  c.s << " \"NH: |" << pattern << "|\" " << std::endl;
 }
 
 void print_ncmul_fraction(const expression& n, const expression& d, const imathprint& c, unsigned level) {
@@ -1117,6 +1058,7 @@ void imathprint_numeric(const numeric& n, const imathprint& c, unsigned level) {
 }
 
 void imathprint_power(const power& p, const imathprint& c, unsigned level) {
+  MSG_INFO(1, "imathprint_power() for " << ex(p) << endline);
   // Is it correct to print x^(y^2) as x^y^2 or must we use brackets?
   (void)level;
   ex basis = get_basis(p);

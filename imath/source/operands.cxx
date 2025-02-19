@@ -144,14 +144,21 @@ void operands::split_ex(const expression &e, operands &o1, operands &o2) {
     return;
   }
 
-  if (is_a<mul>(e))
+  if (is_a<add>(e) && o1.type == GINAC_MUL)
+    o1.include(e); // Mismatch of type
+  else if (is_a<mul>(e) && o1.type == GINAC_ADD)
+      o1.include(e); // Mismatch of type
+  else if (is_a<mul>(e))
     for (const auto& i : e) {
       if (is_negpower(i) && is_a<numeric>(get_exp(ex_to<power>(i))))
         // If the exponent is not a numeric, the double power will not be resolved by GiNaC
         // A work-around would be to call reduce_double_powers here
         o2.include(pow(i, -1));
-      else
-        o1.include(i);
+      else if (i.info(info_flags::rational)) {
+        o1.include(i.numer());
+        o2.include(i.denom());
+      } else
+          o1.include(i);
     }
   else if (is_a<add>(e))
     for (const auto& i : e) {
@@ -198,6 +205,90 @@ void operands::split_ex(const expression &e, operands &o1, operands &o2) {
   MSG_INFO(3, "split_ex: Cached result for " << e << endline);
 }
 
+std::string operands::pattern() const {
+    // Sign
+    std::string result = (coefficient.info(info_flags::negative) ? "-" : "");
+
+    // Numbers
+    result += (coefficient.is_equal(type) || coefficient.is_equal(_ex_1 * type) ? "" : "n");
+
+    // Units
+    if (!units.is_equal(type)) {
+        if (is_a<Unit>(units) || is_a<power>(units))
+            result += "u";
+        //else if (is_a<power>(units))
+        //    result += "pu";
+        else
+            result += "U";
+    }
+
+    // Constants
+    if (!constants.is_equal(type)) {
+        if (is_a<constant>(constants) || is_a<power>(constants))
+            result += "c";
+        //else if (is_a<power>(constants))
+        //  result += "p(c)";
+        else
+            result += "C";
+    }
+
+    // Symbols
+    if (!symbols.is_equal(type)) {
+        if (is_a<symbol>(symbols) || is_a<power>(symbols))
+            result += "x";
+        //else if (is_a<power>(symbols))
+        //    result += "p(x)";
+        else
+            result += "X";
+    }
+
+    // Powers
+    if (!powers.is_equal(type))
+        result += (is_a<power>(powers) ? "e" : "E");
+
+    // Adds
+    if (!adds.is_equal(type))
+        result += (is_a<add>(adds) ? "a" : "A");
+
+    // Muls
+    if (!muls.is_equal(type))
+        result += (is_a<mul>(muls) ? "p" : "P");
+
+    // Functions
+    if (!functions.is_equal(type))
+        result += (is_a<func>(functions) ? "f" : "F");
+
+    // Integrals
+    if (!integrals.is_equal(type))
+        result += (is_a<integral>(integrals) ? "i" : "I");
+
+    // Derivatives
+    if (!derivatives.is_equal(type)) {
+        if (is_a<exderivative>(derivatives) || is_a<power>(derivatives))
+            result += "r";
+        else
+            result += "R";
+    }
+
+    // Differentials
+    if (!differentials.is_equal(type)) {
+        if (is_a<differential>(differentials) || is_a<power>(differentials))
+            result += "d";
+        else
+            result += "D";
+    }
+
+    // Matrices
+    if (!matrices.is_equal(type))
+        result += (is_a<matrix>(matrices) ? "m" : "M");
+
+    // Others
+    if (!others.is_equal(type))
+        result += "o";
+
+    return result;
+}
+
 GiNaC::ex operands::get() const
 {
     if (type == GINAC_ADD)
@@ -208,7 +299,7 @@ GiNaC::ex operands::get() const
 
 void operands::include(const ex &what) {
   // Find the type of what and include it in the receiver
-       if (is_a<extsymbol>(what)) symbols = oper(symbols, what);
+  if (is_a<extsymbol>(what)) symbols = oper(symbols, what);
   else if (is_a<constant>(what)) constants = oper(constants, what);
   else if (is_a<Unit>(what)) units = oper(units, what);
   else if (is_a<func>(what)) functions = oper(functions, what);
@@ -223,7 +314,9 @@ void operands::include(const ex &what) {
     const power& pow = ex_to<power>(what);
     ex base = get_basis(pow);
     ex exponent = get_exp(pow);
-    if (is_a<numeric>(exponent) && (is_a<Unit>(base))) {
+    if (is_a<numeric>(exponent) && is_a<numeric>(base)) {
+      coefficient = oper(coefficient, what);
+    } else if (is_a<numeric>(exponent) && (is_a<Unit>(base))) {
       units = oper(units, what);
     } else if (is_a<numeric>(exponent) && is_a<extsymbol>(base)) {
       symbols = oper(symbols, what);
@@ -238,19 +331,20 @@ void operands::include(const ex &what) {
     }
   } else if (is_a<numeric>(what)) {
       if (what == I)
-        others = oper(others, I);
+        others = oper(others, I); // TODO Shouldn't this go in the coefficient?
       else if (what == -I) {
-        coefficient = ex_to<numeric>(oper(coefficient, -1));
+          // TODO Can this happen? Shouldn't it be handled in split_ex() ?
+        coefficient = oper(coefficient, -1);
         others = oper(others, I);
       } else
-        coefficient = ex_to<numeric>(oper(coefficient, what));
+        coefficient = oper(coefficient, what);
   } else others = oper(others, what);
   MSG_INFO(6,  "Included expression " << what << endline);
 }
 
 void operands::exclude(const ex &what) {
   // Find the type of what and include it in the receiver
-       if (is_a<extsymbol>(what)) symbols = oper(symbols, 1 / what);
+  if (is_a<extsymbol>(what)) symbols = oper(symbols, 1 / what);
   else if (is_a<constant>(what)) constants = oper(constants, 1 / what);
   else if (is_a<Unit>(what)) units = oper(units, 1 / what);
   else if (is_a<func>(what)) functions = oper(functions, 1 / what);
@@ -265,7 +359,9 @@ void operands::exclude(const ex &what) {
     const power& pow = ex_to<power>(what);
     ex base = get_basis(pow);
     ex exponent = get_exp(pow);
-    if (is_a<numeric>(exponent) && (is_a<Unit>(base))) {
+    if (is_a<numeric>(exponent) && is_a<numeric>(base)) {
+      coefficient = oper(coefficient, what);
+    } else if (is_a<numeric>(exponent) && (is_a<Unit>(base))) {
       units = oper(units, 1 / what);
     } else if (is_a<numeric>(exponent) && is_a<extsymbol>(base)) {
       symbols = oper(symbols, 1 / what);
@@ -282,7 +378,7 @@ void operands::exclude(const ex &what) {
     if (coefficient.is_equal(ex_to<numeric>(what)))
       coefficient = *_num1_p; // Avoid rounding errors for floating point coefficients
     else
-      coefficient = ex_to<numeric>(oper(coefficient, 1 / what));
+      coefficient = oper(coefficient, 1 / what);
   } else {
     others = oper(others, 1 / what);
   }
@@ -314,7 +410,7 @@ bool operands::is_number() const {
   }
 
 bool operands::is_trivial() const {
-  return (this->is_number() && abs(ex_to<numeric>(coefficient)).is_equal(ex_to<numeric>(type)));
+  return (this->is_number() && is_a<numeric>(coefficient) && abs(ex_to<numeric>(coefficient)).is_equal(ex_to<numeric>(type)));
   }
 
 bool operands::is_symbol() const {

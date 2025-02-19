@@ -94,7 +94,7 @@ class operands {
   GiNaC::ex powers;
 
   /**
-  An expression containing the numeric coefficient.
+  An expression containing the coefficient. This is numeric or a power of a numeric
   **/
   GiNaC::ex coefficient;
 
@@ -138,6 +138,9 @@ public:
    @exception runtime_error
    */
   static void split_ex(const GiNaC::expression &e, operands &o1, operands &o2);
+
+  /// Return a 'pattern' of the operands
+  std::string pattern() const;
 
   /**
   @returns The sum or product of all operands

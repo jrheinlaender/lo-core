@@ -35,6 +35,9 @@
 %%ii@lib:trig:cos2a@    EQDEF cos(2 wild) = square(cos(wild)) - square(sin(wild))
 %%ii@lib:trig:sin3a@    EQDEF sin(3 wild) = 3 sin(wild) - 4 (sin(wild))^3
 %%ii@lib:trig:cos3a@    EQDEF cos(3 wild) = 4 (cos(wild))^3 - 3 cos(wild)
+%%ii@lib:trig:sina2@    EQDEF sin(wild/2) = sqrt{1/2 (1 - cos(wild))}
+%%ii@lib:trig:cosa2@    EQDEF cos(wild/2) = sqrt{1/2 (1 + cos(wild))}
+%%ii@lib:trig:tana2@    EQDEF tan(wild/2) = {1 - cos(wild)} over sin(wild)
 %%
 %%reduction of offset angles to a simple angle
 %%ii@lib:trig:sinpi-a@   EQDEF sin(%pi - wild) =  sin{wild}

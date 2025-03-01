@@ -854,15 +854,16 @@ expression apply_modulus(const expression& e, const expression& mod) {
   return e;
 }
 
-std::string get_oper(const print_context &c, const unsigned o, const expression& mod) {
+std::string get_oper(const print_context &c, const unsigned o, const expression& mod, const bool asText) {
   if (is_a<imathprint>(c)) {
+    // Use text form of the operands, to avoid problems with XML markup in gtk dialogs
     switch(o) {
-      case relational::equal:            return (mod.is_zero() ? "=" : " EQUIV ");
-      case relational::not_equal:        return "<>";
-      case relational::less:             return "<";
-      case relational::less_or_equal:    return "<=";
-      case relational::greater:          return ">";
-      case relational::greater_or_equal: return ">=";
+        case relational::equal:            return (mod.is_zero() ? (asText ? " EQ " : "=") : " EQUIV ");
+      case relational::not_equal:        return (asText ? " NE " : "<>");
+      case relational::less:             return (asText ? " LT " : "<");
+      case relational::less_or_equal:    return (asText ? " LE " : "<=");
+      case relational::greater:          return (asText ? " GT " : ">");
+      case relational::greater_or_equal: return (asText ? " GE " : ">=");
       default: return"[invalid operator]";
     }
   } else {

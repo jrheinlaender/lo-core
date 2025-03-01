@@ -352,8 +352,80 @@ void ImGuiWindow::ResetModel()
             // Nodes with formula
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULA);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULAMARKUP);
-            mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULAMARKUP);
+            // TODO Since we use the Markup property, set_text() fails for text containing < or > signs
+            // Best thing would be to convert them in smathparser and document this behaviour
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            OUString _formula = fLine->getFormula();
+            std::cout << "_formula='" << _formula << "'" << std::endl;
+            OUString formula("");
+            for (int i = 0; i < _formula.getLength(); ++i)
+            {
+                if (_formula[i] == '<')
+                {
+                    if (i < _formula.getLength() - 1)
+                    {
+                        // At least one more character follows the < sign
+                        if (_formula[i+1] == '=')
+                        {
+                            formula += " LE ";
+                            ++i; // Skip the = sign
+                            continue;
+                        }
+                        else if ( _formula[i+1] == '>')
+                        {
+                            formula += " NE ";
+                            ++i; // Skip the > sign
+                            continue;
+                        }
+                        else if (_formula[i+1] == ' ' || _formula[i+1] == '\n')
+                        {
+                            formula += " LT"; // Trailing whitespace will be handled next loop
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // The < sign was right at the end of the string
+                        formula += " LT";
+                        continue;
+                    }
+                }
+                else if (_formula[i] == '>')
+                {
+                    if (i > 1)
+                    {
+                        // At least one character precedes the > sign
+                        if (_formula[i-1] == ' ' || _formula[i-1] == '\n')
+                        {
+                            if (i < _formula.getLength() - 1)
+                            {
+                                // At least one more character follows the > sign
+                                if (formula[i+1] == '=')
+                                {
+                                    formula += "GE ";
+                                    ++i;
+                                }
+                                else
+                                    formula += "GT ";
+                            }
+                            else
+                                // Lone > sign
+                                formula += "GT";
+
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // The > sign was right at the beginning of the string
+                        formula += "GT ";
+                        continue;
+                    }
+                }
+
+                formula += OUString(_formula[i]);
+            }
+            mxFormulaList->set_text(*xIter, formula, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_AFTER, IMGUIWINDOW_COL_CHILD);
         }
         if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*fLine)) != nodesWithHide.end())
@@ -385,8 +457,8 @@ void ImGuiWindow::ResetModel()
         {
             // Remove surrounding curly braces and quotes TODO Remove braces from the grammar, they are unnecessary
             OUString filename = fLine->getFormula().trim();
-            mxFormulaList->set_text(*xIter, filename.copy(2, filename.getLength() - 4) , IMGUIWINDOW_COL_FORMULAMARKUP);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULAMARKUP);
+            mxFormulaList->set_text(*xIter, filename.copy(2, filename.getLength() - 4) , IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
         }
         else if (typeid(*fLine) == typeid(iFormulaNodeStmOptions))
         {
@@ -1054,12 +1126,12 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "VECTORDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
-                        pNew->setFormula("vec v = " + defaultSTACK);
+                        pNew->setFormula("vec v = (" + defaultSTACK + ")");
                     }
                     else if (newType == "MATRIXDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
-                        pNew->setFormula("M = " + defaultMATRIX);
+                        pNew->setFormula("M = (" + defaultMATRIX + ")");
                     }
                     else
                     {
@@ -1315,20 +1387,27 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     if (rIterString.second.indexOfAsciiL("=", 1) < 0)
                     {
                         std::shared_ptr<iFormulaLine> pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeStmVectordef>(pLine);
+                        pNew->setFormula(rIterString.second);
                         pDoc->insertFormulaLineBefore(pLine, pNew);
                         pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
+
                         break;
                     }
+                    else
+                        pLine->setFormula(rIterString.second);
                 }
                 else if (typeid(*pLine) == typeid(iFormulaNodeMatrixdef))
                 {
                     if (rIterString.second.indexOfAsciiL("=", 1) < 0)
                     {
                         std::shared_ptr<iFormulaLine> pNew = iFormulaLine::move<iFormulaNodeMatrixdef, iFormulaNodeStmMatrixdef>(pLine);
+                        pNew->setFormula(rIterString.second);
                         pDoc->insertFormulaLineBefore(pLine, pNew);
                         pDoc->eraseFormulaLine(pLine); // This calls UpdateGuiText()
                         break;
                     }
+                    else
+                        pLine->setFormula(rIterString.second);
                 }
                 else if (typeid(*pLine) == typeid(iFormulaNodePrintval))
                 {

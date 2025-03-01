@@ -2237,23 +2237,31 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     mxAllunits->thaw();
     mxAllunits->connect_changed(LINK(this, ImGuiOptionsDialog, ComboBoxHdl));
     // Fill list of global and local units specific to this line. The first unit in the list has highest priority
-    // Note: Working on o_unitstr instead does not give the user-friendly names of the units
+    // Note: Working on o_unitstr does not give the user-friendly names of the units
+    GiNaC::optionmap options = *pLine->getGlobalOptions();
+    options[o_units] = GiNaC::exvector(); // Clear units to get unmodified print
     GiNaC::exvector globalUnits = *pLine->getOption(o_units, true).value.exvec;
     auto xIter = mxActiveunits->make_iterator();
     mxActiveunits->freeze();
-    for (const auto& unit : globalUnits)
+    for (const auto& u : globalUnits)
     {
         mxActiveunits->insert(0, xIter.get());
-        mxActiveunits->set_text(*xIter, OUS8(GiNaC::ex_to<GiNaC::Unit>(unit).get_name()), 0);
+        std::stringstream unitstream;
+        GiNaC::imathprint unitcontext(unitstream, &options);
+        u.print(unitcontext); // Note that a "unit" can consist of several basic units multiplied with one another
+        mxActiveunits->set_text(*xIter, OUS8(unitstream.str()), 0);
         mxActiveunits->set_text(*xIter, "global", 1);
     }
     GiNaC::exvector localUnits  = *pLine->getOption(o_units).value.exvec;
     if (*pLine->getOption(o_unitstr, true).value.str == *pLine->getOption(o_unitstr).value.str)
         localUnits.clear(); // getOption() returns the global option value if there is no local value
-    for (const auto& unit : localUnits)
+    for (const auto& u : localUnits)
     {
         mxActiveunits->insert(0, xIter.get());
-        mxActiveunits->set_text(*xIter, OUS8(GiNaC::ex_to<GiNaC::Unit>(unit).get_name()), 0);
+        std::stringstream unitstream;
+        GiNaC::imathprint unitcontext(unitstream, &options);
+        u.print(unitcontext);
+        mxActiveunits->set_text(*xIter, OUS8(unitstream.str()), 0);
         mxActiveunits->set_text(*xIter, "local", 1);
         mxActiveunits->set_image(*xIter, BMP_IMGUI_DELETE, 2);
     }
@@ -2267,8 +2275,8 @@ ImGuiOptionsDialog::ImGuiOptionsDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     mxPrecision->set_value    (mpLine->getOption(o_precision).value.uinteger);
     mxFixed->set_active       (!mpLine->getOption(o_fixeddigits).value.boolean);
     mxFixedexponent->set_value(mpLine->getOption(o_exponent).value.integer);
-    mxMinposexp->set_value    (mpLine->getOption(o_lowsclimit).value.integer);
-    mxMaxnegexp->set_value    (mpLine->getOption(o_highsclimit).value.integer);
+    mxMinposexp->set_value    (mpLine->getOption(o_highsclimit).value.integer);
+    mxMaxnegexp->set_value    (mpLine->getOption(o_lowsclimit).value.integer);
     mxPrecision->connect_value_changed    (LINK(this, ImGuiOptionsDialog, SpinButtonModifyHdl));
     mxFixed->connect_toggled              (LINK(this, ImGuiOptionsDialog, CheckBoxClickHdl));
     mxFixedexponent->connect_value_changed(LINK(this, ImGuiOptionsDialog, SpinButtonModifyHdl));
@@ -3018,8 +3026,12 @@ void MatrixEditorDialog::resizeMatrix()
     int cols = mxCols->get_value();
     int oldrows = mxMatrix->n_children();
     int oldcols = 0;
+
+    if (oldrows > 0)
+    {
     while (mxMatrix->get_sensitive(0, oldcols) && oldcols < maxcols)
         ++oldcols;
+    }
     SAL_INFO_LEVEL(1, "starmath.imath", "Resizing matrix from (" + OUString::number(oldrows) + ", " + OUString::number(oldcols) + ") to (" + OUString::number(rows) + ", " + OUString::number(cols) + ")");
 
     auto xIter = mxMatrix->make_iterator();

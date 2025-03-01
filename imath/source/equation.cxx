@@ -145,7 +145,7 @@ bool equation::is_assignment() const
 void equation::do_print(const print_context& c, unsigned level) const
 {
     (void)level;
-    c.s << lh << get_oper(c, o, mod) << rh;
+    c.s << lh << get_oper(c, o, mod, false) << rh;
     if (!mod.is_zero())
         c.s << " (mod " << mod << ")";
 }
@@ -157,7 +157,7 @@ void equation::do_print_imath(const imathprint& c, unsigned level) const
     if (is_a<Unit>(lh))
         c.s << "1 ";
     expression(lh).print(c, level + 1);
-    std::string oper = get_oper(c, o, mod);
+    std::string oper = get_oper(c, o, mod, false);
     c.s << " " << oper
         << " "; // Spaces are required for the case y <-x which will print an arrow instead of y < -x
     if (is_a<Unit>(rh))

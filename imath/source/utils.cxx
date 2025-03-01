@@ -1240,7 +1240,51 @@ lst make_lst_from_matrix(const expression& e, const bool force)
                     if (mod.is_zero())
                         return e;
 
-                    MSG_INFO(2, "Applying modulus " << mod << " on " << e << endline);
+                    std::string get_oper(const print_context& c, const unsigned o,
+                                         const expression& mod, const bool asText)
+                    {
+                        if (is_a<imathprint>(c))
+                        {
+                            // Use text form of the operands, to avoid problems with XML markup in gtk dialogs
+                            switch (o)
+                            {
+                                case relational::equal:
+                                    return (mod.is_zero() ? (asText ? " EQ " : "=") : " EQUIV ");
+                                case relational::not_equal:
+                                    return (asText ? " NE " : "<>");
+                                case relational::less:
+                                    return (asText ? " LT " : "<");
+                                case relational::less_or_equal:
+                                    return (asText ? " LE " : "<=");
+                                case relational::greater:
+                                    return (asText ? " GT " : ">");
+                                case relational::greater_or_equal:
+                                    return (asText ? " GE " : ">=");
+                                default:
+                                    return "[invalid operator]";
+                            }
+                        }
+                        else
+                        {
+                            switch (o)
+                            {
+                                case relational::equal:
+                                    return (mod.is_zero() ? "=" : "~=");
+                                case relational::not_equal:
+                                    return "!=";
+                                case relational::less:
+                                    return "<";
+                                case relational::less_or_equal:
+                                    return "<=";
+                                case relational::greater:
+                                    return ">";
+                                case relational::greater_or_equal:
+                                    return ">=";
+                                default:
+                                    return "[invalid operator]";
+                            }
+                        }
+                    }
 
                     if (e.info(info_flags::cinteger) && is_a<numeric>(mod))
                     {

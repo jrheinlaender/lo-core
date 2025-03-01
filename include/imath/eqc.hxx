@@ -45,12 +45,13 @@ enum symtype {
   t_function, // A user-defined function
   t_none      // Variable is not defined in the compiler
 };
-enum symprop {
-  p_complex,  // This is the standard for symbols
-  p_vector,   // A vector (only used by getsymtype, for iMath)
-  p_matrix,   // A matrix/tensor (only used by getsymtype, for iMath)
-  p_real,     // A real-valued variable (that is, not complex)
-  p_pos       // A positive-valued variable (that is, not complex and greater than zero)
+enum symprop : std::size_t {
+  p_complex = 0,  // This is the standard for symbols
+  p_vector = 1,   // A vector (only used by getsymtype, for iMath)
+  p_matrix = 2,   // A matrix/tensor (only used by getsymtype, for iMath)
+  p_real = 3,     // A real-valued variable (that is, not complex)
+  p_pos = 4,      // A positive-valued variable (that is, not complex and greater than zero)
+  p_default = 5
 };
 
 /// Storage for equations and the result of the last substitution
@@ -91,7 +92,8 @@ struct eqrec {
 class symrec {
 private:
   /// The symbol representing the variable
-  GiNaC::extsymbol& sym;
+  // Note: we must keep one symbol for each symprop value. Otherwise it would not be possible to have symbols with different symprops but same names in a document
+  std::array<GiNaC::extsymbol*, p_default> sym;
 
   /// Indicates whether the symbol is a variable, constant or function
   symtype type;
@@ -114,17 +116,22 @@ public:
   /// Create a new symrec
   symrec(const symtype t, const std::string& varname, const symprop p);
 
-  /// Assignment operator
-  symrec& operator=(const symrec& other);
+  /// Copy constructor. The symbol itself is not copied!
+  symrec(const symrec& other);
+
+  /// Deleted functions
+  symrec(symrec&& other) noexcept = delete;
+  symrec& operator=(const symrec& other) = delete;
+  symrec& operator=(symrec&& other) noexcept = delete;
 
   /// Change the symbol type
   void setsymtype(const symtype t) { type = t; }
 
   /// Change the symbol properties
-  void setsymprop(const symprop p);
+  void setsymprop(const symprop p) { prop = p; }
 
-  /// Return the symbol
-  inline const GiNaC::extsymbol& getsym() const { return sym; }
+  /// Return the symbol. Specifying a property allows overriding the property stored in the symrec
+  const GiNaC::extsymbol& getsym(const symprop p = p_default) const;
 
   /// Return the symbol type
   inline const symtype& getsymtype() const { return type; }
@@ -133,7 +140,7 @@ public:
   inline const symprop& getsymprop() const { return prop; }
 
   /// Return the name of the symbol
-  inline std::string get_name() const { return sym.get_name(); }
+  inline std::string get_name() const { return sym[prop]->get_name(); }
 
   /// Set the value of the symbol to unknown
   void make_unknown();
@@ -243,18 +250,18 @@ public:
   std::vector<std::string> getLabels() const;
 
   /**
-  Request a new symbol from the eqc. A GiNaC symbol is created with this name. If a variable with this name
+  Request a symbol from the eqc. A GiNaC extsymbol is created with this name. If a variable with this name
   already exists, return the Ginac symbol representing it
 
   @param varname A string with the name of the variable.
-  @param p The symbol properties (vector, matrix, complex, real positive)
+  @param p The symbol properties (vector, matrix, complex, real positive). By default (p == p_default) the property stored in the compiler is used
   @returns The Ginac symbol created for this variable, or the existing symbol, if this variable already
   exists.
   **/
   // The GiNaC constant Pi is returned directly when the symbol with name %pi is requested.
   // The same is valid for the symbol with name %e and i
-  GiNaC::expression getsym (const std::string& varname, const symprop p = p_complex);
-  GiNaC::expression* getsymp (const std::string& varname, const symprop p = p_complex);
+  GiNaC::expression getsym (const std::string& varname, const symprop p = p_default);
+  GiNaC::expression* getsymp (const std::string& varname, const symprop p = p_default);
 
   /// Return the type of the variable with this name
   symtype getsymtype(const std::string& varname);

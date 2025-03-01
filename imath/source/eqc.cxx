@@ -1,6 +1,6 @@
 /***************************************************************************
     begin                : Sun Oct 21 2001
-    copyright            : (C) 2016 by Jan Rheinlaender
+    copyright            : (C) 2025 by Jan Rheinlaender
     email                : jrheinlaender@users.sourceforge.net
  ***************************************************************************/
 
@@ -626,50 +626,47 @@ bool is_internal(const std::string& varname) {
       return result;
   }
 
-  symrec::symrec(const symtype t, const std::string& varname, const symprop p) : sym(dynallocate<extsymbol>(varname)), type(t), isquantity(false) {
-    MSG_INFO(3, "Constructing symrec from " << varname  << endline);
-    sym.add_reference(); // otherwise the symbol will be deallocated after we pass it out...
-    setsymprop(p);
+  symrec::symrec(const symtype t, const std::string& varname, const symprop p) : type(t), prop(p == p_default ? p_complex : p), isquantity(false) {
+    MSG_INFO(3, "Constructing symrec from " << varname << endline);
+    for (auto& s : sym) {
+        s = &GiNaC::dynallocate<extsymbol>(varname); // dynallocate() creates the object on the heap with operator new and returns a reference to it
+        s->add_reference();
+    }
+
+    // By default, extsymbols are complex and commutative
+    sym[1]->make_nc();
+    sym[2]->make_nc();
+    sym[3]->make_real();
+    sym[4]->make_pos();
+
     make_unknown();
   } // symrec::symrec()
 
-  symrec& symrec::operator=(const symrec& other) {
-    MSG_INFO(3, "Assigning symrec from " << other.sym  << endline);
-    sym = other.sym;
+  symrec::symrec(const symrec& other) {
+    MSG_INFO(3, "Copying symrec from " << other.sym[0]->get_name() << endline);
+    for (std::size_t s = 0; s < p_default; ++s)
+        sym[s] = other.sym[s];
+
     type = other.type;
     prop = other.prop;
     isquantity = other.isquantity;
     val = other.val;
     aval = other.aval;
     assignments = std::list<eqrec*>(other.assignments.begin(), other.assignments.end());
-    return *this;
   }
 
-  void symrec::setsymprop(const symprop p) {
-    prop = p;
-    if (p == p_real) {
-      sym.make_c();
-      sym.make_real();
-    } else if (p == p_pos) {
-      sym.make_c();
-      sym.make_pos();
-    } else if ((p == p_vector) || (p == p_matrix)) {
-      sym.make_nc();
-      sym.make_complex();
-    } else {
-      sym.make_c();
-      sym.make_complex();
-    }
+  const GiNaC::extsymbol& symrec::getsym(const symprop p) const {
+      return (p == p_default) ? *sym[prop] : *sym[p];
   }
 
   void symrec::make_unknown() {
     MSG_INFO(3, "symrec::make_unknown()" << endline);
-    val = sym;
+    val = *sym[0];
     isquantity = false;
   }
 
   bool symrec::has_value() const {
-    return !val.is_equal(sym);
+    return !val.is_equal(*sym[0]);
   }
 
   expression eqc::getsym (const std::string& varname, const symprop p) {
@@ -688,7 +685,7 @@ bool is_internal(const std::string& varname) {
             return v->second.getsym();
         } else {
             MSG_INFO(3, "Returning existing variable " << varname << endline);
-            return it_var->second.getsym();
+            return it_var->second.getsym(p);
         }
     }
   } // eqc::getsym()
@@ -1260,9 +1257,11 @@ bool is_internal(const std::string& varname) {
       }
 
       if (var.getsymtype() == t_variable) {
-        MSG_INFO(3, "Deleting variable " << varname << endline);
-        v = vars.erase(v);
-        continue;
+        MSG_INFO(3, "Clearing variable " << varname << endline);
+        // Note: Actually erasing variables from vars would mean that it becomes impossible to substitute into equations using them, e.g. library equations
+        var.setsymprop(p_complex);
+        var.make_unknown();
+        var.assignments.clear();
       } else if (var.getsymtype() == t_function) {
         if (!funcmgr->is_lib(varname)) {
           MSG_INFO(3, "Deleting function " << varname << endline);
@@ -1272,7 +1271,7 @@ bool is_internal(const std::string& varname) {
           var.make_unknown();
           var.assignments.clear();
         } else {
-          MSG_INFO(3, "Keeping " << varname << endline);
+          MSG_INFO(3, "Keeping function " << varname << endline);
           // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
           // Note: This may lead to problems if later the symbol properties are changed, which will also affect earlier uses of the symbol
           // But we assume that very seldom a user will declare a function as real-valued or positive
@@ -1280,7 +1279,7 @@ bool is_internal(const std::string& varname) {
           var.assignments.clear();
         }
       } else {
-        MSG_INFO(3, "Keeping " << varname << endline);
+        MSG_INFO(3, "Keeping name " << varname << endline);
         if (var.has_value())
             assignments.emplace(var.getsym(), var.val);
       }
@@ -1353,27 +1352,27 @@ bool is_internal(const std::string& varname) {
   }
 
   void eqc::dumpvars(std::ostream & os) {
-    std::vector<symrec> v_values;
-    std::vector<symrec> v_novalues;
+    std::vector<symrec*> v_values;
+    std::vector<symrec*> v_novalues;
 
     // Collect variables, distinguishing whether they have a value or not
-    for (const auto& v : vars) {
+    for (auto& v : vars) {
       if (is_internal(v.first)) continue;
       if ((v.first != VALSYM) && (v.second.getsymtype() != t_function) && (v.second.getsymtype() != t_none)) {
         if (v.second.has_value())
-          v_values.emplace_back(v.second);
+          v_values.emplace_back(&v.second);
         else
-          v_novalues.emplace_back(v.second);
+          v_novalues.emplace_back(&v.second);
       }
     }
 
     // Dump variables with values first
     for (const auto& v : v_values) {
-      os << v.get_name() << " = " << v.val;
+      os << v->get_name() << " = " << v->val;
 
-      if (!v.assignments.empty()) {
+      if (!v->assignments.empty()) {
         os << " (";
-        for (const auto& l : v.assignments)
+        for (const auto& l : v->assignments)
           os << "@" << l->label << "@ ";
         os << ")";
       }
@@ -1382,7 +1381,7 @@ bool is_internal(const std::string& varname) {
     }
 
     for (const auto& v : v_novalues)
-      os << v.get_name() << " = (?)" << std::endl;
+      os << v->get_name() << " = (?)" << std::endl;
   }
 
   const expression &eqc::at(const std::string &label) const {

@@ -45,6 +45,11 @@ public:
   /// Initialize the Functionmanager with the GiNaC and iMath hard-coded functions
   Functionmanager();
 
+  Functionmanager(const Functionmanager& other) = default;
+  Functionmanager(Functionmanager&& other) noexcept = delete;
+  Functionmanager& operator=(const Functionmanager& other) = delete;
+  Functionmanager& operator=(Functionmanager&& other) noexcept = delete;
+
   /**
    * Register a user-defined function so that the scanner will be able to look it up.
    * @param n    The Latex name of the function which the scanner finds in the input file

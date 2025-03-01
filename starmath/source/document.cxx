@@ -425,13 +425,13 @@ OUString SmDocShell::ImInitializeCompiler() {
 
     std::list<OUString> masterDocFiles;
 
-    if (mPreviousFormula.getLength() > 0) {
+    if (!mPreviousFormula.isEmpty()) {
         // Find previous iFormula from parent document. If this fails, a error message is returned
-        SAL_INFO_LEVEL(1, "starmath.imath", "Previous formula is " << mPreviousFormula);
+        SAL_INFO_LEVEL(1, "starmath.imath", "Previous formula is " << mPreviousFormula << (mIFormulaMasterDocument.isEmpty() ? OUString() : " in master document " + mIFormulaMasterDocument));
         Reference<XModel> xParent;
 
         // Find master document if there is one
-        if (mIFormulaMasterDocument.getLength() > 0)
+        if (!mIFormulaMasterDocument.isEmpty())
         {
             SAL_INFO_LEVEL(1, "starmath.imath", "Searching for master document '" << mIFormulaMasterDocument << "'");
             // Note: We assume that the parent document has already loaded the master document
@@ -481,6 +481,7 @@ OUString SmDocShell::ImInitializeCompiler() {
 
         Reference < XComponent > xPreviousFormulaComponent = getObjectByName(xParent, mPreviousFormula);
         if (xPreviousFormulaComponent.is()) {
+            SAL_INFO_LEVEL(2, "starmath.imath", "Found previous formula in parent document");
             Reference< XModel > xPreviousFormula = extractModel(xPreviousFormulaComponent);
 
             SmModel* pPreviousModel = comphelper::getFromUnoTunnel<SmModel>(xPreviousFormula);
@@ -516,7 +517,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     if (documentType.equalsAscii("SmDoc"))
     {
         SAL_INFO_LEVEL(1, "starmath.imath", "Detected Starmath document");
-        xModel = GetBaseModel();
+        xModel = GetBaseModel(); // GetDocumentModel() uses GetModel() instead
     }
     else
         xModel = xParent;
@@ -524,7 +525,8 @@ OUString SmDocShell::ImInitializeCompiler() {
     // Get access to the RDF graph that contains the document-specific options. Create one if it doesn't exist
     // TODO In stand-alone Math the graph does not get saved with the document. Why?
     Reference<XNamedGraph> xGraph = getGraph(xContext, xModel);
-    if (!xGraph.is()) xGraph = createGraph(xContext, xModel);
+    if (!xGraph.is())
+        xGraph = createGraph(xContext, xModel);
 
     // Path to iMath's own include files (references)
     OUString shareFolder;
@@ -537,7 +539,7 @@ OUString SmDocShell::ImInitializeCompiler() {
     // TODO: Handle case when ImInitialize() is called after options were changed through the UI
     if (mpInitialOptions != nullptr && mpInitialCompiler != nullptr)
     {
-        if (mIFormulaMasterDocument.getLength() > 0)
+        if (!mIFormulaMasterDocument.isEmpty())
         {
             // Read additional references and includes in the sub-document of the master document
             auto files = splitString(getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_references"), OU("Includes/txt_References")), ' ');
@@ -555,8 +557,12 @@ OUString SmDocShell::ImInitializeCompiler() {
             // Update option map with options from sub-document
             Settingsmanager::initializeOptionmap(xContext, xModel, xGraph, xProperties, mpInitialOptions, true);
 
+            if (files.empty())
+                return ""; // Nothing to be done
+
             try
             {
+                mpInitialCompiler = std::make_shared<eqc>(*mpInitialCompiler); // Take a deep copy because we must not modify the currentCompiler of the previous formula
                 imath::parserParameters pParams(mLines);
                 pParams.xContext = comphelper::getProcessComponentContext();
                 pParams.xDocumentModel = GetDocumentModel();
@@ -569,7 +575,7 @@ OUString SmDocShell::ImInitializeCompiler() {
                 OUString error = compileIncludes(files, pParams, shareFolder, mLines, mpInitialOptions);
 
                 if (!error.isEmpty())
-                return error;
+                    return error;
             }
             catch (Exception &e)
             {
@@ -699,13 +705,12 @@ void SmDocShell::Compile()
         SAL_WARN_LEVEL(-1, "starmath.imath", "iMath cannot be used because an iMath extension is still installed");
         return;
     }
-    if (maImText.isEmpty())
-        return;
 
     SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::Compile()\n'" << maImText << "'");
 
     OUString initError = ImInitializeCompiler();
     if (initError.getLength() > 0) {
+        SAL_WARN_LEVEL(0, "starmath.imath", initError);
         // TODO: Publish it somewhere
         mLines.clear();
         mpCurrentCompiler = mpInitialCompiler;
@@ -713,7 +718,7 @@ void SmDocShell::Compile()
         return;
     }
 
-    if (maImText.equalsAscii(""))
+    if (maImText.isEmpty())
     {
         SAL_INFO_LEVEL(1, "starmath.imath", "Empty formula, aborting compile");
         mpCurrentCompiler = mpInitialCompiler;

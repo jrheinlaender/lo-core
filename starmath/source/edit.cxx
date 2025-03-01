@@ -354,6 +354,8 @@ void ImGuiWindow::ResetModel()
             // Nodes with formula
             mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULAMARKUP);
+            mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULAMARKUP);
             mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_AFTER, IMGUIWINDOW_COL_CHILD);
         }
         if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*fLine)) != nodesWithHide.end())
@@ -385,8 +387,8 @@ void ImGuiWindow::ResetModel()
         {
             // Remove surrounding curly braces and quotes TODO Remove braces from the grammar, they are unnecessary
             OUString filename = fLine->getFormula().trim();
-            mxFormulaList->set_text(*xIter, filename.copy(2, filename.getLength() - 4) , IMGUIWINDOW_COL_FORMULA);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, filename.copy(2, filename.getLength() - 4) , IMGUIWINDOW_COL_FORMULAMARKUP);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULAMARKUP);
         }
         else if (typeid(*fLine) == typeid(iFormulaNodeStmOptions))
         {

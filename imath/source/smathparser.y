@@ -344,6 +344,33 @@ void handle_label_error(const imath::location& labelStart,const std::string& lab
   handle_error(params, l, formulaStart);
 }
 
+// Note: Values are move'd into function arguments by bison by default
+bool handle_equation(imath::parserParameters& params, const std::string& label, GiNaC::optionmap options, bool hide, expression eq,
+                     const imath::location& labelStart, const imath::location& formulaStart, std::vector<OUString> formulaParts) {
+  std::string nslabel;
+  if (!check_label(label, nslabel)) {
+    handle_label_error(labelStart, nslabel, params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), eq, hide), formulaStart);
+    return false;
+  }
+  params.compiler->check_and_register(eq, nslabel);
+
+  if (include_level == 0) {
+    params.lines.push_back(std::make_shared<iFormulaNodeEq>(
+      unitConversions(), current_options, std::move(options),
+      std::move(formulaParts), OUS8(nslabel),
+      eq, std::move(hide)));
+    line = params.lines.back();
+    line_options.clear();
+    line->force_autoformat(must_autoformat);
+  }
+  must_autoformat = false;
+
+  if (params.cacheable && params.cached_results != nullptr)
+    params.cached_results->emplace_back(nslabel, std::move(eq));
+
+  return true;
+}
+
 } // end anonymous namespace
 
 #define GETARG(index) \
@@ -1323,29 +1350,22 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         handle_error(params, std::make_shared<iFormulaNodeExplainval>(unitConversions(), current_options, $1, fparts({}), OU(""), _expr0, $3, _expr0, _expr0, exhashmap<ex>()), @4);
         YYABORT;
       }
-      |	LABEL options EQDEF asterisk eq {
-        auto options = $2;
-        auto hide = $4;
-        auto eq = $5;
-        std::string nslabel;
-        if (!check_label($1, nslabel)) {
-          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), eq, hide), @5);
+      | LABEL options EQDEF asterisk ex oper ex {
+        // Note that printing of iFormulaNodeEq requires the operator as an element in the formulaparts to properly format the equation
+        if (!handle_equation(params, $1, $2, $4, dynallocate<equation>($5, $7, $6, _expr0), @1, @5, fparts({GETARG(@5), GETARG(@6), GETARG(@7)})))
           YYABORT;
-        }
-        params.compiler->check_and_register(eq, nslabel);
-
-        if (include_level == 0) {
-          params.lines.push_back(std::make_shared<iFormulaNodeEq>(
-            unitConversions(), current_options, std::move(options),
-            fparts({GETARG(@5)}), OUS8(nslabel),
-            eq, std::move(hide)));
-          line = params.lines.back();
-          line_options.clear();
-          line->force_autoformat(must_autoformat);
-        }
-        must_autoformat = false;
-
-        if (params.cacheable && params.cached_results != nullptr) params.cached_results->emplace_back(nslabel, std::move(eq));
+      }
+      | LABEL options EQDEF asterisk ex EQUIV ex MOD ex {
+        if (!handle_equation(params, $1, $2, $4, dynallocate<equation>($5, $7, relational::equal, $9), @1, @5, fparts({GETARG(@5), " EQUIV ", GETARG(@7), OU(" mod "), GETARG(@9)})))
+          YYABORT;
+      }
+      | LABEL options EQDEF asterisk ex EQUIV ex BMOD ex ')' {
+        if (!handle_equation(params, $1, $2, $4, dynallocate<equation>($5, $7, relational::equal, $9), @1, @5, fparts({GETARG(@5), " EQUIV ", GETARG(@7), OU(" (mod "), GETARG(@9), ")"})))
+          YYABORT;
+      }
+      | LABEL options EQDEF asterisk eq_without_oper {
+        if (!handle_equation(params, $1, $2, $4, $5, @1, @5, fparts({GETARG(@5)})))
+          YYABORT;
       }
       | LABEL options EQDEF asterisk error {
         handle_error(params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), $4), @5);
@@ -1634,52 +1654,33 @@ asterisk:   %empty { $$ = false; }
 ;
 
 // Processing of smath formulas
-%type <GiNaC::expression>  eq "equation";
-eq:   ex '=' ex             { $$ = dynallocate<equation>($1, $3, relational::equal, _expr0); }
-    | ex '=' '=' ex         { $$ = dynallocate<equation>($1, $4, relational::equal, _expr0); }
-    | ex NEQ ex             { $$ = dynallocate<equation>($1, $3, relational::not_equal, _expr0); }
-    | ex '<' ex             { $$ = dynallocate<equation>($1, $3, relational::less, _expr0); }
-    | ex '>' ex             { $$ = dynallocate<equation>($1, $3, relational::greater, _expr0); }
-    | ex '>' '=' ex         { $$ = dynallocate<equation>($1, $4, relational::greater_or_equal, _expr0); }
-    | ex '<' '=' ex         { $$ = dynallocate<equation>($1, $4, relational::less_or_equal, _expr0); }
+%type <GiNaC::expression> eq "equation"; // Note: This is split because EQDEF requires the position of the operator to format the display correctly
+eq:   eq_with_oper
+    | eq_without_oper
+;
+
+%type <GiNaC::expression> eq_with_oper "equation with operator";
+eq_with_oper:
+      ex oper ex %prec '=' { $$ = dynallocate<equation>($1, $3, $2, _expr0); }
     | ex EQUIV ex MOD ex { // Note: Writing '(' MOD ex ')' results in too many conflicts
-      // Note: Defining an int_ex similar to numeric_ex etc. will not work because of shift/reduce conflicts, e.g.
-		  // ex EQUIV ex BMOD ex '+' ex
-		  // against
-		  // ex EQUIV ex BMOD ex '+' eq
-		  // Bison does not know whether to shift or to reduce when the '+' is encountered
-      auto expr1 = $1;
-      auto expr2 = $3;
-      auto mod = $5;
-      if (is_a<numeric>(expr1) && !expr1.info(info_flags::integer)) {
-        error(@1, "Left-hand expression must be integer");
-        YYERROR;
-      } else if (is_a<numeric>(expr2) && !expr2.info(info_flags::integer)) {
-        error(@3, "Right-hand expression must be integer");
-        YYERROR;
-      } else if (!check_modulus(mod)) {
-        error(@5, "Modulo must be a positive or gaussian integer");
-        YYERROR;
-      } else
-        $$ = dynallocate<equation>(std::move(expr1), std::move(expr2), relational::equal, std::move(mod));
+      $$ = dynallocate<equation>($1, $3, relational::equal, $5);
 		}
 		| ex EQUIV ex BMOD ex ')' {
-      auto expr1 = $1;
-      auto expr2 = $3;
-      auto mod = $5;
-      if (is_a<numeric>(expr1) && !expr1.info(info_flags::integer)) {
-        error(@1, "Left-hand expression must be integer");
-        YYERROR;
-      } else if (is_a<numeric>(expr2) && !expr2.info(info_flags::integer)) {
-        error(@3, "Right-hand expression must be integer");
-        YYERROR;
-      } else if (!check_modulus(mod)) {
-        error(@5, "Modulo must be a positive or gaussian integer");
-        YYERROR;
-      } else
-        $$ = dynallocate<equation>(std::move(expr1), std::move(expr2), relational::equal, std::move(mod));
+      $$ = dynallocate<equation>($1, $3, relational::equal, $5);
     }
-    | LABEL { // An equation label referencing another equation
+;
+%type <GiNaC::relational::operators> oper "operator symbol";
+oper:   '='     { $$ = relational::equal; }
+      | '=' '=' { $$ = relational::equal; }
+      | NEQ     { $$ = relational::not_equal; }
+      | '<'     { $$ = relational::less; }
+      | '>'     { $$ = relational::greater; }
+      | '<' '=' { $$ = relational::less_or_equal; }
+      | '>' '=' { $$ = relational::greater_or_equal; }
+;
+
+%type <GiNaC::expression> eq_without_oper "equation without operator";
+eq_without_oper:
       must_autoformat = true;
       $$ = params.compiler->at(params.compiler->label_ns($1, true));
     }

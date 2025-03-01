@@ -920,7 +920,7 @@ std::vector<std::vector<OUString>> iFormulaNodeText::display(const Reference<XMo
       if (is_a<equation>(textPortion->getExpression())) {
         equation eq = ex_to<equation>(textPortion->getExpression());
         line.emplace_back(OU("{alignr ") + printEx(eq.lhs()) + OU("}"));
-        line.emplace_back(OU("{}") + OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim() + OU("{}"));
+        line.emplace_back(OU("{}") + OUS8(get_oper(imathprint(), eq.getop(), eq.getmod(), false)).trim() + OU("{}"));
         line.emplace_back(OU("{alignl ") + printEx(eq.rhs()) + OU("}"));
         text = OU("");
       } else {
@@ -1156,19 +1156,34 @@ std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XMode
   if (error == no_error && _hide)
       return {};
 
+  MSG_INFO(1, "iFormulaNodeEq::display() '" << getFormula() << "'" << endline);
   const equation& eq = ex_to<equation>(_expr);
-  OUString oper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod())).trim();
-  OUString lhs;
-  OUString rhs;
+  OUString oper  = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod(), false));
+  OUString toper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod(), true)).trim();
+  OUString lhs("");
+  OUString rhs("");
+  OUString mod("");
 
-   if (autoformat_required()) {
-    lhs = printEx(eq.lhs());
-    rhs = printEx(eq.rhs());
-  } else {
-    OUString textEq = printFormula();
-    int alignpos = textEq.toAsciiUpperCase().indexOf(oper); // TODO: Formulas with operator signs within stringEx might bring confusion
-    lhs = textEq.copy(0, alignpos).trim();
-    rhs = textEq.copy(alignpos + oper.getLength()).trim();
+  if (error == no_error || error == label_error) {
+    if (autoformat_required()) {
+        lhs = printEx(eq.lhs());
+        rhs = printEx(eq.rhs());
+        if (!eq.getmod().is_zero())
+            mod = printEx(eq.getmod());
+    } else {
+        size_t f = 0;
+        while (f < _formulaParts.size() && !(_formulaParts[f].trim().equals(oper.trim()) || _formulaParts[f].trim().equals(toper.trim())))
+            lhs += _formulaParts[f++];
+        oper = _formulaParts[f++]; // Keep user format of operator
+        while (f < _formulaParts.size() && !(_formulaParts[f].trim().toAsciiUpperCase().equals("MOD") || _formulaParts[f].trim().toAsciiUpperCase().equals("(MOD")))
+            rhs += _formulaParts[f++];
+        ++f; // Skip 'mod'
+        while (f < _formulaParts.size())
+            mod += _formulaParts[f++];
+        lhs = adjustLocale(replaceString(lhs, OU("\n%%ii+"), OU("")));
+        rhs = adjustLocale(replaceString(rhs, OU("\n%%ii+"), OU("")));
+        mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU("")));
+    }
   }
 
   switch(error) {
@@ -1178,16 +1193,23 @@ std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XMode
             {"newline "},
             {
                 "bold color red{(\"" + _formulaParts[1] + "\")}",
-                OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + OU("}"),
+                OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + " `(\"mod\"` " + mod + OU(")}"),
                 "newline "
             },
             {"color blue{\"" + _formulaParts[3] + "\"}", "newline "}
         };
       case no_error:
-        return
-        {
-            {OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + OU("}")}
-        };
+        // Note: This ignores the print() method of class equation. But for error handling we need to split up into lhs, rhs, mod anyway
+        if (mod.isEmpty())
+            return
+                {
+                    {OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + OU("}")}
+                };
+        else
+            return
+                {
+                    {OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + OU("}"), OU(" `(\"mod\"` ") + mod + OU(")")}
+                };
       default:
         return iFormulaLine::display();
   }

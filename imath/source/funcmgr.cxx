@@ -342,7 +342,7 @@ Functionmanager::Functionmanager()
                 empty,
                 FUNCHINT_LIB | FUNCHINT_PRINT,
                 "irem" } },
-            { "iquo  ",
+            { "iquo",
               { iquo_SERIAL::serial,
                 { e1, e2 },
                 true,

@@ -150,7 +150,7 @@ Functionmanager::Functionmanager() {
       {"hadamard", {hadamard_SERIAL::serial, {m1, m2, n1}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "hadamard"}},
       {"ifelse",   {ifelse_SERIAL::serial,   {x,  e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "ifelse"}},
       {"irem",     {irem_SERIAL::serial,     {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "irem"}},
-      {"iquo  ",   {iquo_SERIAL::serial,     {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "iquo"}},
+      {"iquo",     {iquo_SERIAL::serial,     {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "iquo"}},
       {"mindex",   {mindex_SERIAL::serial,   {m1, e1, e2}, true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "mindex"}},
       {"numer",    {numer_SERIAL::serial,    {e1},         true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "numer"}},
       {"round",    {round_SERIAL::serial,    {e1, e2},     true, empty, FUNCHINT_LIB|FUNCHINT_PRINT, "round"}},

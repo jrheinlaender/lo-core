@@ -266,8 +266,8 @@ IMATH_DLLPUBLIC bool check_modulus(const GiNaC::expression& e);
 /// Apply modulus to expression. It is assumed that the modulus is valid
 GiNaC::expression apply_modulus(const GiNaC::expression& e, const GiNaC::expression& mod);
 
-// Return the operator as a string
-std::string get_oper(const GiNaC::print_context &c, const unsigned o, const GiNaC::expression& mod);
+// Return the operator as a string. The text form returns starmath syntax EQ, NE, LT etc.
+std::string get_oper(const GiNaC::print_context &c, const unsigned o, const GiNaC::expression& mod, const bool asText);
 
 // Get and set the floating point underflow inhibitation flag in CLN
 IMATH_DLLPUBLIC bool get_inhibit_floating_point_underflow();

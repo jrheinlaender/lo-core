@@ -718,16 +718,25 @@ static const std::vector<std::pair<std::regex, std::string>> mulPrintFormats = {
 
     {std::regex("([^/]+)"),                         "$0"}, // Catchall for muls without fractions. Prints operands in the default order
 
-    {std::regex("([ef]?)r/([ef])"),                       "{ frac{ alignc $0 } over { alignc $1 frac} } r"},
-    {std::regex("([nNcCxX]+)([ef]?)r/([ef])"),            "$0 { frac{ alignc $1 } over { alignc $2 frac} } r"},
-    {std::regex("([nNcCxX]+)([ef]?)r/([nNcCxX]+)([ef])"), "{ frac{ alignc $0 } over { alignc $2 frac} } { frac{ alignc $1 } over { alignc $3 frac} } r"},
+    // Print differentials and derivatives separately
+    {std::regex("([ef]?)([rRdD]+)/([ef])"),                       "{ frac{ alignc $0 } over { alignc $2 frac} } $1"},
+    {std::regex("([ef]?)([rRdD]*)/([ef])([rRdD]+)"),              "{ frac{ alignc $0 } over { alignc $2 frac} } { frac{ alignc $1 } over { alignc $3 frac} }"},
+    {std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([ef])"),            "$0 { frac{ alignc $1 } over { alignc $3 frac} } $2"},
+    {std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([ef])([rRdD]+)"),   "$0 { frac{ alignc $1 } over { alignc $3 frac} } { frac{ alignc $2 } over { alignc $4 frac} }"},
+    {std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([nNcCxX]+)([ef])"), "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} } $2"},
+    {std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([nNcCxX]+)([ef])([rRdD]+)"),
+        "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} } { frac{ alignc $2 } over { alignc $5 frac} }"},
+    {std::regex("([^rRdD]*)([rRdD]*)/([rRdD]+)"),                 "$0 { frac{ alignc $1 } over { alignc $2 frac} }"},
+    {std::regex("([^rRdD]*)([rRdD]*)/([^rRdD]*)([rRdD]+)"),       "{ frac{ alignc $0 } over { alignc $2 frac} } { frac{ alignc $1 } over { alignc $3 frac} }"},
 
+    // Ensure proper bracketing of single adds
     {std::regex("([nNcCxX]+)a/([nNcCxX]+)"),              "{ frac{ alignc $0 } over { alignc $1 frac} } a"},
     {std::regex("([nNcCxX]+)([^/nNcCxX]+)/([nNcCxX]+)"),  "{ frac{ alignc $0 } over { alignc $2 frac} } $1"},
     {std::regex("a/([nNcXxX]+)"),                         "{ frac{ alignc 1 }  over { alignc $0 frac} } a"},
     {std::regex("([^/nNcCxX]+)/([nNcCxX]+)"),             "{ frac{ alignc 1 }  over { alignc $1 frac} } $0"},
 
-    {std::regex("/(.+)"),                           "{ frac{ alignc 1 }  over { alignc $0 frac} }"}, // Catchall for everything that remains
+    // Catchall for everything that remains
+    {std::regex("/(.+)"),                           "{ frac{ alignc 1 }  over { alignc $0 frac} }"},
     {std::regex("([^/]+)/(.+)"),                    "{ frac{ alignc $0 } over { alignc $1 frac} }"}
 };
 

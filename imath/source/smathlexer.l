@@ -233,14 +233,59 @@ BEGIN(INITIAL);
             else
               yylval->destroy<std::string>(); // handle this in INITIAL start condition
           }
-<SCANUSERTEXT>=|<>|>|<|>=|<=|(?i:equiv) {
-            BEGIN(INITIAL);
+<SCANUSERTEXT>=|<>|[ ]?>|<[ \n]|>=|<= {
+            // Note: < and > must have whitespace to avoid destroying XML markup
+            auto str = std::string(yytext);
+
             if (!yylval->as<std::string>().empty()) {
-              yylloc->columns(-yyleng);
-              yyless(0);
-              return (token::STRING);
+              // There is preceding text
+              if (str[0] == '>') {
+                // NOK, > operator might be closing bracket of a xml tag
+                yylval->as<std::string>() += std::string(yytext);
+              } else {
+                // OK, > operator is preceded by space, or it is another operator
+                BEGIN(INITIAL);
+                yylloc->columns(-yyleng);
+                yyless(0);
+                return (token::STRING);
+              }
             } else {
-              yylval->as<std::string>() = std::string(yytext);
+              BEGIN(INITIAL);
+              if (str == " >")
+                str = ">";
+              else if (str == "< " || str == "<\n") {
+                str = "<";
+                yylloc->columns(-1);
+                yyless(str.size()); // Re-scan line break in INITIAL condition
+              }
+              yylval->as<std::string>() = str;
+              return token::OPERATOR;
+            }
+          }
+<SCANUSERTEXT>[ ]?((?i:approx)|(?i:equiv)|(?i:ne)|(?i:gt)|(?i:lt)|(?i:ge)|(?i:le))[ \n] {
+            // Note: Text operators are surrounded by whitespace to avoid matching them inside words
+            auto str = std::string(yytext);
+
+            if (!yylval->as<std::string>().empty()) {
+              // There is preceding text
+              if (str[0] == ' ') {
+                // OK, operator is preceded by space
+                BEGIN(INITIAL);
+                yylloc->columns(-yyleng);
+                yyless(0);
+                return (token::STRING);
+              } else {
+                // NOK, operator is really part of a word
+                yylval->as<std::string>() += std::string(yytext);
+              }
+            } else {
+              BEGIN(INITIAL);
+              if (str.back() == '\n') {
+                str = str.substr(0, str.size() - 1);
+                yylloc->columns(-1);
+                yyless(str.size()); // Re-scan line break in INITIAL condition
+              }
+              yylval->as<std::string>() = str;
               return token::OPERATOR;
             }
           }

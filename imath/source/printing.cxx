@@ -622,14 +622,14 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level) {
   if (m.cols() == 1) { // stack{} is only useable for matrices with one single column
     c.s << "(alignc STACK{";
     for (unsigned r = 0; r < m.rows(); ) {
-      m(r, 0).print(c, 1);
+      m(r, 0).print(c, 0); // Level > 0 lets adds print brackets around themselves
       if (++r != m.rows()) c.s << " # ";
     }
   } else {
     c.s << "(alignc MATRIX{";
     for (unsigned r = 0; r < m.rows(); ) {
       for (unsigned col = 0; col < m.cols(); ) {
-        m(r, col).print(c, 1);
+        m(r, col).print(c, 0); // Level > 0 lets adds print brackets around themselves
         if (++col != m.cols()) c.s << " # ";
       }
       if (++r != m.rows()) c.s << " ## ";

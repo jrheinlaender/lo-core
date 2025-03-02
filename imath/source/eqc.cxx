@@ -785,7 +785,7 @@ std::vector<std::string> eqc::getLabels() const
 
 symrec::symrec(const symtype t, const std::string& varname, const symprop p)
     : type(t)
-    , prop(p == p_default ? p_complex : p)
+    , prop(p == p_default ? p_none : p)
     , isquantity(false)
 {
     MSG_INFO(3, "Constructing symrec from " << varname << endline);
@@ -819,9 +819,20 @@ symrec::symrec(const symrec& other)
     assignments = std::list<eqrec*>(other.assignments.begin(), other.assignments.end());
 }
 
-const GiNaC::extsymbol& symrec::getsym(const symprop p) const
+const GiNaC::extsymbol& symrec::getsym(const symprop p)
 {
-    return (p == p_default) ? *sym[prop] : *sym[p];
+    if (prop == p_none)
+    {
+        // First use of variable (new variable or after CLEAREQUATIONS)
+        prop = (p == p_default ? p_complex : p);
+        return *sym[prop];
+    }
+    else if (p == p_default)
+        // No symprop specified, use symprop stored in symrec
+        return *sym[prop];
+
+    // Override stored symprop by p
+    return *sym[p];
 }
 
 void symrec::make_unknown()
@@ -835,7 +846,7 @@ bool symrec::has_value() const { return !val.is_equal(*sym[0]); }
 
 expression eqc::getsym(const std::string& varname, const symprop p)
 {
-    MSG_INFO(3, "getsym() for " << varname << endline);
+    MSG_INFO(3, "getsym() (prop=" << p << ") for " << varname << endline);
     if (varname == "%pi")
     {
         return Pi;
@@ -900,7 +911,7 @@ symprop eqc::getsymprop(const std::string& varname)
     if (v != vars.end())
         return v->second.getsymprop();
     else
-        return p_complex;
+        return p_none; // symbol does not exist
 }
 
 bool eqc::is_label(const std::string& s) const
@@ -1632,32 +1643,77 @@ bool eqc::find_values(const extsymbol& var, numeric& val, expression& unit, expr
                         MSG_INFO(1, "Unregistered equation " << label << endline);
                     } // eqc::deleq()
 
-                    void eqc::register_constant(const expression& eq)
+                    if (var.getsymtype() == t_variable)
                     {
-                        if (!is_a<extsymbol>(eq.lhs()))
-                            throw std::invalid_argument(
-                                "Warning: Left hand side for 'constant' is no symbol! Ignoring.");
-
-                        std::string varname = ex_to<symbol>(eq.lhs()).get_name();
-                        auto varr = vars.find(varname);
-                        if ((varr != vars.end()) && (varr->second.getsymtype() == t_constant))
-                            throw std::invalid_argument(
-                                "Error: Constant already exists! Ignoring.");
-
-                        if (!is_quantity(eq.rhs()))
+                        MSG_INFO(3, "Clearing variable " << varname << endline);
+                        // Note: Actually erasing variables from vars would mean that it becomes impossible to substitute into equations using them, e.g. library equations
+                        var.setsymprop(p_none);
+                        var.make_unknown();
+                        var.assignments.clear();
+                    }
+                    else if (var.getsymtype() == t_function)
+                    {
+                        if (!funcmgr->is_lib(varname))
                         {
-                            // Automatically evaluate the RHS to a quantity (if possible)
-                            extsymbol valsym = ex_to<extsymbol>(
-                                getsym(VALSYM)); // const& gives warning dangling reference
-                            check_and_register(
-                                equation(valsym, eq.rhs(), relational::equal, _expr0), VALLABEL);
-
-                            varr->second.val = find_value_of(valsym);
-                            deleq(VALLABEL);
+                            MSG_INFO(3, "Deleting function " << varname << endline);
+                            funcmgr->remove(varname);
+                            var.setsymtype(
+                                t_variable); // Keep this variable because it might have been shadowed by a function
+                            var.setsymprop(
+                                p_none); // TODO But the symprop might have been a different one ...
+                            var.make_unknown();
+                            var.assignments.clear();
                         }
                         else
                         {
-                            varr->second.val = eq.rhs();
+                            MSG_INFO(3, "Keeping function " << varname << endline);
+                            // A library function might have obtained a value through a normal equation (instead of through FUNCDEF)
+                            // Note: This may lead to problems if later the symbol properties are changed, which will also affect earlier uses of the symbol
+                            // But we assume that very seldom a user will declare a function as real-valued or positive
+                            var.make_unknown();
+                            var.assignments.clear();
+                        }
+                    }
+                    else
+                    {
+                        MSG_INFO(3, "Keeping name " << varname << endline);
+                        if (var.has_value())
+                            assignments.emplace(var.getsym(), var.val);
+                    }
+
+                    std::string varname = ex_to<symbol>(eq.lhs()).get_name();
+                    auto varr = vars.find(varname);
+                    if ((varr != vars.end()) && (varr->second.getsymtype() == t_constant))
+                        throw std::invalid_argument("Error: Constant already exists! Ignoring.");
+
+                    if (!is_quantity(eq.rhs()))
+                    {
+                        // Automatically evaluate the RHS to a quantity (if possible)
+                        extsymbol valsym = ex_to<extsymbol>(
+                            getsym(VALSYM)); // const& gives warning dangling reference
+                        check_and_register(equation(valsym, eq.rhs(), relational::equal, _expr0),
+                                           VALLABEL);
+
+                        other_equations.clear();
+                        equations.clear();
+                        expressions.clear();
+                        previous_it = equations.end();
+                        assignments.clear();
+                        recent_assgn.clear();
+                        if (persist_symbols)
+                        {
+                            for (auto& v : vars)
+                            {
+                                v.second.setsymtype(t_variable);
+                                v.second.setsymprop(p_none);
+                                v.second.make_unknown();
+                                v.second.assignments.clear();
+                                MSG_INFO(3, "Persisting symbol " << v.first << endline);
+                            }
+                        }
+                        else
+                        {
+                            vars.clear();
                         }
 
                         varr->second.aval = varr->second.val;

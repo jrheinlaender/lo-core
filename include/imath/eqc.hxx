@@ -51,7 +51,8 @@ enum symprop : std::size_t {
   p_matrix = 2,   // A matrix/tensor (only used by getsymtype, for iMath)
   p_real = 3,     // A real-valued variable (that is, not complex)
   p_pos = 4,      // A positive-valued variable (that is, not complex and greater than zero)
-  p_default = 5
+  p_default = 5,  // Used as argument to getsym() to return the variable with the property as stored in field eqrec::prop
+  p_none = 6      // New symbol or after clear() in the compiler to show that the variable has not been used since last CLEAREQUATIONS
 };
 
 /// Storage for equations and the result of the last substitution
@@ -131,7 +132,7 @@ public:
   void setsymprop(const symprop p) { prop = p; }
 
   /// Return the symbol. Specifying a property allows overriding the property stored in the symrec
-  const GiNaC::extsymbol& getsym(const symprop p = p_default) const;
+  const GiNaC::extsymbol& getsym(const symprop p = p_default);
 
   /// Return the symbol type
   inline const symtype& getsymtype() const { return type; }

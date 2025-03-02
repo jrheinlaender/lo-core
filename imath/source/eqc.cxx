@@ -626,7 +626,7 @@ bool is_internal(const std::string& varname) {
       return result;
   }
 
-  symrec::symrec(const symtype t, const std::string& varname, const symprop p) : type(t), prop(p == p_default ? p_complex : p), isquantity(false) {
+  symrec::symrec(const symtype t, const std::string& varname, const symprop p) : type(t), prop(p == p_default ? p_none : p), isquantity(false) {
     MSG_INFO(3, "Constructing symrec from " << varname << endline);
     for (auto& s : sym) {
         s = &GiNaC::dynallocate<extsymbol>(varname); // dynallocate() creates the object on the heap with operator new and returns a reference to it
@@ -655,8 +655,17 @@ bool is_internal(const std::string& varname) {
     assignments = std::list<eqrec*>(other.assignments.begin(), other.assignments.end());
   }
 
-  const GiNaC::extsymbol& symrec::getsym(const symprop p) const {
-      return (p == p_default) ? *sym[prop] : *sym[p];
+  const GiNaC::extsymbol& symrec::getsym(const symprop p) {
+    if (prop == p_none) {
+        // First use of variable (new variable or after CLEAREQUATIONS)
+        prop = (p == p_default ? p_complex : p);
+        return *sym[prop];
+    } else if (p == p_default)
+        // No symprop specified, use symprop stored in symrec
+        return *sym[prop];
+
+    // Override stored symprop by p
+    return *sym[p];
   }
 
   void symrec::make_unknown() {
@@ -670,7 +679,7 @@ bool is_internal(const std::string& varname) {
   }
 
   expression eqc::getsym (const std::string& varname, const symprop p) {
-    MSG_INFO(3,  "getsym() for " << varname << endline);
+    MSG_INFO(3,  "getsym() (prop=" << p << ") for " << varname << endline);
     if (varname == "%pi") {
       return Pi;
     } else if (varname == "%e") {
@@ -717,7 +726,7 @@ bool is_internal(const std::string& varname) {
     if (v != vars.end())
       return v->second.getsymprop();
     else
-      return p_complex;
+      return p_none; // symbol does not exist
   }
 
   bool eqc::is_label(const std::string &s) const {
@@ -1259,7 +1268,7 @@ bool is_internal(const std::string& varname) {
       if (var.getsymtype() == t_variable) {
         MSG_INFO(3, "Clearing variable " << varname << endline);
         // Note: Actually erasing variables from vars would mean that it becomes impossible to substitute into equations using them, e.g. library equations
-        var.setsymprop(p_complex);
+        var.setsymprop(p_none);
         var.make_unknown();
         var.assignments.clear();
       } else if (var.getsymtype() == t_function) {
@@ -1267,7 +1276,7 @@ bool is_internal(const std::string& varname) {
           MSG_INFO(3, "Deleting function " << varname << endline);
           funcmgr->remove(varname);
           var.setsymtype(t_variable); // Keep this variable because it might have been shadowed by a function
-          var.setsymprop(p_complex); // TODO But the symprop might have been a different one ...
+          var.setsymprop(p_none); // TODO But the symprop might have been a different one ...
           var.make_unknown();
           var.assignments.clear();
         } else {
@@ -1304,7 +1313,7 @@ bool is_internal(const std::string& varname) {
     if (persist_symbols) {
       for (auto& v : vars) {
         v.second.setsymtype(t_variable);
-        v.second.setsymprop(p_complex);
+        v.second.setsymprop(p_none);
         v.second.make_unknown();
         v.second.assignments.clear();
         MSG_INFO(3,  "Persisting symbol " << v.first << endline);

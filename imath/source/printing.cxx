@@ -764,7 +764,7 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level)
         c.s << "(alignc STACK{";
         for (unsigned r = 0; r < m.rows();)
         {
-            m(r, 0).print(c, 1);
+            m(r, 0).print(c, 0); // Level > 0 lets adds print brackets around themselves
             if (++r != m.rows())
                 c.s << " # ";
         }
@@ -776,733 +776,743 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level)
         {
             for (unsigned col = 0; col < m.cols();)
             {
-                m(r, col).print(c, 1);
+                m(r, col).print(c, 0); // Level > 0 lets adds print brackets around themselves
                 if (++col != m.cols())
                     c.s << " # ";
             }
             if (++r != m.rows())
                 c.s << " ## ";
         }
+        c.s << "})";
     }
-    c.s << "})";
-}
 
-namespace
-{
-void printSortedMul(const ex& m, imathprint& c, unsigned level)
-{
-    if (is_a<mul>(m))
+    namespace
     {
-        std::vector<ex> sorted = order_ex(m);
-        for (auto i = sorted.begin(); i != sorted.end();)
+    void printSortedMul(const ex& m, imathprint& c, unsigned level)
+    {
+        if (is_a<mul>(m))
         {
-            i->print(c, 1); // Multiple adds must always be bracketed. Other types ignore the level
-            ++i;
-            if (i != sorted.end())
-                c.s << " ";
-        }
-    }
-    else
-    {
-        m.print(c, level);
-    }
-}
-
-bool printMulItem(const std::string& item, const operands& ops, imathprint& c, unsigned level,
-                  bool& turn_around)
-{
-    bool handled = true;
-
-    if (item == "n")
-    {
-        printSortedMul(ops.get_coefficient(), c, level);
-    }
-    else if (item == "c")
-    {
-        printSortedMul(ops.get_constants(), c, level);
-    }
-    else if (item == "x")
-    {
-        printSortedMul(ops.get_symbols(), c, level);
-    }
-    else if (item == "u")
-    {
-        printSortedMul(ops.get_units(), c, level);
-    }
-    else if (item == "e")
-    {
-        // TODO turn-around would be possible for adds with integer exponents
-        printSortedMul(ops.get_powers(), c, level);
-    }
-    else if (item == "f")
-    {
-        // TODO turn-around would be possible for some functions
-        printSortedMul(ops.get_functions(), c, level);
-    }
-    else if (item == "i")
-    {
-        c.set_add_turn_around(turn_around);
-        printSortedMul(ops.get_integrals(), c, level);
-        turn_around = c.add_turn_around();
-        c.set_add_turn_around(false);
-    }
-    else if (item == "d")
-    {
-        printSortedMul(ops.get_differentials(), c, level);
-    }
-    else if (item == "r")
-    {
-        exvector deriv = orderDerivatives(ops.get_derivatives());
-
-        for (const auto& d : deriv)
-        {
-            d.print(c, 1);
-            c.s << " ";
-        }
-    }
-    else if (item == "a")
-    {
-        // Note: imathprint_add handles the turn_around but prevents propagation to higher levels
-        c.set_add_turn_around(turn_around);
-        printSortedMul(ops.get_adds(), c, level);
-        turn_around = c.add_turn_around();
-        c.set_add_turn_around(false);
-    }
-    else if (item == "p")
-    {
-        c.s << " MUL? "; // This shouldn't happen
-    }
-    else if (item == "m")
-    {
-        printSortedMul(ops.get_matrices(), c, level);
-    }
-    else if (item == "o")
-    {
-        printSortedMul(ops.get_others(), c, level);
-    }
-    else
-        handled = false;
-
-    return handled;
-}
-
-// Syntax notes:
-// The default operand order, as returned by operands::pattern(), is nucxeapfirdmo
-// Any 'a' appearing on the right-hand side will be bracketed automatically, put it inside a submatch to avoid that
-// Empty submatches will print the number 1
-// TODO treat user-defined functions separately?
-static const std::vector<std::pair<std::regex, std::string>> mulPrintFormats = {
-    // Units by themselves always require a numeric
-    { std::regex("(u|U)"), "1 $0" },
-
-    // Print units by themselves, in front of everything
-    { std::regex("n([uU]?)/[uU]"), "n { frac{ alignc $0 } over { alignc u frac} }" },
-    { std::regex("n([uU]?)([^/]+)/[uU]"), "n { frac{ alignc $0 } over { alignc u frac} } $1" },
-    { std::regex("n([uU]?)([^/]*)/[uU]([^/]+)"),
-      "n { frac{ alignc $0 } over { alignc u frac} } { frac{ alignc $1 } over { alignc $2 } }" },
-
-    { std::regex("([^/]+)"),
-      "$0" }, // Catchall for muls without fractions. Prints operands in the default order
-
-    // Print differentials and derivatives separately
-    { std::regex("([ef]?)([rRdD]+)/([ef])"), "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
-    { std::regex("([ef]?)([rRdD]*)/([ef])([rRdD]+)"),
-      "{ frac{ alignc $0 } over { alignc $2 frac} } { frac{ alignc $1 } over { alignc $3 frac} }" },
-    { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([ef])"),
-      "$0 { frac{ alignc $1 } over { alignc $3 frac} } $2" },
-    { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([ef])([rRdD]+)"), "$0 { frac{ alignc $1 } over { "
-                                                                 "alignc $3 frac} } { frac{ alignc "
-                                                                 "$2 } over { alignc $4 frac} }" },
-    { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([nNcCxX]+)([ef])"),
-      "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} } "
-      "$2" },
-    { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([nNcCxX]+)([ef])([rRdD]+)"),
-      "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} } { "
-      "frac{ alignc $2 } over { alignc $5 frac} }" },
-    { std::regex("([^rRdD]*)([rRdD]*)/([rRdD]+)"),
-      "$0 { frac{ alignc $1 } over { alignc $2 frac} }" },
-    { std::regex("([^rRdD]*)([rRdD]*)/([^rRdD]*)([rRdD]+)"),
-      "{ frac{ alignc $0 } over { alignc $2 frac} } { frac{ alignc $1 } over { alignc $3 frac} }" },
-
-    // Ensure proper bracketing of single adds
-    { std::regex("([nNcCxX]+)a/([nNcCxX]+)"), "{ frac{ alignc $0 } over { alignc $1 frac} } a" },
-    { std::regex("([nNcCxX]+)([^/nNcCxX]+)/([nNcCxX]+)"),
-      "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
-    { std::regex("a/([nNcXxX]+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} } a" },
-    { std::regex("([^/nNcCxX]+)/([nNcCxX]+)"), "{ frac{ alignc 1 }  over { alignc $1 frac} } $0" },
-
-    // Catchall for everything that remains
-    { std::regex("/(.+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} }" },
-    { std::regex("([^/]+)/(.+)"), "{ frac{ alignc $0 } over { alignc $1 frac} }" }
-};
-}
-
-void imathprint_mul(const mul& m, const imathprint& c, unsigned level)
-{
-    MSG_INFO(1, "imathprint_mul() for " << m << endline);
-    // Note: The level parameter is ignored and used for other purposes
-
-    operands numer(GINAC_MUL), denom(GINAC_MUL), tempn(GINAC_MUL), tempd(GINAC_MUL),
-        temp(GINAC_MUL);
-    operands::split_ex(m, numer, denom);
-
-    // Print expression according to pattern
-    std::string pattern = numer.pattern();
-    if (!denom.is_trivial())
-        pattern += "/" + denom.pattern();
-    MSG_INFO(1, "Multiplicative pattern '" << pattern << "'" << endline);
-
-    // This avoids having duplicate mulPrintFormats entries for everything, differing just by the minus sign
-    bool negative = false;
-    if (pattern[0] == '-')
-    {
-        negative = true;
-        pattern.erase(0, 1);
-        numer.include(_ex_1);
-    }
-
-    for (const auto & [ pat, format ] : mulPrintFormats)
-    {
-        std::smatch subMatches;
-        if (!std::regex_match(pattern, subMatches, pat))
-            continue;
-
-        //c.s << " \"H: |" << pattern << "|\" " << std::endl;
-
-        // Extract pattern into a vector (required for lookahead functionality)
-        std::vector<std::string> itemVector;
-        std::istringstream formatstream(format);
-        std::string item;
-        while (std::getline(formatstream, item, ' '))
-            itemVector.emplace_back(item);
-
-        // GiNaC likes to pull out a minus sign from adds and put it in the coefficient
-        // Print to intermediate stream, so that leading minus can be removed after "turning around" an add, if possible
-        std::stringstream resultstream;
-        imathprint result(resultstream, c);
-
-        bool is_numer = true;
-
-        for (size_t i = 0; i < itemVector.size(); ++i)
-        {
-            item = itemVector[i];
-
-            if (item == "frac{")
+            std::vector<ex> sorted = order_ex(m);
+            for (auto i = sorted.begin(); i != sorted.end();)
             {
-                result.enter_fraction();
-                result.s << "{";
-                is_numer = true;
-            }
-            else if (item == "over")
-            {
-                result.s << " over ";
-                is_numer = false;
-            }
-            else if (item == "frac}")
-            {
-                result.s << "}";
-                result.exit_fraction();
-                is_numer = true;
-            }
-            else if (item[0] == '$')
-            {
-                size_t subMatchIdx = std::stoi(item.substr(1));
-                if (subMatches.size() > 1)
-                    ++subMatchIdx; // Index 0 is the whole pattern
-                assert(subMatchIdx < subMatches.size());
-
-                const std::string& subMatch = subMatches[subMatchIdx++].str();
-                MSG_INFO(1, "Printing submatch '" << subMatch << "'" << endline);
-                if (subMatch.empty())
-                    result.s << "1"; // Empty matches by definition print 1
-
-                for (size_t m = 0; m < subMatch.size(); ++m)
-                {
-                    if (subMatch.size() != 1 && subMatch[m] == 'a')
-                        printMulItem(
-                            "a", is_numer ? numer : denom, result, 1,
-                            negative); // A single add with preceding or following other operands must be bracketed
-                    else
-                        printMulItem(std::string(1, static_cast<char>(std::tolower(subMatch[m]))),
-                                     is_numer ? numer : denom, result, 0, negative);
-                    result.s << " ";
-                }
-            }
-            else
-            {
-                if (!printMulItem(item, is_numer ? numer : denom, result, item == "a" ? 1 : 0,
-                                  negative))
-                    result.s << item; // Everything else
-            }
-
-            result.s << " ";
-        }
-
-        if (negative)
-            c.s << "-"; // "turn around" was not successful
-        c.s << resultstream.str();
-        return;
-    }
-
-    c.s << " \"NH: |" << pattern << "|\" " << std::endl;
-}
-
-void imathprint_ncmul(const ncmul& m, const imathprint& c, unsigned level)
-{
-    MSG_INFO(2, "Printing ncmul " << m << endline);
-    expression n = _expr1;
-    expression d = _expr1;
-
-    // Collect consecutive numerators and denominators and put them into a fraction
-    for (const auto& f : m)
-    {
-        if (is_negpower(f))
-        {
-            d = d / expression(f);
-        }
-        else
-        {
-            if (!d.is_equal(_ex1))
-            {
-                // Print the fraction that was accumulated
-                print_ncmul_fraction(n, d, c, level);
-                n = f;
-                d = _expr1;
-            }
-            else
-            {
-                n = n * expression(f);
-            }
-        }
-    }
-
-    if (!d.is_equal(_ex1))
-    {
-        // Print the last fraction that was accumulated
-        print_ncmul_fraction(n, d, c, level);
-    }
-    else if (!n.is_equal(_ex1))
-    {
-        if (is_a<ncmul>(n))
-        {
-            for (size_t i = 0; i < n.nops(); ++i)
-            {
-                n.op(i).print(c, level + 1);
-                if (i < n.nops() - 1)
+                i->print(c,
+                         1); // Multiple adds must always be bracketed. Other types ignore the level
+                ++i;
+                if (i != sorted.end())
                     c.s << " ";
             }
         }
         else
         {
-            n.print(c, level + 1);
+            m.print(c, level);
         }
     }
-}
 
-std::string roundNumber(const std::string& number, const int pos, bool& overflow)
-{
-    MSG_INFO(4, "Rounding " << number << " to " << pos << endline);
-    if (pos >= (int)number.size())
-        return number;
-    if (pos <= 0)
-        return "";
-
-    numeric rnumber(number.substr(0, pos).c_str());
-    if ((number.at(pos) - '0') >= 5)
-        rnumber++;
-    std::ostringstream str;
-    str << rnumber;
-    std::string result = str.str();
-
-    if ((int)result.size() > pos)
+    bool printMulItem(const std::string& item, const operands& ops, imathprint& c, unsigned level,
+                      bool& turn_around)
     {
-        // Rounding added a digit, e.g. 9995 rounded at position 3 results in 1000
-        overflow = true;
-        result.erase(result.size() - 1);
-    }
+        bool handled = true;
 
-    return result;
-}
+        if (item == "n")
+        {
+            printSortedMul(ops.get_coefficient(), c, level);
+        }
+        else if (item == "c")
+        {
+            printSortedMul(ops.get_constants(), c, level);
+        }
+        else if (item == "x")
+        {
+            printSortedMul(ops.get_symbols(), c, level);
+        }
+        else if (item == "u")
+        {
+            printSortedMul(ops.get_units(), c, level);
+        }
+        else if (item == "e")
+        {
+            // TODO turn-around would be possible for adds with integer exponents
+            printSortedMul(ops.get_powers(), c, level);
+        }
+        else if (item == "f")
+        {
+            // TODO turn-around would be possible for some functions
+            printSortedMul(ops.get_functions(), c, level);
+        }
+        else if (item == "i")
+        {
+            c.set_add_turn_around(turn_around);
+            printSortedMul(ops.get_integrals(), c, level);
+            turn_around = c.add_turn_around();
+            c.set_add_turn_around(false);
+        }
+        else if (item == "d")
+        {
+            printSortedMul(ops.get_differentials(), c, level);
+        }
+        else if (item == "r")
+        {
+            exvector deriv = orderDerivatives(ops.get_derivatives());
 
-void imathprint_real(const numeric& num, const imathprint& c)
-{
-    unsigned precision = (*c.poptions)[o_precision].value.uinteger;
-    bool fixeddigits = (*c.poptions)[o_fixeddigits].value.boolean;
-
-    if (num.info(info_flags::rational))
-    { // integer or rational
-        if (num.info(info_flags::integer))
-        {
-            c.s << num;
-            if (fixeddigits == false && precision > 0)
-                c.s << "." << std::string(precision, '0'); // Add trailing zeros
-        }
-        else
-        { // print rational as a fraction
-            if (num < 0)
-                c.s << "-";
-            c.enter_fraction();
-            c.s << "{{alignc ";
-            imathprint_real(abs(num.numer()), c);
-            c.s << "} over {alignc ";
-            imathprint_real(num.denom(), c);
-            c.s << "}}";
-            c.exit_fraction();
-        }
-    }
-    else
-    { // print float
-        std::ostringstream numstream;
-        numstream << num; // Use standard printing routine of numeric
-        std::string number = numstream.str();
-        MSG_INFO(4, "Original number=" << number << endline);
-
-        // Normalize the number to the form 0.<number> * 10^<exponent>
-        bool negative = (number[0] == '-');
-        if (negative)
-            number.erase(0, 1);
-        if (number[0] == '0')
-            number.erase(0, 1); // Remove leading zero
-        std::size_t epos = number.find(
-            "E"); // numeric.cpp: print_real_number() forces CLN exponent marker to 'E'
-        int exponent;
-        if (epos == std::string::npos)
-        {
-            exponent = 0;
-        }
-        else
-        {
-            exponent = std::stoi(number.substr(epos + 1));
-            number.erase(epos);
-        }
-        std::size_t ppos = number.find(".");
-        if (ppos != std::string::npos)
-        {
-            number.erase(ppos, 1);
-            exponent += (int)ppos;
-        }
-        std::size_t bpos = number.find_first_not_of('0');
-        if (bpos == std::string::npos)
-        {
-            c.s << "0";
-            return; /* Should never happen */
-        }
-        if (bpos > 0)
-        {
-            number.erase(0, bpos);
-            exponent -= (int)bpos;
-        }
-        MSG_INFO(4, "Precision " << (*c.poptions)[o_precision].value.uinteger);
-        MSG_INFO(4,
-                 ", Fixed digits " << ((*c.poptions)[o_fixeddigits].value.boolean ? "yes" : "no"));
-        MSG_INFO(4, ", Forced exponent " << (*c.poptions)[o_exponent].value.integer);
-        MSG_INFO(4, ", High limit " << (*c.poptions)[o_highsclimit].value.integer);
-        MSG_INFO(4, ", Low limit " << (*c.poptions)[o_lowsclimit].value.integer << endline);
-
-        if (fixeddigits && (precision == 0))
-            throw std::runtime_error("It is not possible to print a number with zero significant "
-                                     "digits (precision=0;fixedpoint=false)");
-
-        // Place the decimal point. Note that move=0 is equivalent to an exponent of 1
-        int move
-            = 0; // Number of places to move the decimal point: + to the right (decreasing the exponent), - to the left (increasing the exponent)
-        int fixedexponent = (*c.poptions)[o_exponent].value.integer;
-        bool scientific = ((exponent > (*c.poptions)[o_highsclimit].value.integer)
-                           || (exponent <= -(*c.poptions)[o_lowsclimit].value.integer));
-        if (fixedexponent != 0)
-        {
-            move = exponent - fixedexponent;
-        }
-        else if (scientific)
-        {
-            move = 1; // Scientific notation d.ddddd * 10^ddd
-        }
-        else
-        {
-            move = exponent; // Eliminate the need for an exponent;
-        }
-        MSG_INFO(4, "Moving point by " << move << endline);
-
-        // Rounding
-        bool overflow = false;
-        if (fixeddigits)
-            number = roundNumber(number, precision, overflow);
-        else
-            number = roundNumber(number, precision + move, overflow);
-        if (overflow)
-        {
-            if (!scientific)
-                move++;
-            exponent++;
-        }
-        if (fixeddigits)
-            number.erase(number.find_last_not_of('0') + 1); // Remove trailing zeros
-        MSG_INFO(4, "Rounded number='" << number << "', move=" << move << ", exponent=" << exponent
-                                       << endline);
-
-        if (move < 0)
-        {
-            // Note that in fixed point notation this might result in things like 0.0000
-            std::string zeros = std::string(-move, '0');
-
-            if (!fixeddigits)
+            for (const auto& d : deriv)
             {
-                if ((number.size() == 0) && ((int)precision < -move))
-                    zeros = std::string(precision, '0'); // Avoid too many trailing zeros
-
-                // Borderline case...
-                if (precision > number.size() - move)
-                    number += std::string(precision - (number.size() - move),
-                                          '0'); // Add some trailing zeros
+                d.print(c, 1);
+                c.s << " ";
             }
-
-            number = "0" + imathprint::decimalpoint + zeros + number;
         }
-        else if (move > (int)number.size())
+        else if (item == "a")
         {
-            number = number + std::string(move - number.size(), '0');
-            if (!fixeddigits)
-                number = number + imathprint::decimalpoint
-                         + std::string(precision, '0'); // Add trailing zeros
+            // Note: imathprint_add handles the turn_around but prevents propagation to higher levels
+            c.set_add_turn_around(turn_around);
+            printSortedMul(ops.get_adds(), c, level);
+            turn_around = c.add_turn_around();
+            c.set_add_turn_around(false);
+        }
+        else if (item == "p")
+        {
+            c.s << " MUL? "; // This shouldn't happen
+        }
+        else if (item == "m")
+        {
+            printSortedMul(ops.get_matrices(), c, level);
+        }
+        else if (item == "o")
+        {
+            printSortedMul(ops.get_others(), c, level);
         }
         else
-        {
-            if (!fixeddigits && (number.size() <= precision + move))
-                number = number + std::string(precision + move - number.size(), '0');
+            handled = false;
 
-            if (move == 0)
-                number = "0" + imathprint::decimalpoint + number;
-            else if (move != (int)number.size()) // Avoid trailing decimal point
-                number.insert(move, imathprint::decimalpoint);
-        }
-        MSG_INFO(4, "Number after moving: " << number << endline);
-
-        int remainingexponent = exponent - move;
-        if (remainingexponent != 0)
-            number = number + " cdot 10^" + std::to_string(remainingexponent);
-        if (negative)
-            number = "-" + number;
-        MSG_INFO(4, "Final result: " << number << endline);
-
-        c.s << number;
+        return handled;
     }
-} // imathprint_real()
 
-void imathprint_numeric(const numeric& n, const imathprint& c, unsigned level)
-{
-    MSG_INFO(4, "imathprint_numeric()" << endline);
-    (void)level;
-    numeric r = ex_to<numeric>(n.real_part());
-    numeric i = ex_to<numeric>(n.imag_part());
+    // Syntax notes:
+    // The default operand order, as returned by operands::pattern(), is nucxeapfirdmo
+    // Any 'a' appearing on the right-hand side will be bracketed automatically, put it inside a submatch to avoid that
+    // Empty submatches will print the number 1
+    // TODO treat user-defined functions separately?
+    static const std::vector<std::pair<std::regex, std::string>> mulPrintFormats = {
+        // Units by themselves always require a numeric
+        { std::regex("(u|U)"), "1 $0" },
 
-    if (is_equal_int(i, 0, Digits))
-    { // case 1, real:  x  or  -x
-        imathprint_real(r, c);
+        // Print units by themselves, in front of everything
+        { std::regex("n([uU]?)/[uU]"), "n { frac{ alignc $0 } over { alignc u frac} }" },
+        { std::regex("n([uU]?)([^/]+)/[uU]"), "n { frac{ alignc $0 } over { alignc u frac} } $1" },
+        { std::regex("n([uU]?)([^/]*)/[uU]([^/]+)"), "n { frac{ alignc $0 } over { alignc u frac} "
+                                                     "} { frac{ alignc $1 } over { alignc $2 } }" },
+
+        { std::regex("([^/]+)"),
+          "$0" }, // Catchall for muls without fractions. Prints operands in the default order
+
+        // Print differentials and derivatives separately
+        { std::regex("([ef]?)([rRdD]+)/([ef])"),
+          "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
+        { std::regex("([ef]?)([rRdD]*)/([ef])([rRdD]+)"), "{ frac{ alignc $0 } over { alignc $2 "
+                                                          "frac} } { frac{ alignc $1 } over { "
+                                                          "alignc $3 frac} }" },
+        { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([ef])"),
+          "$0 { frac{ alignc $1 } over { alignc $3 frac} } $2" },
+        { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([ef])([rRdD]+)"),
+          "$0 { frac{ alignc $1 } over { "
+          "alignc $3 frac} } { frac{ alignc "
+          "$2 } over { alignc $4 frac} }" },
+        { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([nNcCxX]+)([ef])"),
+          "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} "
+          "} "
+          "$2" },
+        { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([nNcCxX]+)([ef])([rRdD]+)"),
+          "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} "
+          "} { "
+          "frac{ alignc $2 } over { alignc $5 frac} }" },
+        { std::regex("([^rRdD]*)([rRdD]*)/([rRdD]+)"),
+          "$0 { frac{ alignc $1 } over { alignc $2 frac} }" },
+        { std::regex("([^rRdD]*)([rRdD]*)/([^rRdD]*)([rRdD]+)"), "{ frac{ alignc $0 } over { "
+                                                                 "alignc $2 frac} } { frac{ alignc "
+                                                                 "$1 } over { alignc $3 frac} }" },
+
+        // Ensure proper bracketing of single adds
+        { std::regex("([nNcCxX]+)a/([nNcCxX]+)"),
+          "{ frac{ alignc $0 } over { alignc $1 frac} } a" },
+        { std::regex("([nNcCxX]+)([^/nNcCxX]+)/([nNcCxX]+)"),
+          "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
+        { std::regex("a/([nNcXxX]+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} } a" },
+        { std::regex("([^/nNcCxX]+)/([nNcCxX]+)"),
+          "{ frac{ alignc 1 }  over { alignc $1 frac} } $0" },
+
+        // Catchall for everything that remains
+        { std::regex("/(.+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} }" },
+        { std::regex("([^/]+)/(.+)"), "{ frac{ alignc $0 } over { alignc $1 frac} }" }
+    };
     }
-    else
+
+    void imathprint_mul(const mul& m, const imathprint& c, unsigned level)
     {
-        if (is_equal_int(r, 0, Digits))
-        { // case 2, imaginary:  y*I  or  -y*I
-            if (is_equal_int(i, 1, Digits))
-                c.s << " i ";
-            else
+        MSG_INFO(1, "imathprint_mul() for " << m << endline);
+        // Note: The level parameter is ignored and used for other purposes
+
+        operands numer(GINAC_MUL), denom(GINAC_MUL), tempn(GINAC_MUL), tempd(GINAC_MUL),
+            temp(GINAC_MUL);
+        operands::split_ex(m, numer, denom);
+
+        // Print expression according to pattern
+        std::string pattern = numer.pattern();
+        if (!denom.is_trivial())
+            pattern += "/" + denom.pattern();
+        MSG_INFO(1, "Multiplicative pattern '" << pattern << "'" << endline);
+
+        // This avoids having duplicate mulPrintFormats entries for everything, differing just by the minus sign
+        bool negative = false;
+        if (pattern[0] == '-')
+        {
+            negative = true;
+            pattern.erase(0, 1);
+            numer.include(_ex_1);
+        }
+
+        for (const auto & [ pat, format ] : mulPrintFormats)
+        {
+            std::smatch subMatches;
+            if (!std::regex_match(pattern, subMatches, pat))
+                continue;
+
+            //c.s << " \"H: |" << pattern << "|\" " << std::endl;
+
+            // Extract pattern into a vector (required for lookahead functionality)
+            std::vector<std::string> itemVector;
+            std::istringstream formatstream(format);
+            std::string item;
+            while (std::getline(formatstream, item, ' '))
+                itemVector.emplace_back(item);
+
+            // GiNaC likes to pull out a minus sign from adds and put it in the coefficient
+            // Print to intermediate stream, so that leading minus can be removed after "turning around" an add, if possible
+            std::stringstream resultstream;
+            imathprint result(resultstream, c);
+
+            bool is_numer = true;
+
+            for (size_t i = 0; i < itemVector.size(); ++i)
             {
-                if (is_equal_int(i, -1, Digits))
-                    c.s << " - i ";
+                item = itemVector[i];
+
+                if (item == "frac{")
+                {
+                    result.enter_fraction();
+                    result.s << "{";
+                    is_numer = true;
+                }
+                else if (item == "over")
+                {
+                    result.s << " over ";
+                    is_numer = false;
+                }
+                else if (item == "frac}")
+                {
+                    result.s << "}";
+                    result.exit_fraction();
+                    is_numer = true;
+                }
+                else if (item[0] == '$')
+                {
+                    size_t subMatchIdx = std::stoi(item.substr(1));
+                    if (subMatches.size() > 1)
+                        ++subMatchIdx; // Index 0 is the whole pattern
+                    assert(subMatchIdx < subMatches.size());
+
+                    const std::string& subMatch = subMatches[subMatchIdx++].str();
+                    MSG_INFO(1, "Printing submatch '" << subMatch << "'" << endline);
+                    if (subMatch.empty())
+                        result.s << "1"; // Empty matches by definition print 1
+
+                    for (size_t m = 0; m < subMatch.size(); ++m)
+                    {
+                        if (subMatch.size() != 1 && subMatch[m] == 'a')
+                            printMulItem(
+                                "a", is_numer ? numer : denom, result, 1,
+                                negative); // A single add with preceding or following other operands must be bracketed
+                        else
+                            printMulItem(
+                                std::string(1, static_cast<char>(std::tolower(subMatch[m]))),
+                                is_numer ? numer : denom, result, 0, negative);
+                        result.s << " ";
+                    }
+                }
                 else
                 {
-                    imathprint_real(i, c);
-                    c.s << " i ";
+                    if (!printMulItem(item, is_numer ? numer : denom, result, item == "a" ? 1 : 0,
+                                      negative))
+                        result.s << item; // Everything else
+                }
+
+                result.s << " ";
+            }
+
+            if (negative)
+                c.s << "-"; // "turn around" was not successful
+            c.s << resultstream.str();
+            return;
+        }
+
+        c.s << " \"NH: |" << pattern << "|\" " << std::endl;
+    }
+
+    void imathprint_ncmul(const ncmul& m, const imathprint& c, unsigned level)
+    {
+        MSG_INFO(2, "Printing ncmul " << m << endline);
+        expression n = _expr1;
+        expression d = _expr1;
+
+        // Collect consecutive numerators and denominators and put them into a fraction
+        for (const auto& f : m)
+        {
+            if (is_negpower(f))
+            {
+                d = d / expression(f);
+            }
+            else
+            {
+                if (!d.is_equal(_ex1))
+                {
+                    // Print the fraction that was accumulated
+                    print_ncmul_fraction(n, d, c, level);
+                    n = f;
+                    d = _expr1;
+                }
+                else
+                {
+                    n = n * expression(f);
                 }
             }
         }
+
+        if (!d.is_equal(_ex1))
+        {
+            // Print the last fraction that was accumulated
+            print_ncmul_fraction(n, d, c, level);
+        }
+        else if (!n.is_equal(_ex1))
+        {
+            if (is_a<ncmul>(n))
+            {
+                for (size_t i = 0; i < n.nops(); ++i)
+                {
+                    n.op(i).print(c, level + 1);
+                    if (i < n.nops() - 1)
+                        c.s << " ";
+                }
+            }
+            else
+            {
+                n.print(c, level + 1);
+            }
+        }
+    }
+
+    std::string roundNumber(const std::string& number, const int pos, bool& overflow)
+    {
+        MSG_INFO(4, "Rounding " << number << " to " << pos << endline);
+        if (pos >= (int)number.size())
+            return number;
+        if (pos <= 0)
+            return "";
+
+        numeric rnumber(number.substr(0, pos).c_str());
+        if ((number.at(pos) - '0') >= 5)
+            rnumber++;
+        std::ostringstream str;
+        str << rnumber;
+        std::string result = str.str();
+
+        if ((int)result.size() > pos)
+        {
+            // Rounding added a digit, e.g. 9995 rounded at position 3 results in 1000
+            overflow = true;
+            result.erase(result.size() - 1);
+        }
+
+        return result;
+    }
+
+    void imathprint_real(const numeric& num, const imathprint& c)
+    {
+        unsigned precision = (*c.poptions)[o_precision].value.uinteger;
+        bool fixeddigits = (*c.poptions)[o_fixeddigits].value.boolean;
+
+        if (num.info(info_flags::rational))
+        { // integer or rational
+            if (num.info(info_flags::integer))
+            {
+                c.s << num;
+                if (fixeddigits == false && precision > 0)
+                    c.s << "." << std::string(precision, '0'); // Add trailing zeros
+            }
+            else
+            { // print rational as a fraction
+                if (num < 0)
+                    c.s << "-";
+                c.enter_fraction();
+                c.s << "{{alignc ";
+                imathprint_real(abs(num.numer()), c);
+                c.s << "} over {alignc ";
+                imathprint_real(num.denom(), c);
+                c.s << "}}";
+                c.exit_fraction();
+            }
+        }
         else
-        { // case 3, complex:  x+y*I  or  x-y*I  or  -x+y*I  or  -x-y*I
+        { // print float
+            std::ostringstream numstream;
+            numstream << num; // Use standard printing routine of numeric
+            std::string number = numstream.str();
+            MSG_INFO(4, "Original number=" << number << endline);
+
+            // Normalize the number to the form 0.<number> * 10^<exponent>
+            bool negative = (number[0] == '-');
+            if (negative)
+                number.erase(0, 1);
+            if (number[0] == '0')
+                number.erase(0, 1); // Remove leading zero
+            std::size_t epos = number.find(
+                "E"); // numeric.cpp: print_real_number() forces CLN exponent marker to 'E'
+            int exponent;
+            if (epos == std::string::npos)
+            {
+                exponent = 0;
+            }
+            else
+            {
+                exponent = std::stoi(number.substr(epos + 1));
+                number.erase(epos);
+            }
+            std::size_t ppos = number.find(".");
+            if (ppos != std::string::npos)
+            {
+                number.erase(ppos, 1);
+                exponent += (int)ppos;
+            }
+            std::size_t bpos = number.find_first_not_of('0');
+            if (bpos == std::string::npos)
+            {
+                c.s << "0";
+                return; /* Should never happen */
+            }
+            if (bpos > 0)
+            {
+                number.erase(0, bpos);
+                exponent -= (int)bpos;
+            }
+            MSG_INFO(4, "Precision " << (*c.poptions)[o_precision].value.uinteger);
+            MSG_INFO(4, ", Fixed digits "
+                            << ((*c.poptions)[o_fixeddigits].value.boolean ? "yes" : "no"));
+            MSG_INFO(4, ", Forced exponent " << (*c.poptions)[o_exponent].value.integer);
+            MSG_INFO(4, ", High limit " << (*c.poptions)[o_highsclimit].value.integer);
+            MSG_INFO(4, ", Low limit " << (*c.poptions)[o_lowsclimit].value.integer << endline);
+
+            if (fixeddigits && (precision == 0))
+                throw std::runtime_error(
+                    "It is not possible to print a number with zero significant "
+                    "digits (precision=0;fixedpoint=false)");
+
+            // Place the decimal point. Note that move=0 is equivalent to an exponent of 1
+            int move
+                = 0; // Number of places to move the decimal point: + to the right (decreasing the exponent), - to the left (increasing the exponent)
+            int fixedexponent = (*c.poptions)[o_exponent].value.integer;
+            bool scientific = ((exponent > (*c.poptions)[o_highsclimit].value.integer)
+                               || (exponent <= -(*c.poptions)[o_lowsclimit].value.integer));
+            if (fixedexponent != 0)
+            {
+                move = exponent - fixedexponent;
+            }
+            else if (scientific)
+            {
+                move = 1; // Scientific notation d.ddddd * 10^ddd
+            }
+            else
+            {
+                move = exponent; // Eliminate the need for an exponent;
+            }
+            MSG_INFO(4, "Moving point by " << move << endline);
+
+            // Rounding
+            bool overflow = false;
+            if (fixeddigits)
+                number = roundNumber(number, precision, overflow);
+            else
+                number = roundNumber(number, precision + move, overflow);
+            if (overflow)
+            {
+                if (!scientific)
+                    move++;
+                exponent++;
+            }
+            if (fixeddigits)
+                number.erase(number.find_last_not_of('0') + 1); // Remove trailing zeros
+            MSG_INFO(4, "Rounded number='" << number << "', move=" << move
+                                           << ", exponent=" << exponent << endline);
+
+            if (move < 0)
+            {
+                // Note that in fixed point notation this might result in things like 0.0000
+                std::string zeros = std::string(-move, '0');
+
+                if (!fixeddigits)
+                {
+                    if ((number.size() == 0) && ((int)precision < -move))
+                        zeros = std::string(precision, '0'); // Avoid too many trailing zeros
+
+                    // Borderline case...
+                    if (precision > number.size() - move)
+                        number += std::string(precision - (number.size() - move),
+                                              '0'); // Add some trailing zeros
+                }
+
+                number = "0" + imathprint::decimalpoint + zeros + number;
+            }
+            else if (move > (int)number.size())
+            {
+                number = number + std::string(move - number.size(), '0');
+                if (!fixeddigits)
+                    number = number + imathprint::decimalpoint
+                             + std::string(precision, '0'); // Add trailing zeros
+            }
+            else
+            {
+                if (!fixeddigits && (number.size() <= precision + move))
+                    number = number + std::string(precision + move - number.size(), '0');
+
+                if (move == 0)
+                    number = "0" + imathprint::decimalpoint + number;
+                else if (move != (int)number.size()) // Avoid trailing decimal point
+                    number.insert(move, imathprint::decimalpoint);
+            }
+            MSG_INFO(4, "Number after moving: " << number << endline);
+
+            int remainingexponent = exponent - move;
+            if (remainingexponent != 0)
+                number = number + " cdot 10^" + std::to_string(remainingexponent);
+            if (negative)
+                number = "-" + number;
+            MSG_INFO(4, "Final result: " << number << endline);
+
+            c.s << number;
+        }
+    } // imathprint_real()
+
+    void imathprint_numeric(const numeric& n, const imathprint& c, unsigned level)
+    {
+        MSG_INFO(4, "imathprint_numeric()" << endline);
+        (void)level;
+        numeric r = ex_to<numeric>(n.real_part());
+        numeric i = ex_to<numeric>(n.imag_part());
+
+        if (is_equal_int(i, 0, Digits))
+        { // case 1, real:  x  or  -x
             imathprint_real(r, c);
-            if (i < 0)
-            {
-                if (is_equal_int(i, -1, Digits))
-                {
-                    c.s << " - i ";
-                }
+        }
+        else
+        {
+            if (is_equal_int(r, 0, Digits))
+            { // case 2, imaginary:  y*I  or  -y*I
+                if (is_equal_int(i, 1, Digits))
+                    c.s << " i ";
                 else
                 {
-                    imathprint_real(i, c);
-                    c.s << " i ";
+                    if (is_equal_int(i, -1, Digits))
+                        c.s << " - i ";
+                    else
+                    {
+                        imathprint_real(i, c);
+                        c.s << " i ";
+                    }
                 }
             }
             else
-            {
-                if (is_equal_int(i, 1, Digits))
+            { // case 3, complex:  x+y*I  or  x-y*I  or  -x+y*I  or  -x-y*I
+                imathprint_real(r, c);
+                if (i < 0)
                 {
-                    c.s << " + i ";
+                    if (is_equal_int(i, -1, Digits))
+                    {
+                        c.s << " - i ";
+                    }
+                    else
+                    {
+                        imathprint_real(i, c);
+                        c.s << " i ";
+                    }
                 }
                 else
                 {
-                    c.s << "+";
-                    imathprint_real(i, c);
-                    c.s << " i ";
+                    if (is_equal_int(i, 1, Digits))
+                    {
+                        c.s << " + i ";
+                    }
+                    else
+                    {
+                        c.s << "+";
+                        imathprint_real(i, c);
+                        c.s << " i ";
+                    }
                 }
             }
         }
     }
-}
 
-void imathprint_power(const power& p, const imathprint& c, unsigned level)
-{
-    MSG_INFO(1, "imathprint_power() for " << ex(p) << endline);
-    // Is it correct to print x^(y^2) as x^y^2 or must we use brackets?
-    (void)level;
-    ex basis = get_basis(p);
-    ex expon = get_exp(p);
+    void imathprint_power(const power& p, const imathprint& c, unsigned level)
+    {
+        MSG_INFO(1, "imathprint_power() for " << ex(p) << endline);
+        // Is it correct to print x^(y^2) as x^y^2 or must we use brackets?
+        (void)level;
+        ex basis = get_basis(p);
+        ex expon = get_exp(p);
 
-    if (is_a<numeric>(expon) && (ex_to<numeric>(expon)).is_rational())
-    { // exponent is a rational number
-        const numeric& exponent(ex_to<numeric>(expon));
+        if (is_a<numeric>(expon) && (ex_to<numeric>(expon)).is_rational())
+        { // exponent is a rational number
+            const numeric& exponent(ex_to<numeric>(expon));
 
-        if (exponent.is_equal(*_num1_p))
-        {
-            basis.print(c);
-            return;
-        }
-        else if (exponent.is_negative())
-        { // exponent is negative
-            c.enter_fraction();
-            c.s << "{alignc 1 over {alignc ";
-            pow(basis, -exponent).print(c);
-            c.s << "}}";
-            c.exit_fraction();
-            return;
-        }
-        else if ((exponent.is_positive()) && (!exponent.is_integer()))
-        { // exponent is a positive fraction
-            if (exponent.denom().is_equal(2))
-                c.s << "sqrt{";
-            else
-            {
-                c.s << "nroot{";
-                exponent.denom().print(c);
-                c.s << "}{";
-            }
-            if (!exponent.numer().is_equal(*_num1_p))
-            {
-                if (is_a<func>(basis) && ex_to<func>(basis).is_trig())
-                {
-                    ex_to<func>(basis).print_imath(c, exponent.numer());
-                    c.s << "}";
-                }
-                else
-                {
-                    bool bracket
-                        = is_a<expairseq>(basis) || is_a<func>(basis) || is_a<power>(basis)
-                          || is_a<exderivative>(basis)
-                          || (is_a<differential>(basis)
-                              && (ex_to<differential>(basis).is_numerator()
-                                  || !ex_to<differential>(basis).get_grade().is_equal(_ex1)));
-                    if (bracket)
-                        c.s << "(";
-                    basis.print(c);
-                    if (bracket)
-                        c.s << ")";
-                    c.s << "^{";
-                    exponent.numer().print(c);
-                    c.s << "}}";
-                }
-            }
-            else
+            if (exponent.is_equal(*_num1_p))
             {
                 basis.print(c);
-                c.s << "}";
+                return;
             }
-            return;
+            else if (exponent.is_negative())
+            { // exponent is negative
+                c.enter_fraction();
+                c.s << "{alignc 1 over {alignc ";
+                pow(basis, -exponent).print(c);
+                c.s << "}}";
+                c.exit_fraction();
+                return;
+            }
+            else if ((exponent.is_positive()) && (!exponent.is_integer()))
+            { // exponent is a positive fraction
+                if (exponent.denom().is_equal(2))
+                    c.s << "sqrt{";
+                else
+                {
+                    c.s << "nroot{";
+                    exponent.denom().print(c);
+                    c.s << "}{";
+                }
+                if (!exponent.numer().is_equal(*_num1_p))
+                {
+                    if (is_a<func>(basis) && ex_to<func>(basis).is_trig())
+                    {
+                        ex_to<func>(basis).print_imath(c, exponent.numer());
+                        c.s << "}";
+                    }
+                    else
+                    {
+                        bool bracket
+                            = is_a<expairseq>(basis) || is_a<func>(basis) || is_a<power>(basis)
+                              || is_a<exderivative>(basis)
+                              || (is_a<differential>(basis)
+                                  && (ex_to<differential>(basis).is_numerator()
+                                      || !ex_to<differential>(basis).get_grade().is_equal(_ex1)));
+                        if (bracket)
+                            c.s << "(";
+                        basis.print(c);
+                        if (bracket)
+                            c.s << ")";
+                        c.s << "^{";
+                        exponent.numer().print(c);
+                        c.s << "}}";
+                    }
+                }
+                else
+                {
+                    basis.print(c);
+                    c.s << "}";
+                }
+                return;
+            }
         }
-    }
-    // exponent is a positive integer, or is not rational, or is not even a numeric
-    // Should we print things like x^(-a) as \frac(1)(x^a) ?
-    if (is_a<func>(basis) && (ex_to<func>(basis).is_trig() || ex_to<func>(basis).is_pure()))
-    {
-        ex_to<func>(basis).print_imath(c, expon);
-    }
-    else
-    {
-        bool bracket = false;
-        if (is_a<func>(basis))
-            bracket = !ex_to<func>(basis).is_nobracket();
-        else if (is_a<differential>(basis)
-                 && (ex_to<differential>(basis).is_numerator()
-                     || !ex_to<differential>(basis).get_grade().is_equal(_ex1)))
-            bracket = true;
-        else if (is_a<expairseq>(basis) || is_a<power>(basis) || is_a<exderivative>(basis)
-                 || (is_a<numeric>(basis) && basis.info(info_flags::negative)))
-            bracket = true;
+        // exponent is a positive integer, or is not rational, or is not even a numeric
+        // Should we print things like x^(-a) as \frac(1)(x^a) ?
+        if (is_a<func>(basis) && (ex_to<func>(basis).is_trig() || ex_to<func>(basis).is_pure()))
+        {
+            ex_to<func>(basis).print_imath(c, expon);
+        }
+        else
+        {
+            bool bracket = false;
+            if (is_a<func>(basis))
+                bracket = !ex_to<func>(basis).is_nobracket();
+            else if (is_a<differential>(basis)
+                     && (ex_to<differential>(basis).is_numerator()
+                         || !ex_to<differential>(basis).get_grade().is_equal(_ex1)))
+                bracket = true;
+            else if (is_a<expairseq>(basis) || is_a<power>(basis) || is_a<exderivative>(basis)
+                     || (is_a<numeric>(basis) && basis.info(info_flags::negative)))
+                bracket = true;
 
-        if (bracket)
-            c.s << "(";
-        if (is_a<func>(basis))
-            c.s << "{"; // Required for abs otherwise starmath displays the power inside the function
-        basis.print(c);
-        if (is_a<func>(basis))
+            if (bracket)
+                c.s << "(";
+            if (is_a<func>(basis))
+                c.s << "{"; // Required for abs otherwise starmath displays the power inside the function
+            basis.print(c);
+            if (is_a<func>(basis))
+                c.s << "}";
+            if (bracket)
+                c.s << ")";
+
+            c.s << "^{";
+            expon.print(c);
             c.s << "}";
-        if (bracket)
-            c.s << ")";
+        }
+    } // imathprint_power()
 
-        c.s << "^{";
-        expon.print(c);
-        c.s << "}";
+    void imathprint_relational(const relational& r, const imathprint& c, unsigned level)
+    {
+        MSG_INFO(4, "imathprint_relational()" << endline);
+        unsigned prec = r.precedence();
+        if (level >= prec)
+            c.s << '(';
+        r.lhs().print(c, level + 1);
+
+        if (r.info(info_flags::relation_equal))
+            c.s << " = "; // TODO: = or ==?
+        else if (r.info(info_flags::relation_not_equal))
+            c.s << " <> ";
+        else if (r.info(info_flags::relation_less))
+            c.s << " < ";
+        else if (r.info(info_flags::relation_less_or_equal))
+            c.s << " leslant ";
+        else if (r.info(info_flags::relation_greater))
+            c.s << " > ";
+        else if (r.info(info_flags::relation_greater_or_equal))
+            c.s << " geslant ";
+        else
+            c.s << " [unknown relational operator] ";
+
+        r.rhs().print(c, level + 1);
+        if (level >= prec)
+            c.s << ')';
     }
-} // imathprint_power()
 
-void imathprint_relational(const relational& r, const imathprint& c, unsigned level)
-{
-    MSG_INFO(4, "imathprint_relational()" << endline);
-    unsigned prec = r.precedence();
-    if (level >= prec)
-        c.s << '(';
-    r.lhs().print(c, level + 1);
+    void imathprint_symbol(const symbol& s, const imathprint& c, unsigned level)
+    {
+        MSG_INFO(4, "imathprint_symbol()" << endline);
+        (void)level;
+        std::string name = s.get_name();
+        size_t pos = name.find_last_of("::");
+        c.s << (pos == std::string::npos ? name : name.substr(pos + 1));
+    }
 
-    if (r.info(info_flags::relation_equal))
-        c.s << " = "; // TODO: = or ==?
-    else if (r.info(info_flags::relation_not_equal))
-        c.s << " <> ";
-    else if (r.info(info_flags::relation_less))
-        c.s << " < ";
-    else if (r.info(info_flags::relation_less_or_equal))
-        c.s << " leslant ";
-    else if (r.info(info_flags::relation_greater))
-        c.s << " > ";
-    else if (r.info(info_flags::relation_greater_or_equal))
-        c.s << " geslant ";
-    else
-        c.s << " [unknown relational operator] ";
+    void imathprint_wildcard(const wildcard& w, const imathprint& c, unsigned level)
+    {
+        MSG_INFO(4, "imathprint_wildcard()" << endline);
+        (void)level;
+        c.s << "$_" << w.get_label();
+    }
 
-    r.rhs().print(c, level + 1);
-    if (level >= prec)
-        c.s << ')';
-}
+    void imathprint_generic(const basic& b, const imathprint& c, unsigned level)
+    {
+        MSG_INFO(0, "!!! imathprint_generic() for '" << ex(b) << "'" << endline);
+        (void)level;
+        std::ostringstream temp;
+        temp << latex << b;
 
-void imathprint_symbol(const symbol& s, const imathprint& c, unsigned level)
-{
-    MSG_INFO(4, "imathprint_symbol()" << endline);
-    (void)level;
-    std::string name = s.get_name();
-    size_t pos = name.find_last_of("::");
-    c.s << (pos == std::string::npos ? name : name.substr(pos + 1));
-}
-
-void imathprint_wildcard(const wildcard& w, const imathprint& c, unsigned level)
-{
-    MSG_INFO(4, "imathprint_wildcard()" << endline);
-    (void)level;
-    c.s << "$_" << w.get_label();
-}
-
-void imathprint_generic(const basic& b, const imathprint& c, unsigned level)
-{
-    MSG_INFO(0, "!!! imathprint_generic() for '" << ex(b) << "'" << endline);
-    (void)level;
-    std::ostringstream temp;
-    temp << latex << b;
-
-    c.s << temp.str();
-}
+        c.s << temp.str();
+    }
 }

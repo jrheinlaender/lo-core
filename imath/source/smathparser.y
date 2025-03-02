@@ -215,6 +215,40 @@ expression calcvalueofmatrix(const std::string& whatval, const ex& expr, const l
   return result;
 }
 
+expression replace_ns_vars(imath::parserParameters& params, const std::string& label, const expression& e) {
+  if (label.find("::") == std::string::npos)
+    return e;
+
+  // Equation from other namespace was referenced. Replace all variables without values with variables of the same name in the current namespace
+  // This is what the user will expect. Otherwise manual substitution of all variables would be necessary (SUBSTC(@ns::e@, ns::a = a; ns::b = b; ...)
+  // TODO It might not be obvious to the user when a variable is automatically replaced and when it is not
+  MSG_INFO(1, "Accessing " << label << " from other namespace" << endline);
+  exmap repl;
+
+  for (const_preorder_iterator i = e.preorder_begin(); i != e.preorder_end(); ++i) {
+    if (is_a<extsymbol>(*i)) {
+      std::string name = ex_to<extsymbol>(*i).get_name();
+
+      if (params.compiler->getsymtype(name) == t_variable && !params.compiler->has_value(ex_to<extsymbol>(*i))) {
+        auto prop = params.compiler->getsymprop(name);
+        name = params.compiler->varname_ns(name.substr(name.find_last_of("::") + 1));
+
+        if (params.compiler->getsymprop(name) == prop || params.compiler->getsymprop(name) == p_none) {
+          // Ensure that scalars are replaced by scalars and vectors by vectors etc.
+          // Ensure that existing symbols do not have their symprop changed
+          MSG_INFO(1, "Replacing variable (prop=" << prop << ") '" << ex_to<extsymbol>(*i).get_name() << "' by '" << name << "' from current namespace" << endline);
+          auto var = params.compiler->getsym(name, prop); // Required to create symbol in case it does not exist yet
+          params.compiler->setsymprop(name, prop); // Ensure that replaced symbol can be matched by symbol retrieved through getsym()
+          repl.emplace(*i, var);
+          // TODO Check for duplicate entries in replacements?
+        }
+      }
+    }
+  }
+
+  return e.subs(repl);
+}
+
 // Check for matching brackets. If there is a mismatch, returns the expected closing bracket. Otherwise returns an empty string
 std::string checkbrackets(const std::string& sizing, const std::string& bracket) {
   static const std::map<std::string, std::string> matches = {
@@ -1681,8 +1715,11 @@ oper:   '='     { $$ = relational::equal; }
 
 %type <GiNaC::expression> eq_without_oper "equation without operator";
 eq_without_oper:
+      LABEL { // An equation label referencing another equation
+      std::string label = $1;
+      expression eq = params.compiler->at(params.compiler->label_ns(label, true));
       must_autoformat = true;
-      $$ = params.compiler->at(params.compiler->label_ns($1, true));
+      $$ = replace_ns_vars(params, label, eq);
     }
     | SOLVE '(' eq ',' ex ',' uinteger ')' {
       $$ = ex_to<equation>($3).solve($5, numeric($7));
@@ -2056,7 +2093,9 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | symbol
     | EXLABEL { // An expression label referencing another expression
       must_autoformat = true;
-      $$ = params.compiler->expression_at(params.compiler->exlabel_ns($1, true));
+      auto label = $1;
+      auto e = params.compiler->expression_at(params.compiler->exlabel_ns(label, true));
+      $$ = replace_ns_vars(params, label, e);
     }
     | UNIT {
       auto unit = $1;
@@ -2203,7 +2242,6 @@ ex:   SUBST '(' ex ',' eqlist ')' {
           $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), -999, std::move(idx)}); // Row vector, index is column
         else
           $$ = Functionmanager::create_hard("mindex", exprseq{std::move(v), std::move(idx), -999}); // Column vector, index is row (default)
-
       } else if (is_a<extsymbol>(v) && compiler->getsymprop(ex_to<extsymbol>(v).get_name()) == p_vector) {
         // Try hard to replace a vector symbol with the corresponding vector defined somewhere in an equation
         auto sym = ex_to<extsymbol>(v);

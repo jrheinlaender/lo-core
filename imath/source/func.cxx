@@ -405,79 +405,141 @@ ex func::conjugate() const
 {
     if (hard)
     { // Fall through to GiNaC::function::conjugate()
+        ex original = function(serial, seq).hold();
         ex result
             = function(serial, seq)
                   .setflag(status_flags::evaluated)
                   .conjugate(); // Note: Omitting setting the flag results in an infinite loop!
-        // TODO: Compare if something changed, e.g. if (are_ex_trivially_equal(funct, result)) return *this;
+        if (original.is_equal(
+                result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+            return this->hold();
+
         return Functionmanager::replace_function_by_func(result)
             .eval(); // get rid of GiNaC functions that might have been introduced
     }
 
-    return Functionmanager::create_hard("conjugate", { ex(*this) });
+    return Functionmanager::create_hard("conjugate", { ex(*this) }, false);
 }
 
-ex func::eval() const
+ex func::real_part() const
 {
-    // If the function is hardcoded, drop through to the GiNaC::function::eval() method
-    MSG_INFO(3, "Doing eval of " << name << "(" << seq << ")" << endline);
     if (hard)
-    {
-        MSG_INFO(3, "Function is hard-coded with serial " << serial << endline);
-        if (seq.size() == 1)
-        {
-            if (is_exactly_a<func>(seq[0]))
-            {
-                const func& f0 = ex_to<func>(seq[0]);
+    { // Fall through to GiNaC::function::real_part()
+        ex original = function(serial, seq).hold();
+        ex result
+            = function(serial, seq)
+                  .setflag(status_flags::evaluated)
+                  .real_part(); // Note: Omitting setting the flag results in an infinite loop!
+        if (original.is_equal(
+                result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+            return this->hold();
 
-                if (f0.hard)
-                {
-                    // Take advantage of the hard-coded GiNac eval rules, e.g. tan(atan(x)) = x
-                    ex func_arg = function(f0.serial, f0.seq);
-                    ex original = function(serial, func_arg).hold();
-                    ex result = original.eval();
-                    if (original.is_equal(result))
-                        return this->hold(); // Nothing appears to have happened
-
-                    // Don't introduce any GiNaC::function into the system!
-                    return Functionmanager::replace_function_by_func(result);
-                }
-            }
-            else if (name == "ln")
-            {
-                if (is_a<constant>(seq[0]) && seq[0].is_equal(Euler_number))
-                { // handle ln e = 1
-                    return _ex1;
-                }
-                else if (is_a<power>(seq[0]))
-                {
-                    const power& p = ex_to<power>(seq[0]);
-                    if (get_basis(p).is_equal(Euler_number)) // handle ln e^x = x
-                        return get_exp(p);
-                }
-            }
-        }
-        if (!seq.empty())
-        {
-            MSG_INFO(3, "Drop through to GinaC eval rules" << endline);
-            // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
-            ex original = function(serial, seq).hold();
-            ex result = function(serial, seq);
-            if (original.is_equal(result))
-                return this->hold(); // Nothing appears to have happened
-
-            // Don't introduce any GiNaC::function into the system!
-            return Functionmanager::replace_function_by_func(result);
-        }
-        else
-        {
-            return (this->hold());
-        }
+        return Functionmanager::replace_function_by_func(result)
+            .eval(); // get rid of GiNaC functions that might have been introduced
     }
 
-    // Don't introduce any GiNaC::function into the system!
-    return Functionmanager::replace_function_by_func(result);
+    return Functionmanager::create_hard("Re", { ex(*this) }, false);
 }
+
+ex func::imag_part() const
+{
+    if (hard)
+    { // Fall through to GiNaC::function::imag_part()
+        ex original = function(serial, seq).hold();
+        ex result
+            = function(serial, seq)
+                  .setflag(status_flags::evaluated)
+                  .imag_part(); // Note: Omitting setting the flag results in an infinite loop!
+        if (original.is_equal(
+                result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+            return this->hold();
+
+        return Functionmanager::replace_function_by_func(result)
+            .eval(); // get rid of GiNaC functions that might have been introduced
+    }
+
+    return Functionmanager::create_hard("Im", { ex(*this) }, false);
+}
+
+bool func::has(const ex& other, unsigned options) const
+{
+    MSG_INFO(3, "Checking if " << *this << " has " << other << endline);
+    if (is_a<func>(other) && this->is_equal_same_type(ex_to<func>(other)))
+        return true;
+    else if (seq.empty())
+    {
+        for (const auto& v : vars)
+        {
+            MSG_INFO(3, "Checking if " << v << " has " << other << endline);
+            if (v.has(other, options))
+                return true;
+        }
+
+        return Functionmanager::create_hard("conjugate", { ex(*this) });
+    }
+
+    ex func::eval() const
+    {
+        // If the function is hardcoded, drop through to the GiNaC::function::eval() method
+        MSG_INFO(3, "Doing eval of " << name << "(" << seq << ")" << endline);
+        if (hard)
+        {
+            MSG_INFO(3, "Function is hard-coded with serial " << serial << endline);
+            if (seq.size() == 1)
+            {
+                if (is_exactly_a<func>(seq[0]))
+                {
+                    const func& f0 = ex_to<func>(seq[0]);
+
+                    if (f0.hard)
+                    {
+                        // Take advantage of the hard-coded GiNac eval rules, e.g. tan(atan(x)) = x
+                        ex func_arg = function(f0.serial, f0.seq);
+                        ex original = function(serial, func_arg).hold();
+                        ex result = original.eval();
+                        if (original.is_equal(
+                                result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+                            return this->hold(); // Nothing appears to have happened
+
+                        // Don't introduce any GiNaC::function into the system!
+                        return Functionmanager::replace_function_by_func(result);
+                    }
+                }
+                else if (name == "ln")
+                {
+                    if (is_a<constant>(seq[0]) && seq[0].is_equal(Euler_number))
+                    { // handle ln e = 1
+                        return _ex1;
+                    }
+                    else if (is_a<power>(seq[0]))
+                    {
+                        const power& p = ex_to<power>(seq[0]);
+                        if (get_basis(p).is_equal(Euler_number)) // handle ln e^x = x
+                            return get_exp(p);
+                    }
+                }
+            }
+            if (!seq.empty())
+            {
+                MSG_INFO(3, "Drop through to GinaC eval rules" << endline);
+                // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
+                ex original = function(serial, seq).hold();
+                ex result = function(serial, seq);
+                if (original.is_equal(result))
+                    return this->hold(); // Nothing appears to have happened
+
+                // Don't introduce any GiNaC::function into the system!
+                return Functionmanager::replace_function_by_func(result);
+            }
+            else
+            {
+                return (this->hold());
+            }
+        }
+
+        // Don't introduce any GiNaC::function into the system!
+        return Functionmanager::replace_function_by_func(result);
+    }
 }
 else if (name == "ln")
 {
@@ -491,409 +553,410 @@ else if (name == "ln")
         if (get_basis(p).is_equal(Euler_number)) // handle ln e^x = x
             return get_exp(p);
     }
-}
-}
-if (!seq.empty())
-{
-    MSG_INFO(3, "Drop through to GinaC eval rules" << endline);
-    // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
-    ex result = function(serial, seq).eval();
-#ifndef _MSC_VER
-    if (serial >= round_SERIAL::serial)
-        return result;
-#endif
-    return Functionmanager::replace_function_by_func(result);
-}
-else
-{
-    return (this->hold());
-}
-}
-
-if (is_expand() && !definition.is_empty())
-    return this->expand_definition(); // no full expansion! Just the function, not the arguments
-else
-    return this->hold();
-}
-
-ex func::subs(const exmap& m, unsigned options) const
-{
-    MSG_INFO(2, "Substituting exmap " << m << " in " << *this << endline);
-
     if (!seq.empty())
     {
-        return exprseq::subs(m, options);
+        MSG_INFO(3, "Drop through to GinaC eval rules" << endline);
+        // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
+        ex original = function(serial, seq).hold();
+        ex result = function(serial, seq);
+        if (original.is_equal(
+                result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+            return this->hold(); // Nothing appears to have happened
+
+        if (is_expand() && !definition.is_empty())
+            return this
+                ->expand_definition(); // no full expansion! Just the function, not the arguments
+        else
+            return this->hold();
     }
-    else
+
+    ex func::subs(const exmap& m, unsigned options) const
     {
-        // Substitute into the vars. Required for exderivate::derivative() of a pure function
-        exvector newvars;
-        bool changed = false;
+        MSG_INFO(2, "Substituting exmap " << m << " in " << *this << endline);
 
-        for (auto& v : vars)
+        if (!seq.empty())
         {
-            newvars.push_back(v.subs(m, options));
-            if (!are_ex_trivially_equal(v, newvars.back()))
-                changed = true;
-        }
-
-        if (changed)
-        {
-            // We must only return a new object if something has actually changed, otherwise cancelling in muls will fail
-            func f(*this);
-            f.vars = newvars;
-            return f.subs_one_level(m, options);
+            return exprseq::subs(m, options);
         }
         else
         {
-            return subs_one_level(m, options);
+            // Substitute into the vars. Required for exderivate::derivative() of a pure function
+            exvector newvars;
+            bool changed = false;
+
+            for (auto& v : vars)
+            {
+                newvars.push_back(v.subs(m, options));
+                if (!are_ex_trivially_equal(v, newvars.back()))
+                    changed = true;
+            }
+
+            if (changed)
+            {
+                // We must only return a new object if something has actually changed, otherwise cancelling in muls will fail
+                func f(*this);
+                f.vars = newvars;
+                return f.subs_one_level(m, options);
+            }
+            else
+            {
+                return subs_one_level(m, options);
+            }
         }
     }
-}
 
-ex func::map(map_function& f) const
-{
-    MSG_INFO(2, "Func: Mapping " << *this << endline);
-
-    if (!seq.empty())
+    ex func::map(map_function & f) const
     {
-        // Avoid infinite loop that might occur when simply returning exprseq::map(f). This code duplicates basic::map()
-        // The loop occurs e.g. when constructing conjugate(f(x)) where conjugate() is hard-coded and f() is an iMath function
-        func* copy = nullptr;
-        for (size_t i = 0; i < seq.size(); i++)
+        MSG_INFO(2, "Func: Mapping " << *this << endline);
+
+        if (!seq.empty())
         {
-            const ex& o = seq[i];
-            const ex& n = f(o);
-            if (!are_ex_trivially_equal(o, n))
+            // Avoid infinite loop that might occur when simply returning exprseq::map(f). This code duplicates basic::map()
+            // The loop occurs e.g. when constructing conjugate(f(x)) where conjugate() is hard-coded and f() is an iMath function
+            func* copy = nullptr;
+            for (size_t i = 0; i < seq.size(); i++)
             {
-                if (copy == nullptr)
-                    copy = duplicate();
-                copy->seq[i] = n;
+                const ex& o = seq[i];
+                const ex& n = f(o);
+                if (!are_ex_trivially_equal(o, n))
+                {
+                    if (copy == nullptr)
+                        copy = duplicate();
+                    copy->seq[i] = n;
+                }
+            }
+
+            if (copy)
+            {
+                copy->clearflag(status_flags::hash_calculated | status_flags::expanded);
+                return *copy;
+            }
+            else
+                return *this;
+        }
+        else
+        {
+            // Map into the vars. Required for partial derivatives of a pure function in expression::pdiff()
+            exvector newvars;
+            bool changed = false;
+
+            for (const auto& v : vars)
+            {
+                newvars.push_back(f(v));
+                if (!are_ex_trivially_equal(v, newvars.back()))
+                    changed = true;
+            }
+
+            if (changed)
+            {
+                // We only return a new object if something has actually changed
+                func newf(*this);
+                newf.vars = newvars;
+                return newf;
+            }
+            else
+            {
+                return *this;
+            }
+        }
+    }
+
+    expression func::find_integral(const ex& sym) const
+    {
+        MSG_INFO(1, "Finding integral for " << *this << endline);
+        expression result;
+        if (seq.size() > 1)
+            return result;
+        if (seq.empty())
+            return result;
+
+        // Check if the argument of the function is linear in the symbol
+        ex factor;
+        if (!is_linear(seq[0], sym, factor))
+            return result;
+
+        // These functions are not hard-coded and the integral is self-referencing, thus they cannot be handled in the Functionmanager;
+        if (name == "arccot")
+            result
+                = seq[0] * *this
+                  + _ex1_2
+                        * Functionmanager::create_hard("ln", exprseq({ _ex1 + pow(seq[0], _ex2) }));
+        else if (name == "arcoth")
+            result = (seq[0] * *this
+                      + _ex1_2
+                            * Functionmanager::create_hard("ln",
+                                                           exprseq({ pow(seq[0], _ex2) - _ex1 })));
+        else if (name == "arcsec")
+            result = seq[0] * *this
+                     - Functionmanager::create_hard(
+                           "arcosh", exprseq({ Functionmanager::create_hard("abs", seq) }));
+        else if (name == "arsech")
+            result = seq[0] * *this
+                     - Functionmanager::create_hard(
+                           "arctan", exprseq({ pow(_ex1 / pow(seq[0], _ex2) - _ex1, _ex1_2) }));
+        else if (name == "arccsc")
+            result = seq[0] * *this
+                     + Functionmanager::create_hard(
+                           "arcosh", exprseq({ Functionmanager::create_hard("abs", seq) }));
+        else if (name == "arcsch")
+            result
+                = seq[0] * *this
+                  + Functionmanager::create_hard(
+                        "ln", exprseq({ seq[0]
+                                        + seq[0] * pow(_ex1 + _ex1 / pow(seq[0], _ex2), _ex1_2) }));
+        else
+            result = Functionmanager::find_integral(name, seq);
+
+        if (!result.is_empty())
+            return result / factor;
+
+        return result;
+    }
+
+    ex func::evalf() const
+    {
+        MSG_INFO(3, "Evaluating " << *this << endline);
+        if (seq.size() != get_numargs()) // Avoid crash for illegal syntax sin^2(x)
+            throw std::runtime_error(
+                "Function with insufficient number of arguments cannot be evaluated");
+
+        // If the function is hardcoded, drop through to the GiNaC::function::evalf() method
+        // TODO: expression::evalf() will not be called here on the arguments
+        if (hard)
+        {
+            ex result = function(serial, seq).evalf();
+            return Functionmanager::replace_function_by_func(result).eval();
+        }
+
+        // Evaluate children first
+        exvector eseq;
+        eseq.reserve(seq.size());
+        for (auto& it : seq)
+        {
+            eseq.emplace_back(expression(it).evalf());
+        }
+
+        if (!definition.is_empty())
+        {
+            // Note: The code in GiNaC::functions.cpp::evalf() seems to drop eseq here!
+            try
+            {
+                return dynallocate<func>(name, eseq, serial, hard, vars, definition, hints,
+                                         printname)
+                    .expand_definition()
+                    .evalf();
+            }
+            catch (std::exception& e)
+            { // The function cannot be expanded
+                MSG_ERROR(0, e.what() << endline);
             }
         }
 
-        if (copy)
+        return dynallocate<func>(name, eseq, serial, hard, vars, definition, hints, printname)
+            .hold();
+    }
+
+    ex func::evalm() const
+    {
+        // Evaluate children first
+        exvector eseq;
+        eseq.reserve(seq.size());
+
+        for (const auto& it : seq)
+            eseq.emplace_back(expression(it).evalm());
+
+        return dynallocate<func>(name, eseq, serial, hard, vars, definition, hints, printname)
+            .hold();
+    }
+
+    unsigned func::calchash(void) const
+    {
+        unsigned v = golden_ratio_hash(make_hash_seed(typeid(*this)) ^ serial);
+        for (size_t i = 0; i < nops(); i++)
         {
-            copy->clearflag(status_flags::hash_calculated | status_flags::expanded);
-            return *copy;
+            v = rotate_left(v);
+            v ^= this->op(i).gethash();
+        }
+
+        if (flags & status_flags::evaluated)
+        {
+            setflag(status_flags::hash_calculated);
+            hashvalue = v;
+        }
+        MSG_INFO(3, "Hash value of " << name << " (serial " << serial << "): " << v << endline);
+        return v;
+    }
+
+    ex func::series(const relational& r, int order, unsigned options) const
+    {
+        // Not implemented yet. Returns basic::series
+        return basic::series(r, order, options);
+    }
+
+    ex func::thiscontainer(const exvector& v) const
+    {
+        return dynallocate<func>(name, v, serial, hard, vars, definition, hints, printname);
+    }
+
+    ex func::thiscontainer(exvector && v) const
+    {
+        return dynallocate<func>(name, std::move(v), serial, hard, vars, definition, hints,
+                                 printname);
+    }
+
+    ex func::derivative(const symbol& s) const
+    {
+        MSG_INFO(2, "Calculating derivative of " << *this << " to " << s.get_name() << endline);
+
+        if (hard)
+        { // Fall through to GiNaC::function::diff(). derivative() is protected!
+            // Special handling of sum function - hard-coded derivative function is unusable because differentiation symbol s cannot be passed to it
+            if ((name == "sum") && (seq.size() == 3))
+                return Functionmanager::create_hard(
+                    name, exprseq{ seq[0], seq[1], expression(seq[2]).diff(s) });
+
+            ex result
+                = function(serial, seq)
+                      .setflag(status_flags::evaluated)
+                      .diff(s); // Note: Omitting setting the flag results in an infinite loop!
+            return Functionmanager::replace_function_by_func(result)
+                .eval(); // get rid of GiNaC functions that might have been introduced
+        }
+
+        ex result(_ex0);
+
+        if (seq.empty())
+        {
+            if (name == s.get_name())
+                return _ex1; // Handle case dr() / dr()
+            for (unsigned i = 0; i < get_numargs(); i++)
+            {
+                ex arg_diff = expression(vars[i]).diff(s);
+                if (!arg_diff.is_zero())
+                    result += pderivative(i) * arg_diff;
+                MSG_INFO(2,
+                         "Derivative of " << *this << " stage " << i << ": " << result << endline);
+            }
         }
         else
-            return *this;
-    }
-    else
-    {
-        // Map into the vars. Required for partial derivatives of a pure function in expression::pdiff()
-        exvector newvars;
-        bool changed = false;
-
-        for (const auto& v : vars)
         {
-            newvars.push_back(f(v));
-            if (!are_ex_trivially_equal(v, newvars.back()))
-                changed = true;
+            for (unsigned i = 0; i < seq.size(); i++)
+            {
+                ex arg_diff = expression(seq[i]).diff(s);
+                if (!arg_diff.is_zero())
+                    result += pderivative(i) * arg_diff;
+                MSG_INFO(2,
+                         "Derivative of " << *this << " stage " << i << ": " << result << endline);
+            }
         }
+        return result;
+    }
 
-        if (changed)
+    int func::compare_same_type(const basic& other) const
+    {
+        // This function is important because it is used to simplify expressions!
+        // If (*this == other) then the expression "*this / other" will be 1.
+        // TODO: What is the point of comparing > and < ?
+        const func& o = static_cast<const func&>(other);
+        MSG_INFO(3, "Comparing " << *this << " and " << o << endline);
+        if (name == o.name)
         {
-            // We only return a new object if something has actually changed
-            func newf(*this);
-            newf.vars = newvars;
-            return newf;
+            if (seq.empty())
+                // This is required to make substitution into vars last - otherwise it is discarded
+                return (std::equal(vars.begin(), vars.end(), o.vars.begin()) ? 0 : 1);
+            else
+                return exprseq::compare_same_type(o);
+        }
+        else if (name < o.name)
+            return -1;
+        else
+            return 1;
+    }
+
+    bool func::is_equal_same_type(const basic& other) const
+    {
+        // This function seems to be used for substitution: If a.is_equal_same_type(b),
+        // then b==c will be substituted
+        const func& o = static_cast<const func&>(other);
+        MSG_INFO(3, "Checking equality of " << *this << " and " << o << endline);
+
+        if (name != o.name)
+            return false;
+        else
+            return (exprseq::is_equal_same_type(o));
+    }
+
+    bool func::match_same_type(const basic& other) const
+    {
+        const func& o = static_cast<const func&>(other);
+        MSG_INFO(3, "Checking match of " << *this << " and " << o << endline);
+        return name == o.name;
+    }
+
+    unsigned func::return_type(void) const
+    {
+        MSG_INFO(4, "Return type of " << *this << " requested." << endline);
+        if (seq.empty())
+            return return_types::commutative;
+        else
+            return seq.begin()->return_type();
+    }
+
+    ex func::pderivative(unsigned diff_param) const
+    {
+        MSG_INFO(2, "Calculating partial derivative of " << *this << " to parameter " << diff_param
+                                                         << endline);
+
+        ex result;
+        bool partial = get_numargs() > 1;
+
+        // We assume that no hardcoded functions are called with this method!
+        if (definition.is_empty() || !(hints & FUNCHINT_DEFDIFF))
+        {
+            if (seq.size() > diff_param)
+                result = dynallocate<exderivative>(
+                    dynallocate<differential>(*this, partial, _ex1),
+                    dynallocate<differential>(seq[diff_param], partial, _ex1, *this, false));
+            else if (get_numargs() > diff_param)
+                result = dynallocate<exderivative>(
+                    dynallocate<differential>(*this, partial, _ex1),
+                    dynallocate<differential>(vars[diff_param], partial, _ex1, *this, false));
+            else
+                throw std::logic_error("The requested dependant variable does not exist in " + name
+                                       + "()");
         }
         else
         {
-            return *this;
-        }
-    }
-}
+            if (diff_param >= get_numargs())
+                throw std::logic_error("The requested dependant variable does not exist in " + name
+                                       + "()");
 
-expression func::find_integral(const ex& sym) const
-{
-    MSG_INFO(1, "Finding integral for " << *this << endline);
-    expression result;
-    if (seq.size() > 1)
+            ex diffvar = vars[diff_param];
+            result = definition.diff(
+                diffvar); // pdiff is not necessary here, because we are differentiating directly to the functions' variables
+
+            if (!seq.empty())
+            { // Substitute the function arguments in the result
+                exmap subs_map;
+                for (unsigned i = 0; i < get_numargs(); i++)
+                    subs_map.emplace(vars[i], seq[i]);
+                result = result.subs(subs_map);
+            }
+        }
+
+        MSG_INFO(2, "Partial derivative #" << diff_param << " of " << *this << ": " << result
+                                           << endline);
         return result;
-    if (seq.empty())
-        return result;
-
-    // Check if the argument of the function is linear in the symbol
-    ex factor;
-    if (!is_linear(seq[0], sym, factor))
-        return result;
-
-    // These functions are not hard-coded and the integral is self-referencing, thus they cannot be handled in the Functionmanager;
-    if (name == "arccot")
-        result
-            = seq[0] * *this
-              + _ex1_2 * Functionmanager::create_hard("ln", exprseq({ _ex1 + pow(seq[0], _ex2) }));
-    else if (name == "arcoth")
-        result
-            = (seq[0] * *this
-               + _ex1_2
-                     * Functionmanager::create_hard("ln", exprseq({ pow(seq[0], _ex2) - _ex1 })));
-    else if (name == "arcsec")
-        result = seq[0] * *this
-                 - Functionmanager::create_hard(
-                       "arcosh", exprseq({ Functionmanager::create_hard("abs", seq) }));
-    else if (name == "arsech")
-        result = seq[0] * *this
-                 - Functionmanager::create_hard(
-                       "arctan", exprseq({ pow(_ex1 / pow(seq[0], _ex2) - _ex1, _ex1_2) }));
-    else if (name == "arccsc")
-        result = seq[0] * *this
-                 + Functionmanager::create_hard(
-                       "arcosh", exprseq({ Functionmanager::create_hard("abs", seq) }));
-    else if (name == "arcsch")
-        result = seq[0] * *this
-                 + Functionmanager::create_hard(
-                       "ln",
-                       exprseq({ seq[0] + seq[0] * pow(_ex1 + _ex1 / pow(seq[0], _ex2), _ex1_2) }));
-    else
-        result = Functionmanager::find_integral(name, seq);
-
-    if (!result.is_empty())
-        return result / factor;
-
-    return result;
-}
-
-ex func::evalf() const
-{
-    MSG_INFO(3, "Evaluating " << *this << endline);
-    if (seq.size() != get_numargs()) // Avoid crash for illegal syntax sin^2(x)
-        throw std::runtime_error(
-            "Function with insufficient number of arguments cannot be evaluated");
-
-    // If the function is hardcoded, drop through to the GiNaC::function::evalf() method
-    // TODO: expression::evalf() will not be called here on the arguments
-    if (hard)
-    {
-        ex result = function(serial, seq).evalf();
-        return Functionmanager::replace_function_by_func(result).eval();
     }
 
-    // Evaluate children first
-    exvector eseq;
-    eseq.reserve(seq.size());
-    for (auto& it : seq)
-    {
-        eseq.emplace_back(expression(it).evalf());
-    }
-
-    if (!definition.is_empty())
-    {
-        // Note: The code in GiNaC::functions.cpp::evalf() seems to drop eseq here!
-        try
-        {
-            return dynallocate<func>(name, eseq, serial, hard, vars, definition, hints, printname)
-                .expand_definition()
-                .evalf();
-        }
-        catch (std::exception& e)
-        { // The function cannot be expanded
-            MSG_ERROR(0, e.what() << endline);
-        }
-    }
-
-    return dynallocate<func>(name, eseq, serial, hard, vars, definition, hints, printname).hold();
-}
-
-ex func::evalm() const
-{
-    // Evaluate children first
-    exvector eseq;
-    eseq.reserve(seq.size());
-
-    for (const auto& it : seq)
-        eseq.emplace_back(expression(it).evalm());
-
-    return dynallocate<func>(name, eseq, serial, hard, vars, definition, hints, printname).hold();
-}
-
-unsigned func::calchash(void) const
-{
-    unsigned v = golden_ratio_hash(make_hash_seed(typeid(*this)) ^ serial);
-    for (size_t i = 0; i < nops(); i++)
-    {
-        v = rotate_left(v);
-        v ^= this->op(i).gethash();
-    }
-
-    if (flags & status_flags::evaluated)
-    {
-        setflag(status_flags::hash_calculated);
-        hashvalue = v;
-    }
-    MSG_INFO(3, "Hash value of " << name << " (serial " << serial << "): " << v << endline);
-    return v;
-}
-
-ex func::series(const relational& r, int order, unsigned options) const
-{
-    // Not implemented yet. Returns basic::series
-    return basic::series(r, order, options);
-}
-
-ex func::thiscontainer(const exvector& v) const
-{
-    return dynallocate<func>(name, v, serial, hard, vars, definition, hints, printname);
-}
-
-ex func::thiscontainer(exvector&& v) const
-{
-    return dynallocate<func>(name, std::move(v), serial, hard, vars, definition, hints, printname);
-}
-
-ex func::derivative(const symbol& s) const
-{
-    MSG_INFO(2, "Calculating derivative of " << *this << " to " << s.get_name() << endline);
-
-    if (hard)
-    { // Fall through to GiNaC::function::diff(). derivative() is protected!
-        // Special handling of sum function - hard-coded derivative function is unusable because differentiation symbol s cannot be passed to it
-        if ((name == "sum") && (seq.size() == 3))
-            return Functionmanager::create_hard(
-                name, exprseq{ seq[0], seq[1], expression(seq[2]).diff(s) });
-
-        ex result = function(serial, seq)
-                        .setflag(status_flags::evaluated)
-                        .diff(s); // Note: Omitting setting the flag results in an infinite loop!
-        return Functionmanager::replace_function_by_func(result)
-            .eval(); // get rid of GiNaC functions that might have been introduced
-    }
-
-    ex result(_ex0);
-
-    if (seq.empty())
-    {
-        if (name == s.get_name())
-            return _ex1; // Handle case dr() / dr()
-        for (unsigned i = 0; i < get_numargs(); i++)
-        {
-            ex arg_diff = expression(vars[i]).diff(s);
-            if (!arg_diff.is_zero())
-                result += pderivative(i) * arg_diff;
-            MSG_INFO(2, "Derivative of " << *this << " stage " << i << ": " << result << endline);
-        }
-    }
-    else
-    {
-        for (unsigned i = 0; i < seq.size(); i++)
-        {
-            ex arg_diff = expression(seq[i]).diff(s);
-            if (!arg_diff.is_zero())
-                result += pderivative(i) * arg_diff;
-            MSG_INFO(2, "Derivative of " << *this << " stage " << i << ": " << result << endline);
-        }
-    }
-    return result;
-}
-
-int func::compare_same_type(const basic& other) const
-{
-    // This function is important because it is used to simplify expressions!
-    // If (*this == other) then the expression "*this / other" will be 1.
-    // TODO: What is the point of comparing > and < ?
-    const func& o = static_cast<const func&>(other);
-    MSG_INFO(3, "Comparing " << *this << " and " << o << endline);
-    if (name == o.name)
+    exvector func::get_args() const
     {
         if (seq.empty())
-            // This is required to make substitution into vars last - otherwise it is discarded
-            return (std::equal(vars.begin(), vars.end(), o.vars.begin()) ? 0 : 1);
+            return vars;
         else
-            return exprseq::compare_same_type(o);
-    }
-    else if (name < o.name)
-        return -1;
-    else
-        return 1;
-}
-
-bool func::is_equal_same_type(const basic& other) const
-{
-    // This function seems to be used for substitution: If a.is_equal_same_type(b),
-    // then b==c will be substituted
-    const func& o = static_cast<const func&>(other);
-    MSG_INFO(3, "Checking equality of " << *this << " and " << o << endline);
-
-    if (name != o.name)
-        return false;
-    else
-        return (exprseq::is_equal_same_type(o));
-}
-
-bool func::match_same_type(const basic& other) const
-{
-    const func& o = static_cast<const func&>(other);
-    MSG_INFO(3, "Checking match of " << *this << " and " << o << endline);
-    return name == o.name;
-}
-
-unsigned func::return_type(void) const
-{
-    MSG_INFO(4, "Return type of " << *this << " requested." << endline);
-    if (seq.empty())
-        return return_types::commutative;
-    else
-        return seq.begin()->return_type();
-}
-
-ex func::pderivative(unsigned diff_param) const
-{
-    MSG_INFO(2, "Calculating partial derivative of " << *this << " to parameter " << diff_param
-                                                     << endline);
-
-    ex result;
-    bool partial = get_numargs() > 1;
-
-    // We assume that no hardcoded functions are called with this method!
-    if (definition.is_empty() || !(hints & FUNCHINT_DEFDIFF))
-    {
-        if (seq.size() > diff_param)
-            result = dynallocate<exderivative>(
-                dynallocate<differential>(*this, partial, _ex1),
-                dynallocate<differential>(seq[diff_param], partial, _ex1, *this, false));
-        else if (get_numargs() > diff_param)
-            result = dynallocate<exderivative>(
-                dynallocate<differential>(*this, partial, _ex1),
-                dynallocate<differential>(vars[diff_param], partial, _ex1, *this, false));
-        else
-            throw std::logic_error("The requested dependant variable does not exist in " + name
-                                   + "()");
-    }
-    else
-    {
-        if (diff_param >= get_numargs())
-            throw std::logic_error("The requested dependant variable does not exist in " + name
-                                   + "()");
-
-        ex diffvar = vars[diff_param];
-        result = definition.diff(
-            diffvar); // pdiff is not necessary here, because we are differentiating directly to the functions' variables
-
-        if (!seq.empty())
-        { // Substitute the function arguments in the result
-            exmap subs_map;
-            for (unsigned i = 0; i < get_numargs(); i++)
-                subs_map.emplace(vars[i], seq[i]);
-            result = result.subs(subs_map);
-        }
+            return seq;
     }
 
-    MSG_INFO(2,
-             "Partial derivative #" << diff_param << " of " << *this << ": " << result << endline);
-    return result;
-}
-
-exvector func::get_args() const
-{
-    if (seq.empty())
-        return vars;
-    else
-        return seq;
-}
-
-func_unarchiver::func_unarchiver() {}
-func_unarchiver::~func_unarchiver() {}
+    func_unarchiver::func_unarchiver() {}
+    func_unarchiver::~func_unarchiver() {}
 }

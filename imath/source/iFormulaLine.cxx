@@ -1382,50 +1382,116 @@ std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XMode
                 mod += _formulaParts[f++];
             lhs = adjustLocale(replaceString(lhs, OU("\n%%ii+"), OU("")));
             rhs = adjustLocale(replaceString(rhs, OU("\n%%ii+"), OU("")));
-            mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU("")));
+            mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU(""))).trim();
+            if (mod.endsWithAsciiL(")", 1))
+                mod = mod.copy(
+                    0,
+                    mod.getLength()
+                        - 1); // Remove bracket (opening bracket is included in MOD that was skipped
+        }
+        else if (is_a<extsymbol>(rhs) || is_a<func>(rhs))
+        {
+            in = collectSymbols(lhs);
+            out = { rhs };
+        }
+        else
+        {
+            in = collectSymbols(lhs);
+            auto in2 = collectSymbols(rhs);
+            in.insert(in2.begin(), in2.end());
+            // out = in; // But we should give priority to direct assignments to a single symbol
         }
     }
 
-    switch (error)
+    OUString iFormulaNodeEq::print() const
     {
-        case label_error:
-            return { { "newline " },
-                     { "bold color red{(\"" + _formulaParts[1] + "\")}",
-                       OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
-                       OU("{alignl ") + rhs + OU("}"), "newline " },
-                     { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
+        return OU("%%ii @") + _label + OU("@ ") + printOptions() + getCommand()
+               + (_hide ? OU("* ") : OU(" ")) + getFormula();
+    }
+
+    std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XModel>&) const
+    {
+        if (error == no_error && _hide)
+            return {};
+
+        MSG_INFO(1, "iFormulaNodeEq::display() '" << getFormula() << "'" << endline);
+        const equation& eq = ex_to<equation>(_expr);
+        OUString oper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod(), false));
+        OUString toper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod(), true)).trim();
+        OUString lhs("");
+        OUString rhs("");
+        OUString mod("");
+
+        if (error == no_error || error == label_error)
+        {
+            if (autoformat_required())
+            {
+                lhs = printEx(eq.lhs());
+                rhs = printEx(eq.rhs());
+                if (!eq.getmod().is_zero())
+                    mod = printEx(eq.getmod());
+            }
+            else
+            {
+                size_t f = 0;
+                while (f < _formulaParts.size()
+                       && !(_formulaParts[f].trim().equals(oper.trim())
+                            || _formulaParts[f].trim().equals(toper.trim())))
+                    lhs += _formulaParts[f++];
+                oper = _formulaParts[f++]; // Keep user format of operator
+                while (f < _formulaParts.size()
+                       && !(_formulaParts[f].trim().toAsciiUpperCase().equals("MOD")
+                            || _formulaParts[f].trim().toAsciiUpperCase().equals("(MOD")))
+                    rhs += _formulaParts[f++];
+                ++f; // Skip 'mod'
+                while (f < _formulaParts.size())
+                    mod += _formulaParts[f++];
+                lhs = adjustLocale(replaceString(lhs, OU("\n%%ii+"), OU("")));
+                rhs = adjustLocale(replaceString(rhs, OU("\n%%ii+"), OU("")));
+                mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU("")));
+            }
+        }
+
+        switch (error)
+        {
+            case label_error:
+                return { { "newline " },
+                         { "bold color red{(\"" + _formulaParts[1] + "\")}",
+                           OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                           OU("{alignl ") + rhs + OU("}"), "newline " },
+                         { "color blue{\"" + _formulaParts[3] + "\"}", "newline " } };
+            case no_error:
+                return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                           OU("{alignl ") + rhs + OU("}") } };
+            default:
+                return iFormulaLine::display();
+
+                std::vector<std::vector<OUString>> result;
+                if (_textlist.empty())
+                    return result;
+
+                std::vector<OUString> line;
+                OUString text("");
+
+                for (const auto& textPortion : _textlist)
+                {
+                    "bold color red{(\"" + _formulaParts[1] + "\")}",
+                        OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                        OU("{alignl ") + rhs + " `(\"mod\"` " + mod + OU(")}"), "newline "
+                }
+                , { "color blue{\"" + _formulaParts[3] + "\"}", "newline " }
+        };
         case no_error:
-            return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
-                       OU("{alignl ") + rhs + OU("}") } };
+            // Note: This ignores the print() method of class equation. But for error handling we need to split up into lhs, rhs, mod anyway
+            if (mod.isEmpty())
+                return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                           OU("{alignl ") + rhs + OU("}") } };
+            else
+                return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
+                           OU("{alignl ") + rhs + OU("}"), OU(" `(\"mod\"` ") + mod + OU(")") } };
         default:
             return iFormulaLine::display();
-
-            std::vector<std::vector<OUString>> result;
-            if (_textlist.empty())
-                return result;
-
-            std::vector<OUString> line;
-            OUString text("");
-
-            for (const auto& textPortion : _textlist)
-            {
-                "bold color red{(\"" + _formulaParts[1] + "\")}", OU("{alignr ") + lhs + OU("}"),
-                    OU("{}") + oper + OU("{}"),
-                    OU("{alignl ") + rhs + " `(\"mod\"` " + mod + OU(")}"), "newline "
-            }
-            , { "color blue{\"" + _formulaParts[3] + "\"}", "newline " }
-    };
-    case no_error:
-        // Note: This ignores the print() method of class equation. But for error handling we need to split up into lhs, rhs, mod anyway
-        if (mod.isEmpty())
-            return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
-                       OU("{alignl ") + rhs + OU("}") } };
-        else
-            return { { OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"),
-                       OU("{alignl ") + rhs + OU("}"), OU(" `(\"mod\"` ") + mod + OU(")") } };
-    default:
-        return iFormulaLine::display();
-}
+    }
 }
 
 if (is_a<equation>(textPortion->getExpression()))

@@ -139,9 +139,17 @@ std::string differential_get_name(const differential& d);
 std::string power_get_name(const power& p)
 {
     ex b = get_basis(p);
+    ex e = get_exp(p);
+
     if (is_a<symbol>(b))
     {
-        return std::string("012") + ex_to<symbol>(b).get_name();
+        std::string name = ex_to<symbol>(b).get_name();
+        if (name[0] == '%')
+            return std::string("013") + (e.info(info_flags::integer) ? "" : "z")
+                   + name; // greek letters etc. // TODO: Sort by greek alphabet...
+        else
+            return std::string("012") + (e.info(info_flags::integer) ? "" : "z")
+                   + name; // Move roots of symbols to the end
     }
     else if (is_a<constant>(b))
     {
@@ -895,243 +903,289 @@ void imathprint_matrix(const matrix& m, const imathprint& c, unsigned level)
         // Units by themselves always require a numeric
         { std::regex("(u|U)"), "1 $0" },
 
-        // Print units by themselves, in front of everything
-        { std::regex("n([uU]?)/[uU]"), "n { frac{ alignc $0 } over { alignc u frac} }" },
-        { std::regex("n([uU]?)([^/]+)/[uU]"), "n { frac{ alignc $0 } over { alignc u frac} } $1" },
-        { std::regex("n([uU]?)([^/]*)/[uU]([^/]+)"), "n { frac{ alignc $0 } over { alignc u frac} "
-                                                     "} { frac{ alignc $1 } over { alignc $2 } }" },
+        if (item == "n"){ printSortedMul(ops.get_coefficient(), c, level);
+    }
+    else if (item == "c") { printSortedMul(ops.get_constants(), c, level); }
+    else if (item == "x") { printSortedMul(ops.get_symbols(), c, level); }
+    else if (item == "u") { printSortedMul(ops.get_units(), c, level); }
+    else if (item == "e")
+    {
+        // TODO turn-around would be possible for adds with integer exponents
+        printSortedMul(ops.get_powers(), c, level);
+    }
+    else if (item == "f")
+    {
+        // TODO turn-around would be possible for odd functions where f(-x) = -f(x)
+        printSortedMul(ops.get_functions(), c, level);
+    }
+    else if (item == "i")
+    {
+        c.set_add_turn_around(turn_around);
+        printSortedMul(ops.get_integrals(), c, level);
+        turn_around = c.add_turn_around();
+        c.set_add_turn_around(false);
+    }
+    else if (item == "d") { printSortedMul(ops.get_differentials(), c, level); }
+    else if (item == "r")
+    {
+        exvector deriv = orderDerivatives(ops.get_derivatives());
 
         { std::regex("([^/]+)"),
           "$0" }, // Catchall for muls without fractions. Prints operands in the default order
 
-        // Print differentials and derivatives separately
-        { std::regex("([ef]?)([rRdD]+)/([ef])"),
-          "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
-        { std::regex("([ef]?)([rRdD]*)/([ef])([rRdD]+)"), "{ frac{ alignc $0 } over { alignc $2 "
-                                                          "frac} } { frac{ alignc $1 } over { "
-                                                          "alignc $3 frac} }" },
-        { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([ef])"),
-          "$0 { frac{ alignc $1 } over { alignc $3 frac} } $2" },
-        { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([ef])([rRdD]+)"),
-          "$0 { frac{ alignc $1 } over { "
-          "alignc $3 frac} } { frac{ alignc "
-          "$2 } over { alignc $4 frac} }" },
-        { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([nNcCxX]+)([ef])"),
-          "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} "
-          "} "
-          "$2" },
-        { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([nNcCxX]+)([ef])([rRdD]+)"),
-          "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 frac} "
-          "} { "
-          "frac{ alignc $2 } over { alignc $5 frac} }" },
-        { std::regex("([^rRdD]*)([rRdD]*)/([rRdD]+)"),
-          "$0 { frac{ alignc $1 } over { alignc $2 frac} }" },
-        { std::regex("([^rRdD]*)([rRdD]*)/([^rRdD]*)([rRdD]+)"), "{ frac{ alignc $0 } over { "
-                                                                 "alignc $2 frac} } { frac{ alignc "
-                                                                 "$1 } over { alignc $3 frac} }" },
+            // Print differentials and derivatives separately
+            { std::regex("([ef]?)([rRdD]+)/([ef])"),
+              "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
+            { std::regex("([ef]?)([rRdD]*)/([ef])([rRdD]+)"),
+              "{ frac{ alignc $0 } over { alignc $2 "
+              "frac} } { frac{ alignc $1 } over { "
+              "alignc $3 frac} }" },
+            { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([ef])"),
+              "$0 { frac{ alignc $1 } over { alignc $3 frac} } $2" },
+            { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([ef])([rRdD]+)"),
+              "$0 { frac{ alignc $1 } over { "
+              "alignc $3 frac} } { frac{ alignc "
+              "$2 } over { alignc $4 frac} }" },
+            { std::regex("([nNcCxX]+)([ef]?)([rRdD]+)/([nNcCxX]+)([ef])"),
+              "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 "
+              "frac} "
+              "} "
+              "$2" },
+            { std::regex("([nNcCxX]+)([ef]?)([rRdD]*)/([nNcCxX]+)([ef])([rRdD]+)"),
+              "{ frac{ alignc $0 } over { alignc $3 frac} } { frac{ alignc $1 } over { alignc $4 "
+              "frac} "
+              "} { "
+              "frac{ alignc $2 } over { alignc $5 frac} }" },
+            { std::regex("([^rRdD]*)([rRdD]*)/([rRdD]+)"),
+              "$0 { frac{ alignc $1 } over { alignc $2 frac} }" },
+            { std::regex("([^rRdD]*)([rRdD]*)/([^rRdD]*)([rRdD]+)"),
+              "{ frac{ alignc $0 } over { "
+              "alignc $2 frac} } { frac{ alignc "
+              "$1 } over { alignc $3 frac} }" },
 
-        // Ensure proper bracketing of single adds
-        { std::regex("([nNcCxX]+)a/([nNcCxX]+)"),
-          "{ frac{ alignc $0 } over { alignc $1 frac} } a" },
-        { std::regex("([nNcCxX]+)([^/nNcCxX]+)/([nNcCxX]+)"),
-          "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
-        { std::regex("a/([nNcXxX]+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} } a" },
-        { std::regex("([^/nNcCxX]+)/([nNcCxX]+)"),
-          "{ frac{ alignc 1 }  over { alignc $1 frac} } $0" },
+            // Ensure proper bracketing of single adds
+            { std::regex("([nNcCxX]+)a/([nNcCxX]+)"),
+              "{ frac{ alignc $0 } over { alignc $1 frac} } a" },
+            { std::regex("([nNcCxX]+)([^/nNcCxX]+)/([nNcCxX]+)"),
+              "{ frac{ alignc $0 } over { alignc $2 frac} } $1" },
+            { std::regex("a/([nNcXxX]+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} } a" },
+            { std::regex("([^/nNcCxX]+)/([nNcCxX]+)"),
+              "{ frac{ alignc 1 }  over { alignc $1 frac} } $0" },
 
-        // Catchall for everything that remains
-        { std::regex("/(.+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} }" },
-        { std::regex("([^/]+)/(.+)"), "{ frac{ alignc $0 } over { alignc $1 frac} }" }
+            // Catchall for everything that remains
+            { std::regex("/(.+)"), "{ frac{ alignc 1 }  over { alignc $0 frac} }" },
+        {
+            std::regex("([^/]+)/(.+)"), "{ frac{ alignc $0 } over { alignc $1 frac} }"
+        }
     };
+}
+
+void imathprint_mul(const mul& m, const imathprint& c, unsigned level)
+{
+    MSG_INFO(1, "imathprint_mul() for " << m << endline);
+    // Note: The level parameter is ignored and used for other purposes
+
+    operands numer(GINAC_MUL), denom(GINAC_MUL), tempn(GINAC_MUL), tempd(GINAC_MUL),
+        temp(GINAC_MUL);
+    operands::split_ex(m, numer, denom);
+
+    // Print expression according to pattern
+    std::string pattern = numer.pattern();
+    if (!denom.is_trivial())
+        pattern += "/" + denom.pattern();
+    MSG_INFO(1, "Multiplicative pattern '" << pattern << "'" << endline);
+
+    // This avoids having duplicate mulPrintFormats entries for everything, differing just by the minus sign
+    bool negative = false;
+    if (pattern[0] == '-')
+    {
+        negative = true;
+        pattern.erase(0, 1);
+        numer.include(_ex_1);
     }
 
-    void imathprint_mul(const mul& m, const imathprint& c, unsigned level)
+    for (const auto & [ pat, format ] : mulPrintFormats)
     {
-        MSG_INFO(1, "imathprint_mul() for " << m << endline);
-        // Note: The level parameter is ignored and used for other purposes
+        std::smatch subMatches;
+        if (!std::regex_match(pattern, subMatches, pat))
+            continue;
 
-        operands numer(GINAC_MUL), denom(GINAC_MUL), tempn(GINAC_MUL), tempd(GINAC_MUL),
-            temp(GINAC_MUL);
-        operands::split_ex(m, numer, denom);
+        //c.s << " \"H: |" << pattern << "|\" " << std::endl;
 
-        // Print expression according to pattern
-        std::string pattern = numer.pattern();
-        if (!denom.is_trivial())
-            pattern += "/" + denom.pattern();
-        MSG_INFO(1, "Multiplicative pattern '" << pattern << "'" << endline);
+        // Extract pattern into a vector (required for lookahead functionality)
+        std::vector<std::string> itemVector;
+        std::istringstream formatstream(format);
+        std::string item;
+        while (std::getline(formatstream, item, ' '))
+            itemVector.emplace_back(item);
 
-        // This avoids having duplicate mulPrintFormats entries for everything, differing just by the minus sign
-        bool negative = false;
-        if (pattern[0] == '-')
+        // GiNaC likes to pull out a minus sign from adds and put it in the coefficient
+        // Print to intermediate stream, so that leading minus can be removed after "turning around" an add, if possible
+        std::stringstream resultstream;
+        imathprint result(resultstream, c);
+
+        bool is_numer = true;
+
+        for (size_t i = 0; i < itemVector.size(); ++i)
         {
-            negative = true;
-            pattern.erase(0, 1);
-            numer.include(_ex_1);
-        }
+            item = itemVector[i];
 
-        for (const auto & [ pat, format ] : mulPrintFormats)
-        {
-            std::smatch subMatches;
-            if (!std::regex_match(pattern, subMatches, pat))
-                continue;
-
-            //c.s << " \"H: |" << pattern << "|\" " << std::endl;
-
-            // Extract pattern into a vector (required for lookahead functionality)
-            std::vector<std::string> itemVector;
-            std::istringstream formatstream(format);
-            std::string item;
-            while (std::getline(formatstream, item, ' '))
-                itemVector.emplace_back(item);
-
-            // GiNaC likes to pull out a minus sign from adds and put it in the coefficient
-            // Print to intermediate stream, so that leading minus can be removed after "turning around" an add, if possible
-            std::stringstream resultstream;
-            imathprint result(resultstream, c);
-
-            bool is_numer = true;
-
-            for (size_t i = 0; i < itemVector.size(); ++i)
+            if (item == "frac{")
             {
-                item = itemVector[i];
-
-                if (item == "frac{")
-                {
-                    result.enter_fraction();
-                    result.s << "{";
-                    is_numer = true;
-                }
-                else if (item == "over")
-                {
-                    result.s << " over ";
-                    is_numer = false;
-                }
-                else if (item == "frac}")
-                {
-                    result.s << "}";
-                    result.exit_fraction();
-                    is_numer = true;
-                }
-                else if (item[0] == '$')
-                {
-                    size_t subMatchIdx = std::stoi(item.substr(1));
-                    if (subMatches.size() > 1)
-                        ++subMatchIdx; // Index 0 is the whole pattern
-                    assert(subMatchIdx < subMatches.size());
-
-                    const std::string& subMatch = subMatches[subMatchIdx++].str();
-                    MSG_INFO(1, "Printing submatch '" << subMatch << "'" << endline);
-                    if (subMatch.empty())
-                        result.s << "1"; // Empty matches by definition print 1
-
-                    for (size_t m = 0; m < subMatch.size(); ++m)
-                    {
-                        if (subMatch.size() != 1 && subMatch[m] == 'a')
-                            printMulItem(
-                                "a", is_numer ? numer : denom, result, 1,
-                                negative); // A single add with preceding or following other operands must be bracketed
-                        else
-                            printMulItem(
-                                std::string(1, static_cast<char>(std::tolower(subMatch[m]))),
-                                is_numer ? numer : denom, result, 0, negative);
-                        result.s << " ";
-                    }
-                }
-                else
-                {
-                    if (!printMulItem(item, is_numer ? numer : denom, result, item == "a" ? 1 : 0,
-                                      negative))
-                        result.s << item; // Everything else
-                }
-
-                result.s << " ";
+                result.enter_fraction();
+                result.s << "{";
+                is_numer = true;
             }
-
-            if (negative)
-                c.s << "-"; // "turn around" was not successful
-            c.s << resultstream.str();
-            return;
-        }
-
-        c.s << " \"NH: |" << pattern << "|\" " << std::endl;
-    }
-
-    void imathprint_ncmul(const ncmul& m, const imathprint& c, unsigned level)
-    {
-        MSG_INFO(2, "Printing ncmul " << m << endline);
-        expression n = _expr1;
-        expression d = _expr1;
-
-        // Collect consecutive numerators and denominators and put them into a fraction
-        for (const auto& f : m)
-        {
-            if (is_negpower(f))
+            else if (item == "over")
             {
-                d = d / expression(f);
+                result.s << " over ";
+                is_numer = false;
             }
-            else
+            else if (item == "frac}")
             {
-                if (!d.is_equal(_ex1))
-                {
-                    // Print the fraction that was accumulated
-                    print_ncmul_fraction(n, d, c, level);
-                    n = f;
-                    d = _expr1;
-                }
-                else
-                {
-                    n = n * expression(f);
-                }
+                result.s << "}";
+                result.exit_fraction();
+                is_numer = true;
             }
-        }
-
-        if (!d.is_equal(_ex1))
-        {
-            // Print the last fraction that was accumulated
-            print_ncmul_fraction(n, d, c, level);
-        }
-        else if (!n.is_equal(_ex1))
-        {
-            if (is_a<ncmul>(n))
+            else if (item[0] == '$')
             {
-                for (size_t i = 0; i < n.nops(); ++i)
+                size_t subMatchIdx = std::stoi(item.substr(1));
+                if (subMatches.size() > 1)
+                    ++subMatchIdx; // Index 0 is the whole pattern
+                assert(subMatchIdx < subMatches.size());
+
+                const std::string& subMatch = subMatches[subMatchIdx++].str();
+                MSG_INFO(1, "Printing submatch '" << subMatch << "'" << endline);
+                if (subMatch.empty())
+                    result.s << "1"; // Empty matches by definition print 1
+
+                for (size_t m = 0; m < subMatch.size(); ++m)
                 {
-                    n.op(i).print(c, level + 1);
-                    if (i < n.nops() - 1)
-                        c.s << " ";
+                    if (subMatch.size() != 1 && subMatch[m] == 'a')
+                        printMulItem(
+                            "a", is_numer ? numer : denom, result, 1,
+                            negative); // A single add with preceding or following other operands must be bracketed
+                    else
+                        printMulItem(std::string(1, static_cast<char>(std::tolower(subMatch[m]))),
+                                     is_numer ? numer : denom, result, 0, negative);
+                    result.s << " ";
                 }
             }
             else
             {
-                n.print(c, level + 1);
+                if (!printMulItem(item, is_numer ? numer : denom, result, item == "a" ? 1 : 0,
+                                  negative))
+                    result.s << item; // Everything else
+            }
+
+            result.s << " ";
+        }
+
+        if (negative)
+            c.s << "-"; // "turn around" was not successful
+        c.s << resultstream.str();
+        return;
+    }
+
+    c.s << " \"NH: |" << pattern << "|\" " << std::endl;
+}
+
+void imathprint_ncmul(const ncmul& m, const imathprint& c, unsigned level)
+{
+    MSG_INFO(2, "Printing ncmul " << m << endline);
+    expression n = _expr1;
+    expression d = _expr1;
+
+    // Collect consecutive numerators and denominators and put them into a fraction
+    for (const auto& f : m)
+    {
+        if (is_negpower(f))
+        {
+            d = d / expression(f);
+        }
+        else
+        {
+            if (!d.is_equal(_ex1))
+            {
+                // Print the fraction that was accumulated
+                print_ncmul_fraction(n, d, c, level);
+                n = f;
+                d = _expr1;
+            }
+            else
+            {
+                n = n * expression(f);
             }
         }
     }
 
-    std::string roundNumber(const std::string& number, const int pos, bool& overflow)
+    if (!d.is_equal(_ex1))
     {
-        MSG_INFO(4, "Rounding " << number << " to " << pos << endline);
-        if (pos >= (int)number.size())
-            return number;
-        if (pos <= 0)
-            return "";
-
-        numeric rnumber(number.substr(0, pos).c_str());
-        if ((number.at(pos) - '0') >= 5)
-            rnumber++;
-        std::ostringstream str;
-        str << rnumber;
-        std::string result = str.str();
-
-        if ((int)result.size() > pos)
-        {
-            // Rounding added a digit, e.g. 9995 rounded at position 3 results in 1000
-            overflow = true;
-            result.erase(result.size() - 1);
-        }
-
-        return result;
+        // Print the last fraction that was accumulated
+        print_ncmul_fraction(n, d, c, level);
     }
+    else if (!n.is_equal(_ex1))
+    {
+        if (is_a<ncmul>(n))
+        {
+            for (size_t i = 0; i < n.nops(); ++i)
+            {
+                n.op(i).print(c, level + 1);
+                if (i < n.nops() - 1)
+                    c.s << " ";
+            }
+        }
+        else
+        {
+            n.print(c, level + 1);
+        }
+    }
+}
+
+std::string roundNumber(const std::string& number, const int pos, bool& overflow)
+{
+    MSG_INFO(4, "Rounding " << number << " to " << pos << endline);
+    if (pos >= (int)number.size())
+        return number;
+    if (pos <= 0)
+        return "";
+
+    numeric rnumber(number.substr(0, pos).c_str());
+    if ((number.at(pos) - '0') >= 5)
+        rnumber++;
+    std::ostringstream str;
+    str << rnumber;
+    std::string result = str.str();
+
+    if ((int)result.size() > pos)
+    {
+        // Rounding added a digit, e.g. 9995 rounded at position 3 results in 1000
+        overflow = true;
+        result.erase(result.size() - 1);
+    }
+
+    return result;
+}
+}
+// exponent is a positive integer, or is not rational, or is not even a numeric
+// Should we print things like x^(-a) as \frac(1)(x^a) ?
+if (is_a<func>(basis) && (ex_to<func>(basis).is_trig() || ex_to<func>(basis).is_pure()))
+{
+    ex_to<func>(basis).print_imath(c, expon);
+}
+else
+{
+    bool bracket = false;
+    if (is_a<func>(basis))
+        bracket = !ex_to<func>(basis).is_nobracket();
+    else if (is_a<differential>(basis)
+             && (ex_to<differential>(basis).is_numerator()
+                 || !ex_to<differential>(basis).get_grade().is_equal(_ex1)))
+        bracket = true;
+    else if (is_a<expairseq>(basis) || is_a<power>(basis) || is_a<exderivative>(basis)
+             || (is_a<numeric>(basis)
+                 && (basis.info(info_flags::negative) || basis.is_equal(_ex_1 * I))))
+        bracket = true;
 
     void imathprint_real(const numeric& num, const imathprint& c)
     {

@@ -230,15 +230,6 @@ public:
   **/
   void include(const GiNaC::ex &what);
 
-  /**
-  Excludes an expression from the receiver by multiplying the contents of the field corresponding to
-  its type with 1 / what. Note that this is NOT possible with include(1/what) because the type of this
-  is always a power!
-
-  @param what The expression to exclude
-  **/
-  void exclude(const GiNaC::ex &what);
-
   /// Remove all elements of a certain type
   inline void clear_adds() { adds = type; }
   inline void clear_diffs() { differentials = type; }

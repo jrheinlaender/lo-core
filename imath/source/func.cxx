@@ -305,30 +305,41 @@ ex func::expand(unsigned options) const {
 
 ex func::conjugate() const {
   if (hard) { // Fall through to GiNaC::function::conjugate()
+    ex original = function(serial, seq).hold();
     ex result = function(serial, seq).setflag(status_flags::evaluated).conjugate(); // Note: Omitting setting the flag results in an infinite loop!
-    // TODO: Compare if something changed, e.g. if (are_ex_trivially_equal(funct, result)) return *this;
+    if (original.is_equal(result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+        return this->hold();
+
     return Functionmanager::replace_function_by_func(result).eval(); // get rid of GiNaC functions that might have been introduced
   }
 
-  return Functionmanager::create_hard("conjugate", {ex(*this)});
+  return Functionmanager::create_hard("conjugate", {ex(*this)}, false);
 }
 
 ex func::real_part() const {
   if (hard) { // Fall through to GiNaC::function::real_part()
+    ex original = function(serial, seq).hold();
     ex result = function(serial, seq).setflag(status_flags::evaluated).real_part(); // Note: Omitting setting the flag results in an infinite loop!
+    if (original.is_equal(result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+        return this->hold();
+
     return Functionmanager::replace_function_by_func(result).eval(); // get rid of GiNaC functions that might have been introduced
   }
 
-  return Functionmanager::create_hard("Re", {ex(*this)});
+  return Functionmanager::create_hard("Re", {ex(*this)}, false);
 }
 
 ex func::imag_part() const {
   if (hard) { // Fall through to GiNaC::function::imag_part()
+    ex original = function(serial, seq).hold();
     ex result = function(serial, seq).setflag(status_flags::evaluated).imag_part(); // Note: Omitting setting the flag results in an infinite loop!
+    if (original.is_equal(result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
+        return this->hold();
+
     return Functionmanager::replace_function_by_func(result).eval(); // get rid of GiNaC functions that might have been introduced
   }
 
-  return Functionmanager::create_hard("Im", {ex(*this)});
+  return Functionmanager::create_hard("Im", {ex(*this)}, false);
 }
 
 bool func::has(const ex & other, unsigned options) const {
@@ -359,7 +370,7 @@ bool func::has(const ex & other, unsigned options) const {
           ex func_arg = function(f0.serial, f0.seq);
           ex original = function(serial, func_arg).hold();
           ex result = original.eval();
-          if (original.is_equal(result))
+          if (original.is_equal(result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
             return this->hold(); // Nothing appears to have happened
 
           // Don't introduce any GiNaC::function into the system!
@@ -380,7 +391,7 @@ bool func::has(const ex & other, unsigned options) const {
       // Take advantage of the hard-coded GiNaC eval rules, e.g. sin(-2) = -sin(2)
       ex original = function(serial, seq).hold();
       ex result = function(serial, seq);
-      if (original.is_equal(result))
+      if (original.is_equal(result)) // Note: are_ex_trivially_equal() does not evaluate to true, maybe because of hold()
         return this->hold(); // Nothing appears to have happened
 
       // Don't introduce any GiNaC::function into the system!

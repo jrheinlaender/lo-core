@@ -130,8 +130,14 @@ std::string differential_get_name(const differential& d);
 
 std::string power_get_name(const power& p) {
   ex b = get_basis(p);
+  ex e = get_exp(p);
+
   if (is_a<symbol>(b)) {
-    return std::string("012") + ex_to<symbol>(b).get_name();
+    std::string name = ex_to<symbol>(b).get_name();
+    if (name[0] == '%')
+      return std::string("013") + (e.info(info_flags::integer) ? "" : "z") + name; // greek letters etc. // TODO: Sort by greek alphabet...
+    else
+      return std::string("012") + (e.info(info_flags::integer) ? "" : "z") + name; // Move roots of symbols to the end
   } else if (is_a<constant>(b)) {
     std::ostringstream os;
     os << "012" << ex_to<constant>(b);
@@ -668,7 +674,7 @@ bool printMulItem(const std::string& item, const operands& ops, imathprint& c, u
         // TODO turn-around would be possible for adds with integer exponents
         printSortedMul(ops.get_powers(), c, level);
     } else if (item == "f") {
-        // TODO turn-around would be possible for some functions
+        // TODO turn-around would be possible for odd functions where f(-x) = -f(x)
         printSortedMul(ops.get_functions(), c, level);
     } else if (item == "i") {
         c.set_add_turn_around(turn_around);
@@ -1126,7 +1132,7 @@ void imathprint_power(const power& p, const imathprint& c, unsigned level) {
         bracket = !ex_to<func>(basis).is_nobracket();
     else if (is_a<differential>(basis) && (ex_to<differential>(basis).is_numerator() || !ex_to<differential>(basis).get_grade().is_equal(_ex1)))
       bracket = true;
-    else if (is_a<expairseq>(basis) || is_a<power>(basis) || is_a<exderivative>(basis) || (is_a<numeric>(basis) && basis.info(info_flags::negative)))
+    else if (is_a<expairseq>(basis) || is_a<power>(basis) || is_a<exderivative>(basis) || (is_a<numeric>(basis) && (basis.info(info_flags::negative) || basis.is_equal(_ex_1 * I))))
       bracket = true;
 
     if (bracket) c.s << "(";

@@ -235,7 +235,7 @@ expression Functionmanager::create_hard(const std::string& n, const exprseq &arg
   if (eval)
       return result.eval();
 
-  return result; // eval() cannot be called always becuase the hardfuncs call create_hard() in their eval() methods
+  return result; // eval() cannot be called always because the hardfuncs call create_hard() in their eval() methods
 }
 
 expression Functionmanager::create_hard(const std::string& n, exprseq &&args, const bool eval) {

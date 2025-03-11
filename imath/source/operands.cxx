@@ -131,8 +131,7 @@ operands& operands::operator=(const operands& other) {
 
 void operands::split_ex(const expression &e, operands &o1, operands &o2) {
   // Split the ex into different types of operands (symbols, functions etc.)
-  MSG_INFO(3, "Splitting expression " << e <<
-    ", number of operands: " << (long)e.nops() << endline);
+  MSG_INFO(3, "Splitting expression " << e << ", number of operands: " << (long)e.nops() << endline);
 
   unsigned hash = e.gethash();
   remember_split_it it = remember_split.find(hash);
@@ -171,9 +170,12 @@ void operands::split_ex(const expression &e, operands &o1, operands &o2) {
     o2.include(pow(e, -1));
   else if (is_a<power>(e))
     o1.include(e);
-  else if (is_a<numeric>(e))
-    o1.include(e);
-  else if (is_a<constant>(e)) // Pi etc.
+  else if (is_a<numeric>(e)) {
+      if (o1.type == GINAC_ADD && e.is_equal(-I))
+          o2.include(e);
+      else
+        o1.include(e);
+  } else if (is_a<constant>(e)) // Pi etc.
     o1.include(e);
   else if (is_a<function>(e))
     o1.include(e);
@@ -207,7 +209,7 @@ void operands::split_ex(const expression &e, operands &o1, operands &o2) {
 
 std::string operands::pattern() const {
     // Sign
-    std::string result = (coefficient.info(info_flags::negative) ? "-" : "");
+    std::string result = (is_negex(coefficient) ? "-" : ""); // Note that .info(info_flags::negative) is not sufficient, e.g. for -1/2 sqrt(-3) or -I
 
     // Numbers
     result += (coefficient.is_equal(type) || coefficient.is_equal(_ex_1 * type) ? "" : "n");
@@ -300,7 +302,13 @@ GiNaC::ex operands::get() const
 void operands::include(const ex &what) {
   // Find the type of what and include it in the receiver
   if (is_a<extsymbol>(what)) symbols = oper(symbols, what);
-  else if (is_a<constant>(what)) constants = oper(constants, what);
+  else if (is_a<numeric>(what)) {
+      if (what.has(I)) {
+          others = oper(others, I); // Print imaginary unit at the end, e.g. a + 1/2 sqrt{2} b i
+          coefficient = oper(coefficient, what / I);
+      } else
+        coefficient = oper(coefficient, what);
+  } else if (is_a<constant>(what)) constants = oper(constants, what);
   else if (is_a<Unit>(what)) units = oper(units, what);
   else if (is_a<func>(what)) functions = oper(functions, what);
   else if (is_a<function>(what)) functions = oper(functions, what);
@@ -329,59 +337,8 @@ void operands::include(const ex &what) {
     } else {
       powers = oper(powers, what);
     }
-  } else if (is_a<numeric>(what)) {
-      if (what == I)
-        others = oper(others, I); // TODO Shouldn't this go in the coefficient?
-      else if (what == -I) {
-          // TODO Can this happen? Shouldn't it be handled in split_ex() ?
-        coefficient = oper(coefficient, -1);
-        others = oper(others, I);
-      } else
-        coefficient = oper(coefficient, what);
-  } else others = oper(others, what);
+  }  else others = oper(others, what);
   MSG_INFO(6,  "Included expression " << what << endline);
-}
-
-void operands::exclude(const ex &what) {
-  // Find the type of what and include it in the receiver
-  if (is_a<extsymbol>(what)) symbols = oper(symbols, 1 / what);
-  else if (is_a<constant>(what)) constants = oper(constants, 1 / what);
-  else if (is_a<Unit>(what)) units = oper(units, 1 / what);
-  else if (is_a<func>(what)) functions = oper(functions, 1 / what);
-  else if (is_a<function>(what)) functions = oper(functions, 1 / what);
-  else if (is_a<extintegral>(what)) integrals = oper(integrals, 1 / what);
-  else if (is_a<differential>(what)) differentials = oper(differentials, 1 / what);
-  else if (is_a<exderivative>(what)) derivatives = oper(derivatives, 1 / what);
-  else if (is_a<add>(what)) adds = oper(adds, 1 / what);
-  else if (is_a<mul>(what)) muls = oper(muls, 1 / what);
-  else if (is_a<matrix>(what)) matrices = oper(matrices, 1 / what);
-  else if (is_a<power>(what)) {
-    const power& pow = ex_to<power>(what);
-    ex base = get_basis(pow);
-    ex exponent = get_exp(pow);
-    if (is_a<numeric>(exponent) && is_a<numeric>(base)) {
-      coefficient = oper(coefficient, what);
-    } else if (is_a<numeric>(exponent) && (is_a<Unit>(base))) {
-      units = oper(units, 1 / what);
-    } else if (is_a<numeric>(exponent) && is_a<extsymbol>(base)) {
-      symbols = oper(symbols, 1 / what);
-    } else if (is_a<numeric>(exponent) && (is_a<constant>(base))) {
-      constants = oper(constants, 1 / what);
-    } else if (is_a<differential>(base)) {
-      differentials = oper(differentials, 1 / what);
-    } else if (is_a<exderivative>(base)) {
-      derivatives = oper(derivatives, 1 / what);
-    } else {
-      powers = oper(powers, 1 / what);
-    }
-  } else if (is_a<numeric>(what)) {
-    if (coefficient.is_equal(ex_to<numeric>(what)))
-      coefficient = *_num1_p; // Avoid rounding errors for floating point coefficients
-    else
-      coefficient = oper(coefficient, 1 / what);
-  } else {
-    others = oper(others, 1 / what);
-  }
 }
 
 bool checkmatrix(const matrix &m) {

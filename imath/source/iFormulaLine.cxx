@@ -1182,7 +1182,9 @@ std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XMode
             mod += _formulaParts[f++];
         lhs = adjustLocale(replaceString(lhs, OU("\n%%ii+"), OU("")));
         rhs = adjustLocale(replaceString(rhs, OU("\n%%ii+"), OU("")));
-        mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU("")));
+        mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU(""))).trim();
+        if (mod.endsWithAsciiL(")", 1))
+            mod = mod.copy(0, mod.getLength() - 1); // Remove bracket (opening bracket is included in MOD that was skipped
     }
   }
 

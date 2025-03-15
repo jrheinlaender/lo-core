@@ -1155,6 +1155,8 @@ OUString iFormulaNodeEq::print() const {
 std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XModel>&) const {
   if (error == no_error && _hide)
       return {};
+  if (error != no_error)
+      return iFormulaLine::display();
 
   MSG_INFO(1, "iFormulaNodeEq::display() '" << getFormula() << "'" << endline);
   const equation& eq = ex_to<equation>(_expr);
@@ -1164,57 +1166,34 @@ std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XMode
   OUString rhs("");
   OUString mod("");
 
-  if (error == no_error || error == label_error) {
-    if (autoformat_required()) {
-        lhs = printEx(eq.lhs());
-        rhs = printEx(eq.rhs());
-        if (!eq.getmod().is_zero())
-            mod = printEx(eq.getmod());
-    } else {
-        size_t f = 0;
-        while (f < _formulaParts.size() && !(_formulaParts[f].trim().equals(oper.trim()) || _formulaParts[f].trim().equals(toper.trim())))
-            lhs += _formulaParts[f++];
+  if (autoformat_required()) {
+    lhs = printEx(eq.lhs());
+    rhs = printEx(eq.rhs());
+    if (!eq.getmod().is_zero())
+        mod = printEx(eq.getmod());
+  } else {
+    size_t f = 0;
+    while (f < _formulaParts.size() && !(_formulaParts[f].trim().equals(oper.trim()) || _formulaParts[f].trim().equals(toper.trim())))
+        lhs += _formulaParts[f++];
+    if (f < _formulaParts.size())
         oper = _formulaParts[f++]; // Keep user format of operator
-        while (f < _formulaParts.size() && !(_formulaParts[f].trim().toAsciiUpperCase().equals("MOD") || _formulaParts[f].trim().toAsciiUpperCase().equals("(MOD")))
-            rhs += _formulaParts[f++];
-        ++f; // Skip 'mod'
-        while (f < _formulaParts.size())
-            mod += _formulaParts[f++];
-        lhs = adjustLocale(replaceString(lhs, OU("\n%%ii+"), OU("")));
-        rhs = adjustLocale(replaceString(rhs, OU("\n%%ii+"), OU("")));
-        mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU(""))).trim();
-        if (mod.endsWithAsciiL(")", 1))
-            mod = mod.copy(0, mod.getLength() - 1); // Remove bracket (opening bracket is included in MOD that was skipped
-    }
+    while (f < _formulaParts.size() && !(_formulaParts[f].trim().toAsciiUpperCase().equals("MOD") || _formulaParts[f].trim().toAsciiUpperCase().equals("(MOD")))
+        rhs += _formulaParts[f++];
+    ++f; // Skip 'mod'
+    while (f < _formulaParts.size())
+        mod += _formulaParts[f++];
+    lhs = adjustLocale(replaceString(lhs, OU("\n%%ii+"), OU("")));
+    rhs = adjustLocale(replaceString(rhs, OU("\n%%ii+"), OU("")));
+    mod = adjustLocale(replaceString(mod, OU("\n%%ii+"), OU(""))).trim();
+    if (mod.endsWithAsciiL(")", 1))
+        mod = mod.copy(0, mod.getLength() - 1); // Remove bracket (opening bracket is included in MOD that was skipped
   }
 
-  switch(error) {
-      case label_error:
-        return
-        {
-            {"newline "},
-            {
-                "bold color red{(\"" + _formulaParts[1] + "\")}",
-                OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + " `(\"mod\"` " + mod + OU(")}"),
-                "newline "
-            },
-            {"color blue{\"" + _formulaParts[3] + "\"}", "newline "}
-        };
-      case no_error:
-        // Note: This ignores the print() method of class equation. But for error handling we need to split up into lhs, rhs, mod anyway
-        if (mod.isEmpty())
-            return
-                {
-                    {OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + OU("}")}
-                };
-        else
-            return
-                {
-                    {OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + OU("}"), OU(" `(\"mod\"` ") + mod + OU(")")}
-                };
-      default:
-        return iFormulaLine::display();
-  }
+  // Note: This ignores the print() method of class equation. But for error handling we need to split up into lhs, rhs, mod anyway
+  std::vector<OUString> result = {OU("{alignr ") + lhs + OU("}"), OU("{}") + oper + OU("{}"), OU("{alignl ") + rhs + OU("}")};
+  if (!mod.isEmpty())
+    result.emplace_back(OU(" `(\"mod\"` ") + mod + OU(")"));
+  return {result};
 }
 
 // Node Const

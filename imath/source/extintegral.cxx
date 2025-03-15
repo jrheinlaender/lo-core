@@ -679,7 +679,7 @@ void init_table()
         { pow(sinax, 2), x / 2 - Functionmanager::create_hard("sin", { 2 * a * x }) / (4 * a) },
         /*276*/ { pow(sinax, 3), -1 / a * cosax + 1 / (3 * a) * pow(cosax, 3) },
         /*277*/
-        { pow(sinax, 4), numeric(3, 8) / x
+        { pow(sinax, 4), numeric(3, 8) * x
                              - 1 / (4 * a) * Functionmanager::create_hard("sin", { 2 * a * x })
                              + 1 / (32 * a) * Functionmanager::create_hard("sin", { 4 * a * x }) },
         /*278 is a recursive partial integral*/
@@ -805,9 +805,9 @@ void init_table()
         { pow(cosax, 2), x / 2 + Functionmanager::create_hard("sin", { 2 * a * x }) / (4 * a) },
         /*315*/ { pow(cosax, 3), 1 / a * sinax - pow(sinax, 3) / (3 * a) },
         /*316*/
-        { pow(cosax, 4),
-          numeric(3, 8) * x + 1 / (4 * a) * Functionmanager::create_hard("sin", { 2 * a * x })
-              + pow(Functionmanager::create_hard("sin", { 4 * a * x }), 3) / (32 * a) },
+        { pow(cosax, 4), numeric(3, 8) * x
+                             + 1 / (4 * a) * Functionmanager::create_hard("sin", { 2 * a * x })
+                             + Functionmanager::create_hard("sin", { 4 * a * x }) / (32 * a) },
         /*317 is a recursive partial integral */
         /*318*/ { x * cosax, cosax / pow(a, 2) + x * sinax / a },
         /*319*/
@@ -902,7 +902,7 @@ void init_table()
               - 1 / (6 * a) * pow(Functionmanager::create_hard("tan", { a * x / 2 }), -3) },
         /*344*/
         { pow(1 + pow(cosax, 2), -1),
-          1 / (2 * GiNaC::sqrt(numeric(2)) * a)
+          1 / (2 * GiNaC::sqrt(ex(2)) * a)
               * Functionmanager::create_hard("arcsin",
                                              { (1 - 3 * pow(cosax, 2)) / (1 + pow(cosax, 2)) }) },
         /*345*/ { pow(1 - pow(cosax, 2), -1), -1 / (tanax * a) },

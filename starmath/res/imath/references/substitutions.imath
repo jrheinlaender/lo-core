@@ -33,8 +33,10 @@
 %%ii@lib:trig:cota-b@   EQDEF cot(wild(1) - wild(2)) = {cot(wild(1)) cot(wild(2)) + 1} over {cot(wild(2)) - cot(wild(1))}
 %%ii@lib:trig:sin2a@    EQDEF sin(2 wild) = 2 sin(wild) cos(wild)
 %%ii@lib:trig:cos2a@    EQDEF cos(2 wild) = square(cos(wild)) - square(sin(wild))
+%%ii@lib:trig:tan2a@    EQDEF tan(2 wild) = 2 tan(wild) / (1 - square{tan(wild)})
 %%ii@lib:trig:sin3a@    EQDEF sin(3 wild) = 3 sin(wild) - 4 (sin(wild))^3
 %%ii@lib:trig:cos3a@    EQDEF cos(3 wild) = 4 (cos(wild))^3 - 3 cos(wild)
+%%ii@lib:trig:tan3a@    EQDEF tan(3 wild) = (3 tan(wild) - tan(wild)^3) / (1 - 3 square{tan(wild)})
 %%ii@lib:trig:sina2@    EQDEF sin(wild/2) = sqrt{1/2 (1 - cos(wild))}
 %%ii@lib:trig:cosa2@    EQDEF cos(wild/2) = sqrt{1/2 (1 + cos(wild))}
 %%ii@lib:trig:tana2@    EQDEF tan(wild/2) = {1 - cos(wild)} over sin(wild)
@@ -87,7 +89,7 @@
 %%ii@lib:trig:cotcos@        EQDEF cot{wild} = cos{wild} over sqrt{1 - square{cos{wild}}}
 %%ii@lib:trig:cottan@        EQDEF cot{wild} = 1 over tan{wild}
 %%ii@lib:trig:cothsinhcosh@  EQDEF coth{wild} = cosh{wild} over sinh{wild}
-%%ii@lib:trig:acotacos:main@ EQDEF arccot{wild} = arccos(wild over sqrt{1 + square{wild}}) 
+%%ii@lib:trig:acotacos:main@ EQDEF arccot{wild} = arccos(wild over sqrt{1 + square{wild}})
 %%ii@lib:trig:acotatan:x>0@  EQDEF arccot{wild} = arctan(1 over wild)
 %%ii@lib:trig:acotasin:x>0@  EQDEF arccot{wild} = arcsin(1 over sqrt{1 + square{wild}})
 %%ii@lib:trig:sinqcos@       EQDEF square{sin{wild}} = 1 over 2 (1 - cos(2 wild))

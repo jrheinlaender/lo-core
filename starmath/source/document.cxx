@@ -417,6 +417,32 @@ OUString compileIncludes(const std::list<OUString>& files, imath::parserParamete
 
     return {};
 }
+
+// Order of initialization
+// =======================
+// mPreviousFormula is not empty, and mIFormulaMasterDocument is empty
+//    Get compiler and options from previous formula in current document
+//
+// a) Stand-alone math formula
+//    Initialize options
+//    Read iMath references (at least init.imath)
+//    Initialize units
+//    Read user-defined include files
+//
+// b) First formula in text or presentation document, without master document
+//    Initialize options
+//    Read iMath references (at least init.imath)
+//    Initialize units
+//    Read user-defined include files
+//
+// c) First formula in text or presentation document, with master document
+//    Note that only the first formula in a document will have the mIFormulaMasterDocument property set
+//    Case b) has already run on the master document
+//    Get compiler and options from previous formula in master document
+//    Read iMath references that have not already been read in master document
+//    Initialize units for current document
+//    Read user-defined include files
+
 OUString SmDocShell::ImInitializeCompiler() {
     SAL_INFO_LEVEL(1, "starmath.imath", "Preparing formula for compilation");
 
@@ -607,6 +633,11 @@ OUString SmDocShell::ImInitializeCompiler() {
     // References. These are always document specific
     OUString references = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_references"), OU("Includes/txt_References"));
     SAL_INFO_LEVEL(1, "starmath.imath", "Found references '" << references << "'");
+    if (references.isEmpty())
+    {
+        SAL_WARN_LEVEL(1, "starmath.imath", "Empty references found in document, assuming init.imath must be loaded");
+        references = "00init";
+    }
     OUString include1 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include1"), OU("Includes/txt_Include1"));
     OUString include2 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include2"), OU("Includes/txt_Include2"));
     OUString include3 = getTextProperty(xContext, xModel, xGraph, xProperties, OU("includes_txt_include3"), OU("Includes/txt_Include3"));
@@ -739,7 +770,7 @@ void SmDocShell::Compile()
     // Save old outgoing dependencies
     std::set<GiNaC::expression, GiNaC::expr_is_less> oldOutDep;
     for (const auto& l : mLines) oldOutDep.merge(l->getOut());
-    SAL_INFO_LEVEL(1, "starmath.imath", "This formula had old outgoing dependencies for '" << makeSymbolString(oldOutDep) << "'");
+    SAL_INFO_LEVEL(2, "starmath.imath", "This formula had old outgoing dependencies for '" << makeSymbolString(oldOutDep) << "'");
 
     // Prepare compiler. Note: Since mpCurrentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
     mpCurrentCompiler = std::make_shared<eqc>(*mpInitialCompiler); // Takes a deep copy TODO: Reduce the amount of data copied, e.g. by copy-on-write semantics in the eqc private data structures

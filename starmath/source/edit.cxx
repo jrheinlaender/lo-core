@@ -1138,7 +1138,6 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                         useEq = pLine->getFormula();
                         useEx = getLhs(useEq);
                     }
-
                 }
                 else if (previousType == "CONSTDEF")
                 {

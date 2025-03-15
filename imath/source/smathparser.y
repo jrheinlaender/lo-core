@@ -383,7 +383,7 @@ bool handle_equation(imath::parserParameters& params, const std::string& label, 
                      const imath::location& labelStart, const imath::location& formulaStart, std::vector<OUString> formulaParts) {
   std::string nslabel;
   if (!check_label(label, nslabel)) {
-    handle_label_error(labelStart, nslabel, params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), eq, hide), formulaStart);
+    handle_label_error(labelStart, nslabel, params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), eq, hide),formulaStart);
     return false;
   }
   params.compiler->check_and_register(eq, nslabel);
@@ -1412,19 +1412,19 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         auto eq = GiNaC::dynallocate<equation>(compiler->getsym($5), $7);
         std::string nslabel;
         if (!check_label(label, nslabel)) {
-          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), eq, hide), @5);
+          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), eq, hide), @5);
           YYABORT;
         }
         try {
           params.compiler->register_constant(ex_to<equation>(std::move(eq))); // TODO: Label is unused - no equation is registered, just the value!
         } catch(const std::exception& e) {
           error(@7, e.what());
-          handle_error(params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), eq, hide), @5);
+          handle_error(params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), eq, hide), @5);
           YYABORT;
         }
 
         if (include_level == 0) {
-          params.lines.push_back(std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, std::move(options), fparts({GETARG(@5), "=", GETARG(@7)}), OUS8(nslabel), eq, std::move(hide)));
+          params.lines.push_back(std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, std::move(options), fparts({GETARG(@5), "=", GETARG(@7)}), OUS8(nslabel), eq, hide));
           line = params.lines.back();
           line_options.clear();
           line->force_autoformat(must_autoformat);
@@ -1461,7 +1461,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         expression result = dynallocate<equation>(f, std::move(expr), relational::equal, _expr0);
         std::string nslabel;
         if (!check_label(label, nslabel)) {
-          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), result, hide), @5);
+          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), result, hide), @5);
           YYABORT;
         }
         if (!ex_to<func>(f).is_expand())
@@ -1499,7 +1499,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         expression result = dynallocate<equation>(f, std::move(expr), relational::equal, _expr0);
         std::string nslabel;
         if (!check_label(label, nslabel)) {
-          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), result, hide), @5);
+          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeFuncdef>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), result, hide), @5);
           YYABORT;
         }
         if (!ex_to<func>(f).is_expand())
@@ -1532,7 +1532,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         expression result = dynallocate<equation>($5, $7, relational::equal, _expr0);
         std::string nslabel;
         if (!check_label($1, nslabel)) {
-          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeVectordef>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), result, hide), @5);
+          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeVectordef>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), result, hide), @5);
           YYABORT;
         }
         params.compiler->check_and_register(std::move(result), std::move(nslabel));
@@ -1564,7 +1564,7 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         expression result = dynallocate<equation>($5, $7, relational::equal, _expr0);
         std::string nslabel;
         if (!check_label($1, nslabel)) {
-          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeMatrixdef>(unitConversions(), current_options, options, fparts({}), OUS8(nslabel), result, hide), @5);
+          handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeMatrixdef>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), result, hide), @5);
           YYABORT;
         }
         params.compiler->check_and_register(std::move(result), std::move(nslabel));

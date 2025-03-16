@@ -32,6 +32,8 @@
 
 #include <com/sun/star/beans/PropertyValue.hpp>
 
+#include <officecfg/Office/Math.hxx>
+#include <officecfg/Office/iMath.hxx>
 #include <cfgitem.hxx>
 
 #include <starmath.hrc>
@@ -140,7 +142,8 @@ struct SmCfgOther
     SmPrintSize     ePrintSize;
     sal_uInt16      nPrintZoomFactor;
     sal_uInt16      nSmEditWindowZoomFactor;
-    sal_Int16       nSmSyntaxVersion;
+    sal_Int16      nSmSyntaxVersion;
+    sal_Int32      nImSyntaxVersion;
     bool            bPrintTitle;
     bool            bPrintFormulaText;
     bool            bPrintFrame;
@@ -156,6 +159,7 @@ struct SmCfgOther
 };
 
 constexpr sal_Int16 nDefaultSmSyntaxVersion(5);
+constexpr sal_Int32 nDefaultImSyntaxVersion(20301); // corresponds with iMath extension version 2.3.1 (note that leading 0 would imply an octal number)
 
 SmCfgOther::SmCfgOther()
     : ePrintSize(PRINT_SIZE_NORMAL)
@@ -163,6 +167,7 @@ SmCfgOther::SmCfgOther()
     , nSmEditWindowZoomFactor(100)
     // Defaulted as 5 so I have time to code the parser 6
     , nSmSyntaxVersion(nDefaultSmSyntaxVersion)
+    , nImSyntaxVersion(nDefaultImSyntaxVersion)
     , bPrintTitle(true)
     , bPrintFormulaText(true)
     , bPrintFrame(true)
@@ -798,6 +803,9 @@ void SmMathConfig::LoadOther()
     // Misc/InlineEditEnable
     if (bool bTmp; pVal->hasValue() && (*pVal >>= bTmp))
         pOther->bInlineEditEnable = bTmp;
+    // Misc/DefaultImSyntaxVersion
+    if (sal_Int16 nTmp; pVal->hasValue() && (*pVal >>= nTmp))
+        pOther->nImSyntaxVersion = nTmp;
     ++pVal;
     // Misc/IgnoreSpacesRight
     if (bool bTmp; pVal->hasValue() && (*pVal >>= bTmp))
@@ -864,6 +872,8 @@ void SmMathConfig::SaveOther()
     *pVal++ <<= pOther->nSmSyntaxVersion;
     // Misc/InlineEditEnable
     *pVal++ <<= pOther->bInlineEditEnable;
+    // Misc/DefaultImSyntaxVersion
+    *pVal++ <<= pOther->nImSyntaxVersion;
     // Misc/IgnoreSpacesRight
     *pVal++ <<= pOther->bIgnoreSpacesRight;
     // Misc/SmEditWindowZoomFactor
@@ -1264,6 +1274,15 @@ sal_Int16 SmMathConfig::GetDefaultSmSyntaxVersion() const
     return pOther->nSmSyntaxVersion;
 }
 
+sal_uInt32 SmMathConfig::GetDefaultImSyntaxVersion() const
+{
+    if (utl::ConfigManager::IsFuzzing())
+        return nDefaultImSyntaxVersion;
+    if (!pOther)
+        const_cast<SmMathConfig*>(this)->LoadOther();
+    return pOther->nImSyntaxVersion;
+}
+
 bool SmMathConfig::IsPrintFrame() const
 {
     if (!pOther)
@@ -1325,6 +1344,15 @@ void SmMathConfig::SetInlineEditEnable( bool bVal )
     {
         // reformat (displayed) formulas accordingly
         Broadcast(SfxHint(SfxHintId::MathFormatChanged));
+
+void SmMathConfig::SetDefaultImSyntaxVersion( sal_uInt32 nVal )
+{
+    if (!pOther)
+        LoadOther();
+    if (nVal != pOther->nImSyntaxVersion)
+    {
+        pOther->nImSyntaxVersion = nVal;
+        SetOtherModified( true );
     }
 }
 

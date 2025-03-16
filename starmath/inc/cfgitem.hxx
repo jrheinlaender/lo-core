@@ -197,6 +197,8 @@ public:
 
     sal_Int16 GetDefaultSmSyntaxVersion() const;
     void SetDefaultSmSyntaxVersion(sal_Int16 nVal);
+    sal_Int32 GetDefaultImSyntaxVersion() const;
+    void SetDefaultImSyntaxVersion(sal_Int32 nVal);
 
     SmFontPickList& GetFontPickList(sal_uInt16 nIdent) { return vFontPickList[nIdent]; }
 

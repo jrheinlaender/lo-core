@@ -73,6 +73,10 @@ one go*/
 #include <smmod.hxx>
 #include <cfgitem.hxx>
 
+#include <vcl/svapp.hxx>
+
+#include <smim.hrc>
+
 using namespace ::com::sun::star::beans;
 using namespace ::com::sun::star::container;
 using namespace ::com::sun::star::document;
@@ -392,6 +396,7 @@ SmXMLImport::SmXMLImport(const css::uno::Reference<css::uno::XComponentContext>&
     , bSuccess(false)
     , nParseDepth(0)
     , mnSmSyntaxVersion(SM_MOD()->GetConfig()->GetDefaultSmSyntaxVersion())
+    , mnImSyntaxVersion(SM_MOD()->GetConfig()->GetDefaultImSyntaxVersion())
 {
 }
 
@@ -449,7 +454,19 @@ void SmXMLImport::endDocument()
             rParser->SetImportSymbolNames(bVal);
 
             pDocShell->SetText(aText);
+            pDocShell->SetImText(aImText, false); // Set text but don't compile, because document is not fully initialized yet
             pDocShell->SetSmSyntaxVersion(mnSmSyntaxVersion);
+
+            sal_uInt32 programVersion = SM_MOD()->GetConfig()->GetDefaultImSyntaxVersion();
+            if (mnImSyntaxVersion < programVersion) {
+                // Document has older version than program
+                //TODO: updateFromTo(mnImSyntaxVersion, programVersion);
+            } else if (mnImSyntaxVersion > programVersion) {
+                // Document has newer version than program
+                // TODO: This is untested
+                std::unique_ptr<weld::MessageDialog> xInfoBox(Application::CreateMessageDialog(nullptr, VclMessageType::Error, VclButtonsType::Ok, SmResId(RID_STR_IMATHVERSIONTOOLOW)));
+                xInfoBox->run();
+            }
         }
         OSL_ENSURE(pModel, "So there *was* a UNO problem after all");
 
@@ -1166,11 +1183,13 @@ namespace
 class SmXMLAnnotationContext_Impl : public SmXMLImportContext
 {
     sal_uInt8 mnStarMathVersion;
+    sal_uInt32 mnIMathVersion;
 
 public:
     SmXMLAnnotationContext_Impl(SmXMLImport& rImport)
         : SmXMLImportContext(rImport)
         , mnStarMathVersion(0)
+        , mnIMathVersion(0)
     {
     }
 
@@ -1190,8 +1209,12 @@ void SmXMLAnnotationContext_Impl::startFastElement(
         switch (aIter.getToken() & TOKEN_MASK)
         {
             case XML_ENCODING:
-                mnStarMathVersion
-                    = aIter.toView() == "StarMath 5.0" ? 5 : aIter.toView() == "StarMath 6" ? 6 : 0;
+                if (aIter.toView().substr(0, 5) == "iMath")
+                    mnIMathVersion
+                        = std::stoi(std::string(aIter.toView().substr(6)));
+                else
+                    mnStarMathVersion
+                        = aIter.toView() == "StarMath 5.0" ? 5 : aIter.toView() == "StarMath 6" ? 6 : 0;
                 break;
             default:
                 XMLOFF_WARN_UNKNOWN("starmath", aIter);
@@ -1206,6 +1229,12 @@ void SmXMLAnnotationContext_Impl::characters(const OUString& rChars)
     {
         GetSmImport().SetText(GetSmImport().GetText() + rChars);
         GetSmImport().SetSmSyntaxVersion(mnStarMathVersion);
+    }
+    if (mnIMathVersion)
+    {
+        SAL_INFO("starmath.imath", "Opening file with iMath version " << mnIMathVersion);
+        GetSmImport().SetImText(GetSmImport().GetImText() + rChars);
+        GetSmImport().SetImSyntaxVersion(mnIMathVersion);
     }
 }
 
@@ -2609,11 +2638,12 @@ void SmXMLImport::SetConfigurationSettings(const Sequence<PropertyValue>& aConfP
         return;
 
     static constexpr OUStringLiteral sFormula(u"Formula");
+    static constexpr OUStringLiteral sImFormula(u"iFormula");
     static constexpr OUStringLiteral sBasicLibraries(u"BasicLibraries");
     static constexpr OUStringLiteral sDialogLibraries(u"DialogLibraries");
     for (const PropertyValue& rValue : aConfProps)
     {
-        if (rValue.Name != sFormula && rValue.Name != sBasicLibraries
+        if (rValue.Name != sFormula && rValue.Name != sImFormula && rValue.Name != sBasicLibraries
             && rValue.Name != sDialogLibraries)
         {
             try

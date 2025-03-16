@@ -383,6 +383,7 @@ ErrCode SmXMLExport::exportDoc(enum XMLTokenEnum eClass)
             SmDocShell* pDocShell = static_cast<SmDocShell*>(pModel->GetObjectShell());
             pTree = pDocShell->GetFormulaTree();
             aText = pDocShell->GetText();
+            aImText = pDocShell->GetImText();
         }
 
         GetDocHandler()->startDocument();
@@ -447,7 +448,10 @@ void SmXMLExport::ExportContent_()
     if (aText.isEmpty())
         return;
 
+    SmModule* pMod = SM_MOD();
     sal_Int16 nSmSyntaxVersion = SmModule::get()->GetConfig()->GetDefaultSmSyntaxVersion();
+    // Note: The iMath syntax version is only used to check that a file does not have newer version than the office
+    sal_Int32 nImSyntaxVersion = SmModule::get()->GetConfig()->GetDefaultImSyntaxVersion();
 
     // Convert symbol names
     if (pDocShell)
@@ -460,6 +464,8 @@ void SmXMLExport::ExportContent_()
         aText = rParser->GetText();
         pTmpTree.reset();
         rParser->SetExportSymbolNames(bVal);
+
+        // TODO: What about parsing the iMath symbol names? That won't work via rParser->Parse(aImText)
     }
 
     OUStringBuffer sStrBuf(12);
@@ -469,9 +475,21 @@ void SmXMLExport::ExportContent_()
     else
         sStrBuf.append(static_cast<sal_Int32>(nSmSyntaxVersion));
 
-    AddAttribute(XML_NAMESPACE_MATH, XML_ENCODING, sStrBuf.makeStringAndClear());
-    SvXMLElementExport aAnnotation(*this, XML_NAMESPACE_MATH, XML_ANNOTATION, true, false);
-    GetDocHandler()->characters(aText);
+    {
+        // The XML element is closed when the SvXMLElementExport goes out of scope
+        AddAttribute(XML_NAMESPACE_MATH, XML_ENCODING, sStrBuf.makeStringAndClear());
+        SvXMLElementExport aAnnotation(*this, XML_NAMESPACE_MATH, XML_ANNOTATION, true, false);
+        GetDocHandler()->characters(aText);
+    }
+
+    sStrBuf.append(u"iMath ");
+
+    if (!aImText.isEmpty()) {
+        sStrBuf.append(static_cast<sal_Int32>(nImSyntaxVersion));
+        AddAttribute(XML_NAMESPACE_MATH, XML_ENCODING, sStrBuf.makeStringAndClear());
+        SvXMLElementExport aAnnotation(*this, XML_NAMESPACE_MATH, XML_ANNOTATION, true, false);
+        GetDocHandler()->characters(aImText);
+    }
 }
 
 void SmXMLExport::GetViewSettings(Sequence<PropertyValue>& aProps)
@@ -530,7 +548,7 @@ void SmXMLExport::GetConfigurationSettings(Sequence<PropertyValue>& rProps)
     std::transform(aProps.begin(), aProps.end(), rProps.getArray(),
                    [bUsedSymbolsOnly, &xProps](const Property& prop) {
                        PropertyValue aRet;
-                       if (prop.Name != "Formula" && prop.Name != "BasicLibraries"
+                       if (prop.Name != "Formula" && prop.Name != "iFormula" && prop.Name != "BasicLibraries"
                            && prop.Name != "DialogLibraries" && prop.Name != "RuntimeUID")
                        {
                            aRet.Name = prop.Name;

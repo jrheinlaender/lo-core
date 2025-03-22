@@ -118,7 +118,7 @@ protected:
     virtual void CreateEditView(weld::Builder& rBuilder) = 0;
 
 public:
-    AbstractEditWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder, const OString& id);
+    AbstractEditWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder, const OUString& id);
     virtual ~AbstractEditWindow() COVERITY_NOEXCEPT_FALSE;
 
     weld::Window* GetFrameWeld() const;

@@ -788,7 +788,7 @@ statement: OPTIONS options {
                   units.push_back(unit);
                }
 
-               current_options->at(o.first).value.str = new std::string(std::accumulate(std::begin(units) + 1, std::end(units), *units.begin(), [](std::string &ss, std::string &s) { return ss + ";" + s;}));
+               current_options->at(o.first).value.str = new std::string(std::accumulate(std::begin(units) + 1, std::end(units), *units.begin(), [](const std::string &ss, const std::string &s) { return ss + ";" + s;}));
                MSG_INFO(1, "Appended and cleaned unit string list: " << *current_options->at(o.first).value.str << endline);
                delete(o.second.value.str);
              } else {

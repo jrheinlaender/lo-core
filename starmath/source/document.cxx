@@ -153,7 +153,7 @@ void SmDocShell::SetSmSyntaxVersion(sal_Int16 nSmSyntaxVersion)
     maParser.reset(starmathdatabase::GetVersionSmParser(mnSmSyntaxVersion));
 }
 
-void SmDocShell::SetImSyntaxVersion(sal_uInt32 nImSyntaxVersion)
+void SmDocShell::SetImSyntaxVersion(sal_Int32 nImSyntaxVersion)
 {
     mnImSyntaxVersion = nImSyntaxVersion;
 }

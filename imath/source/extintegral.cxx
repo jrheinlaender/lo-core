@@ -1216,7 +1216,7 @@ else if (is_a<exderivative>(remainder))
                     else if (is_a<power>(dd))
                     {
                         const power& p = ex_to<power>(dd);
-                        const differential& d = ex_to<differential>(get_basis(p));
+                        const differential d = ex_to<differential>(get_basis(p));
 
                         if (d.argument().is_equal(var))
                         {
@@ -1260,59 +1260,132 @@ else
                 = remainder.match(expr.subs(integral_table::x == var).subs(substitution), repl);
             if (!success)
             {
-                // Try harder. E.g. the first match will fail on cos(x)^2 == cos(a * x)^2
-                // Note: If GiNaC ever has the algebraic option to match() then this is probably not necessary any more
-                substitution = integral_table::a == _ex1;
-                success
-                    = remainder.match(expr.subs(integral_table::x == var).subs(substitution), repl);
-            }
+                int grade = ex_to<numeric>(e.get_numer().get_grade()).to_int();
 
-            if (success)
-            {
-                MSG_INFO(1, "Found match with " << repl << endline);
-                bool nonconst = false;
-
-                for (const auto& r : repl)
-                    if (r.second.has(var))
-                    {
-                        nonconst = true;
-                        MSG_INFO(1, "Discarding match because of non-constant factor " << r.second
-                                                                                       << endline);
-                        break; // non-constant factor
-                    }
-
-                if (!nonconst)
+                if (grade == 1)
                 {
-                    repl.emplace(integral_table::x, var);
-                    return Functionmanager::replace_function_by_func(
-                        integ.subs(substitution).subs(repl, subs_options::no_pattern));
+                    const differential& d = ex_to<differential>(e.get_denom());
+                    if (d.argument().is_equal(var))
+                        return e.get_numer().argument(); // int df/dt dt = df
+                }
+                else
+                {
+                    // Denominator can be any combination of differentials (in different variables) and their powers
+                    // Search for matching differential in the denominator, and reduce its grade by one
+                    ex d_new = _ex1;
+                    bool found = false;
+
+                    for (const auto dd :
+                         (is_a<mul>(e.get_denom()) ? e.get_denom() : lst{ e.get_denom() }))
+                    {
+                        if (is_a<differential>(dd)
+                            && ex_to<differential>(dd).argument().is_equal(var))
+                        {
+                            // Omit from new denominator
+                            found = true;
+                        }
+                        else if (is_a<power>(dd))
+                        {
+                            const power& p = ex_to<power>(dd);
+                            const differential& d = ex_to<differential>(get_basis(p));
+
+                            if (d.argument().is_equal(var))
+                            {
+                                d_new *= dynallocate<power>(d, get_exp(p) - 1); // Reduce grade by 1
+                                found = true;
+                            }
+                            else
+                            {
+                                d_new *= dd;
+                            }
+                        }
+                        else
+                        {
+                            d_new *= dd; // Keep unchanged
+                        }
+
+                        if (found)
+                        {
+                            differential n = e.get_numer();
+                            n.set_grade(grade - 1);
+                            return dynallocate<exderivative>(
+                                n,
+                                d_new); // int d^n f / dt^n du^m ... = d^(n-1) f / d t^(n-1) du^m ...
+                        }
+                    }
                 }
             }
         }
-        catch (std::exception& e)
+    }
+    else
+    {
+        for (const auto & [ expr, integ ] : integral_table::integrals)
         {
-            (void)e;
-            // ignore, might happen when substitution leads to division by zero
-            MSG_INFO(1,
-                     "Discarding match because of exception thrown during substitution" << endline);
+            MSG_INFO(1, "Checking match of " << remainder << " with " << expr << " --> " << integ
+                                             << endline);
+            exmap repl;
+
+            try
+            {
+                relational substitution = integral_table::a == wild(1);
+                bool success
+                    = remainder.match(expr.subs(integral_table::x == var).subs(substitution), repl);
+                if (!success)
+                {
+                    // Try harder. E.g. the first match will fail on cos(x)^2 == cos(a * x)^2
+                    // Note: If GiNaC ever has the algebraic option to match() then this is probably not necessary any more
+                    substitution = integral_table::a == _ex1;
+                    success = remainder.match(
+                        expr.subs(integral_table::x == var).subs(substitution), repl);
+                }
+
+                if (success)
+                {
+                    MSG_INFO(1, "Found match with " << repl << endline);
+                    bool nonconst = false;
+
+                    for (const auto& r : repl)
+                        if (r.second.has(var))
+                        {
+                            nonconst = true;
+                            MSG_INFO(1, "Discarding match because of non-constant factor "
+                                            << r.second << endline);
+                            break; // non-constant factor
+                        }
+
+                    if (!nonconst)
+                    {
+                        repl.emplace(integral_table::x, var);
+                        return Functionmanager::replace_function_by_func(
+                            integ.subs(substitution).subs(repl, subs_options::no_pattern));
+                    }
+                }
+            }
+            catch (std::exception& e)
+            {
+                (void)e;
+                // ignore, might happen when substitution leads to division by zero
+                MSG_INFO(1, "Discarding match because of exception thrown during substitution"
+                                << endline);
+            }
         }
     }
-}
 
-for (const auto& r : repl)
-    if (r.second.has(var))
+    for (const auto& r : repl)
+        if (r.second.has(var))
+        {
+            nonconst = true;
+            repl.clear();
+            break; // non-constant factor
+        }
+
+    if (!nonconst)
     {
-        nonconst = true;
-        repl.clear();
-        break; // non-constant factor
+        repl.emplace(integral_table::x, var);
+        repl.emplace(substitution.lhs(), substitution.rhs());
+        return Functionmanager::replace_function_by_func(
+            i.second.subs(repl, subs_options::no_pattern));
     }
-
-if (!nonconst)
-{
-    repl.emplace(integral_table::x, var);
-    repl.emplace(substitution.lhs(), substitution.rhs());
-    return Functionmanager::replace_function_by_func(i.second.subs(repl, subs_options::no_pattern));
-}
 }
 }
 catch (std::exception& e)

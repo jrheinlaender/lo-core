@@ -118,8 +118,8 @@ protected:
     void ImplDestroy();
 
 public:
-    AbstractEditWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder, const OString& id);
-    virtual ~AbstractEditWindow();
+    AbstractEditWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder, const OUString& id);
+    virtual ~AbstractEditWindow() COVERITY_NOEXCEPT_FALSE;
 
     weld::Window* GetFrameWeld() const;
 

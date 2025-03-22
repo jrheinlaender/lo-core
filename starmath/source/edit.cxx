@@ -173,7 +173,7 @@ void AbstractEditTextWindow::SetDrawingArea(weld::DrawingArea* pDrawingArea)
         static_cast<SmEditEngine*>(GetEditEngine())->executeZoom(GetEditView());
 }
 
-AbstractEditWindow::AbstractEditWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder, const OString& id)
+AbstractEditWindow::AbstractEditWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder, const OUString& id)
     : rCmdBox(rMyCmdBoxWin)
     , mxNotebook(rBuilder.weld_notebook("notebook"))
     , mxScrolledWindow(rBuilder.weld_scrolled_window(id, true))
@@ -901,7 +901,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 std::unique_ptr<weld::Builder> xBuilder(Application::CreateBuilder(mxFormulaList.get(), "modules/smath/ui/iformulaaddmenu.ui"));
                 std::unique_ptr<weld::Menu> xPopup = xBuilder->weld_menu("addiformulamenu");
                 //xPopup->set_sensitive("formula", true);
-                OString sCommand = xPopup->popup_at_rect(mxFormulaList.get(), tools::Rectangle(rMEvt.GetPosPixel(), Size(1,1)));
+                OUString sCommand = xPopup->popup_at_rect(mxFormulaList.get(), tools::Rectangle(rMEvt.GetPosPixel(), Size(1,1)));
                 std::shared_ptr<iFormulaLine> newLine = nullptr;
                 auto uvec = GiNaC::unitvec();
                 auto gopt = pLine->getGlobalOptions();

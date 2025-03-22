@@ -44,8 +44,8 @@
 using namespace com::sun::star::uno;
 using namespace com::sun::star::beans;
 
-constexpr OUString SYMBOL_LIST = u"SymbolList"_ustr;
-constexpr OUString FONT_FORMAT_LIST = u"FontFormatList"_ustr;
+const OUString SYMBOL_LIST = "SymbolList";
+const OUString FONT_FORMAT_LIST = "FontFormatList";
 
 static Sequence< OUString > lcl_GetFontPropertyNames()
 {
@@ -71,21 +71,21 @@ static Sequence< OUString > lcl_GetSymbolPropertyNames()
 
 static Sequence<OUString> lcl_GetOtherPropertyNames()
 {
-    return Sequence<OUString>{ u"LoadSave/IsSaveOnlyUsedSymbols"_ustr,
-                               u"Misc/AutoCloseBrackets"_ustr,
-                               u"Misc/DefaultSmSyntaxVersion"_ustr,
-                               u"Misc/DefaultImSyntaxVersion"_ustr,
-                               u"Misc/InlineEditEnable"_ustr,
-                               u"Misc/IgnoreSpacesRight"_ustr,
-                               u"Misc/SmEditWindowZoomFactor"_ustr,
-                               u"Print/FormulaText"_ustr,
-                               u"Print/Frame"_ustr,
-                               u"Print/Size"_ustr,
-                               u"Print/Title"_ustr,
-                               u"Print/ZoomFactor"_ustr,
-                               u"View/AutoRedraw"_ustr,
-                               u"View/FormulaCursor"_ustr,
-                               u"View/ToolboxVisible"_ustr };
+    return Sequence<OUString>{ "LoadSave/IsSaveOnlyUsedSymbols",
+                               "Misc/AutoCloseBrackets",
+                               "Misc/DefaultSmSyntaxVersion",
+                               "Misc/DefaultImSyntaxVersion",
+                               "Misc/InlineEditEnable",
+                               "Misc/IgnoreSpacesRight",
+                               "Misc/SmEditWindowZoomFactor",
+                               "Print/FormulaText",
+                               "Print/Frame",
+                               "Print/Size",
+                               "Print/Title",
+                               "Print/ZoomFactor",
+                               "View/AutoRedraw",
+                               "View/FormulaCursor",
+                               "View/ToolboxVisible" };
 }
 
 static Sequence< OUString > lcl_GetFormatPropertyNames()
@@ -805,7 +805,7 @@ void SmMathConfig::LoadOther()
     if (bool bTmp; pVal->hasValue() && (*pVal >>= bTmp))
         pOther->bInlineEditEnable = bTmp;
     // Misc/DefaultImSyntaxVersion
-    if (sal_uInt32 nTmp; pVal->hasValue() && (*pVal >>= nTmp))
+    if (sal_Int32 nTmp; pVal->hasValue() && (*pVal >>= nTmp))
         pOther->nImSyntaxVersion = nTmp;
     ++pVal;
     // Misc/IgnoreSpacesRight
@@ -1275,7 +1275,7 @@ sal_Int16 SmMathConfig::GetDefaultSmSyntaxVersion() const
     return pOther->nSmSyntaxVersion;
 }
 
-sal_uInt32 SmMathConfig::GetDefaultImSyntaxVersion() const
+sal_Int32 SmMathConfig::GetDefaultImSyntaxVersion() const
 {
     if (utl::ConfigManager::IsFuzzing())
         return nDefaultImSyntaxVersion;
@@ -1327,6 +1327,17 @@ void SmMathConfig::SetDefaultSmSyntaxVersion( sal_Int16 nVal )
     }
 }
 
+void SmMathConfig::SetDefaultImSyntaxVersion( sal_Int32 nVal )
+{
+    if (!pOther)
+        LoadOther();
+    if (nVal != pOther->nImSyntaxVersion)
+    {
+        pOther->nImSyntaxVersion = nVal;
+        SetOtherModified( true );
+    }
+}
+
 bool SmMathConfig::IsInlineEditEnable() const
 {
     if (utl::ConfigManager::IsFuzzing())
@@ -1345,15 +1356,6 @@ void SmMathConfig::SetInlineEditEnable( bool bVal )
     {
         // reformat (displayed) formulas accordingly
         Broadcast(SfxHint(SfxHintId::MathFormatChanged));
-
-void SmMathConfig::SetDefaultImSyntaxVersion( sal_uInt32 nVal )
-{
-    if (!pOther)
-        LoadOther();
-    if (nVal != pOther->nImSyntaxVersion)
-    {
-        pOther->nImSyntaxVersion = nVal;
-        SetOtherModified( true );
     }
 }
 
@@ -1376,9 +1378,7 @@ void SmMathConfig::SetIgnoreSpacesRight( bool bVal )
         // reformat (displayed) formulas accordingly
         Broadcast(SfxHint(SfxHintId::MathFormatChanged));
     }
-
 }
-
 
 bool SmMathConfig::IsAutoRedraw() const
 {

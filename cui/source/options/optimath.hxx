@@ -49,7 +49,7 @@ private:
     std::unique_ptr<weld::CheckButton> m_showlabelsCheckbox;
     std::unique_ptr<weld::CheckButton> m_echoformulasCheckbox;
 
-    std::map<OString, std::unique_ptr<weld::CheckButton>> m_referencesCheckboxes;
+    std::map<OUString, std::unique_ptr<weld::CheckButton>> m_referencesCheckboxes;
     std::vector<std::unique_ptr<weld::Button>> m_userreferencesButtons;
     std::vector<std::unique_ptr<weld::Entry>> m_userreferencesEntries;
 

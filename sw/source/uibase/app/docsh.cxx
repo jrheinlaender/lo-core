@@ -1502,10 +1502,8 @@ void SwDocShell::RecalculateDependentIFormulas(const OUString& formulaName)
             updateFormatting(xFormulaComp); // Update formula properties autotextmode, margin
         }
 
-
         ++it;
     }
-
 
     return;
 }

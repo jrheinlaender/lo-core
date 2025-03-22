@@ -368,7 +368,9 @@ bool SmGraphicWidget::MouseButtonDown(const MouseEvent& rMEvt)
     if (!pTree)
         return true;
 
-    SmEditWindow* pEdit = GetView().GetEditWindow();
+    AbstractEditWindow* pEdit = GetView().GetEditWindow();
+    if (!pEdit)
+        return true;
 
     if (SmViewShell::IsInlineEditEnabled()) {
         GetCursor().MoveTo(&rDevice, aPos, !rMEvt.IsShift());
@@ -384,10 +386,6 @@ bool SmGraphicWidget::MouseButtonDown(const MouseEvent& rMEvt)
         pNode = pTree->FindRectClosestTo(aPos);
 
     if (!pNode)
-        return true;
-
-    AbstractEditWindow* pEdit = GetView().GetEditWindow();
-    if (!pEdit)
         return true;
 
     // set selection to the beginning of the token
@@ -421,7 +419,7 @@ void SmGraphicWidget::GetFocus()
 {
     if (!SmViewShell::IsInlineEditEnabled())
         return;
-    if (SmEditWindow* pEdit = GetView().GetEditWindow())
+    if (AbstractEditWindow* pEdit = GetView().GetEditWindow())
         pEdit->Flush();
     SetIsCursorVisible(true);
     ShowLine(true);
@@ -1291,7 +1289,7 @@ AbstractEditWindow *SmViewShell::GetEditWindow()
 ImGuiWindow *SmViewShell::GetGuiWindow()
 {
     SmCmdBoxWrapper* pWrapper = static_cast<SmCmdBoxWrapper*>(
-                                    GetViewFrame()->GetChildWindow(SmCmdBoxWrapper::GetChildWindowId()));
+                                    GetViewFrame().GetChildWindow(SmCmdBoxWrapper::GetChildWindowId()));
 
     if (pWrapper != nullptr)
     {
@@ -1314,7 +1312,7 @@ void SmViewShell::ShowError(const SmErrorDesc* pErrorDesc)
     if (pErrorDesc || nullptr != (pErrorDesc = GetDoc()->GetParser()->GetError()) )
     {
         SetStatusText( pErrorDesc->m_aText );
-        if (SmEditWindow* pEdit = GetEditWindow())
+        if (AbstractEditWindow* pEdit = GetEditWindow())
             pEdit->MarkError( Point( pErrorDesc->m_pNode->GetColumn(),
                                                pErrorDesc->m_pNode->GetRow()));
     }
@@ -1559,17 +1557,7 @@ void SmViewShell::Execute(SfxRequest& rReq)
                         aDataHelper.HasFormat( SotClipboardFormatId::STRING ))
                         pWin->Paste();
                     else
-                    {
-                        TransferableDataHelper aDataHelper(
-                            TransferableDataHelper::CreateFromClipboard(
-                                                        pWin->GetClipboard()));
-
-                        if( aDataHelper.GetTransferable().is() &&
-                            aDataHelper.HasFormat( SotClipboardFormatId::STRING ))
-                            pWin->Paste();
-                        else
-                            bCallExec = true;
-                    }
+                        bCallExec = true;
                 }
                 if( bCallExec )
                 {
@@ -2210,11 +2198,11 @@ void SmViewShell::Notify( SfxBroadcaster& , const SfxHint& rHint )
     switch( rHint.GetId() )
     {
         case SfxHintId::ModeChanged:
-            GetViewFrame()->GetBindings().InvalidateAll(false);
+            GetViewFrame().GetBindings().InvalidateAll(false);
         break;
         case SfxHintId::DocChanged:
         {
-            GetViewFrame()->GetBindings().InvalidateAll(false);
+            GetViewFrame().GetBindings().InvalidateAll(false);
             auto pGuiWindow = GetGuiWindow();
             if (pGuiWindow)
                 pGuiWindow->ResetModel();

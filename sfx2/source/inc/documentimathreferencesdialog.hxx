@@ -37,7 +37,7 @@ private:
     virtual bool FillItemSet(SfxItemSet* set) override;
     virtual void Reset(const SfxItemSet* set) override;
 
-    std::map<OString, std::unique_ptr<weld::CheckButton>> m_referencesCheckboxes;
+    std::map<OUString, std::unique_ptr<weld::CheckButton>> m_referencesCheckboxes;
     std::vector<std::unique_ptr<weld::Button>> m_userreferencesButtons;
     std::vector<std::unique_ptr<weld::Entry>> m_userreferencesEntries;
     std::unique_ptr<weld::Button> m_masterdocumentButton;

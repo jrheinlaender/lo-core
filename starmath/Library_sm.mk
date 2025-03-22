@@ -46,6 +46,7 @@ $(eval $(call gb_Library_add_defs,sm,\
 $(eval $(call gb_Library_use_externals,sm, \
     boost_headers \
     icu_headers \
+    icuuc \
 ))
 ifneq ($(COM),MSC)
 $(eval $(call gb_Library_use_externals,sm, \

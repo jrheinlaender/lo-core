@@ -4477,7 +4477,7 @@ $(call gb_LinkTarget_set_include,$(1),\
 	$(CLN_CFLAGS) \
 )
 $(call gb_LinkTarget_add_libs,$(1),$(CLN_LIBS))
-Endef
+endef
 
 gb_ExternalProject__use_cln :=
 
@@ -4534,5 +4534,22 @@ $(call gb_ExternalProject_use_external_project,$(1),ginac)
 endef
 
 endif # SYSTEM_GINAC
+
+ifneq ($(SYSTEM_FROZEN),)
+define gb_LinkTarget__use_frozen
+$(call gb_LinkTarget_set_include,$(1),\
+	$$(INCLUDE) \
+	$(FROZEN_CFLAGS)
+)
+endef
+else
+define gb_LinkTarget__use_frozen
+$(call gb_LinkTarget_use_unpacked,$(1),frozen)
+$(call gb_LinkTarget_set_include,$(1),\
+	-I$(call gb_UnpackedTarball_get_dir,frozen/include/)\
+	$$(INCLUDE) \
+)
+endef
+endif
 
 # vim: set noet sw=4 ts=4:

@@ -33,7 +33,7 @@ using namespace ::com::sun::star;
 
 namespace
 {
-const std::vector<rtl::OString>
+const std::vector<rtl::OUString>
     referenceNames({ "00init", "01units", "02siunits", "03siunits_abbrev", "04engunits",
                      "05engunits_abbrev", "06impunits", "07impunits_abbrev", "08siprefixes",
                      "09siprefixes_abbrev", "99substitutions" });
@@ -74,11 +74,11 @@ SvxIMathOptionsPage::SvxIMathOptionsPage(weld::Container* pPage,
     for (int r = 1; r <= 3; ++r)
     {
         m_userreferencesButtons.emplace_back(
-            m_xBuilder->weld_button(rtl::OString("btn_reference" + rtl::OString::number(r))));
+            m_xBuilder->weld_button(rtl::OUString("btn_reference" + rtl::OUString::number(r))));
         m_userreferencesButtons.back()->connect_clicked(
             LINK(this, SvxIMathOptionsPage, UserRefHdl_Impl));
         m_userreferencesEntries.emplace_back(
-            m_xBuilder->weld_entry(rtl::OString("txt_reference" + rtl::OString::number(r))));
+            m_xBuilder->weld_entry(rtl::OUString("txt_reference" + rtl::OUString::number(r))));
     }
 }
 
@@ -109,7 +109,7 @@ IMPL_LINK(SvxIMathOptionsPage, UserRefHdl_Impl, weld::Button&, rButton, void)
         OUString sFile;
         if (osl::FileBase::getSystemPathFromFileURL(sURL, sFile) == osl::FileBase::E_None)
         {
-            OString entryName = rButton.get_buildable_name();
+            OUString entryName = rButton.get_buildable_name();
             unsigned entryNumber = entryName.copy(entryName.getLength() - 1).toUInt64();
 
             if (entryNumber < 3)
@@ -185,14 +185,13 @@ bool SvxIMathOptionsPage::FillItemSet(SfxItemSet*)
     officecfg::Office::iMath::Miscellaneous::O_Echoformula::set(
         m_echoformulasCheckbox->get_active(), xChanges);
 
-    OString referenceString;
+    OUString referenceString;
 
     for (const auto& n : referenceNames)
         if (m_referencesCheckboxes.at(n)->get_active())
-            referenceString += n + OString(' ');
+            referenceString += n + OUString(' ');
 
-    officecfg::Office::iMath::Includes::txt_References::set(OUString::fromUtf8(referenceString),
-                                                            xChanges);
+    officecfg::Office::iMath::Includes::txt_References::set(referenceString, xChanges);
     officecfg::Office::iMath::Includes::txt_Include1::set(m_userreferencesEntries.at(0)->get_text(),
                                                           xChanges);
     officecfg::Office::iMath::Includes::txt_Include2::set(m_userreferencesEntries.at(1)->get_text(),
@@ -263,9 +262,9 @@ void SvxIMathOptionsPage::Reset(const SfxItemSet*)
 
         while ((token = referenceString.getToken(0, ' ', nIdx)).getLength() > 0)
         {
-            if (std::find(referenceNames.begin(), referenceNames.end(), token.toUtf8())
+            if (std::find(referenceNames.begin(), referenceNames.end(), token)
                 != referenceNames.end())
-                m_referencesCheckboxes.at(token.toUtf8())->set_active(true);
+                m_referencesCheckboxes.at(token)->set_active(true);
         }
     }
 

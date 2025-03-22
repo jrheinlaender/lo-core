@@ -63,6 +63,7 @@
 
 // IDs of options pages of applications
 #define RID_SW_TP_MAILCONFIG            (RID_OFA_START + 102)
+#define RID_SW_TP_OPTIMATH_PAGE         (RID_OFA_START + 103)
 #define RID_SW_TP_STD_FONT_CJK          (RID_OFA_START + 247)
 #define RID_SW_TP_STD_FONT_CTL          (RID_OFA_START + 251)
 #define RID_SW_TP_OPTLOAD_PAGE          (RID_OFA_START + 214)

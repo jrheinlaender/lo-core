@@ -1192,7 +1192,7 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
                 SvtModuleOptions aMOpt;
                 const SelectionType nType = rSh.GetSelectionType();
 
-                if (aMOpt.IsMath() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame()->GetFrame().IsInPlace())
+                if (aMOpt.IsMath() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame().GetFrame().IsInPlace())
                 {
                     // Note: Charts also pass the test above (!)
                     svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
@@ -1238,7 +1238,7 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
                 SvtModuleOptions aMOpt;
                 const SelectionType nType = rSh.GetSelectionType();
 
-                if (!(aMOpt.IsChart() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame()->GetFrame().IsInPlace()))
+                if (!(aMOpt.IsChart() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame().GetFrame().IsInPlace()))
                 {
                     rSet.DisableItem(nWhich);
                 } else {

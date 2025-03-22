@@ -683,7 +683,7 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
               found = true;
             } else if (is_a<power>(dd)) {
               const power& p = ex_to<power>(dd);
-              const differential& d = ex_to<differential>(get_basis(p));
+              const differential d = ex_to<differential>(get_basis(p));
 
               if (d.argument().is_equal(var)) {
                 d_new *= dynallocate<power>(d, get_exp(p) - 1); // Reduce grade by 1

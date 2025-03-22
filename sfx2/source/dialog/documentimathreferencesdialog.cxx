@@ -57,7 +57,7 @@ std::unique_ptr<SfxTabPage> SfxDocumentIMathReferencesPage::Create(weld::Contain
 }
 
 namespace {
-    const std::vector<rtl::OString> referenceNames(
+    const std::vector<rtl::OUString> referenceNames(
     {
         "00init", "01units", "02siunits", "03siunits_abbrev", "04engunits",
         "05engunits_abbrev", "06impunits", "07impunits_abbrev", "08siprefixes", "09siprefixes_abbrev",
@@ -75,9 +75,9 @@ SfxDocumentIMathReferencesPage::SfxDocumentIMathReferencesPage(weld::Container* 
 
     for (int r = 1; r <= 3; ++r)
     {
-        m_userreferencesButtons.emplace_back(m_xBuilder->weld_button(rtl::OString("btn_reference" + rtl::OString::number(r))));
+        m_userreferencesButtons.emplace_back(m_xBuilder->weld_button(rtl::OUString("btn_reference" + rtl::OUString::number(r))));
         m_userreferencesButtons.back()->connect_clicked( LINK( this, SfxDocumentIMathReferencesPage, UserRefHdl_Impl ) );
-        m_userreferencesEntries.emplace_back(m_xBuilder->weld_entry(rtl::OString("txt_reference" + rtl::OString::number(r))));
+        m_userreferencesEntries.emplace_back(m_xBuilder->weld_entry(rtl::OUString("txt_reference" + rtl::OUString::number(r))));
     }
 
     m_masterdocumentButton->connect_clicked( LINK( this, SfxDocumentIMathReferencesPage, MasterDocHdl_Impl ) );
@@ -108,7 +108,7 @@ IMPL_LINK(SfxDocumentIMathReferencesPage, UserRefHdl_Impl, weld::Button&, rButto
         OUString sFile;
         if (osl::FileBase::getSystemPathFromFileURL(sURL, sFile) == osl::FileBase::E_None)
         {
-            OString entryName = rButton.get_buildable_name();
+            OUString entryName = rButton.get_buildable_name();
             unsigned entryNumber = entryName.copy(entryName.getLength() - 1).toUInt64();
 
             if (entryNumber < 3)
@@ -155,7 +155,7 @@ IMPL_LINK_NOARG(SfxDocumentIMathReferencesPage, MasterDocHdl_Impl, weld::Button&
 
 void SfxDocumentIMathReferencesPage::Reset( const SfxItemSet* )
 {
-    std::map<OString, bool> references;
+    std::map<OUString, bool> references;
     for (const auto& n : referenceNames)
         references.emplace(n, false);
     std::vector<OUString> userreferencesNames;
@@ -197,8 +197,8 @@ void SfxDocumentIMathReferencesPage::Reset( const SfxItemSet* )
                     OUString token;
 
                     while ((token = referenceString.getToken(0, ' ', nIdx)).getLength() > 0) {
-                        if (references.find(token.toUtf8()) != references.end())
-                            references.at(token.toUtf8()) = true;
+                        if (references.find(token) != references.end())
+                            references.at(token) = true;
                     }
                 }
 
@@ -222,7 +222,7 @@ void SfxDocumentIMathReferencesPage::Reset( const SfxItemSet* )
 
 bool SfxDocumentIMathReferencesPage::FillItemSet( SfxItemSet* )
 {
-    std::map<OString, bool> references;
+    std::map<OUString, bool> references;
     for (const auto& n : referenceNames)
         references.emplace(n, m_referencesCheckboxes.at(n)->get_active());
     std::vector<OUString> userreferencesNames;
@@ -241,11 +241,11 @@ bool SfxDocumentIMathReferencesPage::FillItemSet( SfxItemSet* )
 
             if (xGraph.is())
             {
-                OString referenceString;
+                OUString referenceString;
                 for (const auto& r : references)
                     if (r.second)
-                        referenceString += r.first + OString(' ');
-                updateStatement(xContext, xModel, xGraph, "includes_txt_references", OUString::fromUtf8(referenceString));
+                        referenceString += r.first + OUString(' ');
+                updateStatement(xContext, xModel, xGraph, "includes_txt_references", referenceString);
 
                 for (unsigned r = 1; r <= 3; ++r)
                     updateStatement(xContext, xModel, xGraph, OUString("includes_txt_include") + OUString::number(r), userreferencesNames.at(r-1));

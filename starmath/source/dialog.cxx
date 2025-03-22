@@ -49,6 +49,7 @@
 #include <view.hxx>
 #include <logging.hxx>
 
+#include "edit.hxx"
 #include "imath/unit.hxx"
 
 #include <algorithm>
@@ -215,7 +216,7 @@ SmPrintOptionsTabPage::SmPrintOptionsTabPage(weld::Container* pPage, weld::Dialo
 SmPrintOptionsTabPage::~SmPrintOptionsTabPage()
 {
     if (SmViewShell *pViewSh = SmGetActiveView())
-        if (SmEditWindow* pEdit = pViewSh->GetEditWindow())
+        if (AbstractEditWindow* pEdit = pViewSh->GetEditWindow())
             pEdit->UpdateStatus();
 }
 
@@ -272,7 +273,7 @@ bool SmPrintOptionsTabPage::FillItemSet(SfxItemSet* rSet)
     rSet->Put(SfxUInt16Item(SID_SMEDITWINDOWZOOM, sal::static_int_cast<sal_uInt16>(m_xSmZoom->get_value(FieldUnit::PERCENT))));
 
     if (SmViewShell *pViewSh = SmGetActiveView())
-        if (SmEditWindow* pEdit = pViewSh->GetEditWindow())
+        if (AbstractEditWindow* pEdit = pViewSh->GetEditWindow())
             pEdit->UpdateStatus();
 
     return true;

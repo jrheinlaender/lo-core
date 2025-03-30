@@ -345,7 +345,7 @@ void operands::include(const ex& what)
         symbols = oper(symbols, what);
     else if (is_a<numeric>(what))
     {
-        if (what.has(I))
+        if (type == GINAC_MUL && what.has(I))
         {
             others = oper(others, I); // Print imaginary unit at the end, e.g. a + 1/2 sqrt{2} b i
             coefficient = oper(coefficient, what / I);
@@ -406,135 +406,95 @@ void operands::include(const ex& what)
         {
             powers = oper(powers, what);
         }
-    }
-    else
-        others = oper(others, what);
-    MSG_INFO(6, "Included expression " << what << endline);
-}
-
-bool checkmatrix(const matrix& m)
-{
-    for (unsigned i = 0; i < m.nops(); i++)
-    {
-        if (is_a<matrix>(m.op(i)))
-        {
-            if (!checkmatrix(ex_to<matrix>(m.op(i))))
-                return false;
-        }
-        else
-        {
-            if (!m.op(i).info(info_flags::numeric))
-                return false;
-        }
-    }
-
-    void operands::exclude(const ex& what)
-    {
-        // Find the type of what and include it in the receiver
-        if (is_a<extsymbol>(what))
-            symbols = oper(symbols, 1 / what);
-        else if (is_a<constant>(what))
-            constants = oper(constants, 1 / what);
-        else if (is_a<Unit>(what))
-            units = oper(units, 1 / what);
-        else if (is_a<func>(what))
-            functions = oper(functions, 1 / what);
-        else if (is_a<function>(what))
-            functions = oper(functions, 1 / what);
-        else if (is_a<extintegral>(what))
-            integrals = oper(integrals, 1 / what);
-        else if (is_a<differential>(what))
-            differentials = oper(differentials, 1 / what);
-        else if (is_a<exderivative>(what))
-            derivatives = oper(derivatives, 1 / what);
-        else if (is_a<add>(what))
-            adds = oper(adds, 1 / what);
-        else if (is_a<mul>(what))
-            muls = oper(muls, 1 / what);
-        else if (is_a<matrix>(what))
-            matrices = oper(matrices, 1 / what);
+        else if (is_a<constant>(what)) constants = oper(constants, what);
+        else if (is_a<Unit>(what)) units = oper(units, what);
+        else if (is_a<func>(what)) functions = oper(functions, what);
+        else if (is_a<function>(what)) functions = oper(functions, what);
+        else if (is_a<extintegral>(what)) integrals = oper(integrals, what);
+        else if (is_a<differential>(what)) differentials = oper(differentials, what);
+        else if (is_a<exderivative>(what)) derivatives = oper(derivatives, what);
+        else if (is_a<add>(what)) adds = oper(adds, what);
+        else if (is_a<mul>(what)) muls = oper(muls, what);
+        else if (is_a<matrix>(what)) matrices = oper(matrices, what);
         else if (is_a<power>(what))
         {
             const power& pow = ex_to<power>(what);
             ex base = get_basis(pow);
             ex exponent = get_exp(pow);
-            if (is_a<numeric>(exponent) && (is_a<Unit>(base)))
+            if (is_a<numeric>(exponent) && is_a<numeric>(base))
             {
-                units = oper(units, 1 / what);
+                coefficient = oper(coefficient, what);
+            }
+            else if (is_a<numeric>(exponent) && (is_a<Unit>(base)))
+            {
+                units = oper(units, what);
             }
             else if (is_a<numeric>(exponent) && is_a<extsymbol>(base))
             {
-                symbols = oper(symbols, 1 / what);
+                symbols = oper(symbols, what);
             }
             else if (is_a<numeric>(exponent) && (is_a<constant>(base)))
             {
-                constants = oper(constants, 1 / what);
+                constants = oper(constants, what);
             }
             else if (is_a<differential>(base))
             {
-                differentials = oper(differentials, 1 / what);
+                differentials = oper(differentials, what);
             }
             else if (is_a<exderivative>(base))
             {
-                derivatives = oper(derivatives, 1 / what);
+                derivatives = oper(derivatives, what);
             }
             else
             {
-                powers = oper(powers, 1 / what);
+                powers = oper(powers, what);
             }
         }
-        else if (is_a<numeric>(what))
+        else others = oper(others, what);
+        MSG_INFO(6, "Included expression " << what << endline);
+    }
+
+    bool checkmatrix(const matrix& m)
+    {
+        for (unsigned i = 0; i < m.nops(); i++)
         {
-            if (coefficient.is_equal(ex_to<numeric>(what)))
-                coefficient = *_num1_p; // Avoid rounding errors for floating point coefficients
-            else
-                MSG_ERROR(0, "Internal error: Unexpected expression type in split_ex()" << endline);
-
-            if (msg::info().checkprio(4))
+            if (is_a<matrix>(m.op(i)))
             {
-                std::ostringstream os;
-                o1.print(os);
-                o2.print(os);
-                msg::info() << os.str() << endline;
+                if (!checkmatrix(ex_to<matrix>(m.op(i))))
+                    return false;
             }
-
-            if (it == remember_split.end())
-                remember_split.emplace(std::piecewise_construct, std::forward_as_tuple(hash),
-                                       std::forward_as_tuple(e, o1, o2));
             else
             {
-                it->second.e = e;
-                it->second.o1 = o1;
-                it->second.o2 = o2;
+                if (!m.op(i).info(info_flags::numeric))
+                    return false;
             }
-            MSG_INFO(3, "split_ex: Cached result for " << e << endline);
         }
 
-        void operands::include(const ex& what)
+        void operands::exclude(const ex& what)
         {
             // Find the type of what and include it in the receiver
             if (is_a<extsymbol>(what))
-                symbols = oper(symbols, what);
+                symbols = oper(symbols, 1 / what);
             else if (is_a<constant>(what))
-                constants = oper(constants, what);
+                constants = oper(constants, 1 / what);
             else if (is_a<Unit>(what))
-                units = oper(units, what);
+                units = oper(units, 1 / what);
             else if (is_a<func>(what))
-                functions = oper(functions, what);
+                functions = oper(functions, 1 / what);
             else if (is_a<function>(what))
-                functions = oper(functions, what);
+                functions = oper(functions, 1 / what);
             else if (is_a<extintegral>(what))
-                integrals = oper(integrals, what);
+                integrals = oper(integrals, 1 / what);
             else if (is_a<differential>(what))
-                differentials = oper(differentials, what);
+                differentials = oper(differentials, 1 / what);
             else if (is_a<exderivative>(what))
-                derivatives = oper(derivatives, what);
+                derivatives = oper(derivatives, 1 / what);
             else if (is_a<add>(what))
-                adds = oper(adds, what);
+                adds = oper(adds, 1 / what);
             else if (is_a<mul>(what))
-                muls = oper(muls, what);
+                muls = oper(muls, 1 / what);
             else if (is_a<matrix>(what))
-                matrices = oper(matrices, what);
+                matrices = oper(matrices, 1 / what);
             else if (is_a<power>(what))
             {
                 const power& pow = ex_to<power>(what);
@@ -542,101 +502,187 @@ bool checkmatrix(const matrix& m)
                 ex exponent = get_exp(pow);
                 if (is_a<numeric>(exponent) && (is_a<Unit>(base)))
                 {
-                    units = oper(units, what);
+                    units = oper(units, 1 / what);
                 }
                 else if (is_a<numeric>(exponent) && is_a<extsymbol>(base))
                 {
-                    symbols = oper(symbols, what);
+                    symbols = oper(symbols, 1 / what);
                 }
                 else if (is_a<numeric>(exponent) && (is_a<constant>(base)))
                 {
-                    constants = oper(constants, what);
+                    constants = oper(constants, 1 / what);
                 }
                 else if (is_a<differential>(base))
                 {
-                    differentials = oper(differentials, what);
+                    differentials = oper(differentials, 1 / what);
                 }
                 else if (is_a<exderivative>(base))
                 {
-                    derivatives = oper(derivatives, what);
+                    derivatives = oper(derivatives, 1 / what);
                 }
                 else
                 {
-                    powers = oper(powers, what);
+                    powers = oper(powers, 1 / what);
                 }
             }
             else if (is_a<numeric>(what))
             {
-                if (what == I)
-                    others = oper(others, I);
-                else if (what == -I)
-                {
-                    coefficient = ex_to<numeric>(oper(coefficient, -1));
-                    others = oper(others, I);
-                }
+                if (coefficient.is_equal(ex_to<numeric>(what)))
+                    coefficient = *_num1_p; // Avoid rounding errors for floating point coefficients
                 else
-                    coefficient = ex_to<numeric>(oper(coefficient, what));
+                    MSG_ERROR(0, "Internal error: Unexpected expression type in split_ex()"
+                                     << endline);
+
+                if (msg::info().checkprio(4))
+                {
+                    std::ostringstream os;
+                    o1.print(os);
+                    o2.print(os);
+                    msg::info() << os.str() << endline;
+                }
+
+                if (it == remember_split.end())
+                    remember_split.emplace(std::piecewise_construct, std::forward_as_tuple(hash),
+                                           std::forward_as_tuple(e, o1, o2));
+                else
+                {
+                    it->second.e = e;
+                    it->second.o1 = o1;
+                    it->second.o2 = o2;
+                }
+                MSG_INFO(3, "split_ex: Cached result for " << e << endline);
             }
-            else
-                others = oper(others, what);
-            MSG_INFO(6, "Included expression " << what << endline);
-        }
 
-        bool operands::is_trivial() const
-        {
-            return (this->is_number() && is_a<numeric>(coefficient)
-                    && abs(ex_to<numeric>(coefficient)).is_equal(ex_to<numeric>(type)));
-        }
-
-        bool checkmatrix(const matrix& m)
-        {
-            for (unsigned i = 0; i < m.nops(); i++)
+            void operands::include(const ex& what)
             {
-                if (is_a<matrix>(m.op(i)))
+                // Find the type of what and include it in the receiver
+                if (is_a<extsymbol>(what))
+                    symbols = oper(symbols, what);
+                else if (is_a<constant>(what))
+                    constants = oper(constants, what);
+                else if (is_a<Unit>(what))
+                    units = oper(units, what);
+                else if (is_a<func>(what))
+                    functions = oper(functions, what);
+                else if (is_a<function>(what))
+                    functions = oper(functions, what);
+                else if (is_a<extintegral>(what))
+                    integrals = oper(integrals, what);
+                else if (is_a<differential>(what))
+                    differentials = oper(differentials, what);
+                else if (is_a<exderivative>(what))
+                    derivatives = oper(derivatives, what);
+                else if (is_a<add>(what))
+                    adds = oper(adds, what);
+                else if (is_a<mul>(what))
+                    muls = oper(muls, what);
+                else if (is_a<matrix>(what))
+                    matrices = oper(matrices, what);
+                else if (is_a<power>(what))
                 {
-                    if (!checkmatrix(ex_to<matrix>(m.op(i))))
-                        return false;
+                    const power& pow = ex_to<power>(what);
+                    ex base = get_basis(pow);
+                    ex exponent = get_exp(pow);
+                    if (is_a<numeric>(exponent) && (is_a<Unit>(base)))
+                    {
+                        units = oper(units, what);
+                    }
+                    else if (is_a<numeric>(exponent) && is_a<extsymbol>(base))
+                    {
+                        symbols = oper(symbols, what);
+                    }
+                    else if (is_a<numeric>(exponent) && (is_a<constant>(base)))
+                    {
+                        constants = oper(constants, what);
+                    }
+                    else if (is_a<differential>(base))
+                    {
+                        differentials = oper(differentials, what);
+                    }
+                    else if (is_a<exderivative>(base))
+                    {
+                        derivatives = oper(derivatives, what);
+                    }
+                    else
+                    {
+                        powers = oper(powers, what);
+                    }
+                }
+                else if (is_a<numeric>(what))
+                {
+                    if (what == I)
+                        others = oper(others, I);
+                    else if (what == -I)
+                    {
+                        coefficient = ex_to<numeric>(oper(coefficient, -1));
+                        others = oper(others, I);
+                    }
+                    else
+                        coefficient = ex_to<numeric>(oper(coefficient, what));
                 }
                 else
-                {
-                    if (!m.op(i).info(info_flags::numeric))
-                        return false;
-                }
+                    others = oper(others, what);
+                MSG_INFO(6, "Included expression " << what << endline);
             }
-            return true;
-        }
 
-        // TODO: Store the result of these queries for the next time!
+            bool operands::is_trivial() const
+            {
+                return (this->is_number() && is_a<numeric>(coefficient)
+                        && abs(ex_to<numeric>(coefficient)).is_equal(ex_to<numeric>(type)));
+            }
 
-        bool operands::is_quantity() const
-        {
-            return (check_symbols(type) && constants.is_equal(type) && check_functions(type)
-                    && integrals.is_equal(type) && differentials.is_equal(type)
-                    && derivatives.is_equal(type) && adds.is_equal(type) && muls.is_equal(type)
-                    && powers.is_equal(type) && others.is_equal(type) && check_matrices(type));
-        }
+            bool checkmatrix(const matrix& m)
+            {
+                for (unsigned i = 0; i < m.nops(); i++)
+                {
+                    if (is_a<matrix>(m.op(i)))
+                    {
+                        if (!checkmatrix(ex_to<matrix>(m.op(i))))
+                            return false;
+                    }
+                    else
+                    {
+                        if (!m.op(i).info(info_flags::numeric))
+                            return false;
+                    }
+                }
+                return true;
+            }
 
-        bool operands::is_number() const { return (this->is_quantity() && units.is_equal(type)); }
+            // TODO: Store the result of these queries for the next time!
 
-        bool operands::is_trivial() const
-        {
-            return (this->is_number()
-                    && abs(ex_to<numeric>(coefficient)).is_equal(ex_to<numeric>(type)));
-        }
+            bool operands::is_quantity() const
+            {
+                return (check_symbols(type) && constants.is_equal(type) && check_functions(type)
+                        && integrals.is_equal(type) && differentials.is_equal(type)
+                        && derivatives.is_equal(type) && adds.is_equal(type) && muls.is_equal(type)
+                        && powers.is_equal(type) && others.is_equal(type) && check_matrices(type));
+            }
 
-        bool operands::is_symbol() const
-        {
-            return (coefficient.is_equal(type) && !check_symbols(type) && constants.is_equal(type)
-                    && check_functions(type) && adds.is_equal(type) && muls.is_equal(type)
-                    && powers.is_equal(type) && check_matrices(type) && others.is_equal(type)
-                    && integrals.is_equal(type) && differentials.is_equal(type)
-                    && derivatives.is_equal(type));
-        }
+            bool operands::is_number() const
+            {
+                return (this->is_quantity() && units.is_equal(type));
+            }
 
-        bool operands::is_add() const { return type.is_equal(GINAC_ADD); }
+            bool operands::is_trivial() const
+            {
+                return (this->is_number()
+                        && abs(ex_to<numeric>(coefficient)).is_equal(ex_to<numeric>(type)));
+            }
 
-        bool operands::is_mul() const { return type.is_equal(GINAC_MUL); }
-        /*
+            bool operands::is_symbol() const
+            {
+                return (coefficient.is_equal(type) && !check_symbols(type)
+                        && constants.is_equal(type) && check_functions(type) && adds.is_equal(type)
+                        && muls.is_equal(type) && powers.is_equal(type) && check_matrices(type)
+                        && others.is_equal(type) && integrals.is_equal(type)
+                        && differentials.is_equal(type) && derivatives.is_equal(type));
+            }
+
+            bool operands::is_add() const { return type.is_equal(GINAC_ADD); }
+
+            bool operands::is_mul() const { return type.is_equal(GINAC_MUL); }
+            /*
 void checksplit(const bool toplevel, const int opnum, std::ostream &os) {
   if (toplevel) {
     if (opnum == optstack::options->get(o_eqsplit).integer) {
@@ -663,59 +709,59 @@ void checksplit(const bool toplevel, const int opnum, std::ostream &os) {
   }
 }
 */
-        // These three functions exist because a non-commutative expression cannot be checked against '1' without throwing an exception
-        bool operands::check_functions(const ex& t) const
-        {
-            if (functions.info(info_flags::numeric))
+            // These three functions exist because a non-commutative expression cannot be checked against '1' without throwing an exception
+            bool operands::check_functions(const ex& t) const
             {
-                return (functions.is_equal(t));
+                if (functions.info(info_flags::numeric))
+                {
+                    return (functions.is_equal(t));
+                }
+                else
+                {
+                    return (false);
+                }
             }
-            else
-            {
-                return (false);
-            }
-        }
 
-        bool operands::check_matrices(const ex& t) const
-        {
-            if (matrices.info(info_flags::numeric))
+            bool operands::check_matrices(const ex& t) const
             {
-                return (matrices.is_equal(t));
+                if (matrices.info(info_flags::numeric))
+                {
+                    return (matrices.is_equal(t));
+                }
+                else
+                {
+                    return (false);
+                }
             }
-            else
-            {
-                return (false);
-            }
-        }
 
-        bool operands::check_symbols(const ex& t) const
-        {
-            if (symbols.info(info_flags::numeric))
+            bool operands::check_symbols(const ex& t) const
             {
-                return (symbols.is_equal(t));
+                if (symbols.info(info_flags::numeric))
+                {
+                    return (symbols.is_equal(t));
+                }
+                else
+                {
+                    return (false);
+                }
             }
-            else
-            {
-                return (false);
-            }
-        }
 
-        void operands::print(std::ostream & os) const
-        {
-            os << "Symbols: " << symbols << std::endl;
-            os << "Constants: " << constants << std::endl;
-            os << "Units: " << units << std::endl;
-            os << "Functions: " << functions << std::endl;
-            os << "Adds: " << adds << std::endl;
-            os << "Muls: " << muls << std::endl;
-            os << "Powers: " << powers << std::endl;
-            os << "Numerics: " << ex(coefficient) << std::endl;
-            os << "Matrices: " << matrices << std::endl;
-            os << "Integrals: " << integrals << std::endl;
-            os << "Differentials: " << differentials << std::endl;
-            os << "Derivatives:" << derivatives << std::endl;
-            os << "Others: " << others << std::endl;
-            os << "Quantity: " << (is_quantity() ? "true" : "false") << std::endl;
-            os << "Number: " << (is_number() ? "true" : "false") << std::endl;
-            os << "Trivial: " << (is_trivial() ? "true" : "false") << std::endl;
-        }
+            void operands::print(std::ostream & os) const
+            {
+                os << "Symbols: " << symbols << std::endl;
+                os << "Constants: " << constants << std::endl;
+                os << "Units: " << units << std::endl;
+                os << "Functions: " << functions << std::endl;
+                os << "Adds: " << adds << std::endl;
+                os << "Muls: " << muls << std::endl;
+                os << "Powers: " << powers << std::endl;
+                os << "Numerics: " << ex(coefficient) << std::endl;
+                os << "Matrices: " << matrices << std::endl;
+                os << "Integrals: " << integrals << std::endl;
+                os << "Differentials: " << differentials << std::endl;
+                os << "Derivatives:" << derivatives << std::endl;
+                os << "Others: " << others << std::endl;
+                os << "Quantity: " << (is_quantity() ? "true" : "false") << std::endl;
+                os << "Number: " << (is_number() ? "true" : "false") << std::endl;
+                os << "Trivial: " << (is_trivial() ? "true" : "false") << std::endl;
+            }

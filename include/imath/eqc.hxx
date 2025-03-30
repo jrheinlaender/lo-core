@@ -26,6 +26,7 @@ possible to request variable values from eqc, which will be derived from the reg
 
 #include <iostream>
 #include <string>
+#include <array>
 #include <ginac/exprseq.h>
 #include <ginac/matrix.h>
 #include <ginac/hash_map.h>

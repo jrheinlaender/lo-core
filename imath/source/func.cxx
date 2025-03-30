@@ -24,7 +24,7 @@
 #include <imath/msgdriver.hxx>
 #include <imath/unit.hxx>
 #else
-#include "extsymbol.hxx>
+#include "extsymbol.hxx"
 #include "func.hxx"
 #include "funcmgr.hxx"
 #include "msgdriver.hxx"

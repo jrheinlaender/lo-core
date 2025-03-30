@@ -363,7 +363,7 @@ void handle_error(imath::parserParameters& params, const std::shared_ptr<iFormul
     errormessage += ": At line " + OUString::number(errorlocation.begin.line) + ", column " + OUString::number(errorlocation.begin.column);
     while (!locationstack.empty()) {
       std::string parseString = *locationstack.top().begin.filename; // This is %%ii READFILE {"<file name>"}
-      errormessage = "Error in include file " + OUS8(parseString.substr(parseString.find("{\"") + 2, parseString.find("\"}") - parseString.find("{\"") - 2)) + "\n" + errormessage;
+      errormessage = "Error in include file " + OUS8(parseString.substr(parseString.find("{\"") + 2, parseString.find("\"}") - parseString.find("{\"") - 2)) + ": " + errormessage;
       locationstack.pop();
     }
     params.lines.back()->markError(params.rawtext, params.rawtext.indexOfAsciiL("{\"", 2), params.rawtext.indexOfAsciiL("{\"", 2) + 2, params.rawtext.indexOfAsciiL("\"}", 2), errormessage);
@@ -619,7 +619,7 @@ input:   %empty
            locationstack.pop(); // Remove entry that was just created, and handle the rest
            while (!locationstack.empty()) {
               std::string parseString = *locationstack.top().begin.filename; // This is %%ii READFILE {"<file name>"}
-              errormessage = "Error in include file " + OUS8(parseString.substr(parseString.find("{\"") + 2, parseString.find("\"}") - parseString.find("{\"") - 2)) + "\n" + errormessage;
+              errormessage = "Error in include file " + OUS8(parseString.substr(parseString.find("{\"") + 2, parseString.find("\"}") - parseString.find("{\"") - 2)) + ":" + errormessage;
               locationstack.pop();
            }
            params.lines.back()->markError(params.rawtext, @3.begin.column - 1, params.rawtext.indexOfAsciiL("{\"", 2) + 2, params.rawtext.indexOfAsciiL("\"}", 2), errormessage);
@@ -1405,11 +1405,11 @@ expr:   options EXDEF asterisk ex { // If we add an optional label (that may be 
         handle_error(params, std::make_shared<iFormulaNodeEq>(unitConversions(), current_options, $2, fparts({}), OUS8(params.compiler->label_ns($1)), equation(_expr0, _expr0), $4), @5);
         YYABORT;
       }
-      | LABEL options CONSTDEF asterisk IDENTIFIER '=' ex {
+      | LABEL options CONSTDEF asterisk symbol '=' ex {
         auto label = $1;
         auto options = $2;
         auto hide = $4;
-        auto eq = GiNaC::dynallocate<equation>(compiler->getsym($5), $7);
+        auto eq = GiNaC::dynallocate<equation>($5, $7); // Note that when using eqc::clearall() and persisting symbols, the constant symbol might already exist in the compiler, IDENTIFIER won't work
         std::string nslabel;
         if (!check_label(label, nslabel)) {
           handle_label_error(@1, nslabel, params, std::make_shared<iFormulaNodeConst>(unitConversions(), current_options, std::move(options), fparts({}), OUS8(nslabel), eq, hide), @5);
@@ -2299,9 +2299,6 @@ ex:   SUBST '(' ex ',' eqlist ')' {
     | '[' ex ']' {
       $$ = $2;
     }
-    | LEFT '[' ex RIGHT ']' {
-      $$ = $3;
-    }
     | ex '!' {
       $$ = Functionmanager::create_hard("fact", {$1});
     }
@@ -2461,6 +2458,10 @@ leftbracket:  left openbracket {
                 bracketstack.push({$$, bracket});
                 $$ += " " + std::move(bracket);
               }
+              | LEFT '[' {
+                bracketstack.push({$$, "["});
+                $$ = "left[";
+              }
 ;
 %type <std::string> rightbracket "closing bracket";
 rightbracket: right closebracket {
@@ -2472,6 +2473,14 @@ rightbracket: right closebracket {
                   YYERROR;
                 }
                 $$ += " " + std::move(bracket);
+              }
+              | RIGHT ']' {
+                auto expected = checkbrackets($$, "]");
+                if (!expected.empty()) {
+                  error(@2, "Bracket mismatch: Found ']', expected '" + expected + "'");
+                  YYERROR;
+                }
+                $$ = "right]";
               }
 ;
 

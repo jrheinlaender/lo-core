@@ -15,6 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <sstream>
 #include <ginac/flags.h>
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -567,6 +568,10 @@ void init_table() {
 /*345*/ { pow(pow(cosax, 2) - 1, -1), +1 / (tanax * a) },
 /*354*/ { ex(sinax) * ex(cosax), pow(sinax, 2) / (2 * a) },
 /*xxx*/ { sinax * (b * cosax - c) / pow(pow(b, 2) + pow(c, 2) - 2 * b * c * cosax, numeric(3, 2)), (c * cosax - b) / (a * pow(c, 2) * GiNaC::sqrt(pow(b, 2) + pow(c, 2) - 2 * b * c * cosax)) },
+/*370*/ { sinax / pow(cosax, 2), 1 / (a * cosax) },
+/*(375)*/ { pow(sinax / cosax, 2), sinax / (a * cosax) - x},
+/*381*/ { cosax / pow(sinax, 2), -1 / (a * sinax) },
+/*(386)*/ { pow(cosax / sinax, 2), -cosax / (a * sinax) - x},
 /*409 is a basic function */
 /*410*/ { pow(tanax, 2),  tanax / a - x },
 /*418 is a basic function */

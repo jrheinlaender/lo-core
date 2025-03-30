@@ -15,7 +15,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "imath/utils.hxx"
 #include <iomanip>
 #include <sstream>
 #include <cmath>
@@ -40,6 +39,7 @@
 #include <imath/func.hxx>
 #include <imath/unit.hxx>
 #include <imath/eqc.hxx>
+#include "imath/utils.hxx"
 #else
 #include "printing.hxx"
 #include "msgdriver.hxx"
@@ -50,6 +50,7 @@
 #include "func.hxx"
 #include "unit.hxx"
 #include "eqc.hxx"
+#include "utils.hxx"
 #endif
 #include "operands.hxx"
 #include "exderivative.hxx"
@@ -494,7 +495,7 @@ void imathprint_add(const add& a, const imathprint& c, unsigned level) {
   std::string pattern = posops.pattern();
   if (!negops.is_trivial())
       pattern += "-" + negops.pattern();
-  MSG_INFO(1, "Additive pattern '" << pattern << "'" << endline);
+  MSG_INFO(2, "Additive pattern '" << pattern << "'" << endline);
 
   for (const auto& [pat, format] : addPrintFormats) {
     std::smatch subMatches;
@@ -529,7 +530,7 @@ void imathprint_add(const add& a, const imathprint& c, unsigned level) {
                 ++subMatchIdx; // Index 0 is the whole pattern
             assert(subMatchIdx < subMatches.size());
             const std::string& subMatch = subMatches[subMatchIdx++].str();
-            MSG_INFO(1, "Printing mixed submatch '" << subMatch << "'" << endline);
+            MSG_INFO(2, "Printing mixed submatch '" << subMatch << "'" << endline);
             if (!subMatch.empty()) {
                 if (!firstItem || sign == '-')
                     c.s << " " << sign;
@@ -544,7 +545,7 @@ void imathprint_add(const add& a, const imathprint& c, unsigned level) {
                 ++subMatchIdx; // Index 0 is the whole pattern
             assert(subMatchIdx < subMatches.size());
             const std::string& subMatch = subMatches[subMatchIdx++].str();
-            MSG_INFO(1, "Printing ordered submatch '" << subMatch << "'" << endline);
+            MSG_INFO(2, "Printing ordered submatch '" << subMatch << "'" << endline);
             for (size_t m = 0; m < subMatch.size(); ++m) {
                 // Note: printAddItem tries to eliminate a negative sign by turning around one add inside a product
                 auto result = printAddItem(std::string(1, static_cast<char>(std::tolower(subMatch[m]))), is_positive ? posops : negops, c, sign);
@@ -560,6 +561,8 @@ void imathprint_add(const add& a, const imathprint& c, unsigned level) {
                 c.s << " " << result;
                 firstItem = false;
             }
+        } else if (item == "1") {
+            c.s << " 1 "; // No sign follows here
         } else {
             auto result = printAddItem(item, is_positive ? posops : negops, c, sign);
 
@@ -749,7 +752,7 @@ static const std::vector<std::pair<std::regex, std::string>> mulPrintFormats = {
 }
 
 void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
-  MSG_INFO(1, "imathprint_mul() for " << m << endline);
+  MSG_INFO(2, "imathprint_mul() for " << m << endline);
   // Note: The level parameter is ignored and used for other purposes
 
   operands numer(GINAC_MUL), denom(GINAC_MUL), tempn(GINAC_MUL), tempd(GINAC_MUL), temp(GINAC_MUL);
@@ -759,7 +762,7 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
   std::string pattern = numer.pattern();
   if (!denom.is_trivial())
       pattern += "/" + denom.pattern();
-  MSG_INFO(1, "Multiplicative pattern '" << pattern << "'" << endline);
+  MSG_INFO(2, "Multiplicative pattern '" << pattern << "'" << endline);
 
   // This avoids having duplicate mulPrintFormats entries for everything, differing just by the minus sign
   bool negative = false;
@@ -811,7 +814,7 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
             assert(subMatchIdx < subMatches.size());
 
             const std::string& subMatch = subMatches[subMatchIdx++].str();
-            MSG_INFO(1, "Printing submatch '" << subMatch << "'" << endline);
+            MSG_INFO(2, "Printing submatch '" << subMatch << "'" << endline);
             if (subMatch.empty())
                 result.s << "1"; // Empty matches by definition print 1
 

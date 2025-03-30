@@ -27,7 +27,7 @@
 #include <imath/func.hxx>
 #else
 #include "differential.hxx"
-#include "extsymbol.hxx>
+#include "extsymbol.hxx"
 #include "printing.hxx"
 #include "msgdriver.hxx"
 #include "utils.hxx"

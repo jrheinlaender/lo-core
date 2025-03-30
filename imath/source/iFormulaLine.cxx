@@ -1158,7 +1158,7 @@ std::vector<std::vector<OUString>> iFormulaNodeEq::display(const Reference<XMode
   if (error != no_error)
       return iFormulaLine::display();
 
-  MSG_INFO(1, "iFormulaNodeEq::display() '" << getFormula() << "'" << endline);
+  MSG_INFO(1, "iFormulaNodeEq::display() '" << STR(getFormula()) << "'" << endline);
   const equation& eq = ex_to<equation>(_expr);
   OUString oper  = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod(), false));
   OUString toper = OUS8(get_oper(imathprint(), eq.getop(), eq.getmod(), true)).trim();

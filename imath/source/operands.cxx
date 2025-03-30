@@ -303,7 +303,7 @@ void operands::include(const ex &what) {
   // Find the type of what and include it in the receiver
   if (is_a<extsymbol>(what)) symbols = oper(symbols, what);
   else if (is_a<numeric>(what)) {
-      if (what.has(I)) {
+      if (type == GINAC_MUL && what.has(I)) {
           others = oper(others, I); // Print imaginary unit at the end, e.g. a + 1/2 sqrt{2} b i
           coefficient = oper(coefficient, what / I);
       } else

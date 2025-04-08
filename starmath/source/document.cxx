@@ -1783,6 +1783,8 @@ SmDocShell::SmDocShell( SfxModelFlags i_nSfxCreationFlags )
     SetBaseModel(new SmModel(this));
     SetSmSyntaxVersion(mnSmSyntaxVersion);
     SetImSyntaxVersion(mnImSyntaxVersion);
+
+    SetMapUnit(SmMapUnit());
 }
 
 SmDocShell::~SmDocShell()

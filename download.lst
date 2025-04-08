@@ -708,7 +708,13 @@ ZXING_TARBALL := zxing-cpp-2.3.0.tar.gz
 # will not run into conflicts
 OPENSYMBOL_SHA256SUM := f543e6e2d7275557a839a164941c0a86e5f2c3f2a0042bfc434c88c6dde9e140
 OPENSYMBOL_TTF := f543e6e2d7275557a839a164941c0a86e5f2c3f2a0042bfc434c88c6dde9e140-opens___.ttf
-export CLN_SHA256SUM := 7c7ed8474958337e4df5bb57ea5176ad0365004cbb98b621765bc4606a10d86b
-export CLN_TARBALL := cln-1.3.7.tar.bz2
-export GINAC_SHA256SUM := 330f57d0ed79dbd8f9c46ca4b408439b8b30e2ea061e3672d904c5dab94ecad6
-export GINAC_TARBALL := ginac-1.8.8.tar.bz2
+# three static lines
+# so that git cherry-pick
+# will not run into conflicts
+CLN_SHA256SUM := 7c7ed8474958337e4df5bb57ea5176ad0365004cbb98b621765bc4606a10d86b
+CLN_TARBALL := cln-1.3.7.tar.bz2
+# three static lines
+# so that git cherry-pick
+# will not run into conflicts
+GINAC_SHA256SUM := 330f57d0ed79dbd8f9c46ca4b408439b8b30e2ea061e3672d904c5dab94ecad6
+GINAC_TARBALL := ginac-1.8.8.tar.bz2

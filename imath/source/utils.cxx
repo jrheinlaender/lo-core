@@ -274,9 +274,9 @@ bool is_unit(const expression &e) {
 
 class check_scalar_visitor : public visitor, public matrix::visitor, public idx::visitor, public varidx::visitor {
     bool result = true;
-    void visit(const matrix& m) { result = false; }
-    void visit(const idx& m) { result = false; }
-    void visit(const varidx& m) { result = false; }
+    void visit(const matrix&) { result = false; }
+    void visit(const idx&) { result = false; }
+    void visit(const varidx&) { result = false; }
 public:
     bool get_result() { return result; }
 };

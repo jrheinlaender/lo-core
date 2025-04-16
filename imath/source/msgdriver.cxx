@@ -29,6 +29,19 @@ msg msg::msg_error = msg();
 msg msg::msg_warn = msg();
 msg msg::msg_info = msg();
 
+msg& msg::error()
+{
+    return msg_error;
+}
+msg& msg::warn()
+{
+    return msg_warn;
+}
+msg& msg::info()
+{
+    return msg_info;
+}
+
 void msg::init() {
   msg_error.level = 1;
   msg_warn.level = 1;

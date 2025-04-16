@@ -57,6 +57,18 @@
 #include <com/sun/star/container/XChild.hpp>
 #include <com/sun/star/container/XNamed.hpp>
 
+#ifdef _MSC_VER
+// Fix linker error where these symbols are listed as unresolved
+namespace GiNaC {
+GiNaC::registered_class_info relational::reg_info =
+       GiNaC::registered_class_info(GiNaC::registered_class_options("relational",
+               "basic", typeid(relational)));
+GiNaC::registered_class_info basic::reg_info =
+        GiNaC::registered_class_info(GiNaC::registered_class_options("basic",
+                "void", typeid(basic)));
+}
+#endif
+
 using namespace com::sun::star::accessibility;
 using namespace com::sun::star;
 using fparts = std::initializer_list<OUString>; // Just a convenient shortcut
@@ -1316,7 +1328,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "MATRIXDEF")
                         pNew = std::make_shared<iFormulaNodeMatrixdef>(uvec, gopt, GiNaC::optionmap(), fparts({"bar M", "=", useEx}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
                     else if (newType == "UNITDEF")
-                        pNew = std::make_shared<iFormulaNodeStmUnitdef>(gopt, fparts({"{", "\"\"", ",", "\%unit", "=", useEx, "}"}));
+                        pNew = std::make_shared<iFormulaNodeStmUnitdef>(gopt, fparts({"{", "\"\"", ",", "%unit", "=", useEx, "}"}));
                     else if (newType == "OPTIONS")
                         pNew = std::make_shared<iFormulaNodeStmOptions>(gopt,fparts({""}));
                     else if (newType == "CHART")
@@ -1342,7 +1354,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "END_NS")
                         pNew = std::make_shared<iFormulaNodeStmNamespace>(gopt, "END", fparts({"namespace"}));
                     else if (newType == "PREFIXDEF")
-                        pNew = std::make_shared<iFormulaNodeStmPrefixdef>(gopt, fparts({"{", "\%prefix", "=", useEx, "}"}));
+                        pNew = std::make_shared<iFormulaNodeStmPrefixdef>(gopt, fparts({"{", "%prefix", "=", useEx, "}"}));
                     else if (newType == "REALVARDEF")
                         pNew = std::make_shared<iFormulaNodeStmRealvardef>(gopt, fparts{"r_var"});
                     else if (newType == "POSVARDEF")

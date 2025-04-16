@@ -751,9 +751,9 @@ static const std::vector<std::pair<std::regex, std::string>> mulPrintFormats = {
 
 }
 
-void imathprint_mul(const mul& m, const imathprint& c, unsigned level) {
+void imathprint_mul(const mul& m, const imathprint& c, unsigned) {
   MSG_INFO(2, "imathprint_mul() for " << m << endline);
-  // Note: The level parameter is ignored and used for other purposes
+  // Note: The level parameter is not used
 
   operands numer(GINAC_MUL), denom(GINAC_MUL), tempn(GINAC_MUL), tempd(GINAC_MUL), temp(GINAC_MUL);
   operands::split_ex(m, numer, denom);

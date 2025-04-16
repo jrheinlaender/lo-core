@@ -276,7 +276,7 @@ void SmDocShell::SetText(const OUString& rBuffer)
         OnDocumentPrinterChanged(nullptr);
 }
 
-void SmDocShell::PreventFormulaClose(const bool prevent)
+void SmDocShell::PreventFormulaClose(const bool)
 {
     /*
      * This method is disabled for now because it breaks insertion of charts as soon as the number of

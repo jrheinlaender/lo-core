@@ -52,7 +52,14 @@
   #include "iFormulaLine.hxx"
   #include "eqc.hxx"
 #endif
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning (disable: 4065)
+#endif
 #include <smathparser.hxx>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 namespace imath {
     class smathlexer : public yyFlexLexer {

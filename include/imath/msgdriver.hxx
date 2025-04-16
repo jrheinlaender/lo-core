@@ -62,9 +62,9 @@ private:
     // TODO: This is extremely inefficient
     template<typename T> inline msg& operator<<(const T& element) { SAL_WARN("imath", element); return *this; }
 
-    static inline msg& error() { return msg_error; }
-    static inline msg& warn()  { return msg_warn; }
-    static inline msg& info()  { return msg_info; }
+    static msg& error();
+    static msg& warn();
+    static msg& info();
     static void init();
 };
 

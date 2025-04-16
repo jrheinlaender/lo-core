@@ -28,13 +28,15 @@
 #define IMATH_DLLPUBLIC
 #endif
 
-namespace GiNaC {
-    class equation;
-    class relational;
+namespace GiNaC
+{
+class equation;
+class relational;
 }
 class operands;
 
-class IMATH_DLLPUBLIC msg {
+class IMATH_DLLPUBLIC msg
+{
 private:
     int level;
 
@@ -42,14 +44,15 @@ private:
     static msg msg_warn;
     static msg msg_info;
 
-  public:
+public:
     /*  Check if messages of a certain priority will be printed. Returns true
         if (p % 8) <= the priority level of the stream.
         p > 7 adds parser debug output to the messages of priority (p % 8)
         @param p The priority
         @returns True or false
     */
-    inline bool checkprio(const int p) {
+    inline bool checkprio(const int p)
+    {
         if ((level >> 3) > 0) // i.e. level > 7
             return ((p % 8) <= (level % 8));
         else
@@ -60,11 +63,15 @@ private:
     inline void setlevel(const int p) { level = p; }
 
     // TODO: This is extremely inefficient
-    template<typename T> inline msg& operator<<(const T& element) { SAL_WARN("imath", element); return *this; }
+    template <typename T> inline msg& operator<<(const T& element)
+    {
+        SAL_WARN("imath", element);
+        return *this;
+    }
 
-    static inline msg& error() { return msg_error; }
-    static inline msg& warn()  { return msg_warn; }
-    static inline msg& info()  { return msg_info; }
+    static msg& error();
+    static msg& warn();
+    static msg& info();
     static void init();
 };
 
@@ -73,13 +80,14 @@ private:
 inline std::ostream& endline(std::ostream& os) { return os; }
 
 #define MSG_ERROR(priority, output) SAL_WARN_IF(msg::error().checkprio(priority), "imath", output)
-#define MSG_WARN(priority, output)  SAL_WARN_IF(msg::warn( ).checkprio(priority), "imath", output)
-#define MSG_INFO(priority, output)  SAL_INFO_IF(msg::info( ).checkprio(priority), "imath", output)
+#define MSG_WARN(priority, output) SAL_WARN_IF(msg::warn().checkprio(priority), "imath", output)
+#define MSG_INFO(priority, output) SAL_INFO_IF(msg::info().checkprio(priority), "imath", output)
 
-namespace GiNaC {
-    std::ostream& operator<<(std::ostream& os, const equation& e);
-    std::ostream& operator<<(std::ostream& os, const operands& r);
-    std::ostream& operator<<(std::ostream& os, const relational& r);
+namespace GiNaC
+{
+std::ostream& operator<<(std::ostream& os, const equation& e);
+std::ostream& operator<<(std::ostream& os, const operands& r);
+std::ostream& operator<<(std::ostream& os, const relational& r);
 }
 
 #endif

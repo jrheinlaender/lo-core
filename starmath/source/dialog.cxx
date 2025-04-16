@@ -2968,7 +2968,7 @@ MatrixEditorDialog::MatrixEditorDialog(weld::Window* pParent, ImGuiWindow* pGuiW
     mIsVector = mMatrixText.toAsciiUpperCase().trim().startsWith("STACK");
 
     // Parse matrix into treeview
-    int idx = mMatrixText.indexOfAsciiL("{", 1) + 1;
+    sal_Int32 idx = mMatrixText.indexOfAsciiL("{", 1) + 1;
     std::vector<std::vector<OUString>> rawMatrix;
 
     do

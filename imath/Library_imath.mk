@@ -14,6 +14,9 @@ $(eval $(call gb_Library_Library,imath))
 $(eval $(call gb_Library_set_include,imath,\
     -I$(SRCDIR)/imath/inc \
     -I$(WORKDIR)/YaccTarget/imath/source \
+ifeq ($(COM), MSC)
+    -I/usr/include
+endif
     $$(INCLUDE) \
 ))
 

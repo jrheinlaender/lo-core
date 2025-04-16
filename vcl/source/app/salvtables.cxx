@@ -4720,7 +4720,7 @@ bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter) const
     return pEntry != nullptr;
 }
 
-bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter, int& col) const
+bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter, int&) const
 {
     SvTreeListEntry* pEntry = m_xTreeView->GetCurEntry();
     auto pVclIter = static_cast<SalInstanceTreeIter*>(pIter);
@@ -5173,12 +5173,12 @@ tools::Rectangle SalInstanceTreeView::get_row_area(const weld::TreeIter& rIter) 
     return m_xTreeView->GetBoundingRect(static_cast<const SalInstanceTreeIter&>(rIter).iter);
 }
 
-tools::Rectangle SalInstanceTreeView::get_column_area(const int nColumn) const
+tools::Rectangle SalInstanceTreeView::get_column_area(const int) const
 {
     return tools::Rectangle(); // TODO Not implemented and not used?
 }
 
- tools::Rectangle SalInstanceTreeView::get_cell_area(const weld::TreeIter& rIter, const int nColumn) const
+ tools::Rectangle SalInstanceTreeView::get_cell_area(const weld::TreeIter&, const int) const
  {
      return tools::Rectangle(); // TODO Not implemented and not used?
 }

@@ -2424,6 +2424,21 @@ void SvTreeListBox::EditItemText(SvTreeListEntry* pEntry, SvLBoxString* pItem, c
     EditText( pItem->GetText(), aRect, rSelection );
 }
 
+void SvTreeListBox::EditEntry( SvTreeListEntry* pEntry, const sal_uInt16 nTabIdx )
+{
+    sal_uInt16 nCount = pEntry->ItemCount();
+    if (nTabIdx < nCount)
+    {
+        SvLBoxItem& rTmpItem = pEntry->GetItem( nTabIdx );
+        SvLBoxTab* pTab = GetTab( pEntry, &rTmpItem );
+        pImpl->m_aEditClickPos = Point( pTab->GetPos() + 1, -1 );
+    }
+    else
+        pImpl->m_aEditClickPos = Point( -1, -1 );
+
+    ImplEditEntry( pEntry );
+}
+
 void SvTreeListBox::EditEntry( SvTreeListEntry* pEntry )
 {
     pImpl->m_aEditClickPos = Point( -1, -1 );
@@ -2473,7 +2488,7 @@ void SvTreeListBox::ImplEditEntry( SvTreeListEntry* pEntry )
 
     if( pItem && EditingEntry( pEntry ) )
     {
-        Selection aSel( SELECTION_MIN, SELECTION_MAX );
+        Selection aSel( SELECTION_MIN, SELECTION_MAX ); // Note: This selects all text in the entry before the editing starts
         SelectAll( false );
         MakeVisible( pEntry );
         EditItemText( pEntry, pItem, aSel );

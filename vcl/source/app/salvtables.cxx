@@ -4730,12 +4730,17 @@ bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter, int&) const
     return pEntry != nullptr;
 }
 
-void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter, const int, const bool)
+void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter, const int col, const bool start_editing)
 {
-    // TODO Parameters col and start_editing not implemented
     const SalInstanceTreeIter& rVclIter = static_cast<const SalInstanceTreeIter&>(rIter);
+    auto pEntry = rVclIter.iter;
     disable_notify_events();
-    m_xTreeView->SetCurEntry(rVclIter.iter);
+
+    if (start_editing)
+        m_xTreeView->EditEntry(pEntry, to_internal_model(col));
+    else
+        m_xTreeView->SelectEntry(pEntry);
+
     enable_notify_events();
 }
 
@@ -5178,9 +5183,18 @@ tools::Rectangle SalInstanceTreeView::get_column_area(const int) const
     return tools::Rectangle(); // TODO Not implemented and not used?
 }
 
- tools::Rectangle SalInstanceTreeView::get_cell_area(const weld::TreeIter&, const int) const
- {
-     return tools::Rectangle(); // TODO Not implemented and not used?
+tools::Rectangle SalInstanceTreeView::get_cell_area(const weld::TreeIter& rIter, const int col) const
+{
+    if (col < 0)
+        return {}; // Ignore expander column
+
+    int column = to_internal_model(col);
+    auto rect = get_row_area(rIter);
+    rect.SetLeft(column == 1 ? 0 : m_xTreeView->GetLogicTab(column)); // GetLogicTab(1) gives position of internal expander bitmap
+    if (size_t(col) < m_xTreeView->GetEntry(0)->ItemCount() - 1)
+        rect.SetRight(m_xTreeView->GetLogicTab(column + 1));
+
+    return rect;
 }
 
 weld::TreeView* SalInstanceTreeView::get_drag_source() const { return g_DragSource; }

@@ -28,6 +28,7 @@
 #include <deque>
 #include <memory>
 #include <vector>
+#include <map>
 
 #include <vcl/ctrl.hxx>
 #include <vcl/quickselectionengine.hxx>
@@ -43,6 +44,7 @@ class SvTreeListEntry;
 struct SvViewDataItem;
 class SvViewDataEntry;
 class SvInplaceEdit2;
+class SvInplaceCombo;
 class SvLBoxString;
 class SvImpLBox;
 class SvLBoxButtonData;
@@ -94,6 +96,15 @@ namespace o3tl
 }
 
 enum class SvLBoxItemType {String, Button, ContextBmp};
+
+struct ComboboxStore
+    {
+        typedef std::pair<OUString, OUString> row;
+        std::vector<row> m_aEntries;
+        void emplace_back(row aRow) { m_aEntries.emplace_back(aRow); }
+        OUString findValue(const OUString& key) const;
+        OUString findKey(const OUString& value) const;
+    };
 
 class SvLBoxTab
 {
@@ -252,6 +263,7 @@ protected:
 private:
     DECL_DLLPRIVATE_LINK( CheckButtonClick, SvLBoxButtonData *, void );
     DECL_DLLPRIVATE_LINK( TextEditEndedHdl_Impl, SvInplaceEdit2&, void );
+    DECL_DLLPRIVATE_LINK( ItemSelectedHdl_Impl, SvInplaceCombo&, void );
     // Handler that is called by TreeList to clone an Entry
     DECL_DLLPRIVATE_LINK( CloneHdl_Impl, SvTreeListEntry*, SvTreeListEntry* );
 
@@ -302,6 +314,11 @@ protected:
     std::unique_ptr<SvInplaceEdit2>  pEdCtrl;
     void            EditText( const OUString&, const tools::Rectangle&,const Selection&);
     void            CancelTextEditing();
+
+    // In-place combobox
+    std::unique_ptr<SvInplaceCombo>  pComboCtrl;
+    void            SelectItem( const tools::Rectangle&, ComboboxStore*, const OUString&);
+    void            CancelSelecting();
 
     // InitViewData is called right after CreateViewData
     // The Entry is has not yet been added to the View in InitViewData!
@@ -529,6 +546,7 @@ protected:
     // scrollbar
     VCL_DLLPRIVATE bool PosOverBody(const Point& rPos) const;
 public:
+    void            InsertComboboxStore(const OUString& name, ComboboxStore aStore);
 
     void            SetNoAutoCurEntry( bool b );
 
@@ -562,11 +580,12 @@ public:
     void            SetCheckButtonState( SvTreeListEntry*, SvButtonState );
     SvButtonState   GetCheckButtonState( SvTreeListEntry* ) const;
 
-    void            SetEntryText(SvTreeListEntry*, const OUString& );
+    void            SetEntryText(SvTreeListEntry*, const OUString&, int col = -1);
     void            SetExpandedEntryBmp( SvTreeListEntry* _pEntry, const Image& _rImage );
     void            SetCollapsedEntryBmp( SvTreeListEntry* _pEntry, const Image& _rImage );
 
-    virtual OUString GetEntryText( SvTreeListEntry* pEntry ) const;
+    virtual OUString GetEntryText( SvTreeListEntry* pEntry ) const; // Is overridden in svtabbx.hxx
+    OUString GetEntryText( SvTreeListEntry* pEntry, int col) const;
     static const Image&    GetExpandedEntryBmp(const SvTreeListEntry* _pEntry );
     static const Image&    GetCollapsedEntryBmp(const SvTreeListEntry* _pEntry );
 
@@ -577,6 +596,8 @@ public:
     void            EnableInplaceEditing( bool bEnable );
     // Edits the Entry's first StringItem, 0 == Cursor
     void            EditEntry( SvTreeListEntry* pEntry );
+    // Edits the Entry's StringItem at the given position
+    void            EditEntry( SvTreeListEntry* pEntry, const sal_uInt16 nTabIdx  );
     virtual bool    EditingEntry( SvTreeListEntry* pEntry );
     virtual bool    EditedEntry( SvTreeListEntry* pEntry, const OUString& rNewText );
 
@@ -679,6 +700,9 @@ public:
     void            SetDragHelper(const rtl::Reference<TransferDataContainer>& rHelper, sal_uInt8 eDNDConstants);
 
     virtual void    EnableRTL(bool bEnable = true) override;
+
+private:
+    std::map<OUString, ComboboxStore> m_aComboboxStores;
 };
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

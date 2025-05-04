@@ -31,6 +31,7 @@
 #include <vcl/svapp.hxx>
 #include <vcl/builder.hxx>
 #include <vcl/toolkit/edit.hxx>
+#include <vcl/toolkit/lstbox.hxx>
 #include <vcl/settings.hxx>
 #include <vcl/commandevent.hxx>
 #include <vcl/decoview.hxx>
@@ -51,6 +52,22 @@
 #include <vector>
 
 using namespace css::accessibility;
+
+OUString ComboboxStore::findValue(const OUString& key) const
+{
+    for (const auto& entry : m_aEntries)
+        if (entry.first == key)
+            return entry.second;
+    return "";
+}
+
+OUString ComboboxStore::findKey(const OUString& value) const
+{
+    for (const auto& entry : m_aEntries)
+        if (entry.second == value)
+            return entry.first;
+    return "";
+}
 
 // Drag&Drop
 static VclPtr<SvTreeListBox> g_pDDSource;
@@ -276,6 +293,158 @@ void SvInplaceEdit2::CallCallBackHdl_Impl()
 OUString SvInplaceEdit2::GetText() const
 {
     return pEdit->GetText();
+}
+
+///////////////////////////////
+class SvInplaceCombo
+{
+    Link<SvInplaceCombo&,void> aCallBackHdl;
+    Idle            aIdle { "svtools::SvInplaceCombo aIdle" };
+    VclPtr<ListBox> pListBox;
+    bool            bCanceled;
+    bool            bAlreadyInCallBack;
+    ComboboxStore*  pModel;
+
+    void       CallCallBackHdl_Impl();
+    DECL_LINK( SelectHdl, ListBox&, void );
+    DECL_LINK( Timeout_Impl, Timer *, void );
+
+public:
+                SvInplaceCombo( vcl::Window* pParent, const Point& rPos, const Size& rSize,
+                   ComboboxStore* pStore,
+                   const Link<SvInplaceCombo&,void>& rNotifySelected, const OUString& rSelection );
+               ~SvInplaceCombo();
+    void        LoseFocus();
+    bool        SelectingCanceled() const { return bCanceled; }
+    OUString    GetText() const;
+    void        StopSelecting( bool bCancel );
+    void        Hide();
+};
+
+// ***************************************************************
+namespace {
+
+class MyCombo_Impl : public ListBox
+{
+    SvInplaceCombo* pOwner;
+public:
+            MyCombo_Impl( vcl::Window* pParent, SvInplaceCombo* pOwner );
+    virtual ~MyCombo_Impl() override { disposeOnce(); }
+    virtual void dispose() override { pOwner = nullptr; ListBox::dispose(); }
+    virtual void LoseFocus() override;
+};
+
+}
+
+MyCombo_Impl::MyCombo_Impl( vcl::Window* pParent, SvInplaceCombo* _pOwner ) :
+    ListBox( pParent, WB_DROPDOWN ),
+    pOwner( _pOwner )
+{
+}
+
+void MyCombo_Impl::LoseFocus()
+{
+    if (pOwner)
+        pOwner->LoseFocus();
+}
+
+SvInplaceCombo::SvInplaceCombo
+(
+    vcl::Window* pParent, const Point& rPos,
+    const Size& rSize, ComboboxStore* pStore,
+    const Link<SvInplaceCombo&,void>& rNotifySelected,
+    const OUString& rSelection
+) :
+    aCallBackHdl        ( rNotifySelected ),
+    bCanceled           ( false ),
+    bAlreadyInCallBack  ( false ),
+    pModel              ( pStore )
+{
+
+    pListBox = VclPtr<MyCombo_Impl>::Create( pParent, this );
+
+    vcl::Font aFont( pParent->GetFont() );
+    aFont.SetTransparent( false );
+    Color aColor( pParent->GetBackground().GetColor() );
+    aFont.SetFillColor(aColor );
+    pListBox->SetFont( aFont );
+    pListBox->SetBackground( pParent->GetBackground() );
+    pListBox->SetPosPixel( rPos );
+    pListBox->SetSizePixel( rSize );
+    pListBox->EnableAutoSize(true);
+
+    int selectedPos = 0;
+    for (const auto& row : pModel->m_aEntries)
+    {
+        pListBox->InsertEntry(row.second);
+        if (row.second == rSelection)
+            selectedPos = pListBox->GetEntryCount() - 1;
+    }
+
+    pListBox->SetSelectHdl( LINK(this, SvInplaceCombo, SelectHdl) );
+    pListBox->Show();
+    pListBox->ToggleDropDown();
+    pListBox->SelectEntryPos(selectedPos);
+    pListBox->GrabFocus();
+}
+
+IMPL_LINK_NOARG(SvInplaceCombo, SelectHdl, ListBox&, void)
+{
+    StopSelecting(true);
+}
+
+SvInplaceCombo::~SvInplaceCombo()
+{
+    pListBox.disposeAndClear();
+}
+
+void SvInplaceCombo::Hide()
+{
+    pListBox->Hide();
+}
+
+void SvInplaceCombo::StopSelecting( bool bCancel )
+{
+    if ( !bAlreadyInCallBack )
+    {
+        bCanceled = bCancel;
+        CallCallBackHdl_Impl();
+    }
+}
+
+void SvInplaceCombo::LoseFocus()
+{
+    if ( !bAlreadyInCallBack
+    && ((!Application::GetFocusWindow()) || !pListBox->IsChild( Application::GetFocusWindow()) )
+    )
+    {
+        bCanceled = false;
+        aIdle.SetPriority(TaskPriority::REPAINT);
+        aIdle.SetInvokeHandler(LINK(this,SvInplaceCombo,Timeout_Impl));
+        aIdle.Start();
+    }
+}
+
+
+IMPL_LINK_NOARG(SvInplaceCombo, Timeout_Impl, Timer *, void)
+{
+    CallCallBackHdl_Impl();
+}
+
+void SvInplaceCombo::CallCallBackHdl_Impl()
+{
+    aIdle.Stop();
+    if ( !bAlreadyInCallBack )
+    {
+        bAlreadyInCallBack = true;
+        Hide();
+        aCallBackHdl.Call( *this );
+    }
+}
+
+OUString SvInplaceCombo::GetText() const
+{
+    return pModel->findKey(pListBox->GetSelectedEntry());
 }
 
 // ***************************************************************
@@ -925,6 +1094,8 @@ void SvTreeListBox::CancelTextEditing()
 {
     if ( pEdCtrl )
         pEdCtrl->StopEditing( true );
+    if ( pComboCtrl )
+        pComboCtrl->StopSelecting( true );
     nImpFlags &= ~SvTreeListBoxFlags::IN_EDT;
 }
 
@@ -932,7 +1103,39 @@ void SvTreeListBox::EndEditing( bool bCancel )
 {
     if( pEdCtrl )
         pEdCtrl->StopEditing( bCancel );
+    if ( pComboCtrl )
+        pComboCtrl->StopSelecting( bCancel );
     nImpFlags &= ~SvTreeListBoxFlags::IN_EDT;
+}
+
+// ******************************************************************
+// InplaceCombobox
+// ******************************************************************
+
+void SvTreeListBox::SelectItem( const tools::Rectangle& rRect, ComboboxStore* pStore, const OUString& rSelection )
+{
+    pComboCtrl.reset();
+    nImpFlags |= SvTreeListBoxFlags::IN_EDT;
+    nImpFlags &= ~SvTreeListBoxFlags::EDTEND_CALLED;
+    HideFocus();
+    pComboCtrl.reset( new SvInplaceCombo(
+        this, rRect.TopLeft(), rRect.GetSize(), pStore,
+        LINK( this, SvTreeListBox, ItemSelectedHdl_Impl ),
+        rSelection ) );
+}
+
+IMPL_LINK_NOARG(SvTreeListBox, ItemSelectedHdl_Impl, SvInplaceCombo&, void)
+{
+    if ( nImpFlags & SvTreeListBoxFlags::EDTEND_CALLED ) // avoid nesting
+        return;
+    nImpFlags |= SvTreeListBoxFlags::EDTEND_CALLED;
+    EditedText( pComboCtrl->GetText() );
+    // Hide may only be called after the new text was put into the entry, so
+    // that we don't call the selection handler in the GetFocus of the listbox
+    // with the old entry text.
+    pComboCtrl->Hide();
+    nImpFlags &= ~SvTreeListBoxFlags::IN_EDT;
+    GrabFocus();
 }
 
 vcl::StringEntryIdentifier SvTreeListBox::CurrentEntry( OUString& _out_entryText ) const
@@ -1531,14 +1734,38 @@ void SvTreeListBox::InitEntry(SvTreeListEntry* pEntry,
 
     pEntry->AddItem(std::make_unique<SvLBoxString>(aStr));
 }
-
-OUString SvTreeListBox::GetEntryText(SvTreeListEntry* pEntry) const
+OUString SvTreeListBox::GetEntryText(SvTreeListEntry* pEntry, int col) const
 {
     assert(pEntry);
-    SvLBoxString* pItem = static_cast<SvLBoxString*>(pEntry->GetFirstItem(SvLBoxItemType::String));
-    if (pItem) // There may be entries without text items, e.g. in IconView
-        return pItem->GetText();
+    if (col == -1)
+    {
+        SvLBoxString* pItem = static_cast<SvLBoxString*>(pEntry->GetFirstItem(SvLBoxItemType::String));
+        if (pItem) // There may be entries without text items, e.g. in IconView
+            return pItem->GetText();
+    }
+    else
+    {
+        assert(col >= 0 && o3tl::make_unsigned(col) < pEntry->ItemCount());
+        SvLBoxItem& rItem = pEntry->GetItem(col);
+        assert(dynamic_cast<SvLBoxString*>(&rItem));
+        SvLBoxString& rStringItem = static_cast<SvLBoxString&>(rItem);
+
+        OUString modelName = rStringItem.GetModel();
+        if (!modelName.isEmpty())
+        {
+            auto pComboboxModel = m_aComboboxStores.find(modelName);
+            if (pComboboxModel != m_aComboboxStores.end())
+                return pComboboxModel->second.findKey(rStringItem.GetText());
+        }
+        return rStringItem.GetText();
+    }
+
     return {};
+}
+
+OUString SvTreeListBox::GetEntryText(SvTreeListEntry* pEntry ) const
+{
+    return GetEntryText( pEntry, -1 );
 }
 
 const Image& SvTreeListBox::GetExpandedEntryBmp(const SvTreeListEntry* pEntry)
@@ -1596,12 +1823,36 @@ SvTreeListEntry* SvTreeListBox::InsertEntry(
     return pEntry;
 }
 
-void SvTreeListBox::SetEntryText(SvTreeListEntry* pEntry, const OUString& rStr)
+void SvTreeListBox::SetEntryText(SvTreeListEntry* pEntry, const OUString& rStr, int col)
 {
-    SvLBoxString* pItem = static_cast<SvLBoxString*>(pEntry->GetFirstItem(SvLBoxItemType::String));
-    assert(pItem);
-    pItem->SetText(rStr);
-    pItem->InitViewData( this, pEntry );
+    if (col == -1)
+    {
+        SvLBoxString* pItem = static_cast<SvLBoxString*>(pEntry->GetFirstItem(SvLBoxItemType::String));
+        assert(pItem);
+        pItem->SetText(rStr);
+        pItem->InitViewData( this, pEntry );
+    }
+    else
+    {
+        assert(col >= 0 && o3tl::make_unsigned(col) < pEntry->ItemCount());
+        SvLBoxItem& rItem = pEntry->GetItem(col);
+        assert(dynamic_cast<SvLBoxString*>(&rItem));
+        SvLBoxString& rStringItem = static_cast<SvLBoxString&>(rItem);
+
+        OUString modelName = rStringItem.GetModel();
+        OUString value;
+
+        if (!modelName.isEmpty())
+        {
+            auto pComboboxModel = m_aComboboxStores.find(modelName);
+            if (pComboboxModel != m_aComboboxStores.end())
+                value = pComboboxModel->second.findValue(rStr);
+        }
+
+        rStringItem.SetText(value.isEmpty() ? rStr : value);
+        rItem.InitViewData( this, pEntry );
+    }
+
     GetModel()->InvalidateEntry( pEntry );
 }
 
@@ -2421,6 +2672,19 @@ void SvTreeListBox::EditItemText(SvTreeListEntry* pEntry, SvLBoxString* pItem, c
     aPos += aOrigin; // convert to win coordinates
     aSize.AdjustWidth( -(aOrigin.X()) );
     tools::Rectangle aRect( aPos, aSize );
+
+    // Check if we have a combobox
+    OUString aModel = pItem->GetModel();
+    if (!aModel.isEmpty())
+    {
+        auto pStore = m_aComboboxStores.find(aModel);
+        if (pStore != m_aComboboxStores.end())
+        {
+            SelectItem(aRect, &pStore->second, pItem->GetText());
+            return;
+        }
+    }
+
     EditText( pItem->GetText(), aRect, rSelection );
 }
 
@@ -2502,7 +2766,17 @@ void SvTreeListBox::EditedText( const OUString& rStr )
     {
         if( EditedEntry( pEdEntry, rStr ) )
         {
-            pEdItem->SetText( rStr );
+            OUString modelName = pEdItem->GetModel();
+            OUString value;
+
+            if (!modelName.isEmpty())
+            {
+                auto pComboboxModel = m_aComboboxStores.find(modelName);
+                if (pComboboxModel != m_aComboboxStores.end())
+                    value = pComboboxModel->second.findValue(rStr);
+            }
+
+            pEdItem->SetText( value.isEmpty() ? rStr : value );
             pModel->InvalidateEntry( pEdEntry );
         }
         if( GetSelectionCount() == 0 )
@@ -3502,6 +3776,11 @@ void SvTreeListBox::InitSettings()
     // always try to re-create default-SvLBoxButtonData
     if( pCheckButtonData)
         pCheckButtonData->SetDefaultImages(*this);
+}
+
+void SvTreeListBox::InsertComboboxStore(const OUString& name, ComboboxStore aStore)
+{
+    m_aComboboxStores.emplace(name, std::move(aStore));
 }
 
 css::uno::Reference< XAccessible > SvTreeListBox::CreateAccessible()

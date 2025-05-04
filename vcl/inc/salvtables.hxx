@@ -1748,6 +1748,9 @@ public:
     virtual void set_image(const weld::TreeIter& rIter, VirtualDevice& rImage,
                            int col = -1) override;
 
+    virtual void set_combobox_model(const weld::TreeIter& rIter, const OUString& modelname,
+                           int col = -1) override;
+
     const OUString* getEntryData(int index) const;
 
     virtual OUString get_id(int pos) const override;

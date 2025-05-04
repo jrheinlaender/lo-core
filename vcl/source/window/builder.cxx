@@ -580,6 +580,7 @@ VclBuilder::VclBuilder(vcl::Window* pParent, std::u16string_view sUIDir, const O
         ListBox *pListBoxTarget = dynamic_cast<ListBox*>(pTarget);
         ComboBox *pComboBoxTarget = dynamic_cast<ComboBox*>(pTarget);
         SvTabListBox *pTreeBoxTarget = dynamic_cast<SvTabListBox*>(pTarget);
+        SvHeaderTabListBox *pTreeViewTarget = dynamic_cast<SvHeaderTabListBox*>(pTarget);
         // pStore may be empty
         const ListStore *pStore = get_model_by_name(elem.m_sValue);
         SAL_WARN_IF(!pListBoxTarget && !pComboBoxTarget && !pTreeBoxTarget && !dynamic_cast<IconView*>(pTarget), "vcl", "missing elements of combobox");
@@ -587,6 +588,13 @@ VclBuilder::VclBuilder(vcl::Window* pParent, std::u16string_view sUIDir, const O
             mungeModel(*pListBoxTarget, *pStore, elem.m_nActiveId);
         else if (pComboBoxTarget && pStore)
             mungeModel(*pComboBoxTarget, *pStore, elem.m_nActiveId);
+        else if (pTreeViewTarget && pStore)
+        {
+            ComboboxStore comboboxStore;
+            for (const auto& row: pStore->m_aEntries)
+                comboboxStore.emplace_back(ComboboxStore::row{row[0], row[1]});
+            pTreeViewTarget->InsertComboboxStore(elem.m_sValue, comboboxStore);
+        }
         else if (pTreeBoxTarget && pStore)
             mungeModel(*pTreeBoxTarget, *pStore, elem.m_nActiveId);
     }
@@ -1789,6 +1797,12 @@ VclPtr<vcl::Window> VclBuilder::makeObject(vcl::Window *pParent, const OUString 
                 pHeaderBar->InsertItem(nItemId, sTitle, 100, nBits);
             }
         }
+    }
+    else if (name == "GtkCellRendererCombo")
+    {
+        // The cell renderers are not handled by the builder. But we need to make the model accessible
+        assert(rMap.find("model") != rMap.end() && "GtkCellRendererCombo must have a model");
+        extractModel(pParent->get_id(), rMap);
     }
     else if (name == "GtkLabel")
     {

@@ -4308,10 +4308,8 @@ OUString SalInstanceTreeView::get_text(SvTreeListEntry* pEntry, int col) const
     if (static_cast<size_t>(col) == pEntry->ItemCount())
         return OUString();
 
-    assert(col >= 0 && o3tl::make_unsigned(col) < pEntry->ItemCount());
-    SvLBoxItem& rItem = pEntry->GetItem(col);
-    assert(dynamic_cast<SvLBoxString*>(&rItem));
-    return static_cast<SvLBoxString&>(rItem).GetText();
+    // Note: Without the cast this calls static OUString SvTabListBox::GetEntryText( const SvTreeListEntry*, sal_uInt16 nCol ) (!!)
+    return ((SvTreeListBox*)m_xTreeView)->GetEntryText(pEntry, col);
 }
 
 OUString SalInstanceTreeView::get_text(int pos, int col) const
@@ -4342,10 +4340,7 @@ void SalInstanceTreeView::set_text(SvTreeListEntry* pEntry, const OUString& rTex
     }
     else
     {
-        assert(col >= 0 && o3tl::make_unsigned(col) < pEntry->ItemCount());
-        SvLBoxItem& rItem = pEntry->GetItem(col);
-        assert(dynamic_cast<SvLBoxString*>(&rItem));
-        static_cast<SvLBoxString&>(rItem).SetText(rText);
+        m_xTreeView->SetEntryText(pEntry, rText, col);
     }
 
     InvalidateModelEntry(pEntry);
@@ -4632,6 +4627,24 @@ void SalInstanceTreeView::set_image(const weld::TreeIter& rIter, VirtualDevice& 
 {
     const SalInstanceTreeIter& rVclIter = static_cast<const SalInstanceTreeIter&>(rIter);
     set_image(rVclIter.iter, createImage(rImage), col);
+}
+
+void SalInstanceTreeView::set_combobox_model(const weld::TreeIter& rIter, const OUString& rName, int col)
+{
+    if (col == -1)
+        return;
+
+    const SalInstanceTreeIter& rVclIter = static_cast<const SalInstanceTreeIter&>(rIter);
+    auto pEntry = rVclIter.iter;
+    col = to_internal_model(col);
+
+    // blank out missing entries
+    for (int i = pEntry->ItemCount(); i <= col; ++i)
+        AddStringItem(pEntry, "", i - 1);
+
+    SvLBoxItem& rItem = pEntry->GetItem(col);
+    if (auto pItem = dynamic_cast<SvLBoxString*>(&rItem))
+        pItem->SetModel(rName);
 }
 
 const OUString* SalInstanceTreeView::getEntryData(int index) const

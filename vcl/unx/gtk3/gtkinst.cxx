@@ -16065,6 +16065,11 @@ public:
         set_image(rGtkIter.iter, col, getPixbuf(rImage));
     }
 
+    virtual void set_combobox_model(const weld::TreeIter&, const OUString&, int) override
+    {
+        // Not required for Gtk implementation (only vor internal VCL)
+    }
+
     virtual OUString get_id(int pos) const override
     {
         return get(pos, m_nIdCol);

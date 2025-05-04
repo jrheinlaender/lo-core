@@ -1258,6 +1258,9 @@ public:
     virtual void set_image(const TreeIter& rIter,
                            const css::uno::Reference<css::graphic::XGraphic>& rImage, int col = -1)
         = 0;
+    // Tell Vcl which model is associated with the column since the builder does not parse cell renderers
+    // Note: This is not required for the Gtk implementation
+    virtual void set_combobox_model(const TreeIter& rIter, const OUString& modelname, int col = -1) = 0;
     virtual void set_font_color(const TreeIter& rIter, const Color& rColor) = 0;
     // scroll to make rIter visible, this will also expand all parent rows of rIter as necessary to
     // make rIter visible

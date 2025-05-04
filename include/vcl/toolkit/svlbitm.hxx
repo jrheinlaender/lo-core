@@ -106,6 +106,7 @@ private:
     double mfAlign;
 protected:
     OUString maText;
+    OUString maModel; // Model name for selection from combobox
 
 public:
     SvLBoxString(OUString aText);
@@ -134,6 +135,14 @@ public:
     void SetText(const OUString& rText)
     {
         maText = rText;
+    }
+    const OUString& GetModel() const
+    {
+        return maModel;
+    }
+    void SetModel(const OUString& rModel)
+    {
+        maModel = rModel;
     }
 
     virtual void Paint(const Point& rPos, SvTreeListBox& rOutDev,

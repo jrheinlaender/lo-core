@@ -204,6 +204,7 @@ class VCL_DLLPUBLIC SvTreeListBox
     Link<SvTreeListBox*,bool>  aExpandingHdl;
     Link<SvTreeListBox*,void>  aSelectHdl;
     Link<SvTreeListBox*,void>  aDeselectHdl;
+    Link<SvTreeListBox*,void>  aEditingCanceledHdl;
     Link<const CommandEvent&, bool> aPopupMenuHdl;
     Link<SvTreeListEntry*, OUString> aTooltipHdl;
     Link<svtree_render_args, void> aCustomRenderHdl;
@@ -263,6 +264,7 @@ protected:
 private:
     DECL_DLLPRIVATE_LINK( CheckButtonClick, SvLBoxButtonData *, void );
     DECL_DLLPRIVATE_LINK( TextEditEndedHdl_Impl, SvInplaceEdit2&, void );
+    DECL_DLLPRIVATE_LINK( TextEditCanceledHdl_Impl, SvInplaceEdit2&, void );
     DECL_DLLPRIVATE_LINK( ItemSelectedHdl_Impl, SvInplaceCombo&, void );
     // Handler that is called by TreeList to clone an Entry
     DECL_DLLPRIVATE_LINK( CloneHdl_Impl, SvTreeListEntry*, SvTreeListEntry* );
@@ -421,6 +423,7 @@ public:
     void            SetSelectHdl( const Link<SvTreeListBox*,void>& rNewHdl ) {aSelectHdl=rNewHdl; }
     void            SetDeselectHdl( const Link<SvTreeListBox*,void>& rNewHdl ) {aDeselectHdl=rNewHdl; }
     void            SetDoubleClickHdl(const Link<SvTreeListBox*,bool>& rNewHdl) {aDoubleClickHdl=rNewHdl;}
+    void            SetEditingCanceledHdl(const Link<SvTreeListBox*,void>& rNewHdl) {aEditingCanceledHdl=rNewHdl;}
     void            SetExpandingHdl(const Link<SvTreeListBox*,bool>& rNewHdl){aExpandingHdl=rNewHdl;}
     void            SetExpandedHdl(const Link<SvTreeListBox*,void>& rNewHdl){aExpandedHdl=rNewHdl;}
     void SetPopupMenuHdl(const Link<const CommandEvent&, bool>& rLink) { aPopupMenuHdl = rLink; }
@@ -600,6 +603,7 @@ public:
     void            EditEntry( SvTreeListEntry* pEntry, const sal_uInt16 nTabIdx  );
     virtual bool    EditingEntry( SvTreeListEntry* pEntry );
     virtual bool    EditedEntry( SvTreeListEntry* pEntry, const OUString& rNewText );
+    virtual void    CanceledEntry( SvTreeListEntry* pEntry, const OUString& rNewText );
 
     virtual void    Paint( vcl::RenderContext& rRenderContext, const tools::Rectangle& rRect ) override;
     virtual void    MouseButtonDown( const MouseEvent& rMEvt ) override;

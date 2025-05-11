@@ -1093,7 +1093,7 @@ IMPL_LINK_NOARG(SvTreeListBox, TextEditEndedHdl_Impl, SvInplaceEdit2&, void)
 void SvTreeListBox::CancelTextEditing()
 {
     if ( pEdCtrl )
-        pEdCtrl->StopEditing( true );
+        CanceledEntry(pEdEntry, pEdCtrl->GetText());
     if ( pComboCtrl )
         pComboCtrl->StopSelecting( true );
     nImpFlags &= ~SvTreeListBoxFlags::IN_EDT;
@@ -2096,6 +2096,11 @@ bool SvTreeListBox::EditingEntry( SvTreeListEntry* )
 bool SvTreeListBox::EditedEntry( SvTreeListEntry* /*pEntry*/,const OUString& /*rNewText*/)
 {
     return true;
+}
+
+void SvTreeListBox::CanceledEntry( SvTreeListEntry* /*pEntry*/,const OUString& /*rNewText*/)
+{
+    /* Note: The implementation in treeglue.hxx is called instead */
 }
 
 void SvTreeListBox::EnableInplaceEditing( bool bOn )

@@ -1543,7 +1543,9 @@ protected:
     DECL_LINK(StartDragHdl, SvTreeListBox*, bool);
     DECL_STATIC_LINK(SalInstanceTreeView, FinishDragHdl, SvTreeListBox*, void);
     DECL_LINK(EditingEntryHdl, SvTreeListEntry*, bool);
-    DECL_LINK(EditedEntryHdl, const IterString&, bool);
+    typedef std::pair<SvTreeListEntry*, OUString> IterString;
+    DECL_LINK(EditedEntryHdl, IterString, bool);
+    DECL_LINK(EditingCanceledHdl, IterString, void);
     DECL_LINK(VisibleRangeChangedHdl, SvTreeListBox*, void);
     DECL_LINK(CompareHdl, const SvSortData&, sal_Int32);
     DECL_LINK(PopupMenuHdl, const CommandEvent&, bool);

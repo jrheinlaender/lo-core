@@ -19,7 +19,8 @@ class LclHeaderTabListBox final : public SvHeaderTabListBox
 {
 private:
     Link<SvTreeListEntry*, bool> m_aEditingEntryHdl;
-    Link<const IterString&, bool> m_aEditedEntryHdl;
+    Link<std::pair<SvTreeListEntry*, OUString>, bool> m_aEditedEntryHdl;
+    Link<std::pair<SvTreeListEntry*, OUString>, void> m_aEditingCanceledHdl;
 
 public:
     LclHeaderTabListBox(vcl::Window* pParent, WinBits nWinStyle)
@@ -37,6 +38,11 @@ public:
         m_aEditedEntryHdl = rLink;
     }
 
+    void SetEditingCanceledHdl(const Link<std::pair<SvTreeListEntry*, OUString>, void>& rLink)
+    {
+        m_aEditingCanceledHdl = rLink;
+    }
+
     virtual DragDropMode NotifyStartDrag() override { return GetDragDropMode(); }
 
     virtual bool EditingEntry(SvTreeListEntry* pEntry) override
@@ -48,6 +54,11 @@ public:
     {
         return m_aEditedEntryHdl.Call(IterString(pEntry, rNewText));
     }
+
+    virtual void CanceledEntry(SvTreeListEntry* pEntry, const OUString& rNewText) override
+    {
+        m_aEditingCanceledHdl.Call(std::pair<SvTreeListEntry*, OUString>(pEntry, rNewText));
+    }
 };
 
 class LclTabListBox final : public SvTabListBox
@@ -56,7 +67,8 @@ class LclTabListBox final : public SvTabListBox
     Link<SvTreeListBox*, bool> m_aStartDragHdl;
     Link<SvTreeListBox*, void> m_aEndDragHdl;
     Link<SvTreeListEntry*, bool> m_aEditingEntryHdl;
-    Link<const IterString&, bool> m_aEditedEntryHdl;
+    Link<std::pair<SvTreeListEntry*, OUString>, bool> m_aEditedEntryHdl;
+    Link<std::pair<SvTreeListEntry*, OUString>, void> m_aEditingCanceledHdl;
 
 public:
     LclTabListBox(vcl::Window* pParent, WinBits nWinStyle)
@@ -74,6 +86,10 @@ public:
     void SetEditedEntryHdl(const Link<const IterString&, bool>& rLink)
     {
         m_aEditedEntryHdl = rLink;
+    }
+    void SetEditingCanceledHdl(const Link<std::pair<SvTreeListEntry*, OUString>, void>& rLink)
+    {
+        m_aEditingCanceledHdl = rLink;
     }
 
     virtual DragDropMode NotifyStartDrag() override { return GetDragDropMode(); }
@@ -165,6 +181,11 @@ public:
     virtual bool EditedEntry(SvTreeListEntry* pEntry, const OUString& rNewText) override
     {
         return m_aEditedEntryHdl.Call(IterString(pEntry, rNewText));
+    }
+
+    virtual void CanceledEntry(SvTreeListEntry* pEntry, const OUString& rNewText) override
+    {
+        return m_aEditingCanceledHdl.Call(std::pair<SvTreeListEntry*, OUString>(pEntry, rNewText));
     }
 };
 

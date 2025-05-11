@@ -3896,6 +3896,7 @@ SalInstanceTreeView::SalInstanceTreeView(SvTabListBox* pTreeView, SalInstanceBui
         }
         pHeaderBox->SetEditingEntryHdl(LINK(this, SalInstanceTreeView, EditingEntryHdl));
         pHeaderBox->SetEditedEntryHdl(LINK(this, SalInstanceTreeView, EditedEntryHdl));
+        pHeaderBox->SetEditingCanceledHdl(LINK(this, SalInstanceTreeView, EditingCanceledHdl));
     }
     else
     {
@@ -3909,6 +3910,8 @@ SalInstanceTreeView::SalInstanceTreeView(SvTabListBox* pTreeView, SalInstanceBui
             .SetEditingEntryHdl(LINK(this, SalInstanceTreeView, EditingEntryHdl));
         static_cast<LclTabListBox&>(*m_xTreeView)
             .SetEditedEntryHdl(LINK(this, SalInstanceTreeView, EditedEntryHdl));
+        static_cast<LclTabListBox&>(*m_xTreeView)
+            .SetEditingCanceledHdl(LINK(this, SalInstanceTreeView, EditingCanceledHdl));
     }
     m_aCheckButtonData.SetLink(LINK(this, SalInstanceTreeView, ToggleHdl));
     m_aRadioButtonData.SetLink(LINK(this, SalInstanceTreeView, ToggleHdl));
@@ -5242,6 +5245,9 @@ bool SalInstanceTreeView::changed_by_hover() const { return m_xTreeView->IsSelec
 
 SalInstanceTreeView::~SalInstanceTreeView()
 {
+    if (m_xTreeView->IsEditingActive())
+        m_xTreeView->CancelTextEditing(); // Calls signal handler to allow doing something with the edited text before it is discarded
+
     SvHeaderTabListBox* pHeaderBox = dynamic_cast<SvHeaderTabListBox*>(m_xTreeView.get());
     if (pHeaderBox)
     {
@@ -5498,6 +5504,12 @@ IMPL_LINK(SalInstanceTreeView, EditingEntryHdl, SvTreeListEntry*, pEntry, bool)
 IMPL_LINK(SalInstanceTreeView, EditedEntryHdl, const IterString&, rIterString, bool)
 {
     return signal_editing_done(
+        iter_string(SalInstanceTreeIter(rIterString.first), rIterString.second));
+}
+
+IMPL_LINK(SalInstanceTreeView, EditingCanceledHdl, IterString, rIterString, void)
+{
+    signal_editing_canceled(
         iter_string(SalInstanceTreeIter(rIterString.first), rIterString.second));
 }
 

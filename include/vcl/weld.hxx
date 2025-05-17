@@ -963,6 +963,7 @@ class VCL_DLLPUBLIC TreeView : virtual public Widget
 public:
     typedef std::pair<const TreeIter&, int> iter_col;
     typedef std::pair<const TreeIter&, OUString> iter_string;
+    typedef std::tuple<const TreeIter&, OUString, int, MouseEvent> iter_click;
     // OUString is the id of the row, it may be null to measure the height of a generic line
     typedef std::pair<vcl::RenderContext&, const OUString&> get_size_args;
     typedef std::tuple<vcl::RenderContext&, const tools::Rectangle&, bool, const OUString&>
@@ -980,6 +981,8 @@ protected:
     Link<const iter_string&, bool> m_aEditingDoneHdl;
     // Allow intercepting canceled CellRendererText
     Link<const iter_string&, void> m_aEditingCanceledHdl;
+    // Catch button press events on CellRendererText
+    Link<const iter_click&, bool> m_aEditingClickedHdl;
     // if handler returns false, the expansion of the row is refused
     Link<const TreeIter&, bool> m_aExpandingHdl;
     // if handler returns false, the collapse of the row is refused
@@ -1021,6 +1024,10 @@ protected:
 
     void signal_editing_canceled(const iter_string& rIterText) {
         m_aEditingCanceledHdl.Call(rIterText);
+    }
+
+    bool signal_editing_clicked(const iter_click& rIterClick) {
+        return m_aEditingClickedHdl.Call(rIterClick);
     }
 
     Link<const TreeIter&, OUString> m_aQueryTooltipHdl;
@@ -1341,6 +1348,12 @@ public:
     {
         assert(!m_aEditingCanceledHdl.IsSet() || !rCanceledLink.IsSet());
         m_aEditingCanceledHdl = rCanceledLink;
+    }
+
+    virtual void connect_editing_clicked(const Link<const iter_click&, bool>& rClickedLink)
+    {
+        assert(!m_aEditingClickedHdl.IsSet() || !rClickedLink.IsSet());
+        m_aEditingClickedHdl = rClickedLink;
     }
 
     virtual void start_editing(const weld::TreeIter& rEntry) = 0;

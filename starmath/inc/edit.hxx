@@ -235,8 +235,6 @@ private:
     int lastOptionsPage;
 
     DECL_LINK(MousePressHdl, const MouseEvent&, bool);
-    int mNumClicks;
-    int mClickedColumn;
     DECL_LINK(KeyReleaseHdl, const ::KeyEvent&, bool);
     bool mEscapePressed;
 

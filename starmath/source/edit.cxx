@@ -258,8 +258,6 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mpChartDialog(nullptr)
     , mpMatrixEditorDialog(nullptr)
     , lastOptionsPage(0)
-    , mNumClicks(0)
-    , mClickedColumn(-1)
     , mEscapePressed(false)
     , mEditedColumn(-1)
 {
@@ -663,10 +661,7 @@ void positionImGuiDialog(weld::Dialog* dialog, weld::Window* window)
 // But that does not work for CellRendererCombo because the mouse release never makes it to our handler
 IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
 {
-    SAL_INFO_LEVEL(1, "starmath.imath", "Mouse press handler with edited column=" << mEditedColumn);
-
-    if (mEditedColumn > 0)
-        return false; // Ignore mouse clicks when a cell is being edited
+    SAL_INFO_LEVEL(-1, "starmath.imath", "Mouse press handler with edited column=" << mEditedColumn);
 
     SmDocShell* pDoc = GetDoc();
     if (!pDoc)
@@ -676,22 +671,38 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
     // In that case the user must first select a line and then click again to take action in some column
     auto xIter = mxFormulaList->make_iterator();
-    if (!getClickedCell(mxFormulaList, rMEvt, *xIter, mClickedColumn, IMGUIWINDOW_COL_LAST))
+    int clickedColumn = -1;
+    if (!getClickedCell(mxFormulaList, rMEvt, *xIter, clickedColumn, IMGUIWINDOW_COL_LAST))
         return false; // User clicked somewhere else
 
     if (rMEvt.GetClicks() > 1)
         return false; // We only handle single clicks here
 
-    // Ensure that the clicked cell is selected
-    mxFormulaList->set_cursor(*xIter, mClickedColumn, true); // This avoids one mouse click when changing entries
+    if (mEditedColumn == IMGUIWINDOW_COL_TYPE && clickedColumn != mEditedColumn)
+        mxFormulaList->end_editing(); // Required for SvTreeListBox to hide the ListBox
+
+    auto xCursor = mxFormulaList->make_iterator();
+    mxFormulaList->get_cursor(xCursor.get());
+    if (rMEvt.IsLeft() && mEditedColumn > 0 && mxFormulaList->get_id(*xIter) == mxFormulaList->get_id(*xCursor))
+      return false; // Ignore mouse clicks when a cell is being edited, otherwise the cursor cannot be positioned inside the entry
+
+    mxFormulaList->set_cursor(*xIter); // Ensure that the clicked line is selected (note that setting the cursor only on the item will not work)
     auto pLine = GetSelectedLine();
     if (pLine == nullptr)
         return false; // line number not found
 
-    switch (mClickedColumn)
+    if (mxFormulaList->get_id(*xIter) != mxFormulaList->get_id(*xCursor))
+    {
+        mxFormulaList->set_cursor(*xIter, clickedColumn, true); // Select item to be edited. This avoids one mouse click when changing entries
+    }
+
+    switch (clickedColumn)
     {
         case IMGUIWINDOW_COL_INSERT_BEFORE:
         {
+            if (!rMEvt.IsLeft())
+                break;
+
             if (typeid(*pLine) == typeid(iFormulaNodePrintval))
             {
                 auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);
@@ -722,6 +733,9 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_DELETE:
         {
+            if (!rMEvt.IsLeft())
+                break;
+
             if (typeid(*pLine) == typeid(iFormulaNodePrintval))
             {
                 auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(pLine);
@@ -793,6 +807,9 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_HIDE:
         {
+            if (!rMEvt.IsLeft())
+                break;
+
             if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*pLine)) == nodesWithHide.end())
                 return false; // Line cannot be hidden
 
@@ -850,6 +867,8 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         }
         case IMGUIWINDOW_COL_LABEL_HIDE:
         {
+            if (!rMEvt.IsLeft())
+                break;
             if (!pLine->isExpression())
                 return false; // Line type cannot have labels
 
@@ -864,16 +883,50 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         // Note: Text columns are handled in EditedEntryHdl
         case IMGUIWINDOW_COL_LABEL:
         {
-            mEditedColumn = mClickedColumn;
+            if (!rMEvt.IsLeft())
+                break;
+
+            mEditedColumn = clickedColumn;
             SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected on label");
             break;
         }
         case IMGUIWINDOW_COL_FORMULA:
         {
-            if (mxFormulaList->get_sensitive(*xIter, mClickedColumn))
+            if (mxFormulaList->get_sensitive(*xIter, clickedColumn))
             {
-                mEditedColumn = mClickedColumn;
-                SAL_INFO_LEVEL(1, "starmath.imath", "Editing detected on formula");
+                mEditedColumn = clickedColumn;
+
+                if (rMEvt.IsRight())
+                {
+                    int mousePos = rMEvt.GetPosPixel().X() - mxFormulaList->get_cell_area(*xIter, IMGUIWINDOW_COL_FORMULA).Left();
+                    OUString sText = mxFormulaList->get_text(*xIter, clickedColumn);
+                    int charPos = (sText.getLength() * mousePos) / mxFormulaList->get_pixel_size(sText).Width();
+                    int charIncrement = mxFormulaList->get_pixel_size(sText.copy(0, charPos)).Width() < mousePos ? +1 : -1;
+
+                    do
+                    {
+                        charPos += charIncrement;
+                        SAL_INFO_LEVEL(1, "starmath.imath", "Right click on formula at estimated position " << charPos);
+                        if (charPos < 0 || charPos > sText.getLength() - 1)
+                        {
+                            charPos -= charIncrement;
+                            break;
+                        }
+                    } while ((mxFormulaList->get_pixel_size(sText.copy(0, charPos)).Width() - mousePos) * charIncrement < 0);
+
+                    auto [matrixText, startPos, endPos] (MatrixEditorDialog::scanForMatrix(sText, charPos));
+                    if (matrixText.isEmpty())
+                        return false; // Give access to standard edit menu
+
+                    mpMatrixEditorDialog = std::make_unique<MatrixEditorDialog>(GetFrameWeld(), this, nullptr, matrixText, pLine);
+                    positionImGuiDialog(mpMatrixEditorDialog->getDialog(), GetFrameWeld());
+                    mpMatrixEditorDialog->run();
+                    OUString result = mpMatrixEditorDialog->getMatrix();
+                    mpMatrixEditorDialog = nullptr;
+                    pLine->setFormula(sText.replaceAt(startPos, endPos - startPos, result));
+                    pDoc->UpdateGuiText();
+                    break;
+                }
             }
             else if (typeid(*pLine) == typeid(iFormulaNodeStmOptions))
             {
@@ -891,13 +944,13 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 mpLabelDialog = nullptr;
             }
             else
-                SAL_INFO_LEVEL(1, "starmath.imath", "... but column " << mClickedColumn << " is not sensitive");
+                SAL_INFO_LEVEL(1, "starmath.imath", "... but column " << clickedColumn << " is not sensitive");
             break;
         }
         case IMGUIWINDOW_COL_TYPE:
         {
             // Note: The get_sensitive() fails for CellRendererCombo
-            mEditedColumn = mClickedColumn;
+            mEditedColumn = clickedColumn;
             break;
         }
         case IMGUIWINDOW_COL_CHILD:
@@ -1039,10 +1092,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     }
 
     // Click was handled
-    mNumClicks = 0;
-    mClickedColumn = -1;
-
-    return false;
+    return true;
 }
 
 IMPL_LINK_NOARG(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, bool)
@@ -1079,6 +1129,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
     if (mEditedColumn >= 0 && mxFormulaList->get_text(rIterString.first, mEditedColumn) == rIterString.second)
         goto finished; // Nothing changed
     {
+        mxFormulaList->set_cursor(rIterString.first); // Ensure that the edited line is really selected
         auto pLine = GetSelectedLine();
         if (pLine == nullptr)
             goto finished; // line number not found

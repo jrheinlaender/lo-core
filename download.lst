@@ -716,5 +716,5 @@ CLN_TARBALL := cln-1.3.7.tar.bz2
 # three static lines
 # so that git cherry-pick
 # will not run into conflicts
-GINAC_SHA256SUM := 330f57d0ed79dbd8f9c46ca4b408439b8b30e2ea061e3672d904c5dab94ecad6
-GINAC_TARBALL := ginac-1.8.8.tar.bz2
+GINAC_SHA256SUM := 6cfd46cf4e373690e12d16b772d7aed0f5c433da8c7ecd2477f2e736483bb439
+GINAC_TARBALL := ginac-1.8.9.tar.bz2

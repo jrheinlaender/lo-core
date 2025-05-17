@@ -3342,7 +3342,7 @@ std::tuple<OUString, sal_Int32, sal_Int32> MatrixEditorDialog::scanForMatrix(con
     }
     while ( idx >= 0 );
 
-    return {"STACK{x_1 # x_2 # x_3}", pos, pos};
+    return {{}, pos, pos};
 }
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

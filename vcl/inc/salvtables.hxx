@@ -1737,8 +1737,6 @@ public:
 
     virtual bool get_cursor(weld::TreeIter* pIter) const override;
 
-    virtual bool get_cursor(weld::TreeIter* pIter, int& col) const override;
-
     virtual void set_cursor(const weld::TreeIter& rIter) override;
 
     virtual void do set_cursor(const weld::TreeIter& rIter, const int nCol,

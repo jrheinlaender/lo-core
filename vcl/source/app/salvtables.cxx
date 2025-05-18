@@ -4596,16 +4596,6 @@ bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter) const
     return pEntry != nullptr;
 }
 
-bool SalInstanceTreeView::get_cursor(weld::TreeIter* pIter, int&) const
-{
-    SvTreeListEntry* pEntry = m_xTreeView->GetCurEntry();
-    auto pVclIter = static_cast<SalInstanceTreeIter*>(pIter);
-    if (pVclIter)
-        pVclIter->iter = pEntry;
-    // TODO How to determine focus column? Currently only required by starmath edit.cxx
-    return pEntry != nullptr;
-}
-
 void SalInstanceTreeView::set_cursor(const weld::TreeIter& rIter, const int col,
                                      const bool start_editing)
 {
@@ -5094,7 +5084,8 @@ bool SalInstanceTreeView::changed_by_hover() const { return m_xTreeView->IsSelec
 SalInstanceTreeView::~SalInstanceTreeView()
 {
     if (m_xTreeView->IsEditingActive())
-        m_xTreeView->CancelTextEditing(); // Calls signal handler to allow doing something with the edited text before it is discarded
+        m_xTreeView
+            ->CancelTextEditing(); // Calls signal handler to allow doing something with the edited text before it is discarded
 
     SvHeaderTabListBox* pHeaderBox = dynamic_cast<SvHeaderTabListBox*>(m_xTreeView.get());
     if (pHeaderBox)

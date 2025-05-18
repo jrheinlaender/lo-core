@@ -250,7 +250,7 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkTreeViewColumn" id="Options">
+                  <object class="GtkTreeViewColumn" id="col_options">
                     <child>
                       <object class="GtkCellRendererPixbuf" id="img_options"/>
                       <attributes>

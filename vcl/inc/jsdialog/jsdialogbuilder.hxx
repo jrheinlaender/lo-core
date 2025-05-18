@@ -709,6 +709,7 @@ public:
     virtual void collapse_row(const weld::TreeIter& rIter) override;
 
     virtual void set_cursor(const weld::TreeIter& rIter) override;
+    using SalInstanceTreeView::set_cursor; // Avoid compiler warning about this method being hidden by the above
     void set_cursor_without_notify(const weld::TreeIter& rIter);
     virtual void set_cursor(int pos) override;
 

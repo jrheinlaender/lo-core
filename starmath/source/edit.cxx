@@ -19,6 +19,7 @@
 
 #include <config_wasm_strip.h>
 
+#include "imath/utils.hxx"
 #include <starmath.hrc>
 #include <helpids.h>
 #include <typeindex>
@@ -268,12 +269,19 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     mxFormulaList->connect_mouse_press(LINK(this, ImGuiWindow, MousePressHdl));
     mxFormulaList->connect_editing(LINK(this, ImGuiWindow, EditingEntryHdl), LINK(this, ImGuiWindow, EditedEntryHdl));
     mxFormulaList->connect_editing_canceled(LINK(this, ImGuiWindow, EditingCanceledHdl));
+    // This is not implemented for SAL_USE_VCLPLUGIN=gen, but that calls the MousePressHdl instead
     mxFormulaList->connect_editing_clicked(LINK(this, ImGuiWindow, EditingClickedHdl));
     mxFormulaList->set_selection_mode(SelectionMode::Single);
 
+    mxFormulaList->set_column_visible(IMGUIWINDOW_COL_ERRMSG, false);
+    std::vector<bool> editableColumns(IMGUIWINDOW_COL_ERRMSG, false);
+    editableColumns[IMGUIWINDOW_COL_LABEL] = true;
+    editableColumns[IMGUIWINDOW_COL_TYPE] = true;
+    editableColumns[IMGUIWINDOW_COL_FORMULA] = true;
+    mxFormulaList->set_column_editables(editableColumns);
+
     ResetModel();
 
-    mxFormulaList->columns_autosize();
 }
 
 ImGuiWindow::~ImGuiWindow() COVERITY_NOEXCEPT_FALSE
@@ -304,6 +312,31 @@ namespace
 void ImGuiWindow::ResetModel()
 {
     SAL_INFO_LEVEL(1, "starmath.imath", "ImGuiWindow::ResetModel()");
+
+    SmDocShell* pDoc = GetDoc();
+    if (!pDoc) return;
+
+    if (mEditedColumn >= 0)
+    {
+        // SvInplaceEdit2::Hide() will crash in treelistbox.cxx TextEditEndedHdl_Impl() if the object is destroyed here
+        // Also, the editor itself takes care of updating its contents, no need to rebuild everything
+        // It is sufficient to update the pointers to the iFormulaLines
+        SAL_INFO_LEVEL(1, "starmath.imath", "Skipping reset because an edit is active in column " << mEditedColumn);
+        auto xIter = mxFormulaList->make_iterator();
+        mxFormulaList->get_iter_first(*xIter);
+
+        for (const auto& fLine : pDoc->GetFormulaLines())
+        {
+            if (typeid(*fLine) == typeid(iFormulaNodeResult))
+                continue;
+            SAL_INFO_LEVEL(0, "starmath.imath", "Updating id in formula line " + fLine->getCommand());
+            mxFormulaList->set_id(*xIter, weld::toId(&fLine));
+            mxFormulaList->iter_next(*xIter);
+        }
+
+        return;
+    }
+
     // Remember the current selection
     int currentSelection = 0;
     auto xIter = mxFormulaList->make_iterator();
@@ -314,9 +347,6 @@ void ImGuiWindow::ResetModel()
                 break;
             ++currentSelection;
         } while (mxFormulaList->iter_next(*xIter.get()));
-
-    SmDocShell* pDoc = GetDoc();
-    if (!pDoc) return;
 
     // Freeze these dialogs TODO Is a mutex required here?
     if (mpOptionsDialog != nullptr)
@@ -346,23 +376,29 @@ void ImGuiWindow::ResetModel()
         // Note: On column layout, see gtkinst.cxx GtkInstanceTreeView::GtkInstanceTreeView()
         // [data columns] id_column [text weight columns] [text sensitive columns]
         // All liststore columns must have treeview columns, otherwise the count goes wrong
+        // Note: Setting columns to sensitive before they are assigned a value with set_text crashes the office on SAL_USE_VCLPLUGIN=gen
+        //       because apparently columns do not exist before being assigned a value
         mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_BEFORE, IMGUIWINDOW_COL_INSERT_BEFORE);
+        mxFormulaList->set_centered_column(IMGUIWINDOW_COL_INSERT_BEFORE);
         mxFormulaList->set_image(*xIter, BMP_IMGUI_DELETE, IMGUIWINDOW_COL_DELETE);
+        mxFormulaList->set_centered_column(IMGUIWINDOW_COL_DELETE);
         mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_HIDE); // Note: Toggle remains invisible until we set a value
+        mxFormulaList->set_centered_column(IMGUIWINDOW_COL_HIDE);
         mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_OPTIONS); // Note: image columns do not implement set_sensitive()
-        mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_LABEL);
+        mxFormulaList->set_centered_column(IMGUIWINDOW_COL_OPTIONS);
         mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_LABEL_HIDE); // Note: Toggle remains invisible until we set a value
+        mxFormulaList->set_centered_column(IMGUIWINDOW_COL_LABEL_HIDE);
+        mxFormulaList->set_combobox_model(*xIter, "liststore_formulatypes", IMGUIWINDOW_COL_TYPE); // Note: Needs to be set on every line
         mxFormulaList->set_text(*xIter, fLine->getCommand(), IMGUIWINDOW_COL_TYPE);
         mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_TYPE);
-        mxFormulaList->set_sensitive(*xIter, false, IMGUIWINDOW_COL_FORMULA);
         mxFormulaList->set_image(*xIter, "", IMGUIWINDOW_COL_CHILD);
+        mxFormulaList->set_centered_column(IMGUIWINDOW_COL_CHILD);
         mxFormulaList->set_text(*xIter, fLine->getErrorMessage(), IMGUIWINDOW_COL_ERRMSG); // Tooltip for table row. Note: Column number is hard-coded in .ui file
 
         // Generic settings
         if (std::find(nodesWithoutFormula.begin(), nodesWithoutFormula.end(), typeid(*fLine)) == nodesWithoutFormula.end())
         {
             // Nodes with formula
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULA);
             // TODO Since we use the Markup property, set_text() fails for text containing < or > signs
             // Best thing would be to convert them in smathparser and document this behaviour
@@ -438,6 +474,7 @@ void ImGuiWindow::ResetModel()
                 formula += OUString(_formula[i]);
             }
             mxFormulaList->set_text(*xIter, formula, IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_AFTER, IMGUIWINDOW_COL_CHILD);
         }
         if (std::find(nodesWithHide.begin(), nodesWithHide.end(), typeid(*fLine)) != nodesWithHide.end())
@@ -496,8 +533,8 @@ void ImGuiWindow::ResetModel()
         {
             mxFormulaList->set_text(*xIter, "PRINTVAL", IMGUIWINDOW_COL_TYPE);
             auto line = std::dynamic_pointer_cast<iFormulaNodePrintval>(fLine);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, line->getExpression(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
 
             auto withEquationList = line->getWithEquationList();
             mxFormulaList->set_image(*xIter, withEquationList.empty() ? BMP_IMGUI_INSERT_CHILD : OUString(""), IMGUIWINDOW_COL_CHILD);
@@ -517,21 +554,21 @@ void ImGuiWindow::ResetModel()
         else if (typeid(*fLine) == typeid(iFormulaNodeStmUnitdef))
         {
             auto line = std::dynamic_pointer_cast<iFormulaNodeStmUnitdef>(fLine);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, "%" + line->getUnitname() + " = " + line->getExpression(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_image(*xIter, line->getPrintname().isEmpty() ? OUString(BMP_IMGUI_OPTIONS) : OUString(BMP_IMGUI_OPTIONS_LOCAL), IMGUIWINDOW_COL_OPTIONS);
         }
         else if (typeid(*fLine) == typeid(iFormulaNodeStmPrefixdef))
         {
             auto line = std::dynamic_pointer_cast<iFormulaNodeStmPrefixdef>(fLine);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, line->getPrefixname() + " " + line->getExpression(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
         }
         else if (typeid(*fLine) == typeid(iFormulaNodeStmFunction))
         {
             auto line = std::dynamic_pointer_cast<iFormulaNodeStmFunction>(fLine);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, line->getName() + "(" + line->getArgs() + ")", IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             if (line->getPrintname().isEmpty() && line->getHints() == "{none}")
                 mxFormulaList->set_image(*xIter, BMP_IMGUI_OPTIONS, IMGUIWINDOW_COL_OPTIONS);
             else
@@ -540,8 +577,8 @@ void ImGuiWindow::ResetModel()
         else if (typeid(*fLine) == typeid(iFormulaNodeStmChart))
         {
             auto line = std::dynamic_pointer_cast<iFormulaNodeStmChart>(fLine);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, line->getY(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             if (line->getSeriesName().isEmpty() && line->getXUnits().isEmpty() && line->getYUnits().isEmpty())
                 mxFormulaList->set_image(*xIter, BMP_IMGUI_OPTIONS, IMGUIWINDOW_COL_OPTIONS);
             else
@@ -559,8 +596,8 @@ void ImGuiWindow::ResetModel()
         else if (typeid(*fLine) == typeid(iFormulaNodeStmTablecell))
         {
             auto line = std::dynamic_pointer_cast<iFormulaNodeStmTablecell>(fLine);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, line->getTablename(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_image(*xIter, BMP_IMGUI_INSERT_CHILD, IMGUIWINDOW_COL_CHILD); // add cell reference and value assignment
 
             OUString references = line->getCellReferences().trim();
@@ -593,8 +630,8 @@ void ImGuiWindow::ResetModel()
         else if (typeid(*fLine) == typeid(iFormulaNodeStmCalccell))
         {
             auto line = std::dynamic_pointer_cast<iFormulaNodeStmCalccell>(fLine);
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             mxFormulaList->set_text(*xIter, "'" + line->getFilename() + "'#$" + line->getSheetname(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             OUString assignment = line->getCellReferences() + " = " + line->getValues();
             auto xChild = mxFormulaList->make_iterator();
             mxFormulaList->insert(xIter.get(), -1, &assignment, nullptr, nullptr, nullptr, false, xChild.get());
@@ -615,6 +652,12 @@ void ImGuiWindow::ResetModel()
     }
 
     mxFormulaList->columns_autosize();
+
+    int totalWidth = 0;
+    for (int col = 0; col < IMGUIWINDOW_COL_LAST; ++col)
+        totalWidth += mxFormulaList->get_column_width(col) + 8; // SV_TAB_BORDER is subtracted by get_column_width(), it is defined in include/vcl/toolkit/treelistbox.hxx
+    mxFormulaList->set_size_request(totalWidth, mxFormulaList->get_height_rows(lineCount));
+    GetFrameWeld()->resize_to_request();
 
     if (mpOptionsDialog != nullptr)
         mpOptionsDialog->setFormulaLinePointer(GetSelectedLine());
@@ -682,8 +725,10 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         mxFormulaList->end_editing(); // Required for SvTreeListBox to hide the ListBox
 
     auto xCursor = mxFormulaList->make_iterator();
-    mxFormulaList->get_cursor(xCursor.get());
-    if (rMEvt.IsLeft() && mEditedColumn > 0 && mxFormulaList->get_id(*xIter) == mxFormulaList->get_id(*xCursor))
+    if (!mxFormulaList->get_cursor(xCursor.get()))
+        xCursor = nullptr;
+
+    if (rMEvt.IsLeft() && mEditedColumn > 0 && xCursor != nullptr && mxFormulaList->get_id(*xIter) == mxFormulaList->get_id(*xCursor))
       return false; // Ignore mouse clicks when a cell is being edited, otherwise the cursor cannot be positioned inside the entry
 
     mxFormulaList->set_cursor(*xIter); // Ensure that the clicked line is selected (note that setting the cursor only on the item will not work)
@@ -691,7 +736,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     if (pLine == nullptr)
         return false; // line number not found
 
-    if (mxFormulaList->get_id(*xIter) != mxFormulaList->get_id(*xCursor))
+    if (xCursor == nullptr || mxFormulaList->get_id(*xIter) != mxFormulaList->get_id(*xCursor))
     {
         mxFormulaList->set_cursor(*xIter, clickedColumn, true); // Select item to be edited. This avoids one mouse click when changing entries
     }
@@ -869,6 +914,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
         {
             if (!rMEvt.IsLeft())
                 break;
+
             if (!pLine->isExpression())
                 return false; // Line type cannot have labels
 

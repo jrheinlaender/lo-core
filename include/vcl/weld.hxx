@@ -1108,11 +1108,13 @@ protected:
 
     void signal_popup_menu(const CommandEvent& rCommand) { m_aPopupMenuHdl.Call(rCommand); }
 
-    void signal_editing_canceled(const iter_string& rIterText) {
+    void signal_editing_canceled(const iter_string& rIterText)
+    {
         m_aEditingCanceledHdl.Call(rIterText);
     }
 
-    bool signal_editing_clicked(const iter_click& rIterClick) {
+    bool signal_editing_clicked(const iter_click& rIterClick)
+    {
         return m_aEditingClickedHdl.Call(rIterClick);
     }
 
@@ -1342,7 +1344,6 @@ public:
     virtual void copy_iterator(const TreeIter& rSource, TreeIter& rDest) const = 0;
     virtual bool get_selected(TreeIter* pIter) const = 0;
     virtual bool get_cursor(TreeIter* pIter) const = 0;
-    virtual bool get_cursor(TreeIter* pIter, int& col) const = 0;
     virtual void set_cursor(const TreeIter& rIter) = 0;
     virtual void set_cursor(const TreeIter& rIter, const int nCol, const bool start_editing) = 0;
     virtual bool get_iter_first(TreeIter& rIter) const = 0;
@@ -1431,7 +1432,8 @@ public:
         = 0;
     // Tell Vcl which model is associated with the column since the builder does not parse cell renderers
     // Note: This is not required for the Gtk implementation
-    virtual void set_combobox_model(const TreeIter& rIter, const OUString& modelname, int col = -1) = 0;
+    virtual void set_combobox_model(const TreeIter& rIter, const OUString& modelname, int col = -1)
+        = 0;
     virtual void set_font_color(const TreeIter& rIter, const Color& rColor) = 0;
 
     // scroll to make rIter visible, this will also expand all parent rows of rIter as necessary to
@@ -1653,7 +1655,8 @@ public:
     virtual void unset_drag_dest_row() = 0;
     virtual tools::Rectangle get_row_area(const weld::TreeIter& rIter) const = 0;
     virtual tools::Rectangle get_column_area(const int nColumn) const = 0;
-    virtual tools::Rectangle get_cell_area(const weld::TreeIter& rIter, const int nColumn) const = 0;
+    virtual tools::Rectangle get_cell_area(const weld::TreeIter& rIter,
+                                           const int nColumn) const = 0;
     // for dragging and dropping between TreeViews, return the active source
     virtual TreeView* get_drag_source() const = 0;
 

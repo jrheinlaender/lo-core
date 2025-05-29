@@ -223,6 +223,9 @@ private:
     std::unique_ptr<ImGuiChartDialog> mpChartDialog;
     std::unique_ptr<MatrixEditorDialog> mpMatrixEditorDialog;
 
+    // Methods in gtkinst.cxx and salvtables.cxx behave differently in some cases
+    bool mVclIsGtk;
+
     // The last tab selected by the user in the formula options dialog
     int lastOptionsPage;
 
@@ -234,6 +237,7 @@ private:
     typedef std::pair<const weld::TreeIter&, OUString> IterString;
     DECL_LINK(EditedEntryHdl, const IterString&, bool);
     int mEditedColumn;
+    OUString mEditedId;
     DECL_LINK(EditingCanceledHdl, const IterString&, void);
     typedef std::tuple<const weld::TreeIter&, OUString, int, MouseEvent> IterClick;
     DECL_LINK(EditingClickedHdl, const IterClick&, bool);

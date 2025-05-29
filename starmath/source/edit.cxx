@@ -254,9 +254,11 @@ ImGuiWindow::ImGuiWindow(SmCmdBoxWindow& rMyCmdBoxWin, weld::Builder& rBuilder)
     , mpFunctionDialog(nullptr)
     , mpChartDialog(nullptr)
     , mpMatrixEditorDialog(nullptr)
+    , mVclIsGtk(true)
     , lastOptionsPage(0)
     , mEscapePressed(false)
     , mEditedColumn(-1)
+    , mEditedId("")
 {
     if (!mxFormulaList)
         return;
@@ -647,13 +649,22 @@ void ImGuiWindow::ResetModel()
         ++lineCount;
     }
 
+    // Note that gtkinst column_autosize() sets all widths to -1, while salvtables sets them to actual values
     mxFormulaList->columns_autosize();
+    mVclIsGtk = (mxFormulaList->get_column_width(IMGUIWINDOW_COL_FORMULA) < 0);
 
-    int totalWidth = 0;
-    for (int col = 0; col < IMGUIWINDOW_COL_LAST; ++col)
-        totalWidth += mxFormulaList->get_column_width(col) + 8; // SV_TAB_BORDER is subtracted by get_column_width(), it is defined in include/vcl/toolkit/treelistbox.hxx
-    mxFormulaList->set_size_request(totalWidth, mxFormulaList->get_height_rows(lineCount));
-    GetFrameWeld()->resize_to_request();
+    if (!mVclIsGtk)
+    {
+        std::vector<int> widths;
+        for (int col = 0; col < IMGUIWINDOW_COL_LAST; ++col)
+            widths.emplace_back(mxFormulaList->get_column_width(col) + 8); // Note: SV_TAB_BORDER is subtracted by get_column_width(), it is defined in include/vcl/toolkit/treelistbox.hxx
+
+        widths[IMGUIWINDOW_COL_FORMULA] = std::max(widths[IMGUIWINDOW_COL_FORMULA] + 100, 300); // Ensure enough space for formula
+        int totalWidth = std::accumulate(widths.begin(), widths.end(), 0);
+        mxFormulaList->set_column_fixed_widths(widths);
+        mxFormulaList->set_size_request(totalWidth, mxFormulaList->get_height_rows(lineCount) + 1);
+        GetFrameWeld()->resize_to_request();
+    }
 
     if (mpOptionsDialog != nullptr)
         mpOptionsDialog->setFormulaLinePointer(GetSelectedLine());
@@ -706,36 +717,45 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     if (!pDoc)
         return false;
 
-    // Detect clicked row and column
-    // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
-    // In that case the user must first select a line and then click again to take action in some column
-    auto xIter = mxFormulaList->make_iterator();
-    int clickedColumn = -1;
-    if (!getClickedCell(mxFormulaList, rMEvt, *xIter, clickedColumn, IMGUIWINDOW_COL_LAST))
-        return false; // User clicked somewhere else
-
     if (rMEvt.GetClicks() > 1)
         return false; // We only handle single clicks here
 
-    if (mEditedColumn == IMGUIWINDOW_COL_TYPE && clickedColumn != mEditedColumn)
-        mxFormulaList->end_editing(); // Required for SvTreeListBox to hide the ListBox
-
-    auto xCursor = mxFormulaList->make_iterator();
-    if (!mxFormulaList->get_cursor(xCursor.get()))
-        xCursor = nullptr;
-
-    if (rMEvt.IsLeft() && mEditedColumn > 0 && xCursor != nullptr && mxFormulaList->get_id(*xIter) == mxFormulaList->get_id(*xCursor))
-      return false; // Ignore mouse clicks when a cell is being edited, otherwise the cursor cannot be positioned inside the entry
-
-    mxFormulaList->set_cursor(*xIter); // Ensure that the clicked line is selected (note that setting the cursor only on the item will not work)
-    auto pLine = GetSelectedLine();
-    if (pLine == nullptr)
-        return false; // line number not found
-
-    if (xCursor == nullptr || mxFormulaList->get_id(*xIter) != mxFormulaList->get_id(*xCursor))
+    // Detect clicked row and column
+    // The alternative is to pass the click on to the next handler if mxFormulaList->get_selected() returns a nullptr
+    // In that case the user must first select a line and then click again to take action in some column
+    // But we want to avoid this extra click
+    auto xIter = mxFormulaList->make_iterator();
+    int clickedColumn = -1;
+    if (!getClickedCell(mxFormulaList, rMEvt, *xIter, clickedColumn, IMGUIWINDOW_COL_LAST))
     {
-        mxFormulaList->set_cursor(*xIter, clickedColumn, true); // Select item to be edited. This avoids one mouse click when changing entries
+        // User clicked somewhere else
+        if (mEditedColumn > 0)
+            mxFormulaList->end_editing(); // Prevent the edit from being canceled, thus loosing the text that was entered
+
+        return false;
     }
+
+    OUString clickedId = mxFormulaList->get_id(*xIter);
+
+    // End an active edit if the user clicked into a different cell. Also required for SvTreeListBox to hide the ListBox
+    if (mEditedColumn > 0 && (clickedId != mEditedId || clickedColumn != mEditedColumn))
+        mxFormulaList->end_editing();
+
+    // Ignore mouse clicks when a cell is being edited, otherwise the cursor cannot be positioned inside the entry
+    bool inEdit = (mEditedColumn > 0 && clickedId == mEditedId && clickedColumn == mEditedColumn);
+    if (inEdit && rMEvt.IsLeft())
+      return false;
+
+    if (clickedId != mEditedId)
+        mxFormulaList->set_cursor(*xIter); // Ensure that the clicked line is selected (note that setting the cursor only on the item will not work)
+
+    auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(*xIter));
+    if (ppLine == nullptr)
+        return false; // line number not found
+    auto pLine = *ppLine;
+
+    if (!inEdit && (clickedColumn == IMGUIWINDOW_COL_LABEL || clickedColumn == IMGUIWINDOW_COL_TYPE || clickedColumn == IMGUIWINDOW_COL_FORMULA))
+        mxFormulaList->set_cursor(*xIter, clickedColumn, true); // Select item to be edited. This avoids one mouse click when changing entries
 
     switch (clickedColumn)
     {
@@ -940,6 +960,14 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
 
                 if (rMEvt.IsRight())
                 {
+
+                    mxFormulaList->end_editing(); // Otherwise the newly edited text will not be found by get_text()
+                    // TODO unfortunately end_editing() triggers a recompile, and invalidates pLine
+                    ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(*xIter));
+                    if (ppLine == nullptr)
+                        return false; // line number not found
+                    pLine = *ppLine;
+
                     int mousePos = rMEvt.GetPosPixel().X() - mxFormulaList->get_cell_area(*xIter, IMGUIWINDOW_COL_FORMULA).Left();
                     OUString sText = mxFormulaList->get_text(*xIter, clickedColumn);
                     int charPos = (sText.getLength() * mousePos) / mxFormulaList->get_pixel_size(sText).Width();
@@ -960,6 +988,8 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                     if (matrixText.isEmpty())
                         return false; // Give access to standard edit menu
 
+                    mEditedColumn = -1; // Prevent the EditingCanceledHdl from messing up the formula text after the MatrixEditorDialog takes away its focus
+                    mEditedId = "";
                     mpMatrixEditorDialog = std::make_unique<MatrixEditorDialog>(GetFrameWeld(), this, nullptr, matrixText, pLine);
                     positionImGuiDialog(mpMatrixEditorDialog->getDialog(), GetFrameWeld());
                     mpMatrixEditorDialog->run();
@@ -967,7 +997,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                     mpMatrixEditorDialog = nullptr;
                     pLine->setFormula(sText.replaceAt(startPos, endPos - startPos, result));
                     pDoc->UpdateGuiText();
-                    break;
+                    return true; // Right-click was handled
                 }
             }
             else if (typeid(*pLine) == typeid(iFormulaNodeStmOptions))
@@ -1133,12 +1163,13 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             return false;
     }
 
-    // Click was handled
-    return true;
+    // Pass click on so that the underlying widget receives it
+    return false;
 }
 
-IMPL_LINK_NOARG(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, bool)
+IMPL_LINK(ImGuiWindow, EditingEntryHdl, const weld::TreeIter&, xIter, bool)
 {
+    mEditedId = mxFormulaList->get_id(xIter); // Save for use in MousePressHdl
     return true; // Allow editing (called for text and combo cell renderers)
 }
 
@@ -1168,17 +1199,19 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
     if (!pDoc)
         goto finished;
 
+    if (mEditedColumn < 0)
+            goto finished;
+
     if (mEditedColumn >= 0 && mxFormulaList->get_text(rIterString.first, mEditedColumn) == rIterString.second)
         goto finished; // Nothing changed
+
     {
-        mxFormulaList->set_cursor(rIterString.first); // Ensure that the edited line is really selected
-        auto pLine = GetSelectedLine();
-        if (pLine == nullptr)
+        auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mEditedId); //GetSelectedLine();
+        if (ppLine == nullptr)
             goto finished; // line number not found
+        auto pLine = *ppLine;
 
         SAL_INFO_LEVEL(1, "starmath.imath", "Edited string=" + rIterString.second + " in column " << mEditedColumn);
-        if (mEditedColumn < 0)
-            goto finished;
 
         switch (mEditedColumn)
         {
@@ -1187,6 +1220,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 iExpression_ptr expr = std::dynamic_pointer_cast<iFormulaNodeExpression>(pLine);
                 if (expr != nullptr)
                 {
+                    mxFormulaList->set_text(rIterString.first, rIterString.second, IMGUIWINDOW_COL_LABEL);
                     expr->setLabel(rIterString.second);
                     pDoc->UpdateGuiText();
                 }
@@ -1233,12 +1267,12 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "VECTORDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
-                        pNew->setFormula("vec v = (" + defaultSTACK + ")");
+                        pNew->setFormula({"vec v", "=", "(" + defaultSTACK + ")"});
                     }
                     else if (newType == "MATRIXDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
-                        pNew->setFormula("M = (" + defaultMATRIX + ")");
+                        pNew->setFormula({"M", "=", "(" + defaultMATRIX + ")"});
                     }
                     else
                     {
@@ -1260,12 +1294,12 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "VECTORDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
-                        pNew->setFormula("vec v = (" + defaultSTACK + ")");
+                        pNew->setFormula({"vec v", "=", "(" + defaultSTACK + ")"});
                     }
                     else if (newType == "MATRIXDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
-                        pNew->setFormula("M = (" + defaultMATRIX + ")");
+                        pNew->setFormula({"M", "=", "(" + defaultMATRIX + ")"});
                     }
                     else
                     {
@@ -1282,12 +1316,12 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     else if (newType == "VECTORDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeVectordef>(pLine);
-                        pNew->setFormula("vec v = (" + defaultSTACK + ")");
+                        pNew->setFormula({"vec v", "=", "(" + defaultSTACK + ")"});
                     }
                     else if (newType == "MATRIXDEF")
                     {
                         pNew = iFormulaLine::move<iFormulaNodeEq, iFormulaNodeMatrixdef>(pLine);
-                        pNew->setFormula("M = (" + defaultMATRIX + ")");
+                        pNew->setFormula({"M", "=", "(" + defaultMATRIX + ")"});
                     }
                     else
                     {
@@ -1490,7 +1524,8 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                 }
                 else if (typeid(*pLine) == typeid(iFormulaNodeVectordef))
                 {
-                    if (rIterString.second.indexOfAsciiL("=", 1) < 0)
+                    auto pos = rIterString.second.indexOfAsciiL("=", 1);
+                    if (pos < 0)
                     {
                         std::shared_ptr<iFormulaLine> pNew = iFormulaLine::move<iFormulaNodeVectordef, iFormulaNodeStmVectordef>(pLine);
                         pNew->setFormula(rIterString.second);
@@ -1500,11 +1535,12 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                         break;
                     }
                     else
-                        pLine->setFormula(rIterString.second);
+                        pLine->setFormula({rIterString.second.copy(0, pos), "=", rIterString.second.copy(pos+1)});
                 }
                 else if (typeid(*pLine) == typeid(iFormulaNodeMatrixdef))
                 {
-                    if (rIterString.second.indexOfAsciiL("=", 1) < 0)
+                    auto pos = rIterString.second.indexOfAsciiL("=", 1);
+                    if (pos < 0)
                     {
                         std::shared_ptr<iFormulaLine> pNew = iFormulaLine::move<iFormulaNodeMatrixdef, iFormulaNodeStmMatrixdef>(pLine);
                         pNew->setFormula(rIterString.second);
@@ -1513,7 +1549,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                         break;
                     }
                     else
-                        pLine->setFormula(rIterString.second);
+                        pLine->setFormula({rIterString.second.copy(0, pos), "=", rIterString.second.copy(pos+1)});
                 }
                 else if (typeid(*pLine) == typeid(iFormulaNodePrintval))
                 {
@@ -1622,7 +1658,10 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
                     }
                 }
                 else
+                {
+                    mxFormulaList->set_text(rIterString.first, rIterString.second, IMGUIWINDOW_COL_FORMULA);
                     pLine->setFormula(rIterString.second);
+                }
 
                 pDoc->UpdateGuiText();
                 break;
@@ -1632,6 +1671,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 
 finished:
     mEditedColumn = -1;
+    mEditedId = "";
     return true;
 }
 
@@ -1645,6 +1685,7 @@ IMPL_LINK(ImGuiWindow, EditingCanceledHdl, const IterString&, rIterString, void)
 
 IMPL_LINK(ImGuiWindow, EditingClickedHdl, const IterClick&, rIterClick, bool)
 {
+    // Note: This method is only called for mVclIsGtk == true
     std::cout << "EditingClickedHdl" << std::endl;
 
     const MouseEvent& event = std::get<3>(rIterClick);
@@ -1655,9 +1696,10 @@ IMPL_LINK(ImGuiWindow, EditingClickedHdl, const IterClick&, rIterClick, bool)
     if (!pDoc)
         return false;
 
-    auto pLine = GetSelectedLine(); // TODO or use rIterClick(0) ?
-    if (pLine == nullptr)
+    auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mxFormulaList->get_id(std::get<0>(rIterClick)));
+    if (ppLine == nullptr)
         return false;
+    auto pLine = *ppLine;
 
     if (mEditedColumn == IMGUIWINDOW_COL_FORMULA)
     {
@@ -1669,6 +1711,8 @@ IMPL_LINK(ImGuiWindow, EditingClickedHdl, const IterClick&, rIterClick, bool)
         if (matrixText.isEmpty())
             return false;
 
+        mEditedColumn = -1; // Prevent the EditingCanceledHdl from messing up the formula text after the MatrixEditorDialog takes away its focus
+        mEditedId = "";
         mpMatrixEditorDialog = std::make_unique<MatrixEditorDialog>(GetFrameWeld(), this, nullptr, matrixText, pLine);
         positionImGuiDialog(mpMatrixEditorDialog->getDialog(), GetFrameWeld());
         mpMatrixEditorDialog->run();
@@ -1767,6 +1811,7 @@ iFormulaLine_ptr ImGuiWindow::GetSelectedLine()
 
     if (ppLine == nullptr)
         return nullptr; // line not found
+
     return *ppLine;
 }
 

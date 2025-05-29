@@ -1135,6 +1135,7 @@ IMPL_LINK_NOARG(SvTreeListBox, ItemSelectedHdl_Impl, SvInplaceCombo&, void)
     // with the old entry text.
     pComboCtrl->Hide();
     nImpFlags &= ~SvTreeListBoxFlags::IN_EDT;
+    pComboCtrl.reset(); // Required to release the focus
     GrabFocus();
 }
 

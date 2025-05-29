@@ -14826,7 +14826,8 @@ private:
     {
         nCol = to_internal_model(nCol);
         GtkCellRenderer* pCellRenderer = get_cell_renderer(nCol);
-        g_object_set(G_OBJECT(pCellRenderer), "editable", bEditable, "editable-set", true, nullptr);
+        if (!GTK_IS_CELL_RENDERER_PIXBUF(pCellRenderer))
+            g_object_set(G_OBJECT(pCellRenderer), "editable", bEditable, "editable-set", true, nullptr);
     }
 
     static void signalRowDeleted(GtkTreeModel*, GtkTreePath*, gpointer widget)

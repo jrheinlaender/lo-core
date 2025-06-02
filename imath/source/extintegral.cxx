@@ -75,57 +75,51 @@ extintegral::extintegral()
 
 // public
 
+namespace {
+    std::pair<ex, ex> extract_differential(const ex& f) {
+        ex f_ = GiNaC::collect_common_factors(f);
+
+        for (const auto& m : (is_a<mul>(f_) ? f_ : lst{f_})) {
+            if (is_a<differential>(m)) {
+                return {ex_to<differential>(m).argument(), m};
+            } else if (is_a<power>(m)) {
+                ex basis = get_basis(ex_to<power>(m));
+                if (is_a<differential>(basis))
+                    return {ex_to<differential>(basis).argument(), basis};
+            }
+        }
+
+        return {_ex0, _ex0};
+    }
+}
+
 extintegral::extintegral(const ex & x_, const ex & a_, const ex & b_, const ex & f_)
     :  integral()
 {
   MSG_INFO(3, "Constructing extintegral with boundaries from " << f_ << endline);
-  let_op(0) = x_; // Avoid exception if x_ is not a symbol
+  auto [var, diff] = extract_differential(f_);
+  if (var.is_zero() && x_.is_zero())
+      throw std::runtime_error("An integration variable must be provided, or the expression must contain a differential");
+  let_op(0) = x_;
   let_op(1) = a_;
   let_op(2) = b_;
-  let_op(3) = f_;
+  let_op(3) = var.is_equal(x_) ?  f_ / diff : f_;
   C = dynallocate<extsymbol>("C");
   hasboundaries = true;
 }
 
-extintegral::extintegral(const ex & x_, const ex & f_, const ex& C_)
+extintegral::extintegral(const ex & x_, const ex & f_, const ex & C_)
   : integral()
 {
-  MSG_INFO(3, "Constructing extintegral without boundaries from " << f_ << endline);
-  let_op(0) = x_; // Avoid exception if x_ is not a symbol
+  auto [var, diff] = extract_differential(f_);
+  if (var.is_zero() && x_.is_zero())
+      throw std::runtime_error("An integration variable must be provided, or the expression must contain a differential");
+  let_op(0) = x_;
   let_op(1) = _ex0;
   let_op(2) = _ex0;
-  let_op(3) = f_;
-  C = C_;
+  let_op(3) = var.is_equal(x_) ? f_ / diff : f_;
   hasboundaries = false;
-}
-
-extintegral::extintegral(const ex & f__, const ex& C_)
-    : integral()
-{
-  MSG_INFO(3, "Constructing extintegral from expression " << f__ << endline);
-  hasboundaries = false;
-  C = C_;
-
-  ex f_ = GiNaC::collect_common_factors(f__);
-
-  for (const auto& m : (is_a<mul>(f_) ? f_ : lst{f_})) {
-    if (is_a<differential>(m)) {
-      let_op(0) = ex_to<differential>(m).argument();
-      let_op(3) = f_ / m;
-      MSG_INFO(2, "Created extintegral of expression " << op(3) << " to variable " << op(0) << endline);
-      return;
-    } else if (is_a<power>(m)) {
-      ex basis = get_basis(ex_to<power>(m));
-      if (is_a<differential>(basis)) {
-        let_op(0) = ex_to<differential>(basis).argument();
-        let_op(3) = f_ / basis;
-        MSG_INFO(2, "Created extintegral of expression " << op(3) << " to variable " << op(0) << endline);
-        return;
-      }
-    }
-  }
-
-  throw std::runtime_error("Cannot create integral from an expression that contains no differential");
+  MSG_INFO(3, "Constructing extintegral of expression " << op(3) << " to variable " << op(0) << endline);
 }
 
 extintegral::extintegral(const integral& other)
@@ -172,7 +166,7 @@ void extintegral::do_print(const print_context & c, unsigned level) const
 void extintegral::do_print_imath(const imathprint& c, unsigned level) const
 {
   // Prevent propagation to higher levels
-  // Note: The only caller that may se tthe turn_around flag is printMulItem() in printing.cxx
+  // Note: The only caller that may set the turn_around flag is printMulItem() in printing.cxx
   bool turn_around = c.add_turn_around();
   c.set_add_turn_around(false);
 
@@ -189,12 +183,11 @@ void extintegral::do_print_imath(const imathprint& c, unsigned level) const
   }
 
   // Integrand
-  if (is_a<add>(op(3))) c.s << "(";
-
   if (!op(3).is_equal(_ex1)) {
     if (turn_around) {
         std::stringstream resultstream;
         imathprint result(resultstream, c);
+        if (is_a<add>(op(3))) c.s << "("; // Add only prints brackets if level > 0
         ( _ex_1 * op(3)).print(c, 0); // Print negative value and see if - sign is removed
         auto resultstring = resultstream.str();
         if (resultstring[0] == '-') {
@@ -203,11 +196,12 @@ void extintegral::do_print_imath(const imathprint& c, unsigned level) const
             c.s << resultstring;
             turn_around = false; // Set flag for caller
         }
-    } else
+        if (is_a<add>(op(3))) c.s << ")";
+    } else {
         op(3).print(c, level+1);
+    }
   }
 
-  if (is_a<add>(op(3))) c.s << ")";
   c.s << "} ";
   differential(op(0)).do_print_imath(c, level+1, false);
 
@@ -336,7 +330,7 @@ ex extintegral::expand(unsigned options) const
       return *this;
     }
 
-    const basic & newint = (new extintegral(op(0), newf, C))->setflag(status_flags::dynallocated);
+    const basic & newint = (new extintegral(op(0), newf, C, false))->setflag(status_flags::dynallocated);
     if (options == 0)
       newint.setflag(status_flags::expanded);
     return newint;
@@ -646,9 +640,13 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
     }
   }
 
-  if (remainder.is_equal(var)) {
+  if (remainder.is_equal(var))
     return _ex1_2 * pow(var, _ex2);
-  } else if (is_a<add>(remainder)) {
+
+  if (remainder.has(wild(1) + wild(2), has_options::algebraic))
+      remainder = remainder.expand();
+
+  if (is_a<add>(remainder)) {
     ex result(_ex0);
 
     for (const auto& part : remainder) {
@@ -764,7 +762,8 @@ ex extintegral::subs(const exmap & m, unsigned options) const {
       if (is_a<differential>(r.first)) {
         const differential& lhs = ex_to<differential>(r.first);
         if (lhs.op(0).is_equal(result.op(0))) {
-          extintegral res(op(3) * r.second, C); // Construct new extintegral from expression
+          auto [var, diff] = extract_differential(r.second);
+          extintegral res(op(3) * r.second / diff, var, C); // Construct new extintegral from expression
           res.hasboundaries = hasboundaries;
           if (hasboundaries) {
             res.let_op(1) = op(1);

@@ -19,7 +19,6 @@
 
 #include <config_wasm_strip.h>
 
-#include "imath/utils.hxx"
 #include <starmath.hrc>
 #include <helpids.h>
 #include <typeindex>
@@ -1210,7 +1209,7 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
         goto finished; // Nothing changed
 
     {
-        auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mEditedId); //GetSelectedLine();
+        auto ppLine = weld::fromId<std::shared_ptr<iFormulaLine>*>(mEditedId);
         if (ppLine == nullptr)
             goto finished; // line number not found
         auto pLine = *ppLine;
@@ -1681,6 +1680,7 @@ finished:
 
 IMPL_LINK(ImGuiWindow, EditingCanceledHdl, const IterString&, rIterString, void)
 {
+    // TODO: This handler is called before KeyReleaseHdl, therefore the ESC cannot be caught
     // Catch the case when user edits something and then clicks into the document.
     // This counts as canceled editing for the GtkCellRendererText because the starmath window is closed by it
     if (!mEscapePressed)

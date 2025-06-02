@@ -30,9 +30,11 @@ class IMATH_DLLPUBLIC extintegral : public integral
 
   // other constructors
 public:
+  /// Integration variable, lower bound, upper bound, expression to integrate
   extintegral(const ex & x_, const ex & a_, const ex & b_, const ex & f_);
+  /// Integration variable, expression to integrate, integration constant
   extintegral(const ex & x_, const ex & f_, const ex & C_);
-  extintegral(const ex & f__, const ex & C_);
+
   extintegral(const integral& other);
 
 #ifdef DEBUG_CONSTR_DESTR

@@ -295,6 +295,11 @@ void iFormulaLine::setFormula(const OUString& f) {
   error = no_error;
 }
 
+void iFormulaLine::setFormula(std::vector<OUString> formulaParts) {
+  _formulaParts = std::move(formulaParts);
+  error = no_error;
+}
+
 OUString iFormulaLine::getErrorMessage() const {
     if (error == no_error || _formulaParts.size() <= 3)
         return OU("");

@@ -417,6 +417,7 @@ public:
     OUString GetEntryTooltip(SvTreeListEntry* pEntry) const { return aTooltipHdl.Call(pEntry); }
 
     VclPtr<Edit> GetEditWidget() const; // for UITest
+    std::pair<SvTreeListEntry*, OUString> GetActiveEditingEntry() const;
     bool IsInplaceEditingEnabled() const { return bool(nImpFlags & SvTreeListBoxFlags::EDT_ENABLED); }
     bool IsEditingActive() const { return bool(nImpFlags & SvTreeListBoxFlags::IN_EDT); }
     void EndEditing( bool bCancel = false );

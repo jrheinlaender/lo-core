@@ -5236,8 +5236,18 @@ bool SalInstanceTreeView::changed_by_hover() const { return m_xTreeView->IsSelec
 SalInstanceTreeView::~SalInstanceTreeView()
 {
     if (m_xTreeView->IsEditingActive())
-        m_xTreeView->CancelTextEditing(); // Calls signal handler to allow doing something with the edited text before it is discarded
-
+    {
+        // Call signal handler to allow doing something with the edited text before it is discarded
+        // Disable this because it trashes the heap (malloc(): unaligned tcache chunk detected)
+        // Not sure why, but access to mxFormulaList in EditedEntryHdl seems to trigger the crash later when the window is being disposed
+        /*
+        // m_xTreeView->CancelTextEditing(); // Round-about way, below is simpler
+        auto [pEntry, text] = m_xTreeView->GetActiveEditingEntry();
+        if (pEntry)
+            signal_editing_canceled({SalInstanceTreeIter(pEntry), text});
+        */
+        // A workaround could be to pass the equation label, the edited column and the text to the document as a "pending edit"
+    }
     SvHeaderTabListBox* pHeaderBox = dynamic_cast<SvHeaderTabListBox*>(m_xTreeView.get());
     if (pHeaderBox)
     {

@@ -3311,6 +3311,7 @@ std::tuple<OUString, sal_Int32, sal_Int32> MatrixEditorDialog::scanForMatrix(con
             idx = sText.indexOfAsciiL("{", 1, startMatrix) + 1;
             if (idx <= 0)
             {
+                // Return default vector/matrix to initialize editor contents
                 if (isVector)
                     return {"STACK{x_1 # x_2 # x_3}", startMatrix, startMatrix + 5};
 

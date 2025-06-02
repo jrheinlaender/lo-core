@@ -1058,6 +1058,13 @@ VclPtr<Edit> SvTreeListBox::GetEditWidget() const
     return pEdCtrl ? pEdCtrl->GetEditWidget() : nullptr;
 }
 
+std::pair<SvTreeListEntry*, OUString> SvTreeListBox::GetActiveEditingEntry() const {
+    if (IsEditingActive())
+        return { pEdEntry, pEdCtrl->GetText() };
+    else
+        return {nullptr, ""};
+}
+
 void SvTreeListBox::EditText( const OUString& rStr, const tools::Rectangle& rRect,
     const Selection& rSel )
 {

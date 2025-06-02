@@ -73,14 +73,42 @@ extintegral::extintegral()
 
 // public
 
+namespace
+{
+std::pair<ex, ex> extract_differential(const ex& f)
+{
+    ex f_ = GiNaC::collect_common_factors(f);
+
+    for (const auto& m : (is_a<mul>(f_) ? f_ : lst{ f_ }))
+    {
+        if (is_a<differential>(m))
+        {
+            return { ex_to<differential>(m).argument(), m };
+        }
+        else if (is_a<power>(m))
+        {
+            ex basis = get_basis(ex_to<power>(m));
+            if (is_a<differential>(basis))
+                return { ex_to<differential>(basis).argument(), basis };
+        }
+    }
+
+    return { _ex0, _ex0 };
+}
+}
+
 extintegral::extintegral(const ex& x_, const ex& a_, const ex& b_, const ex& f_)
     : integral()
 {
     MSG_INFO(3, "Constructing extintegral with boundaries from " << f_ << endline);
-    let_op(0) = x_; // Avoid exception if x_ is not a symbol
+    auto[var, diff] = extract_differential(f_);
+    if (var.is_zero() && x_.is_zero())
+        throw std::runtime_error("An integration variable must be provided, or the expression must "
+                                 "contain a differential");
+    let_op(0) = x_;
     let_op(1) = a_;
     let_op(2) = b_;
-    let_op(3) = f_;
+    let_op(3) = var.is_equal(x_) ? f_ / diff : f_;
     C = dynallocate<extsymbol>("C");
     hasboundaries = true;
 }
@@ -88,50 +116,17 @@ extintegral::extintegral(const ex& x_, const ex& a_, const ex& b_, const ex& f_)
 extintegral::extintegral(const ex& x_, const ex& f_, const ex& C_)
     : integral()
 {
-    MSG_INFO(3, "Constructing extintegral without boundaries from " << f_ << endline);
-    let_op(0) = x_; // Avoid exception if x_ is not a symbol
+    auto[var, diff] = extract_differential(f_);
+    if (var.is_zero() && x_.is_zero())
+        throw std::runtime_error("An integration variable must be provided, or the expression must "
+                                 "contain a differential");
+    let_op(0) = x_;
     let_op(1) = _ex0;
     let_op(2) = _ex0;
-    let_op(3) = f_;
-    C = C_;
+    let_op(3) = var.is_equal(x_) ? f_ / diff : f_;
     hasboundaries = false;
-}
-
-extintegral::extintegral(const ex& f__, const ex& C_)
-    : integral()
-{
-    MSG_INFO(3, "Constructing extintegral from expression " << f__ << endline);
-    hasboundaries = false;
-    C = C_;
-
-    ex f_ = GiNaC::collect_common_factors(f__);
-
-    for (const auto& m : (is_a<mul>(f_) ? f_ : lst{ f_ }))
-    {
-        if (is_a<differential>(m))
-        {
-            let_op(0) = ex_to<differential>(m).argument();
-            let_op(3) = f_ / m;
-            MSG_INFO(2, "Created extintegral of expression " << op(3) << " to variable " << op(0)
-                                                             << endline);
-            return;
-        }
-        else if (is_a<power>(m))
-        {
-            ex basis = get_basis(ex_to<power>(m));
-            if (is_a<differential>(basis))
-            {
-                let_op(0) = ex_to<differential>(basis).argument();
-                let_op(3) = f_ / basis;
-                MSG_INFO(2, "Created extintegral of expression " << op(3) << " to variable "
-                                                                 << op(0) << endline);
-                return;
-            }
-        }
-    }
-
-    throw std::runtime_error(
-        "Cannot create integral from an expression that contains no differential");
+    MSG_INFO(3, "Constructing extintegral of expression " << op(3) << " to variable " << op(0)
+                                                          << endline);
 }
 
 extintegral::extintegral(const integral& other)
@@ -179,7 +174,7 @@ void extintegral::do_print(const print_context& c, unsigned level) const
 void extintegral::do_print_imath(const imathprint& c, unsigned level) const
 {
     // Prevent propagation to higher levels
-    // Note: The only caller that may se tthe turn_around flag is printMulItem() in printing.cxx
+    // Note: The only caller that may set the turn_around flag is printMulItem() in printing.cxx
     bool turn_around = c.add_turn_around();
     c.set_add_turn_around(false);
 
@@ -199,15 +194,14 @@ void extintegral::do_print_imath(const imathprint& c, unsigned level) const
     }
 
     // Integrand
-    if (is_a<add>(op(3)))
-        c.s << "(";
-
     if (!op(3).is_equal(_ex1))
     {
         if (turn_around)
         {
             std::stringstream resultstream;
             imathprint result(resultstream, c);
+            if (is_a<add>(op(3)))
+                c.s << "("; // Add only prints brackets if level > 0
             (_ex_1 * op(3)).print(c, 0); // Print negative value and see if - sign is removed
             auto resultstring = resultstream.str();
             if (resultstring[0] == '-')
@@ -219,13 +213,15 @@ void extintegral::do_print_imath(const imathprint& c, unsigned level) const
                 c.s << resultstring;
                 turn_around = false; // Set flag for caller
             }
+            if (is_a<add>(op(3)))
+                c.s << ")";
         }
         else
+        {
             op(3).print(c, level + 1);
+        }
     }
 
-    if (is_a<add>(op(3)))
-        c.s << ")";
     c.s << "} ";
     differential(op(0)).do_print_imath(c, level + 1, false);
 
@@ -424,6 +420,13 @@ ex extintegral::expand(unsigned options) const
             newint.setflag(status_flags::expanded);
         return newint;
     }
+
+    const basic& newint
+        = (new extintegral(op(0), newf, C, false))->setflag(status_flags::dynallocated);
+    if (options == 0)
+        newint.setflag(status_flags::expanded);
+    return newint;
+}
 }
 
 ex extintegral::derivative(const symbol& s) const
@@ -993,41 +996,198 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
         remainder = fun;
     }
 
-    MSG_INFO(1, "Found constfactor " << constfactor << " and remainder " << remainder << endline);
-
-    if (is_a<extintegral>(remainder))
-    { // Handle multiple integrals
-        ex subresult = ex_to<extintegral>(remainder)
-                           .eval_integ(); // The result may or may not be integrated!
-        remainder = _ex0;
-
-        for (const auto& e : (is_a<add>(subresult) ? subresult : lst{ subresult }))
-        {
-            if (is_a<extintegral>(e))
-                nonintegrable += e;
-            else
-                remainder += e;
-        }
-    }
-
     if (remainder.is_equal(var))
-    {
         return _ex1_2 * pow(var, _ex2);
-    }
-    else if (is_a<add>(remainder))
+
+    if (remainder.has(wild(1) + wild(2), has_options::algebraic))
+        remainder = remainder.expand();
+
+    if (is_a<add>(remainder))
     {
         ex result(_ex0);
 
-        for (const auto& part : remainder)
+        if (is_a<extintegral>(remainder))
+        { // Handle multiple integrals
+            ex subresult = ex_to<extintegral>(remainder)
+                               .eval_integ(); // The result may or may not be integrated!
+            remainder = _ex0;
+
+            for (const auto& e : (is_a<add>(subresult) ? subresult : lst{ subresult }))
+            {
+                if (is_a<extintegral>(e))
+                    nonintegrable += e;
+                else
+                    remainder += e;
+            }
+        }
+
+        if (remainder.is_equal(var))
         {
-            ex partconstfactor(_ex1);
-            ex partnonintegrable(_ex0);
-            ex partintegrated = find_integral(part, var, partconstfactor, partnonintegrable);
-            MSG_INFO(1, "Part integrated: " << partintegrated
-                                            << ", nonintegrable: " << partnonintegrable
-                                            << ", constfactor: " << partconstfactor << endline);
-            nonintegrable += partconstfactor * partnonintegrable;
-            result += partconstfactor * partintegrated;
+            return _ex1_2 * pow(var, _ex2);
+        }
+        else if (is_a<add>(remainder))
+        {
+            ex result(_ex0);
+
+            for (const auto& part : remainder)
+            {
+                ex partconstfactor(_ex1);
+                ex partnonintegrable(_ex0);
+                ex partintegrated = find_integral(part, var, partconstfactor, partnonintegrable);
+                MSG_INFO(1, "Part integrated: " << partintegrated
+                                                << ", nonintegrable: " << partnonintegrable
+                                                << ", constfactor: " << partconstfactor << endline);
+                nonintegrable += partconstfactor * partnonintegrable;
+                result += partconstfactor * partintegrated;
+            }
+
+            return result;
+        }
+        else if (is_a<func>(remainder))
+        {
+            expression result = ex_to<func>(remainder).find_integral(var);
+            if (!result.is_empty())
+                return result;
+        }
+        else if (is_a<exderivative>(remainder))
+        {
+            const exderivative& e = ex_to<exderivative>(remainder);
+
+            if (!e.is_partial())
+            {
+                // TODO Integration of partial derivatives is possible but the integration constant becomes a function of the remaining variables (that disappeared through partial derivation)
+                if (e.get_numer().get_grade().info(info_flags::posint))
+                {
+                    int grade = ex_to<numeric>(e.get_numer().get_grade()).to_int();
+
+                    if (grade == 1)
+                    {
+                        const differential& d = ex_to<differential>(e.get_denom());
+                        if (d.argument().is_equal(var))
+                            return e.get_numer().argument(); // int df/dt dt = df
+                    }
+                    else
+                    {
+                        // Denominator can be any combination of differentials (in different variables) and their powers
+                        // Search for matching differential in the denominator, and reduce its grade by one
+                        ex d_new = _ex1;
+                        bool found = false;
+
+                        for (const auto dd :
+                             (is_a<mul>(e.get_denom()) ? e.get_denom() : lst{ e.get_denom() }))
+                        {
+                            if (is_a<differential>(dd)
+                                && ex_to<differential>(dd).argument().is_equal(var))
+                            {
+                                // Omit from new denominator
+                                found = true;
+                            }
+                            else if (is_a<power>(dd))
+                            {
+                                const power& p = ex_to<power>(dd);
+                                const differential& d = ex_to<differential>(get_basis(p));
+
+                                if (d.argument().is_equal(var))
+                                {
+                                    d_new *= dynallocate<power>(d, get_exp(p)
+                                                                       - 1); // Reduce grade by 1
+                                    found = true;
+                                }
+                                else
+                                {
+                                    d_new *= dd;
+                                }
+                            }
+                            else
+                            {
+                                d_new *= dd; // Keep unchanged
+                            }
+
+                            if (found)
+                            {
+                                differential n = e.get_numer();
+                                n.set_grade(grade - 1);
+                                return dynallocate<exderivative>(
+                                    n,
+                                    d_new); // int d^n f / dt^n du^m ... = d^(n-1) f / d t^(n-1) du^m ...
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            exmap repl;
+
+            for (const auto& i : integral_table::integrals)
+            {
+                MSG_INFO(1, "Checking match of " << remainder << " with " << i.first << " --> "
+                                                 << i.second << endline);
+                try
+                {
+                    if (remainder.match(i.first.subs(integral_table::x == var), repl))
+                    {
+                        MSG_INFO(1, "Found match with " << repl << endline);
+                        bool nonconst = false;
+
+                        for (const auto& r : repl)
+                            if (r.second.has(var))
+                            {
+                                nonconst = true;
+                                repl.clear();
+                                break; // non-constant factor
+                            }
+
+                        if (!nonconst)
+                        {
+                            return Functionmanager::replace_function_by_func(
+                                i.second.subs(repl, subs_options::no_pattern)
+                                    .subs(integral_table::x == var));
+                        }
+                    }
+                }
+                catch (std::exception& e)
+                {
+                    (void)e;
+                    // ignore, might happen when substitution leads to division by zero
+                    MSG_INFO(1, "Discarding match because of exception thrown during substitution"
+                                    << endline);
+                }
+            }
+        }
+
+        nonintegrable = remainder;
+        return _ex0;
+    }
+
+    ex extintegral::subs(const exmap& m, unsigned options) const
+    {
+        MSG_INFO(2, "Substituting " << m << " in integral " << *this << endline);
+        ex result = inherited::subs(m, options);
+
+        // Handle substitution of the differential
+        if (is_a<extintegral>(result))
+        {
+            for (const auto& r : m)
+            {
+                if (is_a<differential>(r.first))
+                {
+                    const differential& lhs = ex_to<differential>(r.first);
+                    if (lhs.op(0).is_equal(result.op(0)))
+                    {
+                        extintegral res(op(3) * r.second,
+                                        C); // Construct new extintegral from expression
+                        res.hasboundaries = hasboundaries;
+                        if (hasboundaries)
+                        {
+                            res.let_op(1) = op(1);
+                            res.let_op(2) = op(2);
+                        }
+                        return res;
+                    }
+                }
+            }
         }
 
         return result;
@@ -1074,225 +1234,7 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
                         else if (is_a<power>(dd))
                         {
                             const power& p = ex_to<power>(dd);
-                            const differential& d = ex_to<differential>(get_basis(p));
-
-                            if (d.argument().is_equal(var))
-                            {
-                                d_new *= dynallocate<power>(d, get_exp(p) - 1); // Reduce grade by 1
-                                found = true;
-                            }
-                            else
-                            {
-                                d_new *= dd;
-                            }
-                        }
-                        else
-                        {
-                            d_new *= dd; // Keep unchanged
-                        }
-
-                        if (found)
-                        {
-                            differential n = e.get_numer();
-                            n.set_grade(grade - 1);
-                            return dynallocate<exderivative>(
-                                n,
-                                d_new); // int d^n f / dt^n du^m ... = d^(n-1) f / d t^(n-1) du^m ...
-                        }
-                    }
-                }
-            }
-        }
-    }
-    else
-    {
-        exmap repl;
-
-        for (const auto& i : integral_table::integrals)
-        {
-            MSG_INFO(1, "Checking match of " << remainder << " with " << i.first << " --> "
-                                             << i.second << endline);
-            try
-            {
-                if (remainder.match(i.first.subs(integral_table::x == var), repl))
-                {
-                    MSG_INFO(1, "Found match with " << repl << endline);
-                    bool nonconst = false;
-
-                    for (const auto& r : repl)
-                        if (r.second.has(var))
-                        {
-                            nonconst = true;
-                            repl.clear();
-                            break; // non-constant factor
-                        }
-
-                    if (!nonconst)
-                    {
-                        return Functionmanager::replace_function_by_func(
-                            i.second.subs(repl, subs_options::no_pattern)
-                                .subs(integral_table::x == var));
-                    }
-                }
-            }
-            catch (std::exception& e)
-            {
-                (void)e;
-                // ignore, might happen when substitution leads to division by zero
-                MSG_INFO(1, "Discarding match because of exception thrown during substitution"
-                                << endline);
-            }
-        }
-    }
-
-    nonintegrable = remainder;
-    return _ex0;
-}
-
-ex extintegral::subs(const exmap& m, unsigned options) const
-{
-    MSG_INFO(2, "Substituting " << m << " in integral " << *this << endline);
-    ex result = inherited::subs(m, options);
-
-    // Handle substitution of the differential
-    if (is_a<extintegral>(result))
-    {
-        for (const auto& r : m)
-        {
-            if (is_a<differential>(r.first))
-            {
-                const differential& lhs = ex_to<differential>(r.first);
-                if (lhs.op(0).is_equal(result.op(0)))
-                {
-                    extintegral res(op(3) * r.second,
-                                    C); // Construct new extintegral from expression
-                    res.hasboundaries = hasboundaries;
-                    if (hasboundaries)
-                    {
-                        res.let_op(1) = op(1);
-                        res.let_op(2) = op(2);
-                    }
-                    return res;
-                }
-            }
-        }
-    }
-
-    return result;
-}
-else if (is_a<func>(remainder))
-{
-    expression result = ex_to<func>(remainder).find_integral(var);
-    if (!result.is_empty())
-        return result;
-}
-else if (is_a<exderivative>(remainder))
-{
-    const exderivative& e = ex_to<exderivative>(remainder);
-
-    if (!e.is_partial())
-    {
-        // TODO Integration of partial derivatives is possible but the integration constant becomes a function of the remaining variables (that disappeared through partial derivation)
-        if (e.get_numer().get_grade().info(info_flags::posint))
-        {
-            int grade = ex_to<numeric>(e.get_numer().get_grade()).to_int();
-
-            if (grade == 1)
-            {
-                const differential& d = ex_to<differential>(e.get_denom());
-                if (d.argument().is_equal(var))
-                    return e.get_numer().argument(); // int df/dt dt = df
-            }
-            else
-            {
-                // Denominator can be any combination of differentials (in different variables) and their powers
-                // Search for matching differential in the denominator, and reduce its grade by one
-                ex d_new = _ex1;
-                bool found = false;
-
-                for (const auto dd :
-                     (is_a<mul>(e.get_denom()) ? e.get_denom() : lst{ e.get_denom() }))
-                {
-                    if (is_a<differential>(dd) && ex_to<differential>(dd).argument().is_equal(var))
-                    {
-                        // Omit from new denominator
-                        found = true;
-                    }
-                    else if (is_a<power>(dd))
-                    {
-                        const power& p = ex_to<power>(dd);
-                        const differential d = ex_to<differential>(get_basis(p));
-
-                        if (d.argument().is_equal(var))
-                        {
-                            d_new *= dynallocate<power>(d, get_exp(p) - 1); // Reduce grade by 1
-                            found = true;
-                        }
-                        else
-                        {
-                            d_new *= dd;
-                        }
-                    }
-                    else
-                    {
-                        d_new *= dd; // Keep unchanged
-                    }
-
-                    if (found)
-                    {
-                        differential n = e.get_numer();
-                        n.set_grade(grade - 1);
-                        return dynallocate<exderivative>(
-                            n, d_new); // int d^n f / dt^n du^m ... = d^(n-1) f / d t^(n-1) du^m ...
-                    }
-                }
-            }
-        }
-    }
-}
-else
-{
-    for (const auto & [ expr, integ ] : integral_table::integrals)
-    {
-        MSG_INFO(1, "Checking match of " << remainder << " with " << expr << " --> " << integ
-                                         << endline);
-        exmap repl;
-
-        try
-        {
-            relational substitution = integral_table::a == wild(1);
-            bool success
-                = remainder.match(expr.subs(integral_table::x == var).subs(substitution), repl);
-            if (!success)
-            {
-                int grade = ex_to<numeric>(e.get_numer().get_grade()).to_int();
-
-                if (grade == 1)
-                {
-                    const differential& d = ex_to<differential>(e.get_denom());
-                    if (d.argument().is_equal(var))
-                        return e.get_numer().argument(); // int df/dt dt = df
-                }
-                else
-                {
-                    // Denominator can be any combination of differentials (in different variables) and their powers
-                    // Search for matching differential in the denominator, and reduce its grade by one
-                    ex d_new = _ex1;
-                    bool found = false;
-
-                    for (const auto dd :
-                         (is_a<mul>(e.get_denom()) ? e.get_denom() : lst{ e.get_denom() }))
-                    {
-                        if (is_a<differential>(dd)
-                            && ex_to<differential>(dd).argument().is_equal(var))
-                        {
-                            // Omit from new denominator
-                            found = true;
-                        }
-                        else if (is_a<power>(dd))
-                        {
-                            const power& p = ex_to<power>(dd);
-                            const differential& d = ex_to<differential>(get_basis(p));
+                            const differential d = ex_to<differential>(get_basis(p));
 
                             if (d.argument().is_equal(var))
                             {
@@ -1337,61 +1279,134 @@ else
                     = remainder.match(expr.subs(integral_table::x == var).subs(substitution), repl);
                 if (!success)
                 {
-                    // Try harder. E.g. the first match will fail on cos(x)^2 == cos(a * x)^2
-                    // Note: If GiNaC ever has the algebraic option to match() then this is probably not necessary any more
-                    substitution = integral_table::a == _ex1;
-                    success = remainder.match(
-                        expr.subs(integral_table::x == var).subs(substitution), repl);
-                }
+                    int grade = ex_to<numeric>(e.get_numer().get_grade()).to_int();
 
-                if (success)
-                {
-                    MSG_INFO(1, "Found match with " << repl << endline);
-                    bool nonconst = false;
-
-                    for (const auto& r : repl)
-                        if (r.second.has(var))
-                        {
-                            nonconst = true;
-                            MSG_INFO(1, "Discarding match because of non-constant factor "
-                                            << r.second << endline);
-                            break; // non-constant factor
-                        }
-
-                    if (!nonconst)
+                    if (grade == 1)
                     {
-                        repl.emplace(integral_table::x, var);
-                        return Functionmanager::replace_function_by_func(
-                            integ.subs(substitution).subs(repl, subs_options::no_pattern));
+                        const differential& d = ex_to<differential>(e.get_denom());
+                        if (d.argument().is_equal(var))
+                            return e.get_numer().argument(); // int df/dt dt = df
+                    }
+                    else
+                    {
+                        // Denominator can be any combination of differentials (in different variables) and their powers
+                        // Search for matching differential in the denominator, and reduce its grade by one
+                        ex d_new = _ex1;
+                        bool found = false;
+
+                        for (const auto dd :
+                             (is_a<mul>(e.get_denom()) ? e.get_denom() : lst{ e.get_denom() }))
+                        {
+                            if (is_a<differential>(dd)
+                                && ex_to<differential>(dd).argument().is_equal(var))
+                            {
+                                // Omit from new denominator
+                                found = true;
+                            }
+                            else if (is_a<power>(dd))
+                            {
+                                const power& p = ex_to<power>(dd);
+                                const differential& d = ex_to<differential>(get_basis(p));
+
+                                if (d.argument().is_equal(var))
+                                {
+                                    d_new *= dynallocate<power>(d, get_exp(p)
+                                                                       - 1); // Reduce grade by 1
+                                    found = true;
+                                }
+                                else
+                                {
+                                    d_new *= dd;
+                                }
+                            }
+                            else
+                            {
+                                d_new *= dd; // Keep unchanged
+                            }
+
+                            if (found)
+                            {
+                                differential n = e.get_numer();
+                                n.set_grade(grade - 1);
+                                return dynallocate<exderivative>(
+                                    n,
+                                    d_new); // int d^n f / dt^n du^m ... = d^(n-1) f / d t^(n-1) du^m ...
+                            }
+                        }
                     }
                 }
             }
-            catch (std::exception& e)
+        }
+        else
+        {
+            for (const auto & [ expr, integ ] : integral_table::integrals)
             {
-                (void)e;
-                // ignore, might happen when substitution leads to division by zero
-                MSG_INFO(1, "Discarding match because of exception thrown during substitution"
-                                << endline);
+                MSG_INFO(1, "Checking match of " << remainder << " with " << expr << " --> "
+                                                 << integ << endline);
+                exmap repl;
+
+                try
+                {
+                    relational substitution = integral_table::a == wild(1);
+                    bool success = remainder.match(
+                        expr.subs(integral_table::x == var).subs(substitution), repl);
+                    if (!success)
+                    {
+                        // Try harder. E.g. the first match will fail on cos(x)^2 == cos(a * x)^2
+                        // Note: If GiNaC ever has the algebraic option to match() then this is probably not necessary any more
+                        substitution = integral_table::a == _ex1;
+                        success = remainder.match(
+                            expr.subs(integral_table::x == var).subs(substitution), repl);
+                    }
+
+                    if (success)
+                    {
+                        MSG_INFO(1, "Found match with " << repl << endline);
+                        bool nonconst = false;
+
+                        for (const auto& r : repl)
+                            if (r.second.has(var))
+                            {
+                                nonconst = true;
+                                MSG_INFO(1, "Discarding match because of non-constant factor "
+                                                << r.second << endline);
+                                break; // non-constant factor
+                            }
+
+                        if (!nonconst)
+                        {
+                            repl.emplace(integral_table::x, var);
+                            return Functionmanager::replace_function_by_func(
+                                integ.subs(substitution).subs(repl, subs_options::no_pattern));
+                        }
+                    }
+                }
+                catch (std::exception& e)
+                {
+                    (void)e;
+                    // ignore, might happen when substitution leads to division by zero
+                    MSG_INFO(1, "Discarding match because of exception thrown during substitution"
+                                    << endline);
+                }
             }
         }
-    }
 
-    for (const auto& r : repl)
-        if (r.second.has(var))
+        for (const auto& r : repl)
+            if (r.second.has(var))
+            {
+                nonconst = true;
+                repl.clear();
+                break; // non-constant factor
+            }
+
+        if (!nonconst)
         {
-            nonconst = true;
-            repl.clear();
-            break; // non-constant factor
+            repl.emplace(integral_table::x, var);
+            repl.emplace(substitution.lhs(), substitution.rhs());
+            return Functionmanager::replace_function_by_func(
+                i.second.subs(repl, subs_options::no_pattern));
         }
-
-    if (!nonconst)
-    {
-        repl.emplace(integral_table::x, var);
-        repl.emplace(substitution.lhs(), substitution.rhs());
-        return Functionmanager::replace_function_by_func(
-            i.second.subs(repl, subs_options::no_pattern));
     }
-}
 }
 catch (std::exception& e)
 {
@@ -1406,75 +1421,70 @@ nonintegrable = remainder;
 return _ex0;
 }
 
-ex extintegral::subs(const exmap& m, unsigned options) const
+// Handle substitution of the differential
+if (is_a<extintegral>(result))
 {
-    MSG_INFO(2, "Substituting " << m << " in integral " << *this << endline);
-    ex result = inherited::subs(m, options);
-
-    // Handle substitution of the differential
-    if (is_a<extintegral>(result))
+    for (const auto& r : m)
     {
-        for (const auto& r : m)
+        if (is_a<differential>(r.first))
         {
-            if (is_a<differential>(r.first))
+            const differential& lhs = ex_to<differential>(r.first);
+            if (lhs.op(0).is_equal(result.op(0)))
             {
-                const differential& lhs = ex_to<differential>(r.first);
-                if (lhs.op(0).is_equal(result.op(0)))
+                auto[var, diff] = extract_differential(r.second);
+                extintegral res(op(3) * r.second / diff, var,
+                                C); // Construct new extintegral from expression
+                res.hasboundaries = hasboundaries;
+                if (hasboundaries)
                 {
-                    extintegral res(op(3) * r.second,
-                                    C); // Construct new extintegral from expression
-                    res.hasboundaries = hasboundaries;
-                    if (hasboundaries)
-                    {
-                        res.let_op(1) = op(1);
-                        res.let_op(2) = op(2);
-                    }
-                    return res;
+                    res.let_op(1) = op(1);
+                    res.let_op(2) = op(2);
                 }
+                return res;
             }
         }
+
+        return result;
     }
 
-    return result;
-}
-
-ex extintegral::eval_integ() const
-{
-    MSG_INFO(1, "eval_integ() for " << *this << endline);
-    const ex& var = op(0);
-    ex fun = op(3);
-    if (is_a<extintegral>(fun)) // Handle multiple integrals
-        fun = ex_to<extintegral>(fun).eval_integ();
-
-    ex constfactor(_ex1);
-    ex nonintegrable(_ex0);
-    ex integrated = find_integral(fun, var, constfactor, nonintegrable);
-    MSG_INFO(1, "Integrated: " << integrated << ", nonintegrable: " << nonintegrable
-                               << ", constfactor: " << constfactor << endline);
-
-    if (integrated.is_zero() && constfactor.is_equal(_ex1))
-        return *this;
-
-    ex result(_ex0);
-    if (!nonintegrable.is_zero())
+    ex extintegral::eval_integ() const
     {
-        if (hasboundaries)
-            result = constfactor * dynallocate<extintegral>(op(0), op(1), op(2), nonintegrable);
-        else
-            result = constfactor * dynallocate<extintegral>(op(0), nonintegrable, C);
-    }
-    if (!integrated.is_zero())
-    {
-        if (hasboundaries)
-            result += constfactor * (integrated.subs(var == op(2)) - integrated.subs(var == op(1)));
-        else
-            result += constfactor * integrated + C;
+        MSG_INFO(1, "eval_integ() for " << *this << endline);
+        const ex& var = op(0);
+        ex fun = op(3);
+        if (is_a<extintegral>(fun)) // Handle multiple integrals
+            fun = ex_to<extintegral>(fun).eval_integ();
+
+        ex constfactor(_ex1);
+        ex nonintegrable(_ex0);
+        ex integrated = find_integral(fun, var, constfactor, nonintegrable);
+        MSG_INFO(1, "Integrated: " << integrated << ", nonintegrable: " << nonintegrable
+                                   << ", constfactor: " << constfactor << endline);
+
+        if (integrated.is_zero() && constfactor.is_equal(_ex1))
+            return *this;
+
+        ex result(_ex0);
+        if (!nonintegrable.is_zero())
+        {
+            if (hasboundaries)
+                result = constfactor * dynallocate<extintegral>(op(0), op(1), op(2), nonintegrable);
+            else
+                result = constfactor * dynallocate<extintegral>(op(0), nonintegrable, C);
+        }
+        if (!integrated.is_zero())
+        {
+            if (hasboundaries)
+                result += constfactor
+                          * (integrated.subs(var == op(2)) - integrated.subs(var == op(1)));
+            else
+                result += constfactor * integrated + C;
+        }
+
+        MSG_INFO(1, "Result of eval_integ(): " << result << endline);
+        return result;
     }
 
-    MSG_INFO(1, "Result of eval_integ(): " << result << endline);
-    return result;
-}
-
-extintegral_unarchiver::extintegral_unarchiver() {}
-extintegral_unarchiver::~extintegral_unarchiver() {}
+    extintegral_unarchiver::extintegral_unarchiver() {}
+    extintegral_unarchiver::~extintegral_unarchiver() {}
 }

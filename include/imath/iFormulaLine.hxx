@@ -105,6 +105,7 @@ public:
   virtual OUString printFormula() const;
   OUString getFormula() const;
   void setFormula(const OUString& f);
+  void setFormula(std::vector<OUString> formulaParts);
 
   /// Return the message if the line has an error
   OUString getErrorMessage() const;

@@ -2209,7 +2209,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       delete($3); delete($5); delete($8);
     }*/
     | INTEGRAL '{' ex '}' {
-      $$ = dynallocate<extintegral>($3, params.compiler->getsym("C"));
+      $$ = dynallocate<extintegral>($3, _ex0, params.compiler->getsym("C")); // $3 must contain a differential, the integration variable is deduced from it
     }
     | INTEGRAL FROM lowerbound TO upperbound IMPMUL '{' ex '}' { // We can't prevent the IMPMUL appearing here
       auto lower = $3;

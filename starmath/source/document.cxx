@@ -2493,8 +2493,10 @@ void SmDocShell::FillClass(SvGlobalName* pClassName,
 // SetImHidden() calls UpdateGuiText()
 // insertFormulaLineBefore() currently does not call UpdateGuiText()
 // eraseFormulaLine() calls UpdateGuiText()
-// ImGuiWindow MousePressHdl IMGUIWINDOW_COL_HIDE and IMGUIWINDOW_COL_LABEL_HIDE calls UpdateGuiText()
+// ImGuiWindow MousePressHdl calls UpdateGuiText()
 // ImGuiWindow EditedEntryHdl calls UpdateGuiText() directly or indirectly via eraseFormulaLine()
+// ImGuiWindow EditingCanceledHdl calls EditedEntryHdl which calls UpdateGuiText()
+// ImGuiWindow EditingClickedHdl calls UpdateGuiText()
 // ImGuiWindow KeyReleaseHdl calls insertFormulaLineBefore() and UpdateGuiText()
 // ImGuiOptionsDialog multiple handlers call UpdateGuiText()
 // ImEditWindow constructor calls Compile(): Hack to compile the formula immediately after it was openend

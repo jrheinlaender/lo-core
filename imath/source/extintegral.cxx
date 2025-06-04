@@ -378,13 +378,13 @@ ex f;
 ex g;
 ex X1;
 ex X2;
-ex a2pX2;
-ex a2mX2;
-ex X2ma2;
-ex a3pX3;
-ex a3mX3;
-ex a2pb2X;
-ex a2mb2X;
+ex a2px2;
+ex a2mx2;
+ex x2ma2;
+ex a3px3;
+ex a3mx3;
+ex a2pb2x;
+ex a2mb2x;
 ex n;
 ex DELTA1;
 ex DELTA2;
@@ -394,7 +394,7 @@ ex Y2m;
 ex sinax;
 ex cosax;
 ex tanax;
-exmap integrals; // Cannot use exhashmap because it does not understand the initializer list
+exmap integrals; // Cannot use exhashmap because it does not understand the initializer list. Also, order of searching is important for some integrals
 
 void init_table() {
   // Note: Doing this with static initializers fails for DLLs
@@ -408,13 +408,13 @@ void init_table() {
   g = wild(7);
   X1 = a * x + b;
   X2 = a * pow(x, 2) + b * x + c;
-  a2pX2 = pow(a,2) + pow(x,2);
-  a2mX2 = pow(a,2) - pow(x,2);
-  X2ma2 = pow(x,2) - pow(a,2);
-  a3pX3 = pow(a,3) + pow(x,3);
-  a3mX3 = pow(a,3) - pow(x,3);
-  a2pb2X = pow(a,2) + pow(b,2) * x;
-  a2mb2X = pow(a,2) + pow(b,2) * x;
+  a2px2 = pow(a,2) + pow(x,2);
+  a2mx2 = pow(a,2) - pow(x,2);
+  x2ma2 = pow(x,2) - pow(a,2);
+  a3px3 = pow(a,3) + pow(x,3);
+  a3mx3 = pow(a,3) - pow(x,3);
+  a2pb2x = pow(a,2) + pow(b,2) * x;
+  a2mb2x = pow(a,2) + pow(b,2) * x;
   n = wild(8);
   DELTA1 = b * f - a * g;
   DELTA2 = 4 * a * c - pow(b,2);
@@ -451,16 +451,66 @@ void init_table() {
 /*032*/ { pow(X1, -1) * pow(f * x + g, -1), 1/DELTA1 * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {(f * x + g) * pow(X1, -1)})}) },
 /*040*/ { pow(X2, -1),       2/GiNaC::sqrt(DELTA2) * Functionmanager::create_hard("arctan", {(2 * a * x + b) / GiNaC::sqrt(DELTA2)}) }, // TODO: Two results depending on DELTA2
 /*041 to 056 are partial integrals depending on prior entries in the table */
-/*057*/ { pow(a2pX2, -1),     1/a * Y1p }, // TODO negative branch depends on abs(x)
-/*058*/ { pow(a2pX2, -2),     x / (2 * pow(a,2) * a2pX2) + 1/(2 * pow(a,3)) * Y1p }, // TODO negative branch depends on abs(x)
-/*083*/ { pow(a3pX3, -1),               1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a + x, 2) / (pow(a,2) - a * x + pow(x,2))})}) +
+/*057*/ { pow(a2px2, -1),     1/a * Y1p }, // TODO negative branch depends on abs(x)
+/*058*/ { pow(a2px2, -2),     x / (2 * pow(a,2) * a2px2) + 1/(2 * pow(a,3)) * Y1p }, // TODO negative branch depends on abs(x)
+/*059*/ { pow(a2px2, -3),     x / (4 * pow(a, 2) * pow(a2px2, 2)) + 3 * x / (8 * pow(a, 4) * a2px2) + 3 / (8 * pow(a, 5)) * Y1p }, //  TODO negative branch depends on abs(x)
+/*060 is a recursive partial integral*/
+/*061*/ { x * pow(a2px2, -1), numeric(1, 2)  * Functionmanager::create_hard("ln", {a2px2}) },
+/*061*/ { x * pow(a2mx2, -1), numeric(-1, 2) * Functionmanager::create_hard("ln", {a2mx2}) },
+/*061*/ { x * pow(x2ma2, -1), numeric(1, 2) * Functionmanager::create_hard("ln", {x2ma2}) },
+/*062 is contained in 064*/
+/*063 is contained in 064*/
+/*064*/ { x * pow(a2px2, n),  -1 / (2 * (-n-1) * pow(a2px2, -n-1)) }, // For negative numeric 'n'. The case of positive n is handled earlier as a simple polynomial
+/*064*/ { x * pow(a2mx2, n),   1 / (2 * (-n-1) * pow(a2mx2, -n-1)) },
+/*064*/ { x * pow(pow(a2px2, n), -1),  -1 / (2 * (n-1) * pow(a2px2, n-1)) }, // This matches non-numeric 'n'
+/*064*/ { x * pow(pow(a2mx2, n), -1),   1 / (2 * (n-1) * pow(a2mx2, n-1)) },
+/*065*/ { pow(x, 2) * pow(a2px2, -1), x - a * Y1p }, // TODO negative branch depends on abs(x)
+/*066*/ { pow(x, 2) * pow(a2px2, -2), -x / (2 * a2px2) + 1 / (2 * a) * Y1p }, // TODO negative branch depends on abs(x)
+/*067*/ { pow(x, 2) * pow(a2px2, -3), -x / (4 * pow(a2px2, 2)) + x / (8 * pow(a, 2) * a2px2) + 1 / (8 * pow(a, 3)) * Y1p }, // TODO negative branch depends on abs(x)
+/*068 is recursive*/
+/*069*/ { pow(x, 3) * pow(a2px2, -1), pow(x, 2) / 2 - pow(a, 2) / 2 * Functionmanager::create_hard("ln", {a2px2}) },
+/*069*/ { pow(x, 3) * pow(a2mx2, -1), -1 * pow(x, 2) / 2 - pow(a, 2) / 2 * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{a2mx2})}) },
+/*069*/ { pow(x, 3) * pow(x2ma2, -1),  1 * pow(x, 2) / 2 + pow(a, 2) / 2 * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{x2ma2})}) },
+/*070*/ { pow(x, 3) * pow(a2px2, -2), pow(a, 2) / (2 * a2px2) + numeric(1, 2) * Functionmanager::create_hard("ln", {a2px2}) },
+/*070*/ { pow(x, 3) * pow(a2mx2, -2), pow(a, 2) / (2 * a2mx2) + numeric(1, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{a2mx2})}) },
+/*070*/ { pow(x, 3) * pow(x2ma2, -2), pow(a, 2) / (2 * x2ma2) + numeric(1, 2) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{x2ma2})}) },
+/*071 is contained in 072*/
+/*072*/ { pow(x, 3) * pow(a2px2, n), -1 / (2 * (-n-2) * pow(a2px2, -n-2)) + pow(a, 2) / (2 * (-n-1) * pow(a2px2, -n-1)) }, // For negative numeric 'n'. The case of positive n is handled earlier as a simple polynomial
+/*072*/ { pow(x, 3) * pow(a2mx2, n), -1 / (2 * (-n-2) * pow(a2mx2, -n-2)) + pow(a, 2) / (2 * (-n-1) * pow(a2mx2, -n-1)) },
+/*072*/ { pow(x, 3) * pow(x2ma2, n), -1 / (2 * (-n-2) * pow(x2ma2, -n-2)) + pow(a, 2) / (2 * (-n-1) * pow(x2ma2, -n-1)) },
+/*072*/ { pow(x, 3) * pow(pow(a2px2, n), -1), -1 / (2 * (-n-2) * pow(a2px2, -n-2)) + pow(a, 2) / (2 * (-n-1) * pow(a2px2, -n-1)) }, // This matches non-numeric 'n'
+/*072*/ { pow(x, 3) * pow(pow(a2mx2, n), -1), -1 / (2 * (-n-2) * pow(a2mx2, -n-2)) + pow(a, 2) / (2 * (-n-1) * pow(a2mx2, -n-1)) },
+/*072*/ { pow(x, 3) * pow(pow(x2ma2, n), -1), -1 / (2 * (-n-2) * pow(x2ma2, -n-2)) + pow(a, 2) / (2 * (-n-1) * pow(x2ma2, -n-1)) },
+/*073*/ { pow(x, -1) * pow(a2px2, -1),  1 / (2 * pow(a,2)) * Functionmanager::create_hard("ln", {pow(x, 2) / a2px2}) },
+/*073*/ { pow(x, -1) * pow(a2mx2, -1),  1 / (2 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / a2mx2})}) },
+/*073*/ { pow(x, -1) * pow(x2ma2, -1), -1 / (2 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / x2ma2})}) },
+/*074*/ { pow(x, -1) * pow(a2px2, -2), 1 / (2 * pow(a,2) * a2px2) + 1 / (2 * pow(a, 4)) * Functionmanager::create_hard("ln", {pow(x, 2) / a2px2}) },
+/*074*/ { pow(x, -1) * pow(a2mx2, -2), 1 / (2 * pow(a,2) * a2mx2) + 1 / (2 * pow(a, 4)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / a2mx2})}) },
+/*074*/ { pow(x, -1) * pow(x2ma2, -2), 1 / (2 * pow(a,2) * x2ma2) + 1 / (2 * pow(a, 4)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / x2ma2})}) },
+/*075*/ { pow(x, -1) * pow(a2px2, -3), 1 / (4 * pow(a,2) * pow(a2px2, 2)) + 1 / (2 * pow(a,4) * a2px2) + 1 / (2 * pow(a, 6)) * Functionmanager::create_hard("ln", {pow(x, 2) / a2px2}) },
+/*075*/ { pow(x, -1) * pow(a2mx2, -3), 1 / (4 * pow(a,2) * pow(a2mx2, 2)) + 1 / (2 * pow(a,4) * a2mx2) + 1 / (2 * pow(a, 6)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / a2mx2})}) },
+/*075*/ { pow(x, -1) * pow(x2ma2, -3), -1 / (4 * pow(a,2) * pow(x2ma2, 2)) - 1 / (2 * pow(a,4) * x2ma2) - 1 / (2 * pow(a, 6)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / x2ma2})}) },
+/*076*/ { pow(x, -2) * pow(a2px2, -1), -1 / (pow(a,2) * x) - pow(a, -3) * Y1p }, // TODO negative branch depends on abs(x)
+/*077*/ { pow(x, -2) * pow(a2px2, -2), -1 / (pow(a,4) * x) - x / (2 * pow(a, 4) * a2px2)- 3 / (2 * pow(a, 5)) * Y1p }, // TODO negative branch depends on abs(x)
+/*078*/ { pow(x, -2) * pow(a2px2, -3), -1 / (pow(a,6) * x) - x / (4 * pow(a, 4) * pow(a2px2, 2)) - 7 * x / (8 * pow(a, 6) * a2px2) - 15 / (8 * pow(a, 7)) * Y1p }, // TODO negative branch depends on abs(x)
+/*079*/ { pow(x, -3) * pow(a2px2, -1), -1 / (2 * pow(a, 2) * pow(x, 2)) - 1 / (2 * pow(a,4)) * Functionmanager::create_hard("ln", {pow(x, 2) / a2px2}) },
+/*079*/ { pow(x, -3) * pow(a2mx2, -1), -1 / (2 * pow(a, 2) * pow(x, 2)) + 1 / (2 * pow(a,4)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / a2mx2})}) },
+/*079*/ { pow(x, -3) * pow(x2ma2, -1),  1 / (2 * pow(a, 2) * pow(x, 2)) - 1 / (2 * pow(a,4)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / x2ma2})}) },
+/*080*/ { pow(x, -3) * pow(a2px2, -2), -1 / (2 * pow(a, 4) * pow(x, 2)) - 1 / (2 * pow(a, 4) * a2px2) - 1 / pow(a,6) * Functionmanager::create_hard("ln", {pow(x, 2) / a2px2}) },
+/*080*/ { pow(x, -3) * pow(a2mx2, -2), -1 / (2 * pow(a, 4) * pow(x, 2)) + 1 / (2 * pow(a, 4) * a2mx2) + 1 / pow(a,6) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / a2mx2})}) },
+/*080*/ { pow(x, -3) * pow(x2ma2, -2), -1 / (2 * pow(a, 4) * pow(x, 2)) + 1 / (2 * pow(a, 4) * x2ma2) + 1 / pow(a,6) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / x2ma2})}) },
+/*081*/ { pow(x, -3) * pow(a2px2, -3), -1 / (2 * pow(a, 6) * pow(x, 2)) - 1 / (pow(a, 6) * a2px2) - 1 / (4 * pow(a, 4) * pow(a2px2, 2)) - 3 / (2 * pow(a,8)) * Functionmanager::create_hard("ln", {pow(x, 2) / a2px2}) },
+/*081*/ { pow(x, -3) * pow(a2mx2, -3), -1 / (2 * pow(a, 6) * pow(x, 2)) + 1 / (pow(a, 6) * a2mx2) + 1 / (4 * pow(a, 4) * pow(a2mx2, 2)) + 3 / (2 * pow(a,8)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / a2mx2})}) },
+/*081*/ { pow(x, -3) * pow(x2ma2, -3),  1 / (2 * pow(a, 6) * pow(x, 2)) - 1 / (pow(a, 6) * x2ma2) - 1 / (4 * pow(a, 4) * pow(x2ma2, 2)) - 3 / (2 * pow(a,8)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{pow(x, 2) / x2ma2})}) },
+/*082*/ { pow(b + c * x, -1) * pow(a2px2, -1), 1 / (pow(a, 2) * pow(c, 2) + pow(b, 2)) * (c * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs",{c * x + b})}) - c / 2 * Functionmanager::create_hard("ln", {a2px2}) + b/a * Y1p) }, // TODO negative branch depends on abs(x)
+/*083*/ { pow(a3px3, -1),               1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a + x, 2) / (pow(a,2) - a * x + pow(x,2))})}) +
                                         1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x - a) / (a * pow(3, numeric(1,2)))}) },
-/*083*/ { pow(a3mX3, -1),              -1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))})}) +
+/*083*/ { pow(a3mx3, -1),              -1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))})}) +
                                         1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
 /*083*/ { pow(pow(x,3)-pow(a,3), -1),   1 / (6 * pow(a,2)) * Functionmanager::create_hard("ln", {Functionmanager::create_hard("abs", {pow(a - x, 2) / (pow(a,2) + a * x + pow(x,2))})}) -
                                         1 / (pow(a,2) * pow(3, numeric(1,2))) * Functionmanager::create_hard("arctan", {(2 * x + a) / (a * pow(3, numeric(1,2)))}) },
-/*109*/ { GiNaC::sqrt(x) / a2pb2X,  2 * GiNaC::sqrt(x) / pow(b,2) - 2 * a / pow(b,3) * Y2p },
-/*109*/ { GiNaC::sqrt(x) / a2mb2X, -2 * GiNaC::sqrt(x) / pow(b,2) + 2 * a / pow(b,3) * Y2p },
+/*109*/ { GiNaC::sqrt(x) / a2pb2x,  2 * GiNaC::sqrt(x) / pow(b,2) - 2 * a / pow(b,3) * Y2p },
+/*109*/ { GiNaC::sqrt(x) / a2mb2x, -2 * GiNaC::sqrt(x) / pow(b,2) + 2 * a / pow(b,3) * Y2p },
 /*121 is contained in 001 */
 /*122*/ { x * GiNaC::sqrt(X1),     2 * (3 * a * x - 2 * b) * GiNaC::sqrt(pow(X1, 3)) / (15 * pow(a,2)) },
 /*124 is contained in 001 */
@@ -468,11 +518,11 @@ void init_table() {
 /*128 is partial integral using 127 */
 /*132*/ { GiNaC::sqrt(pow(X1, 3)), 2 * GiNaC::sqrt(pow(X1,5)) / (5 * a) },
 /*140 is contained in 001 */
-/*157*/ { GiNaC::sqrt(a2mX2), (x * GiNaC::sqrt(a2mX2) + pow(a,2) * Functionmanager::create_hard("arcsin", {x/a})) / 2 },
-/*164*/ { pow(GiNaC::sqrt(a2mX2), -1), Functionmanager::create_hard("arcsin", {x/a}) },
-/*185*/ { GiNaC::sqrt(a2pX2), (x * GiNaC::sqrt(a2pX2) + pow(a,2) * Functionmanager::create_hard("arsinh", {x/a})) / 2 },
-/*186*/ { x * GiNaC::sqrt(a2pX2),   GiNaC::sqrt(pow(a2pX2, 3))/3 },
-/*213*/ { GiNaC::sqrt(X2ma2), (x * GiNaC::sqrt(X2ma2) - pow(a,2) * Functionmanager::create_hard("arcosh", {x/a}))/ 2 },
+/*157*/ { GiNaC::sqrt(a2mx2), (x * GiNaC::sqrt(a2mx2) + pow(a,2) * Functionmanager::create_hard("arcsin", {x/a})) / 2 },
+/*164*/ { pow(GiNaC::sqrt(a2mx2), -1), Functionmanager::create_hard("arcsin", {x/a}) },
+/*185*/ { GiNaC::sqrt(a2px2), (x * GiNaC::sqrt(a2px2) + pow(a,2) * Functionmanager::create_hard("arsinh", {x/a})) / 2 },
+/*186*/ { x * GiNaC::sqrt(a2px2),   GiNaC::sqrt(pow(a2px2, 3))/3 },
+/*213*/ { GiNaC::sqrt(x2ma2), (x * GiNaC::sqrt(x2ma2) - pow(a,2) * Functionmanager::create_hard("arcosh", {x/a}))/ 2 },
 /*241 has 4 different cases depending on a and DELTA2 */
 /*245 is partial integral using 214 */
 /*268 is contained in 001 */

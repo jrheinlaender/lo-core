@@ -41,7 +41,7 @@ namespace {
 }
 
 SvxIMathOptionsPage::SvxIMathOptionsPage(weld::Container* pPage, weld::DialogController* pController, const SfxItemSet& rSet)
-    : SfxTabPage(pPage, pController, "modules/swriter/ui/optimathpage.ui", "OptIMathPage", &rSet)
+    : SfxTabPage(pPage, pController, "cui/ui/optimathpage.ui", "OptIMathPage", &rSet)
     , m_autorenumberduplicateCheckbox(m_xBuilder->weld_check_button("O_Autorenumberduplicate"))
     , m_debuglevelSpinbutton(m_xBuilder->weld_spin_button("I_Debuglevel"))
     , m_externaleditorEntry(m_xBuilder->weld_entry("txt_Externaleditor"))

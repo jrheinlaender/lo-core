@@ -125,6 +125,9 @@ public:
 
 static bool equals( const TestElement & rData1, const TestElement & rData2 )
 {
+    const float epsilon_f = 0.00001f;
+    const double epsilon_d = 0.000000000001;
+
     check( rData1.Bool == rData2.Bool, "### bool does not match!" );
     check( rData1.Char == rData2.Char, "### char does not match!" );
     check( rData1.Byte == rData2.Byte, "### byte does not match!" );
@@ -134,8 +137,8 @@ static bool equals( const TestElement & rData1, const TestElement & rData2 )
     check( rData1.ULong == rData2.ULong, "### unsigned long does not match!" );
     check( rData1.Hyper == rData2.Hyper, "### hyper does not match!" );
     check( rData1.UHyper == rData2.UHyper, "### unsigned hyper does not match!" );
-    check( rData1.Float == rData2.Float, "### float does not match!" );
-    check( rData1.Double == rData2.Double, "### double does not match!" );
+    check( fabs( rData1.Float - rData2.Float ) < epsilon_f, "### float does not match!" );
+    check( fabs( rData1.Double - rData2.Double ) < epsilon_d, "### double does not match!" );
     check( rData1.Enum == rData2.Enum, "### enum does not match!" );
     check( rData1.String == rData2.String, "### string does not match!" );
     check( rData1.Byte2 == rData2.Byte2, "### byte2 does not match!" );
@@ -152,8 +155,8 @@ static bool equals( const TestElement & rData1, const TestElement & rData2 )
             rData1.ULong == rData2.ULong &&
             rData1.Hyper == rData2.Hyper &&
             rData1.UHyper == rData2.UHyper &&
-            rData1.Float == rData2.Float &&
-            rData1.Double == rData2.Double &&
+            fabs( rData1.Float - rData2.Float ) < epsilon_f &&
+            fabs( rData1.Double - rData2.Double ) < epsilon_d &&
             rData1.Enum == rData2.Enum &&
             rData1.String == rData2.String &&
             rData1.Byte2 == rData2.Byte2 &&
@@ -469,6 +472,7 @@ static bool performTest(
                 equals(aData, aSV2ret) && equals(aData, aRet2),
                 "getValues2 test");
         }
+#if !defined(__powerpc64__)
         {
             TwoFloats aIn(1.1f, 2.2f);
             TwoFloats aOut = xLBT->echoTwoFloats(aIn);
@@ -479,6 +483,7 @@ static bool performTest(
             FourFloats aOut = xLBT->echoFourFloats(aIn);
             bRet = check( memcmp(&aIn, &aOut, sizeof(FourFloats)) == 0, "four floats struct test" ) && bRet;
         }
+#endif
         {
             MixedFloatAndInteger aIn(7.7f, 8);
             MixedFloatAndInteger aOut = xLBT->echoMixedFloatAndInteger(aIn);

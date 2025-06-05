@@ -18,7 +18,7 @@ $(eval $(call gb_ExternalProject_register_targets,libnumbertext,\
 
 libnumbertext_CXXFLAGS=$(CXXFLAGS) $(CXXFLAGS_CXX11) $(gb_EMSCRIPTEN_CXXFLAGS)
 
-libnumbertext_CPPFLAGS+=$(gb_COMPILERDEFS_STDLIB_DEBUG) $(gb_EMSCRIPTEN_CPPFLAGS)
+libnumbertext_CPPFLAGS+=$(CPPFLAGS) $(gb_COMPILERDEFS_STDLIB_DEBUG) $(gb_EMSCRIPTEN_CPPFLAGS)
 
 $(call gb_ExternalProject_get_state_target,libnumbertext,build):
 	$(call gb_Trace_StartRange,libnumbertext,EXTERNAL)

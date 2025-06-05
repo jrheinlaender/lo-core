@@ -259,13 +259,29 @@ $(eval $(call gb_Helper_register_executables_for_install,UREBIN,ure,\
 
 $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,base, \
 	abp \
+	calc \
+	dba \
+	dbahsql \
+	$(call gb_Helper_optional,DBCONNECTIVITY, \
+		dbase \
+		dbaxml) \
 	dbp \
 	dbu \
+       $(call gb_Helper_optional,DBCONNECTIVITY,flat) \
+       $(if $(ENABLE_JAVA),jdbc) \
+	$(call gb_Helper_optional,DBCONNECTIVITY,mysql_jdbc) \
+	$(call gb_Helper_optional,MARIADBC,$(call gb_Helper_optional,DBCONNECTIVITY,mysqlc)) \
+       odbc \
+))
+
+$(eval $(call gb_Helper_register_libraries_for_install,PLAINLIBS_OOO,base, \
+	$(call gb_Helper_optional,DBCONNECTIVITY,dbpool2) \
+       $(if $(ENABLE_JAVA),hsqldb) \
+       sdbc2 \
 ))
 
 $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,calc, \
 	analysis \
-	$(call gb_Helper_optional,DBCONNECTIVITY,calc) \
 	date \
 	pricing \
 	sc \
@@ -280,6 +296,12 @@ $(eval $(call gb_Helper_register_plugins_for_install,OOOLIBS,calc, \
     scui \
 ))
 
+$(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,draw, \
+	animcore \
+	sd \
+	sdd \
+))
+
 $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,graphicfilter, \
 	svgfilter \
 	wpftdraw \
@@ -287,9 +309,9 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,graphicfilter, \
 ))
 
 $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,impress, \
-	animcore \
 	PresentationMinimizer \
 	wpftimpress \
+	slideshow \
 ))
 
 $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,onlineupdate, \
@@ -394,11 +416,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
 	$(if $(filter $(OS),WNT),,cmdmail) \
 	configmgr \
 	ctl \
-	dba \
-	dbahsql \
-	$(call gb_Helper_optional,DBCONNECTIVITY, \
-		dbase \
-		dbaxml) \
 	dbtools \
 	deploymentmisc \
 	$(if $(filter-out MACOSX WNT,$(OS)),desktopbe1) \
@@ -410,7 +427,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
 	$(if $(filter WNT,$(OS)),emser) \
 	evtatt \
 	$(call gb_Helper_optional,DBCONNECTIVITY, \
-		flat \
 		file) \
 	filterconfig \
 	fps_office \
@@ -423,7 +439,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
 	i18npool \
 	i18nsearch \
 	imath \
-	$(if $(ENABLE_JAVA),jdbc) \
 	$(if $(filter WNT,$(OS)),jumplist) \
 	$(if $(ENABLE_LDAP),ldapbe2) \
 	$(if $(filter WNT,$(OS)),WinUserInfoBe) \
@@ -861,8 +876,12 @@ endif
 
 # 'test_unittest' is only package delivering to workdir.
 # Other packages could be potentially autoinstalled.
+ifeq ($(ENABLE_CPPUNIT),TRUE)
 $(eval $(call gb_Helper_register_packages, \
 	test_unittest \
+))
+endif
+$(eval $(call gb_Helper_register_packages, \
 	cli_basetypes_copy \
 	extras_wordbook \
 	instsetoo_native_setup \
@@ -922,7 +941,7 @@ $(eval $(call gb_Helper_register_packages_for_install,sdk,\
 	odk_settings \
 	odk_settings_generated \
 	$(if $(ENABLE_JAVA), \
-		odk_javadoc \
+		$(if $(JAVADOC),odk_javadoc) \
 		odk_uno_loader_classes \
 	) \
 ))

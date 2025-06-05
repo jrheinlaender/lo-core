@@ -13,8 +13,12 @@ $(eval $(call gb_Module_Module,smoketest))
 ifeq ($(CROSS_COMPILING),)
 
 ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
+ifeq ($(ENABLE_CPPUNIT),TRUE)
 $(eval $(call gb_Module_add_targets,smoketest,\
 	Library_smoketest \
+))
+endif
+$(eval $(call gb_Module_add_targets,smoketest,\
 	Zip_smoketestdoc \
 ))
 endif
@@ -28,11 +32,13 @@ $(eval $(call gb_Module_add_targets,smoketest,\
 endif
 endif
 
+ifeq ($(ENABLE_CPPUNIT),TRUE)
 ifneq (MACOSX/TRUE,$(OS)/$(ENABLE_MACOSX_SANDBOX))
 ifneq ($(filter EXTENSIONS,$(BUILD_TYPE)),)
 $(eval $(call gb_Module_add_subsequentcheck_targets,smoketest,\
 	CppunitTest_smoketest \
 ))
+endif
 endif
 endif
 

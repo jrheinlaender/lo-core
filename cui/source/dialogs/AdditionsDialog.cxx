@@ -276,8 +276,12 @@ SearchAndParseThread::SearchAndParseThread(AdditionsDialog* pDialog, const bool 
     , m_bIsFirstLoading(isFirstLoading)
 {
     // if we are running a UITest, e.g. UITest_sw_options then
-    // don't attempt to downloading anything
-    static const bool bUITest = getenv("LIBO_TEST_UNIT");
+    // don't attempt to downloading anything. Use AUTOPKGTEST_TMP in Debian
+    // so that the test actually is run in autopkgtest where we are sure
+    // we have internet (needs-internet)
+    static bool bUITest;
+    if (getenv("AUTOPKGTEST_TMP") == NULL) { bUITest = true; } // don't disable test
+    else { bUITest = false; }
 
     m_bUITest = bUITest;
 }

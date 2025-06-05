@@ -30,6 +30,7 @@ $(call gb_ExternalProject_get_state_target,firebird,build):
 	$(call gb_ExternalProject_run,build,\
 		export PKG_CONFIG="" \
 		&& export CPPFLAGS=" \
+			$(CPPFLAGS) \
 			$(BOOST_CPPFLAGS) \
 			$(if $(SYSTEM_LIBATOMIC_OPS),$(LIBATOMIC_OPS_CFLAGS), \
 				-I$(call gb_UnpackedTarball_get_dir,libatomic_ops)/src \
@@ -45,6 +46,7 @@ $(call gb_ExternalProject_get_state_target,firebird,build):
 			$(if $(filter GCC-INTEL,$(COM)-$(CPUNAME)),-Di386=1) \
 			" \
 		&& export CFLAGS=" \
+			$(CFLAGS) \
 			$(if $(filter MSC,$(COM)),$(if $(MSVC_USE_DEBUG_RUNTIME),-DMSVC_USE_DEBUG_RUNTIME)) \
 			$(if $(filter MSC-TRUE-X86_64,$(COM)-$(COM_IS_CLANG)-$(CPUNAME)),-march=x86-64-v2) \
 			$(if $(HAVE_GCC_FNO_SIZED_DEALLOCATION),-fno-sized-deallocation -fno-delete-null-pointer-checks) \
@@ -52,6 +54,7 @@ $(call gb_ExternalProject_get_state_target,firebird,build):
 			$(if $(ENABLE_DEBUG),$(if $(filter MSC,$(COM)),-Od -Z7)) \
 		" \
 		&& export CXXFLAGS=" \
+			$(CXXFLAGS) \
 			$(BOOST_CXXFLAGS) \
 			$(if $(filter MSC,$(COM)),$(if $(MSVC_USE_DEBUG_RUNTIME),-DMSVC_USE_DEBUG_RUNTIME)) \
 			$(if $(filter MSC-TRUE-X86_64,$(COM)-$(COM_IS_CLANG)-$(CPUNAME)),-march=x86-64-v2) \
@@ -62,6 +65,7 @@ $(call gb_ExternalProject_get_state_target,firebird,build):
 			$(if $(ENABLE_DEBUG),$(if $(filter MSC,$(COM)),-Od -Z7)) \
 		" \
 		&& export LDFLAGS=" \
+			$(LDFLAGS) \
 			$(call gb_ExternalProject_get_link_flags,firebird) \
 			$(if $(SYSTEM_LIBATOMIC_OPS),$(LIBATOMIC_OPS_LIBS), \
 				-L$(call gb_UnpackedTarball_get_dir,libatomic_ops)/src \

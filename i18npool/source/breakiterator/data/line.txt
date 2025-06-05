@@ -14,7 +14,7 @@
 #
 
 !!chain;
-!!LBCMNoChain;
+# !!LBCMNoChain; # tdf#158108
 
 
 !!lookAheadHardBreak;

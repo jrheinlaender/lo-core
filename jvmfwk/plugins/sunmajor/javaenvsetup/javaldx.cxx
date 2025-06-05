@@ -146,6 +146,9 @@ static bool findAndSelect(std::unique_ptr<JavaInfo> * ppInfo)
     if (errcode == JFW_E_NO_JAVA_FOUND)
     {
         fprintf(stderr,"javaldx: Could not find a Java Runtime Environment!\n");
+        fprintf(stderr,"Please ensure that a JVM and the package libreoffice-java-common\n");
+        fprintf(stderr,"is installed.\n");
+        fprintf(stderr,"If it is already installed then try removing ~/.config/libreoffice/4/user/config/javasettings_Linux_*.xml\n");
         return false;
     }
     else if (errcode != JFW_E_NONE && errcode != JFW_E_DIRECT_MODE)

@@ -28,6 +28,7 @@ $(call gb_ExternalProject_get_state_target,libtommath,build) :
 	$(call gb_ExternalProject_run,build,\
 		unset MAKEFLAGS \
 		&& export CFLAGS=" \
+			$(CFLAGS) \
 			-fPIC \
 		" \
 		&& $(MAKE) $(if $(verbose),V=1) NO_ADDTL_WARNINGS=1 \

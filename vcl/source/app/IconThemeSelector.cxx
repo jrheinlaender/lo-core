@@ -83,6 +83,9 @@ IconThemeSelector::GetIconThemeForDesktopEnvironment(const OUString& desktopEnvi
         else
             r = "sukapura_dark";
     }
+    else if ( desktopEnvironment.equalsIgnoreAsciiCase("ubuntu") ) {
+        r = "yaru";
+    }
     else if ( desktopEnvironment.equalsIgnoreAsciiCase("gnome") ||
          desktopEnvironment.equalsIgnoreAsciiCase("mate") ||
          desktopEnvironment.equalsIgnoreAsciiCase("unity") ) {

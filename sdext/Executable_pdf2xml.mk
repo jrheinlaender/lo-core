@@ -13,9 +13,9 @@ $(eval $(call gb_Executable_use_sdk_api,pdf2xml))
 
 $(eval $(call gb_Executable_use_externals,pdf2xml,\
     boost_headers \
-    cppunit \
     zlib \
 ))
+
 
 $(eval $(call gb_Executable_set_include,pdf2xml,\
     -I$(SRCDIR)/sdext/source/pdfimport/inc \
@@ -27,13 +27,21 @@ $(eval $(call gb_Executable_use_libraries,pdf2xml,\
     vcl \
     comphelper \
     cppu \
-    unotest \
     cppuhelper \
     sal \
     tl \
     xo \
     i18nutil \
 ))
+
+ifeq ($(ENABLE_CPPUNIT),TRUE)
+$(eval $(call gb_Executable_use_externals,pdf2xml,\
+    cppunit \
+))
+$(eval $(call gb_Executable_use_libraries,pdf2xml,\
+    unotest \
+))
+endif
 
 $(eval $(call gb_Executable_use_library_objects,pdf2xml,pdfimport))
 

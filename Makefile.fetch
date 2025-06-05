@@ -102,13 +102,10 @@ $(WORKDIR)/download: $(BUILDDIR)/config_$(gb_Side).mk $(SRCDIR)/download.lst $(S
 	$(foreach item, \
 		$(call fetch_Optional,ABW,ABW_TARBALL) \
 		$(call fetch_Optional,ARGON2,ARGON2_TARBALL) \
-		$(call fetch_Optional,BOOST,BOOST_TARBALL) \
 		$(call fetch_Optional,BOX2D,BOX2D_TARBALL) \
 		$(call fetch_Optional,BREAKPAD,BREAKPAD_TARBALL) \
 		$(call fetch_Optional,BSH,BSH_TARBALL) \
 		$(call fetch_Optional,BZIP2,BZIP2_TARBALL) \
-		$(call fetch_Optional,CAIRO,CAIRO_TARBALL) \
-		$(call fetch_Optional,CAIRO,PIXMAN_TARBALL) \
 		$(call fetch_Optional,CDR,CDR_TARBALL) \
 		$(call fetch_Optional,CLUCENE,CLUCENE_TARBALL) \
 		$(call fetch_Optional,DRAGONBOX,DRAGONBOX_TARBALL) \
@@ -136,8 +133,6 @@ $(WORKDIR)/download: $(BUILDDIR)/config_$(gb_Side).mk $(SRCDIR)/download.lst $(S
 		$(call fetch_Optional,HUNSPELL,HUNSPELL_TARBALL) \
 		$(call fetch_Optional,HYPHEN,HYPHEN_TARBALL) \
 		$(if $(filter WNT,$(OS)),IACCESSIBLE2_TARBALL) \
-		$(call fetch_Optional,ICU,ICU_TARBALL) \
-		$(call fetch_Optional,ICU,ICU_DATA_TARBALL) \
 		$(call fetch_Optional,JAVA_WEBSOCKET,JAVA_WEBSOCKET_TARBALL) \
 		$(call fetch_Optional,JFREEREPORT,JFREEREPORT_FLOW_ENGINE_TARBALL) \
 		$(call fetch_Optional,JFREEREPORT,JFREEREPORT_FLUTE_TARBALL) \
@@ -175,49 +170,18 @@ $(WORKDIR)/download: $(BUILDDIR)/config_$(gb_Side).mk $(SRCDIR)/download.lst $(S
 		ZXCVBN_C_TARBALL \
 		$(call fetch_Optional,ZXING,ZXING_TARBALL) \
 		$(call fetch_Optional,MDNSRESPONDER,MDNSRESPONDER_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_CALADEA_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_CARLITO_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_DEJAVU_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_GENTIUM_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_LIBERATION_NARROW_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_LIBERATION_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_LINLIBERTINEG_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_KUFI_ARABIC_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SANS_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SERIF_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SANS_ARABIC_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_NASKH_ARABIC_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SANS_HEBREW_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SERIF_HEBREW_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SANS_ARMENIAN_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SERIF_ARMENIAN_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SANS_GEORGIAN_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SERIF_GEORGIAN_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SANS_LAO_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SERIF_LAO_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_NOTO_SANS_LISU_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_CULMUS_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_LIBRE_HEBREW_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_ALEF_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_AMIRI_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_REEM_TARBALL) \
-		$(call fetch_Optional,MORE_FONTS,FONT_SCHEHERAZADE_TARBALL) \
 		$(call fetch_Optional,MSPUB,MSPUB_TARBALL) \
 		$(call fetch_Optional,MWAW,MWAW_TARBALL) \
 		$(call fetch_Optional,MYTHES,MYTHES_TARBALL) \
-		$(call fetch_Optional,NSS,NSS_TARBALL) \
 		$(call fetch_Optional_pack,NUMBERTEXT_EXTENSION_PACK) \
 		$(call fetch_Optional,ODFGEN,ODFGEN_TARBALL) \
 		$(call fetch_Optional,ONLINEUPDATE,ONLINEUPDATE_TARBALL) \
 		$(call fetch_Optional,OPENLDAP,OPENLDAP_TARBALL) \
-		$(call fetch_Optional,OPENSSL,OPENSSL_TARBALL) \
 		$(call fetch_Optional,ORCUS,ORCUS_TARBALL) \
 		$(call fetch_Optional,PAGEMAKER,PAGEMAKER_TARBALL) \
 		$(call fetch_Optional,PDFIUM,PDFIUM_TARBALL) \
 		$(call fetch_Optional,POPPLER,POPPLER_TARBALL) \
 		$(call fetch_Optional,POPPLER,POPPLER_DATA_TARBALL) \
-		$(call fetch_Optional,POSTGRESQL,POSTGRESQL_TARBALL) \
-		$(call fetch_Optional,PYTHON,PYTHON_TARBALL) \
 		$(call fetch_Optional,QXP,QXP_TARBALL) \
 		$(call fetch_Optional,REDLAND,RAPTOR_TARBALL) \
 		$(call fetch_Optional,REDLAND,RASQAL_TARBALL) \

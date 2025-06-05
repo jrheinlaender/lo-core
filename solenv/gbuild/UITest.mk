@@ -83,16 +83,7 @@ else
 		--userdir=$(call gb_Helper_make_url,$(dir $(call gb_UITest_get_target,$*))user) \
 		--dir=$(strip $(MODULES)) \
 		$(gb_UITest_GDBTRACE) \
-		$(if $(gb_UITest__interactive),, \
-		    > $@.log 2>&1 \
-		    || ($(if $(value gb_CppunitTest_postprocess), \
-				    RET=$$?; \
-				    $(call gb_CppunitTest_postprocess,$(gb_UITest_EXECUTABLE_GDB),$@.core,$$RET) >> $@.log 2>&1;) \
-                $(if $(filter WNT,$(OS)), \
-                    printf '%s: <<<\n' $(dir $(call gb_UITest_get_target,$*))/soffice.out.log; \
-                    cat $(dir $(call gb_UITest_get_target,$*))/soffice.out.log; \
-                    printf ' >>>\n\n';) \
-			    cat $@.log; $(gb_UITest_UNITTESTFAILED) UI $*))))
+		2>&1))
 	$(call gb_Trace_EndRange,$*,UIT)
 endif
 

@@ -44,7 +44,7 @@ $(call gb_ExternalProject_get_state_target,libmspub,build) :
 			--disable-werror \
 			--disable-weffc \
 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libmspub)" \
+			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libmspub)" \
 			CPPFLAGS="$(libmspub_CPPFLAGS)" \
 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libmspub)" \
 			$(gb_CONFIGURE_PLATFORMS) \

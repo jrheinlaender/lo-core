@@ -19,7 +19,7 @@
 <!DOCTYPE oor:component-data SYSTEM "../../../../../../../../officecfg/registry/component-update.dtd">
 <oor:component-data xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" oor:package="org.openoffice.TypeDetection" oor:name="Filter">
     <node oor:name="Filters">
-        <node oor:name="MediaWiki" oor:op="fuse">
+        <node oor:name="MediaWiki" oor:op="replace">
             <prop oor:name="FileFormatVersion"><value>0</value></prop>
                 <prop oor:name="Type"><value>MediaWiki</value></prop>
             <prop oor:name="DocumentService"><value>com.sun.star.text.TextDocument</value></prop>
@@ -31,7 +31,7 @@
             </prop>
             <prop oor:name="Flags"><value>EXPORT ALIEN 3RDPARTYFILTER</value></prop>
         </node>
-        <node oor:name="MediaWiki_Web" oor:op="fuse">
+        <node oor:name="MediaWiki_Web" oor:op="replace">
             <prop oor:name="FileFormatVersion"><value>0</value></prop>
                 <prop oor:name="Type"><value>MediaWiki</value></prop>
                 <prop oor:name="DocumentService"><value>com.sun.star.text.WebDocument</value></prop>

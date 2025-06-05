@@ -67,12 +67,7 @@ else
 			$(gb_PythonTest_COMMAND) \
 			$(if $(PYTHON_TEST_NAME),$(PYTHON_TEST_NAME),$(MODULES)) \
 		; } \
-		$(if $(gb_CppunitTest__interactive),, \
-			> $@.log 2>&1 \
-			|| ($(if $(value gb_CppunitTest_postprocess), \
-					RET=$$?; \
-					$(call gb_CppunitTest_postprocess,$(gb_PythonTest_EXECUTABLE_GDB),$@.core,$$RET) >> $@.log 2>&1;) \
-				cat $@.log; $(gb_PythonTest_UNITTESTFAILED) Python $*)))
+		2>&1)
 	$(call gb_Trace_EndRange,$*,PYT)
 endif
 

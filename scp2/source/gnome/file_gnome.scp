@@ -26,3 +26,13 @@ File gid_File_Share_Registry_Gnome_Xcd
     Name = "gnome.xcd";
 End
 #endif
+
+#ifdef ENABLE_EVOAB2
+File gid_File_Share_Registry_Evoab_Xcd
+    TXT_FILE_BODY;
+    Styles = (PACKED);
+    Dir = gid_Brand_Dir_Share_Registry;
+    Name = "evoab.xcd";
+End
+#endif
+

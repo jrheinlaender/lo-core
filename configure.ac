@@ -2645,6 +2645,11 @@ AC_ARG_WITH(bffvalidator,
          See https://web.archive.org/web/20200804155745/https://www.microsoft.com/en-us/download/details.aspx?id=26794]),
 ,with_bffvalidator=no)
 
+libo_FUZZ_ARG_WITH(cppunit,
+    AS_HELP_STRING([--without-cppunit>],
+        [disable building(!) of cppunit stuff also built during make build]),
+,with_cppunit=yes)
+
 libo_FUZZ_ARG_WITH(junit,
     AS_HELP_STRING([--with-junit=<absolute path to JUnit 4 jar>],
         [Specifies the JUnit 4 jar file to use for JUnit-based tests.
@@ -2671,6 +2676,18 @@ libo_FUZZ_ARG_WITH(doxygen,
          documentation. --without-doxygen disables generation of ODK C/C++
          documentation. Not relevant in the --disable-odk case.]),
 ,with_doxygen=yes)
+
+AC_ARG_WITH(
+    [javadoc],
+    AS_HELP_STRING(
+        [--with-javadoc],
+        [Specifies the javadoc executable to use when generating ODK Java
+         documentation. --without-javadoc disables generation of ODK Java
+         documentation. Not relevant in the --disable-odk case.])
+    [
+                          Usage:     --with-javadoc=<absolute path to doxygen executable>
+    ],,
+    [with_javadoc=yes])
 
 AC_ARG_WITH(visual-studio,
     AS_HELP_STRING([--with-visual-studio=<2019/2022/2022preview>],
@@ -5011,6 +5028,9 @@ fi
 if test "$enable_symbols" = yes; then
     ENABLE_SYMBOLS_FOR=all
     AC_MSG_RESULT([yes])
+elif test "$enable_symbols" = "SMALL" -o "$enable_symbols" = "small"; then
+    ENABLE_SYMBOLS_FOR=all
+    AC_MSG_RESULT([yes, small ones])
 elif test "$enable_symbols" = no; then
     ENABLE_SYMBOLS_FOR=
     AC_MSG_RESULT([no])
@@ -5019,6 +5039,7 @@ else
     ENABLE_SYMBOLS_FOR="$enable_symbols"
     AC_MSG_RESULT([for "$enable_symbols"])
 fi
+AC_SUBST(enable_symbols)
 AC_SUBST(ENABLE_SYMBOLS_FOR)
 
 if test -n "$with_android_ndk" -a \( -n "$ENABLE_SYMBOLS" -o -n "$ENABLE_DEBUG" -o -n "$ENABLE_DBGUTIL" \) -a "$ENABLE_DEBUGINFO_FOR" = "all"; then
@@ -8744,8 +8765,17 @@ if test "$ENABLE_JAVA" != "" -a "$cross_compiling" != "yes"; then
 
             # set to limit VM usage for JunitTests
             JAVAIFLAGS=-Xmx64M
+	    JAVAIFLAGS="$JAVAIFLAGS -Djdk.net.URLClassPath.disableClassPathURLCheck=true"
             # set to limit VM usage for javac
             JAVACFLAGS=-J-Xmx128M
+
+            AC_MSG_CHECKING([whether $JAVAINTERPRETER is using the Zero VM])
+            if $JAVAINTERPRETER -version 2>&1 | grep -q Zero; then
+               JAVA_HAS_ZERO_VM=y
+               AC_MSG_RESULT([yes])
+            else
+               AC_MSG_RESULT([no])
+            fi
         fi
     else
         AC_MSG_ERROR([Java not found. You need at least JDK 8])
@@ -8761,6 +8791,7 @@ else
         JAVAIFLAGS=$JAVAIFLAGS_FOR_BUILD
     fi
 fi
+AC_SUBST(JAVA_HAS_ZERO_VM)
 
 dnl ===================================================================
 dnl Checks for javac
@@ -8792,34 +8823,43 @@ fi
 dnl ===================================================================
 dnl Checks for javadoc
 dnl ===================================================================
-if test "$ENABLE_JAVA" != "" -a "$cross_compiling" != "yes"; then
+if test "$ENABLE_JAVA" != "" -a "$enable_odk" != no -a "$cross_compiling" != "yes"; then
     if test -z "$with_jdk_home"; then
         AC_PATH_PROG(JAVADOC, javadoc)
     else
-        _javadoc_path="$with_jdk_home/bin/javadoc"
-        dnl Check if there is a javadoc at all.
-        if test -x "$_javadoc_path"; then
-            JAVADOC=$_javadoc_path
-        else
-            AC_PATH_PROG(JAVADOC, javadoc)
-        fi
-    fi
-    if test -z "$JAVADOC"; then
-        AC_MSG_ERROR([$_javadoc_path not found set with_jdk_home])
-    fi
-    if test "$build_os" = "cygwin"; then
-        if test x`echo "$JAVADOC" | $GREP -i '\.exe$'` = x; then
-            JAVADOC="${JAVADOC}.exe"
-        fi
-        JAVADOC=`win_short_path_for_make "$JAVADOC"`
-    fi
+	if test "$with_javadoc" = "yes"; then
+            _javadoc_path="$with_jdk_home/bin/javadoc"
+            dnl Check if there is a javadoc at all.
+            if test -x "$_javadoc_path"; then
+                JAVADOC=$_javadoc_path
+            else
+                AC_PATH_PROG(JAVADOC, javadoc)
+            fi
+            if test -z "$JAVADOC"; then
+                AC_MSG_ERROR([$_javadoc_path not found set with_jdk_home])
+            fi
+            if test "$build_os" = "cygwin"; then
+                if test x`echo "$JAVADOC" | $GREP -i '\.exe$'` = x; then
+                    JAVADOC="${JAVADOC}.exe"
+                fi
+                JAVADOC=`win_short_path_for_make "$JAVADOC"`
+            fi
 
-    if test `$JAVADOC --version 2>&1 | $GREP -c "gjdoc"` -gt 0; then
-    JAVADOCISGJDOC="yes"
+            if test `$JAVADOC --version 2>&1 | $GREP -c "gjdoc"` -gt 0; then
+            JAVADOCISGJDOC="yes"
+            fi
+	 else
+		 unset JAVADOC
+	 fi
     fi
+else
+    unset JAVADOC
+fi
+AC_SUBST(JAVADOCISGJDOC)
+if test "$JAVADOCISGJDOC" = "yes"; then
+       unset JAVADOC
 fi
 AC_SUBST(JAVADOC)
-AC_SUBST(JAVADOCISGJDOC)
 
 if test "$ENABLE_JAVA" != "" -a \( "$cross_compiling" != "yes" -o -n "$with_jdk_home" \); then
     # check if JAVA_HOME was (maybe incorrectly?) set automatically to /usr
@@ -9719,8 +9759,12 @@ dnl ===================================================================
 dnl Check for system cppunit
 dnl ===================================================================
 if test "$_os" != "Android" ; then
+  if test "$with_cppunit" != "no"; then
     libo_CHECK_SYSTEM_MODULE([cppunit],[CPPUNIT],[cppunit >= 1.14.0])
+    ENABLE_CPPUNIT=TRUE
+  fi
 fi
+AC_SUBST(ENABLE_CPPUNIT)
 
 dnl ===================================================================
 dnl Check whether freetype is available
@@ -11580,8 +11624,9 @@ if test "$ENABLE_LPSOLVE" = TRUE; then
         # some systems need this. Like Ubuntu...
         AC_CHECK_LIB(m, floor)
         AC_CHECK_LIB(dl, dlopen)
+        AC_CHECK_LIB(colamd, colamd)
         AC_CHECK_LIB([lpsolve55], [make_lp], [:],
-            [ AC_MSG_ERROR(lpsolve library not found or too old.)], [])
+            [ AC_MSG_ERROR(lpsolve library not found or too old.)], [-L/usr/lib/lp_solve])
         LIBS=$save_LIBS
     else
         AC_MSG_RESULT([internal])
@@ -11920,6 +11965,13 @@ AC_SUBST(GTK3_LIBS)
 AC_SUBST(GTK3_CFLAGS)
 AC_SUBST(ENABLE_GTKTILEDVIEWER)
 
+PKG_CHECK_MODULES(GLIB, [glib-2.0])
+GLIB_CFLAGS=$(printf '%s' "$GLIB_CFLAGS" | sed -e "s/-I/${ISYSTEM?}/g")
+FilterLibs "${GLIB_LIBS}"
+GLIB_LIBS="${filteredlibs}"
+AC_SUBST(GLIB_LIBS)
+AC_SUBST(GLIB_CFLAGS)
+
 GTK4_CFLAGS=""
 GTK4_LIBS=""
 if test "$test_gtk4" = yes -a "x$enable_gtk4" = "xyes"; then
@@ -12189,6 +12241,11 @@ AC_SUBST(GSTREAMER_1_0_CFLAGS)
 AC_SUBST(GSTREAMER_1_0_LIBS)
 AC_SUBST(ENABLE_GSTREAMER_1_0)
 
+if test -x /usr/bin/dpkg-buildflags; then
+       HARDEN_CPPFLAGS=`dpkg-buildflags --get CPPFLAGS 2>/dev/null`
+fi
+AC_SUBST(HARDEN_CPPFLAGS)
+
 ENABLE_OPENGL_TRANSITIONS=
 ENABLE_OPENGL_CANVAS=
 if test $_os = iOS -o $_os = Android -o "$ENABLE_FUZZERS" = "TRUE"; then
@@ -12294,15 +12351,7 @@ if test "$ENABLE_PDFIUM" = "TRUE"; then
         AC_MSG_RESULT([external])
         SYSTEM_ABSEIL=TRUE
         AC_LANG_PUSH([C++])
-        AC_CHECK_HEADER(absl/types/bad_optional_access.h, [],
-                        [AC_MSG_ERROR(abseil headers not found.)], [])
-        AC_CHECK_HEADER(absl/types/bad_variant_access.h, [],
-                        [AC_MSG_ERROR(abseil headers not found.)], [])
-        AC_CHECK_LIB([absl_bad_optional_access], [main], [],
-                     [AC_MSG_ERROR([libabsl_bad_optional_access library not found.])])
-        AC_CHECK_LIB([absl_bad_variant_access], [main], [],
-                     [AC_MSG_ERROR([libabsl_bad_variant_access library not found.])])
-        ABSEIL_LIBS="-labsl_bad_optional_access -labsl_bad_variant_access"
+	PKG_CHECK_MODULES(ABSEIL, absl_bad_optional_access absl_bad_variant_access absl_inlined_vector )
         AC_LANG_POP([C++])
         ABSEIL_CFLAGS=$(printf '%s' "$ABSEIL_CFLAGS" | sed -e "s/-I/${ISYSTEM?}/g")
         FilterLibs "${ABSEIL_LIBS}"
@@ -13616,6 +13665,7 @@ if test "x$with_theme" != "xno"; then
     for theme in $with_theme; do
         case $theme in
         breeze|breeze_dark|breeze_dark_svg|breeze_svg|colibre|colibre_svg|colibre_dark|colibre_dark_svg|elementary|elementary_svg|karasa_jaga|karasa_jaga_svg|sifr|sifr_svg|sifr_dark|sifr_dark_svg|sukapura|sukapura_dark|sukapura_dark_svg|sukapura_svg) WITH_THEMES="${WITH_THEMES:+$WITH_THEMES }$theme" ;;
+        yaru*) WITH_THEMES="${WITH_THEMES:+$WITH_THEMES }$theme" ;;
         *) AC_MSG_ERROR([Unknown value for --with-theme: $theme]) ;;
         esac
     done
@@ -15061,6 +15111,9 @@ AC_SUBST(JQ)
 AC_SUBST(SYSTEMD_ESCAPE)
 AC_SUBST(SYSTEMD_RUN)
 AC_SUBST(WITH_COREDUMPCTL)
+
+CDEFAULTOPT=`echo $CFLAGS 2>/dev/null | grep -E -o "\-O[[0-3]]"`
+AC_SUBST(CDEFAULTOPT)
 
 dnl ===================================================================
 dnl Setting up the environment.

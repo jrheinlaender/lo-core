@@ -43,12 +43,13 @@ $(call gb_ExternalProject_get_state_target,harfbuzz,build) :
 			--libdir=$(call gb_UnpackedTarball_get_dir,harfbuzz/src/.libs) \
 			$(gb_CONFIGURE_PLATFORMS) \
 			CXXFLAGS=' \
+				$(CXXFLAGS) \
 				$(if $(filter ANDROID,$(OS)),-DHB_NO_MMAP=1,) \
 				$(call gb_ExternalProject_get_build_flags,harfbuzz) \
 				$(if $(ENABLE_RUNTIME_OPTIMIZATIONS),,-frtti) \
 				$(CXXFLAGS) $(CXXFLAGS_CXX11) \
 				$(if $(filter LINUX,$(OS)),-fvisibility=hidden)' \
-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,harfbuzz)" \
+			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,harfbuzz)" \
 			MAKE=$(MAKE) \
 		&& (cd $(EXTERNAL_WORKDIR)/src && $(MAKE) lib) \
 	)

@@ -19,9 +19,9 @@ $(eval $(call gb_ExternalProject_use_externals,libwps,\
 	revenge \
 ))
 
-libwps_CPPFLAGS+=$(gb_COMPILERDEFS_STDLIB_DEBUG)
+libwps_CPPFLAGS+=$(CPPFLAGS) $(gb_COMPILERDEFS_STDLIB_DEBUG)
 
-libwps_CXXFLAGS=$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwps)
+libwps_CXXFLAGS=$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwps)
 
 libwps_LDFLAGS=$(call gb_ExternalProject_get_link_flags,libwps)
 ifeq ($(OS),LINUX)

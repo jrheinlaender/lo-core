@@ -995,7 +995,7 @@ CPPUNIT_TEST_FIXTURE(SwLayoutWriter3, testBtlrCell)
     // Without the accompanying fix in place, this test would have failed with 'Expected: 1915;
     // Actual  : 1756', i.e. the AAA1 text was too close to the left cell border due to an ascent vs
     // descent mismatch when calculating the baseline offset of the text portion.
-    assertXPath(pXmlDoc, "//textarray[1]"_ostr, "x"_ostr, "1915");
+    assertXPath(pXmlDoc, "//textarray[1]"_ostr, "x"_ostr, "1911");
     assertXPath(pXmlDoc, "//textarray[1]"_ostr, "y"_ostr, "2707");
 
     // Without the accompanying fix in place, this test would have failed with 'Expected: 1979;

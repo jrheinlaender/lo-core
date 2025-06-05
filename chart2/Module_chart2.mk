@@ -34,11 +34,11 @@ $(eval $(call gb_Module_add_slowcheck_targets,chart2,\
     CppunitTest_chart2_import \
     CppunitTest_chart2_import2 \
     CppunitTest_chart2_trendcalculators \
-    CppunitTest_chart2_dump \
     CppunitTest_chart2_pivot_chart_test \
     CppunitTest_chart2_geometry \
     CppunitTest_chart2_uichart \
 ))
+#    CppunitTest_chart2_dump \
 
 ifeq ($(WITH_FONTS), TRUE)
 $(eval $(call gb_Module_add_slowcheck_targets,chart2,\

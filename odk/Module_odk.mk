@@ -42,8 +42,10 @@ endif
 ifneq ($(ENABLE_JAVA),)
 $(eval $(call gb_Module_add_targets,odk,\
 	CustomTarget_classes \
-	CustomTarget_javadoc \
-	GeneratedPackage_odk_javadoc \
+	$(if $(JAVADOC),\
+		CustomTarget_javadoc \
+		GeneratedPackage_odk_javadoc \
+	) \
 	GeneratedPackage_uno_loader_classes \
 ))
 endif
@@ -57,10 +59,14 @@ $(eval $(call gb_Module_add_check_targets,odk,\
 ifneq ($(filter $(OS),LINUX MACOSX),)
 $(eval $(call gb_Module_add_subsequentcheck_targets,odk, \
     CustomTarget_build-examples \
+))
+ifneq ($(JAVA_HAS_ZERO_VM),y)
+$(eval $(call gb_Module_add_subsequentcheck_targets,odk, \
     $(if $(ENABLE_JAVA),\
         CustomTarget_build-examples_java \
     ) \
 ))
+endif
 endif
 
 # vim: set noet sw=4 ts=4:

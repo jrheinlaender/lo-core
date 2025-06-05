@@ -181,7 +181,7 @@ if (-d "$SdkDir") {
     # improvement required
     my $solar_java = $ENV{"ENABLE_JAVA"};
     my $JDK = $ENV{"JDK"};
-    if (defined($solar_java) && $solar_java ne "" && (!defined($JDK) || $JDK ne "gcj")) {
+    if (defined($solar_java) && $solar_java ne "" && $ENV{"JAVADOC"} ne "") {
     print "check java docu: ";
     if (check_dir("docs/java/ref")) {
         if (!check_file("docs/java/ref/index.html")) {

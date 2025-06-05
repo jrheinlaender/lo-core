@@ -452,7 +452,8 @@ postprocess_FILES_calc += \
 postprocess_DRIVERS += calc
 
 ifeq ($(ENABLE_EVOAB2),TRUE)
-postprocess_FILES_main += \
+postprocess_XCDS += evoab.xcd
+postprocess_FILES_evoab += \
     $(call gb_XcuModuleTarget_get_target,connectivity/registry/evoab2)/org/openoffice/Office/DataAccess/Drivers-evoab2.xcu \
     $(postprocess_MOD)/org/openoffice/Office/DataAccess-evoab2.xcu
 postprocess_DRIVERS += evoab
@@ -467,13 +468,17 @@ postprocess_DRIVERS += hsqldb jdbc mysql_jdbc
 endif
 
 ifeq ($(ENABLE_FIREBIRD_SDBC),TRUE)
-postprocess_FILES_main += \
+postprocess_XCDS += firebird_sdbc.xcd
+postprocess_DEPS_firebird_sdbc := main
+postprocess_FILES_firebird_sdbc += \
 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/firebird)/org/openoffice/Office/DataAccess/Drivers-firebird.xcu
 postprocess_DRIVERS += firebird_sdbc
 endif
 
 ifeq ($(ENABLE_MARIADBC),TRUE)
-postprocess_FILES_main += \
+postprocess_XCDS += mysqlc.xcd
+postprocess_DEPS_mysqlc := main
+postprocess_FILES_mysqlc += \
 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/mysqlc)/org/openoffice/Office/DataAccess/Drivers-mysqlc.xcu
 postprocess_DRIVERS += mysqlc
 endif

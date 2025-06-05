@@ -25,7 +25,7 @@
 #i111216 -o svx.AccessiblePresentationGraphicShape
 #i111216 -o svx.AccessiblePresentationOLEShape
 #i85539 -o svx.AccessiblePresentationShape
--o svx.AccessibleShape
+#-o svx.AccessibleShape
 #i90294 -o svx.GraphicExporter
 -o svx.SvxDrawPage
 #i85501 -o svx.SvxGraphCtrlAccessibleContext

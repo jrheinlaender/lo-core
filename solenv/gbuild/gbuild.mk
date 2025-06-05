@@ -272,6 +272,8 @@ gb_GLOBALDEFS += \
 		DISABLE_DYNLOADING \
 	)
 
+gb_GLOBALDEFS += $(HARDEN_CPPFLAGS)
+
 gb_GLOBALDEFS := $(sort $(gb_GLOBALDEFS))
 
 # Common environment variables passed into all gb_*Test classes:

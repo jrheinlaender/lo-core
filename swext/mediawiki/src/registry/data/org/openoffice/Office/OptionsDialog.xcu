@@ -18,9 +18,9 @@
  -->
 <oor:component-data oor:name="OptionsDialog" oor:package="org.openoffice.Office" xmlns:oor="http://openoffice.org/2001/registry">
     <node oor:name="Nodes">
-        <node oor:name="Internet" oor:op="fuse">
+        <node oor:name="Internet" oor:op="replace">
             <node oor:name="Leaves">
-                <node oor:name="com.sun.star.wiki.options" oor:op="fuse">
+                <node oor:name="com.sun.star.wiki.options" oor:op="replace">
                     <prop oor:name="Id">
                         <value>com.sun.wiki-publisher</value>
                     </prop>

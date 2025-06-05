@@ -34,7 +34,7 @@ $(call gb_ExternalProject_get_state_target,libpagemaker,build) :
 			--disable-werror \
 			--disable-weffc \
 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libpagemaker)" \
+			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libpagemaker)" \
 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libpagemaker)" \
 			$(gb_CONFIGURE_PLATFORMS) \

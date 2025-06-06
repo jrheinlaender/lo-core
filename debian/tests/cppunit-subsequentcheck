@@ -1,0 +1,183 @@
+#!/bin/bash
+# autopkgtest check: Run junit base tests against an installed version of LibreOffice
+# (c) 2021 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+SRCDIR=`pwd`
+CHECK_PARALLELISM=1
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+        WORKDIR=`mktemp -q -d -p $AUTOPKGTEST_TMP`
+else
+        WORKDIR=`mktemp -q -d`
+fi
+
+function unapply() {
+        cd $SRCDIR
+        echo
+        echo "====== Unapplying the patches ======"
+        patch -p1 -R < ./debian/tests/patches/cppunit-standalone.diff
+}
+
+trap "unapply" ERR
+
+echo
+echo "====== Patching the tree to only build the unittests against an existing installation ======"
+patch -p1 < ./debian/tests/patches/cppunit-standalone.diff
+
+echo
+echo "====== Enabling core dumps ======"
+# yes, we want core dumps and stack traces
+ulimit -c unlimited || true
+
+echo
+echo "====== Starting subsequentcheck with ${CHECK_PARALLELISM} job ======"
+
+# hack, otherwise it fails
+mkdir -p $SRCDIR/instdir/program/.dir
+mkdir -p $SRCDIR/instdir/program/services/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/simpress/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/dbaccess/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbbrowser/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbbrowser/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbbrowser/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbquery/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbquery/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbrelation/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbrelation/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtable/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtable/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtdata/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtdata/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtdata/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sabpilot/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sbibliography/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sbibliography/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/scanner/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/spropctrlr/ui/.dir
+
+mkdir -p $SRCDIR/instdir/share/dtd/officedocument/1_0/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/StartModule/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/program/opencl/.dir
+
+mkdir -p $SRCDIR/instdir/share/calc/.dir 
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/simpress/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/webcast/.dir
+mkdir -p $SRCDIR/instdir/share/config/wizard/web/buttons/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/classification/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/sfx/ui/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/svt/ui/.dir 
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/svx/ui/.dir 
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/menubar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/menubar/.dir
+
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/xmlsec/ui/.dir
+
+mkdir -p $SRCDIR/instdir/share/registry/.dir
+mkdir -p $SRCDIR/instdir/share/registry/res/.dir
+
+mkdir -p $SRCDIR/instdir/share/emojiconfig/.dir
+
+cd $SRCDIR/instdir/program/resource && \
+	for i in `ls -1 | grep -v common`; do touch $i/LC_MESSAGES/.dir;  done
+
+cd $SRCDIR
+
+# all modules containing subsequent(test|check).
+# Filter out:
+# - odk: already tested by odk-build-examples and odk/util/check.pl
+# - the junit tests - which are ran in an own test - by setting OOO_JUNIT_JAR to nothing (as --without-junit would do)
+# - solenv: no need to test gbuild2json...
+# - smoketest: done in the smoketest test
+export PARALLELISM=$CHECK_PARALLELISM
+for i in `grep subsequent */*.mk | cut -d"/" -f1 | grep -E -v '(odk|smoketest|solenv)'	| sort | uniq | xargs`; do
+	echo
+	echo "====== Running subsequentcheck in module $i ======"; \
+	cd $i && \
+	make -rk subsequentcheck \
+		OOO_JUNIT_JAR= \
+		INSTDIR=/usr/lib/libreoffice \
+		verbose=t; \
+	cd ..;\
+done
+
+unapply
+

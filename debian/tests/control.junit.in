@@ -1,0 +1,4 @@
+Tests: junit-subsequentcheck
+Architecture: %OOO_JUNIT_ARCHS%
+Depends: @builddeps@, libreoffice-core, libreoffice-writer, libreoffice-calc, libreoffice-impress, libreoffice-math, libreoffice-base, libreoffice-subsequentcheckbase, libreoffice-sdbc-hsqldb, libreoffice-sdbc-firebird
+Restrictions: allow-stderr, skippable

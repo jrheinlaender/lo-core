@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# autopkgtest check: Run the connectivity "mysql" test
+#                    and prepare the db needed beforehand
+# (c) 2021 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+SRCDIR=`pwd`
+CHECK_PARALLELISM=1
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+        WORKDIR=`mktemp -q -d -p $AUTOPKGTEST_TMP`
+else
+        WORKDIR=`mktemp -q -d`
+fi
+
+if [ -x /usr/bin/mariadbd-safe ]; then
+	db=mariadb
+	db_safe_command=mariadbd-safe
+	db_rundir=/run/mysqld
+else
+	db=mysql
+	db_safe_command=mysqld_safe
+	db_rundir=/var/run/mysqld
+fi
+db_user=root
+db_pw=`pwgen -1`
+db_name=test
+db_host=localhost
+db_port=3306
+db_conn_string="$db_user/$db_pw@sdbc:mysql:mysqlc:$db_host:$db_port/$db_name"
+
+trap "cleanup" ERR
+
+function cleanup() {
+	stop_db
+}
+
+function stop_db() {
+	service $db stop || true
+	# in case we are trying in a chroot without running autopkgtest for "quick" testing
+	if ischroot && test -f $db_rundir/mysqld.pid; then
+		kill `cat $db_rundir/mysqld.pid`
+	fi
+}
+
+echo
+echo "====== Enabling core dumps ======"
+# yes, we want core dumps and stack traces
+ulimit -c unlimited || true
+
+echo "====== Resetting $db_user password ======"
+$db_safe_command --skip-grant-tables &
+sleep 5 # wait for startup
+if test "$db" = "mariadb"; then
+	echo "FLUSH PRIVILEGES; SET PASSWORD FOR '$db_user'@'localhost' = PASSWORD('$db_pw');" | \
+		$db -v -u $db_user mysql
+else
+	echo "SET PASSWORD FOR '$db_user'@'localhost' = '$db_pw'; FLUSH PRIVILEGES;" | \
+		$db -v -u $db_user mysql
+fi
+
+stop_db
+
+service $db start
+
+set -e
+
+echo
+echo "====== Creating database "test" ======"
+echo "DROP DATABASE IF EXISTS $db_name; CREATE DATABASE $db_name;" | \
+        $db -v -u $db_user mysql
+
+# ensure we use the version from the package
+echo
+echo "====== Symlinking libraries... ======"
+#rene@frodo:~/LibreOffice/git/master$ objdump -p instdir/program/libmysqlclo.so | grep NEED
+#  NEEDED               libmariadb.so.3
+#  NEEDED               libuno_cppu.so.3
+#  NEEDED               libdbtoolslo.so
+#  NEEDED               libuno_sal.so.3
+#  NEEDED               libuno_salhelpergcc3.so.3
+#  NEEDED               libcomphelper.so
+#  NEEDED               libuno_cppuhelpergcc3.so.3
+#  NEEDED               libstdc++.so.6
+#  NEEDED               libm.so.6
+#  NEEDED               libgcc_s.so.1
+#  NEEDED               libpthread.so.0
+#  NEEDED               libc.so.6
+#  VERNEED              0x0000000000004b28
+#  VERNEEDNUM           0x0000000000000007
+cd $SRCDIR/instdir/program
+LIBS="libuno_cppu.so.3 libuno_sal.so.3 libuno_salhelpergcc3.so.3 libuno_cppuhelpergcc3.so.3 libmysqlclo.so"
+# FIXME: libdbtoolslo.so and libcomphelper.so are in libmerged.so with enable-mergelibs, thus do not
+# exist on 64bit...
+# Maybe until then this test shall only be run on 32bit?
+if [ "`dpkg-architecture -qDEB_HOST_ARCH_BITS`" = "32" ]; then
+	LIBS="$LIBS libdbtoolslo.so libcomphelper.so"
+	# done below
+else
+	LIBS="$LIBS libmergedlo.so"
+	ln -svf /usr/lib/libreoffice/program/libmergedlo.so libdbtoolslo.so
+	# DOESN'T WORK, CAUSES LINK ERROR
+	#ln -svf /usr/lib/libreoffice/program/libmergedlo.so libcomphelper.so
+fi
+for i in $LIBS; do \
+	ln -svf /usr/lib/libreoffice/program/$i; \
+done
+
+echo
+echo "====== Starting MySQL Test with ${CHECK_PARALLELISM} job ======"
+cd $SRCDIR/connectivity && \
+make -rj$CHECK_PARALLELISM CppunitTest_connectivity_mysql_test \
+	CONNECTIVITY_TEST_MYSQL_DRIVER="$db_conn_string" \
+	verbose=t || exit 1
+
+echo
+echo "====== Dropping database "test" ======"
+echo "DROP DATABASE test;" | \
+        $db -v -u $db_user mysql
+
+cleanup

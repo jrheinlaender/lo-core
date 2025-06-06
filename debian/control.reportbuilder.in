@@ -1,0 +1,73 @@
+Package: libreoffice-report-builder
+Section: misc
+Architecture: all
+Depends: libreoffice-core | libreoffice-core-nogui,
+         libreoffice-report-builder-bin (>= ${base-version}),
+         libreoffice-common (>= 1:7.0.0~alpha),
+         libreoffice-uiconfig-report-builder (= ${source:Version}),
+         liblibreoffice-java,
+         ${java:Depends},
+         ${java-common-depends},
+         ${misc:Depends},
+         ${report-builder-jar-depends}
+Provides: libreoffice-reportdesigner
+Enhances: libreoffice-base
+Breaks: libreoffice-common (<< 1:6.4.2~rc1~)
+Replaces: libreoffice-common (<< 1:6.4.2~r~~)
+Description: LibreOffice component for building database reports
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the report builder:
+  "Create with the Sun Report Builder stylish, smart-looking database reports.
+  The flexible report editor can define group and page headers as well as
+  group and page footers and even calculation fields are available to
+  accomplish complex database reports."
+
+Package: libreoffice-report-builder-bin
+Section: misc
+Architecture: %OOO_REPORTBUILDER_ARCHS%
+Depends: libreoffice-core,
+         libreoffice-base,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Description: LibreOffice component for building database reports -- libraries
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains some architecture-dependent support libraries
+ (librpt*.so) for the report builder component.
+
+Package: libreoffice-report-builder-bin-nogui
+Section: misc
+Architecture: %OOO_REPORTBUILDER_ARCHS%
+Depends: libreoffice-core-nogui | libreoffice-core,
+         libreoffice-base-nogui | libreoffice-base,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Conflicts: libreoffice-report-builder-bin
+Replaces: libreoffice-report-builder-bin
+Description: LibreOffice component for building database reports -- libraries (no GUI variant)
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains some architecture-dependent support libraries
+ (librpt*.so) for the report builder component.
+
+Package: libreoffice-uiconfig-report-builder
+Section: misc
+Architecture: all
+Replaces: libreoffice-report-builder (<< 4:7.6.0~beta1), libreoffice-common (<< 4:7.6.0~beta1)
+Breaks: libreoffice-report-builder (<< 4:7.6.0~beta1), libreoffice-common (<< 4:7.6.0~beta1)
+Depends: ${misc:Depends}
+Description: UI data ("config") for the LibreOffice Report Builder
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains internal "configuration" of various UI components.
+ It is not meant to be editable. It is just split out for dependencies of
+ other packages.
+ .
+ You will usually not need to install this package manually but it should
+ just be pulled in by other packages.
+

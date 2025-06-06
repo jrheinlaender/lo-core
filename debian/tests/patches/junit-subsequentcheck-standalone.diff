@@ -1,0 +1,139 @@
+From fef2f669c1e861c685d22c18319514cec9f9f8c3 Mon Sep 17 00:00:00 2001
+From: Bjoern Michaelsen <bjoern.michaelsen@canonical.com>
+Date: Wed, 28 Jan 2015 12:11:16 +0100
+Subject: [PATCH] run subsequentcheck standalone against installed version as
+ integration test
+Last-Update: 2017-05-17
+
+Forwarded: partially, where there is generic use for it
+---
+ jurt/Module_jurt.mk                        |  2 +-
+ postprocess/Module_postprocess.mk          |  4 ++--
+ solenv/gbuild/JavaClassSet.mk              |  2 +-
+ solenv/gbuild/JunitTest.mk                 |  2 +-
+ solenv/gbuild/Module.mk                    |  3 +++
+ solenv/gbuild/extensions/post_SkipBuild.mk | 18 ++++++++++++++++++
+ solenv/gbuild/platform/unxgcc.mk           |  1 +
+ 7 files changed, 27 insertions(+), 5 deletions(-)
+ create mode 100644 solenv/gbuild/extensions/post_SkipBuild.mk
+
+diff --git a/ridljar/Module_ridljar.mk b/ridljar/Module_ridljar.mk
+index daa0f1835be7..c4186e900a87 100644
+--- a/ridljar/Module_ridljar.mk
++++ b/ridljar/Module_ridljar.mk
+@@ -16,7 +16,7 @@ $(eval $(call gb_Module_add_targets,ridljar,\
+     Jar_unoloader \
+ ))
+ 
+-$(eval $(call gb_Module_add_check_targets,ridljar,\
++#$(eval $(call gb_Module_add_check_targets,ridljar,\
+     CustomTarget_test_urp \
+     InternalUnoApi_test_urp \
+     JunitTest_bridgefactory \
+diff --git a/postprocess/Module_postprocess.mk b/postprocess/Module_postprocess.mk
+index 0fbede6a9f2b..4c3abc52747c 100644
+--- a/postprocess/Module_postprocess.mk
++++ b/postprocess/Module_postprocess.mk
+@@ -12,19 +12,19 @@ $(eval $(call gb_Module_Module,postprocess))
+ # UGLY: postprocess_XCDS variable from CustomTarget_registry
+ # is reused in Package_registry!
+ 
+-$(eval $(call gb_Module_add_targets,postprocess,\
++#$(eval $(call gb_Module_add_targets,postprocess,\
+     $(if $(ENABLE_CUSTOMTARGET_COMPONENTS),CustomTarget_components) \
+ 	CustomTarget_registry \
+ 	Rdb_services \
+-))
+-ifeq ($(gb_Side),host)
+-$(eval $(call gb_Module_add_targets,postprocess,\
++#))
++#ifeq ($(gb_Side),host)
++#$(eval $(call gb_Module_add_targets,postprocess,\
+ 	CustomTarget_images \
+ 	Package_images \
+-))
+-endif
++#))
++#endif
+ 
+-$(eval $(call gb_Module_add_l10n_targets,postprocess,\
++#$(eval $(call gb_Module_add_l10n_targets,postprocess,\
+ 	Package_registry \
+ ))
+ 
+diff --git a/solenv/gbuild/JavaClassSet.mk b/solenv/gbuild/JavaClassSet.mk
+index cff4299bf06e..76765351abdd 100644
+--- a/solenv/gbuild/JavaClassSet.mk
++++ b/solenv/gbuild/JavaClassSet.mk
+@@ -46,7 +46,7 @@ $(call gb_Helper_abbreviate_dirs,\
+ 			$(filter-out $(JARDEPS) $(T_JAVA9FILES),$(4))) && \
+ 		$(if $(3),$(call gb_JavaClassSet_JAVACCOMMAND,$(JAVA_TARGET_VER)) \
+ 			$(gb_JavaClassSet_JAVACDEBUG) \
+-			-classpath "$(T_CP)$(gb_CLASSPATHSEP)$(call gb_JavaClassSet_get_classdir,$(2))" \
++			-classpath "$(T_CP)$(gb_CLASSPATHSEP)$(call gb_JavaClassSet_get_classdir,$(2))$(gb_CLASSPATHSEP)$(shell echo $(wildcard /usr/lib/libreoffice/program/classes/*.jar) | sed -e s/\ /:/g)" \
+ 			-d $(call gb_JavaClassSet_get_classdir,$(2)) \
+ 			@$$RESPONSEFILE &&) \
+ 		rm -f $$RESPONSEFILE &&) \
+@@ -55,7 +55,7 @@ $(call gb_Helper_abbreviate_dirs,\
+ 				$(T_JAVA9FILES)) && \
+ 			$(if $(3),$(call gb_JavaClassSet_JAVACCOMMAND,9) \
+ 				$(gb_JavaClassSet_JAVACDEBUG) \
+-				-classpath "$(T_CP)$(gb_CLASSPATHSEP)$(call gb_JavaClassSet_get_classdir,$(2))" \
++				-classpath "$(T_CP)$(gb_CLASSPATHSEP)$(call gb_JavaClassSet_get_classdir,$(2))$(gb_CLASSPATHSEP)$(shell echo $(wildcard /usr/lib/libreoffice/program/classes/*.jar) | sed -e s/\ /:/g)" \
+ 				--module-path "$(T_CP)$(gb_CLASSPATHSEP)$(call gb_JavaClassSet_get_classdir,$(2))" \
+ 				$(if $(T_MODULENAME),--patch-module $(T_MODULENAME)="$(subst $(WHITESPACE),$(gb_CLASSPATHSEP),$(strip $(dir $(PACKAGEDIRS))))") \
+ 				-d $(call gb_JavaClassSet_get_classdir,$(2)) \
+--- a/solenv/gbuild/JunitTest.mk
++++ b/solenv/gbuild/JunitTest.mk
+@@ -55,7 +55,7 @@ $(call gb_JunitTest_get_target,%) :
+ endif
+ 
+ define gb_JunitTest_JunitTest
+-$(call gb_JunitTest_get_target,$(1)) : T_CP := $(call gb_JavaClassSet_get_classdir,$(call gb_JunitTest_get_classsetname,$(1)))$$(gb_CLASSPATHSEP)$(OOO_JUNIT_JAR)$(if $(HAMCREST_JAR),$$(gb_CLASSPATHSEP)$(HAMCREST_JAR))$$(gb_CLASSPATHSEP)$(INSTROOT)/$(LIBO_URE_LIB_FOLDER)
++$(call gb_JunitTest_get_target,$(1)) : T_CP := $(call gb_JavaClassSet_get_classdir,$(call gb_JunitTest_get_classsetname,$(1)))$$(gb_CLASSPATHSEP)$(OOO_JUNIT_JAR)$(if $(HAMCREST_JAR),$$(gb_CLASSPATHSEP)$(HAMCREST_JAR))$$(gb_CLASSPATHSEP)$(INSTROOT)/$(LIBO_URE_LIB_FOLDER)$(gb_CLASSPATHSEP)$(shell echo $(wildcard /usr/lib/libreoffice/program/classes/*.jar) | sed -e s/\ /:/g)
+ $(call gb_JunitTest_get_target,$(1)) : CLASSES :=
+ $(eval $(call gb_JunitTest_JunitTest_platform,$(1)))
+ 
+--- a/solenv/gbuild/Module.mk
++++ b/solenv/gbuild/Module.mk
+@@ -336,15 +336,16 @@ endef
+ # has order dependency on AllModulesButInstsetNative to be able to run
+ # subsequentcheck in the same make process on "make check"
+ define gb_Module_add_subsequentcheck_target
++ifeq (,$(filter-out JavaClassSet% JunitTest%,$(2)))
+ $(call gb_Module__read_targetfile,$(1),$(2),subsequentcheck target)
+ 
+ $(call gb_Module_get_subsequentcheck_target,$(1)) : $$(gb_Module_CURRENTTARGET)
+ $$(gb_Module_CURRENTTARGET) :| \
+-	$(call gb_Postprocess_get_target,AllModulesButInstsetNative) \
+-    $(call gb_Package_get_target,instsetoo_native_setup) \
+-    $(call gb_Package_get_target,instsetoo_native_setup_ure)
++	$(call gb_Postprocess_get_target,AllModulesButInstsetNative)
+ $(call gb_Module_get_clean_target,$(1)) : $$(gb_Module_CURRENTCLEANTARGET)
+ 
++endif
++
+ endef
+ 
+ define gb_Module_add_stagingcheck_target
+--- /dev/null
++++ b/solenv/gbuild/extensions/post_SkipBuild.mk
+@@ -0,0 +1,18 @@
++# -*- Mode: makefile-gmake; tab-width: 4; indent-tabs-mode: t -*-
++#
++# This file is part of the LibreOffice project.
++#
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this
++# file, You can obtain one at http://mozilla.org/MPL/2.0/.
++#
++
++# we dont want to bother with these for integration tests
++gb_Module_add_target =
++gb_Module_add_l10n_target =
++gb_Module_add_check_target =
++gb_Module_add_slowcheck_target =
++gb_JavaClassSet_use_jar =
++gb_JunitTest_use_jar =
++
++# vim: set noet sw=4 ts=4:

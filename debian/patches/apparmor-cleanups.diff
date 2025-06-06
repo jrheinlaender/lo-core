@@ -1,0 +1,35 @@
+From b3c157faeb945fd689fcc8561a520d9e611a7419 Mon Sep 17 00:00:00 2001
+From: Vincas Dargis <vindrg@gmail.com>
+Date: Sat, 4 Aug 2018 17:40:05 +0300
+Subject: [PATCH] apparmor: use dri-enumerate abstraction
+
+Remove backported rule and use new dri-enumerate abstraction instead.
+dri-enumerate is available in AppArmor 2.13, which recently migrated
+into Debian Buster.
+
+Change-Id: I64919edc1882f7bc1e65cfb94686464c5350f699
+---
+ sysui/desktop/apparmor/program.soffice.bin | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysui/desktop/apparmor/program.soffice.bin b/sysui/desktop/apparmor/program.soffice.bin
+index 2fc7fd6b5735..33ad6f933ef6 100644
+--- a/sysui/desktop/apparmor/program.soffice.bin
++++ b/sysui/desktop/apparmor/program.soffice.bin
+@@ -82,6 +82,7 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
+   #include <abstractions/dbus>
+   #include <abstractions/dbus-session>
+   #include <abstractions/dbus-accessibility>
++  #include <abstractions/dri-enumerate>
+   #include <abstractions/ibus>
+   #include <abstractions/nameservice>
+   #include <abstractions/gnome>
+@@ -179,7 +179,6 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
+   #Likely moving to abstractions in the future
+   owner @{HOME}/.icons/*/cursors/*      r,
+   /etc/fstab r, # Solid::DeviceNotifier::instance() TODO: deny?
+-  /sys/devices/pci[0-9]*/**/{device,subsystem_device,subsystem_vendor,uevent,vendor} r, # for libdrm
+   /usr/share/*-fonts/conf.avail/*.conf  r,
+   /usr/share/fonts-config/conf.avail/*.conf r,
+   /{,var/}run/udev/data/+usb:* r, # Solid::Device::listFromQuery()
+

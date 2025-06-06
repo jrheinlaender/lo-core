@@ -1,0 +1,16 @@
+Package: libreoffice-kf6
+Architecture: %OOO_ARCHS%
+Depends: libreoffice-core (= ${binary:Version}),
+         ${kf6-qt6-depends},
+         ${misc:Depends},
+         ${shlibs:Depends}
+Recommends: ${plasma-iconset-dep}
+Section: kde
+Enhances: libreoffice
+Description: office productivity suite -- KDE Frameworks 6 integration
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the KF6 plugin for LibreOffice and a KF6-based File
+ Picker when running under Plasma.
+

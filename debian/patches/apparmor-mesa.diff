@@ -1,0 +1,10 @@
+--- a/sysui/desktop/apparmor/program.soffice.bin-old	2018-11-09 23:04:59.858704214 +0100
++++ b/sysui/desktop/apparmor/program.soffice.bin	2018-11-09 23:05:28.050949237 +0100
+@@ -87,6 +87,7 @@
+   #include <abstractions/dbus-session>
+   #include <abstractions/dbus-accessibility>
+   #include <abstractions/dri-enumerate>
++  #include <abstractions/mesa>
+   #include <abstractions/ibus>
+   #include <abstractions/nameservice>
+   #include <abstractions/gnome>

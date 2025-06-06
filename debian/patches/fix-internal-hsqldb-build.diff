@@ -1,0 +1,45 @@
+diff -urN hsqldb.old/patches/use-system-servlet-api.jar.diff hsqldb/patches/use-system-servlet-api.jar.diff
+--- a/external/hsqldb/patches/use-system-servlet-api.jar.diff	1970-01-01 01:00:00.000000000 +0100
++++ b/external/hsqldb/patches/use-system-servlet-api.jar.diff	2013-03-19 15:09:42.137801521 +0100
+@@ -0,0 +1,29 @@
++--- misc/hsqldb/build/build.xml
+++++ misc/build/hsqldb/build/build.xml
++@@ -356,7 +356,7 @@
++                  optimize="${build.optimize}"
++        >
++          <classpath>
++-            <pathelement location="lib/servlet.jar"/>
+++            <pathelement location="/usr/share/java/servlet-api-3.1.jar"/>
++          </classpath>
++          <include name="*.java"/>
++          <include name="org/hsqldb/*.java"/>
++@@ -818,7 +818,7 @@
++ 		   				${src}/org/hsqldb/util/RCData.java,
++ 		   				${src}/org/hsqldb/util/SqlTool.java"
++            destdir="${basedir}/doc/src"
++-           classpath="${basedir}/lib/servlet.jar;${basedir}/lib/junit.jar"
+++           classpath="/usr/share/java/servlet-api-3.1.jar;${basedir}/lib/junit.jar"
++            author="true"
++            version="false"
++            use="true"
++@@ -839,7 +839,7 @@
++       <javadoc packagenames="org.hsqldb.*,org.hsqldb.jdbc.*,org.hsqldb.lib.*,org.hsqldb.util.*"
++            sourcepath="${src}"
++            destdir="${basedir}/doc/src"
++-           classpath="${basedir}/lib/servlet.jar;${basedir}/lib/junit.jar"
+++           classpath="/usr/share/java/servlet-api-3.1.jar;${basedir}/lib/junit.jar"
++            author="true"
++            version="false"
++            use="true"
+diff --git a/external/hsqldb/UnpackedTarball_hsqldb.mk b/external/hsqldb/UnpackedTarball_hsqldb.mk
+index 389572377fa6..d43d1418049d 100644
+--- a/external/hsqldb/UnpackedTarball_hsqldb.mk
++++ b/external/hsqldb/UnpackedTarball_hsqldb.mk
+@@ -27,6 +27,7 @@ $(eval $(call gb_UnpackedTarball_add_patches,hsqldb,\
+ 	external/hsqldb/patches/jdbc-4.1.patch \
+ 	external/hsqldb/patches/multipleResultSets.patch \
+ 	external/hsqldb/patches/disable-dump-script.patch \
++	external/hsqldb/patches/use-system-servlet-api.jar.diff \
+ ))
+ 
+ # vim: set noet sw=4 ts=4:

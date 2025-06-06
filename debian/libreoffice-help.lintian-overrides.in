@@ -1,0 +1,15 @@
+# these are in -help-common. See lintian bug http://bugs.debian.org/897244
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/media/*
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/help.html
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/idxcaption.xsl
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/fuse.js
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/help.js
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/hid2file.js
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/paginathing.js
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/idxcontent.xsl
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/index.html
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/normalize.css
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/main_transform.xsl
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/help2.js
+doc-base-file-references-missing-file libreoffice-help-@LCODE@:8 /usr/share/libreoffice/help/default.css
+

@@ -1,0 +1,17 @@
+diff --git a/smoketest/CppunitTest_smoketest.mk b/smoketest/CppunitTest_smoketest.mk
+index f7d64cae562f..9d47776ffb4b 100644
+--- a/smoketest/CppunitTest_smoketest.mk
++++ b/smoketest/CppunitTest_smoketest.mk
+@@ -34,10 +34,10 @@ userinstallation=$(WORKDIR)/CustomTarget/smoketest
+ endif
+ 
+ $(eval $(call gb_CppunitTest_add_arguments,smoketest,\
+-	-env:arg-soffice=$(gb_JunitTest_SOFFICEARG) \
++	-env:arg-soffice=$(OOO_TEST_SOFFICE) \
+ 	-env:arg-user=$(userinstallation) \
+ 	-env:arg-env=$(gb_Helper_LIBRARY_PATH_VAR)"$$$${$(gb_Helper_LIBRARY_PATH_VAR)+=$$$$$(gb_Helper_LIBRARY_PATH_VAR)}" \
+-	-env:arg-testarg.smoketest.doc=$(WORKDIR)/Zip/smoketestdoc.sxw \
++	-env:arg-testarg.smoketest.doc=/usr/share/libreoffice/smoketestdoc.sxw \
+ ))
+ 
+ $(call gb_CppunitTest_get_target,smoketest): \

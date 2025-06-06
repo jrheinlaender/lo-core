@@ -1,0 +1,2 @@
+libuno-sal3t64: symbols-declares-dependency-on-other-package libstdc++6 (>= 4.1.1) (libuno_sal.so.3) [symbols]
+libuno-sal3t64: package-name-doesnt-match-sonames libuno-sal3

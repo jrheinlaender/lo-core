@@ -1,0 +1,3 @@
+PLATFORMID=linux_s390x
+RTL_ARCH=S390x
+RTL_OS=Linux

@@ -1,0 +1,6 @@
+/usr/lib/libreoffice/share/.registry/main.xcd /etc/libreoffice/registry/main.xcd
+/usr/lib/libreoffice/share/.registry/pdfimport.xcd /etc/libreoffice/registry/pdfimport.xcd
+/usr/lib/libreoffice/share/.registry/xsltfilter.xcd /etc/libreoffice/registry/xsltfilter.xcd
+/usr/lib/libreoffice/share/.registry/lingucomponent.xcd /etc/libreoffice/registry/lingucomponent.xcd
+/usr/lib/libreoffice/share/.registry/Langpack-en-US.xcd /etc/libreoffice/registry/Langpack-en-US.xcd
+/usr/lib/libreoffice/share/.registry/res/fcfg_langpack_en-US.xcd /etc/libreoffice/registry/res/fcfg_langpack_en-US.xcd

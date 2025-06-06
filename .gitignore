@@ -196,3 +196,8 @@ gdbtrace.log
 # Android builds
 /android/jniLibs/
 /android/obj/
+
+# Debian packaging
+.pc
+/debian/._git
+/debian/.git

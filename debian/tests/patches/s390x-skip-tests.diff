@@ -1,0 +1,72 @@
+# s390xs tests broken (std::bad_alloc and OOM)
+# https://bugs.documentfoundation.org/show_bug.cgi?id=152182
+
+diff --git a/sc/qa/uitest/calc_tests8/tdf152717.py b/sc/qa/uitest/calc_tests8/tdf152717.py
+index 7083c651ae79..dcd6386945d4 100644
+--- a/sc/qa/uitest/calc_tests8/tdf152717.py
++++ b/sc/qa/uitest/calc_tests8/tdf152717.py
+@@ -6,6 +6,7 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ #
++import platform
+ from uitest.framework import UITestCase
+ from uitest.uihelper.common import get_url_for_data_file
+ from uitest.uihelper.calc import enter_text_to_cell
+@@ -15,6 +16,10 @@ class tdf152717(UITestCase):
+ 
+     def test_tdf152717(self):
+ 
++        # https://bugs.documentfoundation.org/show_bug.cgi?id=152182
++        if platform.machine().lower().startswith('s390'):
++            return
++
+         with self.ui_test.create_doc_in_start_center("calc") as calc_document:
+             calcDoc = self.xUITest.getTopFocusWindow()
+ 
+diff --git a/sw/qa/uitest/writer_tests5/tdf138531.py b/sw/qa/uitest/writer_tests5/tdf138531.py
+index d2a86864288c..b9cde05c0c1e 100644
+--- a/sw/qa/uitest/writer_tests5/tdf138531.py
++++ b/sw/qa/uitest/writer_tests5/tdf138531.py
+@@ -7,6 +7,7 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ #
+ 
++import platform
+ from uitest.framework import UITestCase
+ from uitest.uihelper.common import get_state_as_dict
+ from libreoffice.uno.propertyvalue import mkPropertyValues
+@@ -16,6 +17,10 @@ class Tdf138531(UITestCase):
+ 
+     def test_tdf138531(self):
+ 
++        # https://bugs.documentfoundation.org/show_bug.cgi?id=152182
++        if platform.machine().lower().startswith('s390'):
++            return
++
+         with self.ui_test.create_doc_in_start_center("calc"):
+             xCalcDoc = self.xUITest.getTopFocusWindow()
+             gridwin = xCalcDoc.getChild("grid_window")
+diff --git a/sw/qa/uitest/writer_tests5/tdf147935.py b/sw/qa/uitest/writer_tests5/tdf147935.py
+index eef8d143ab9f..7629dbbc30ce 100644
+--- a/sw/qa/uitest/writer_tests5/tdf147935.py
++++ b/sw/qa/uitest/writer_tests5/tdf147935.py
+@@ -7,6 +7,7 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ #
+ 
++import platform
+ from uitest.framework import UITestCase
+ from libreoffice.uno.propertyvalue import mkPropertyValues
+ from uitest.uihelper.calc import enter_text_to_cell
+@@ -15,6 +16,10 @@ class Tdf147935(UITestCase):
+ 
+     def test_tdf147935(self):
+ 
++        # https://bugs.documentfoundation.org/show_bug.cgi?id=152182
++        if platform.machine().lower().startswith('s390'):
++            return
++
+         with self.ui_test.create_doc_in_start_center("calc"):
+             xCalcDoc = self.xUITest.getTopFocusWindow()
+             gridwin = xCalcDoc.getChild("grid_window")

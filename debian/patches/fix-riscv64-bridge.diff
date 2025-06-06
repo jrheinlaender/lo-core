@@ -1,0 +1,820 @@
+From 7363478c5be8a16c23228fdd85ed4ef5582b09db Mon Sep 17 00:00:00 2001
+From: Sakura286 <sakura286@outlook.com>
+Date: Tue, 19 Dec 2023 08:21:33 +0000
+Subject: [PATCH] (riscv64) Fix Java bridgetest failure
+
+* Refactor the code related to struct processing. Fix Java bridge-
+  test failure. Fixed test list:
+  * bridgetest-javaserver
+  * [CUT] smoketest
+  * [JUT] forms_unoapi_1
+  * [JUT] forms_unoapi_2
+  * [JUT] forms_unoapi_3
+  * [JUT] forms_unoapi_4
+* Clean higher bit to prevent compiler generate wrong code when
+  pyuno calls functions through UNO environment. This fixes some
+  weired uitest failure.
+* Reorder the datatype list. Optimize the inserting args section in
+  uno2cpp.cxx.
+* Remove some unused code.
+
+Change-Id: I74330126d31d847485b1d81fc34376b1d020f886
+---
+ .../source/cpp_uno/gcc3_linux_riscv64/abi.cxx | 263 ++++++++++++++++--
+ .../source/cpp_uno/gcc3_linux_riscv64/abi.hxx |  19 +-
+ .../cpp_uno/gcc3_linux_riscv64/cpp2uno.cxx    | 107 ++++---
+ .../cpp_uno/gcc3_linux_riscv64/uno2cpp.cxx    | 181 +++++-------
+ 4 files changed, 370 insertions(+), 200 deletions(-)
+
+diff --git a/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.cxx b/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.cxx
+index b090953efde9..29b1975a316e 100644
+--- a/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.cxx
++++ b/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.cxx
+@@ -19,7 +19,22 @@
+ 
+ namespace abi_riscv64
+ {
+-void countnGreg(sal_Int32& nGreg, sal_Int32& nFreg,
++/*
++   F: floating point reg
++   G: general purpose reg
++*/
++enum class ReturnKind
++{
++    FF_Align4,
++    FF_Align8,
++    FG_Align4,
++    FG_Align8,
++    GF_Align4,
++    GF_Align8,
++    DEFAULT
++};
++
++void countnGreg(sal_Int32& nGreg, sal_Int32& nFreg, bool& firstIsGreg, sal_Int32& align,
+                 const typelib_CompoundTypeDescription* pTypeDescr)
+ {
+     for (int i = 0; i < pTypeDescr->nMembers; i++)
+@@ -33,63 +48,257 @@ void countnGreg(sal_Int32& nGreg, sal_Int32& nFreg,
+                 typelib_TypeDescription* childTypeDescr = nullptr;
+                 TYPELIB_DANGER_GET(&childTypeDescr, pTypeInStruct);
+                 countnGreg(
+-                    nGreg, nFreg,
++                    nGreg, nFreg, firstIsGreg, align,
+                     reinterpret_cast<typelib_CompoundTypeDescription const*>(childTypeDescr));
+                 TYPELIB_DANGER_RELEASE(childTypeDescr);
+             }
+             break;
+-            case typelib_TypeClass_FLOAT:
+             case typelib_TypeClass_DOUBLE:
++                // Align to the larger type
++                align = 8;
++                [[fallthrough]];
++            case typelib_TypeClass_FLOAT:
+                 nFreg++;
+                 break;
++            case typelib_TypeClass_HYPER:
++            case typelib_TypeClass_UNSIGNED_HYPER:
++                align = 8;
++                [[fallthrough]];
+             default:
++                if (nFreg > 0)
++                {
++                    firstIsGreg = false;
++                }
+                 nGreg++;
+                 break;
+         }
+     }
+ }
+ 
+-void fillStruct(const typelib_TypeDescription* pTypeDescr, sal_Int64* gret, double* fret,
+-                void* pRegisterReturn)
++ReturnKind getReturnKind(const typelib_TypeDescription* pTypeDescr)
+ {
+-#ifdef BRIDGE_DEBUG
+-    printf("In fillStruct, pTypeDescr = %p, gret = %p, fret = %p, pRegisterReturn = %p\n",
+-           pTypeDescr, gret, fret, pRegisterReturn);
+-#endif
+     sal_Int32 nGreg = 0;
+     sal_Int32 nFreg = 0;
+-    countnGreg(nGreg, nFreg, reinterpret_cast<typelib_CompoundTypeDescription const*>(pTypeDescr));
+-    char* pAdjust = reinterpret_cast<char*>(pRegisterReturn);
+-    if (nGreg == 0 && nFreg <= 2)
++    sal_Int32 align = 4;
++    bool firstIsGreg = true;
++    countnGreg(nGreg, nFreg, firstIsGreg, align,
++               reinterpret_cast<typelib_CompoundTypeDescription const*>(pTypeDescr));
++    if (nGreg == 0 && nFreg == 2)
+     {
+-        if (pTypeDescr->nSize <= 8 && nFreg == 2)
+-        {
+-            std::memcpy(pAdjust, fret, 4);
+-            std::memcpy(pAdjust + 4, fret + 1, 4);
+-        }
++        if (align == 4)
++            return ReturnKind::FF_Align4;
+         else
+-        {
+-            std::memcpy(pAdjust, fret, 16);
+-        }
++            return ReturnKind::FF_Align8;
+     }
+-    else if (nFreg == 1 && nGreg == 1)
++    else if (nGreg == 1 && nFreg == 1)
+     {
+-        if (pTypeDescr->nSize > 8)
++        if (firstIsGreg)
+         {
+-            std::memcpy(pAdjust, gret, 8);
+-            std::memcpy(pAdjust + 8, fret, 8);
++            if (align == 4)
++                return ReturnKind::GF_Align4;
++            else
++                return ReturnKind::GF_Align8;
+         }
+         else
+         {
+-            std::memcpy(pAdjust, gret, 4);
+-            std::memcpy(pAdjust + 4, fret, 4);
++            if (align == 4)
++                return ReturnKind::FG_Align4;
++            else
++                return ReturnKind::FG_Align8;
+         }
+     }
+     else
+     {
+-        std::memcpy(pAdjust, gret, 16);
++        return ReturnKind::DEFAULT;
++    }
++}
++
++/*
++    Transform the returned cpp data to uno.
++    This happens at the end of uno2cpp, when callee cpp func finished.
++
++                  |    returned data saved in
++    default cases |     gret[0] and gret[1]
++    2 float       |     fret[0] and fret[1]
++    1 float 1 int |     gret[0] and fret[0]
++
++    There is a complex problem -- alignment. For example, 4 byte float and 8 byte
++    integer take 16 bytes rather than 12 bytes.
++
++    There is also another complex problem. e.g. Two 4 byte integer is compacted
++    in a0, but two 4 byte float is seperately set in fa0 and fa1. However, return
++    size is 8 bytes. We need to cut the lower 32bit of fa0 and fa1 seperately and
++    combine them in 8 bytes.
++*/
++void fillUNOStruct(const typelib_TypeDescription* pTypeDescr, sal_Int64* gret, double* fret,
++                   void* pRegisterReturn)
++{
++#ifdef BRIDGE_DEBUG
++    printf("In fillStruct, pTypeDescr = %p, gret = %p, fret = %p, pRegisterReturn = %p\n",
++           pTypeDescr, gret, fret, pRegisterReturn);
++#endif
++    ReturnKind returnKind = getReturnKind(pTypeDescr);
++    switch (returnKind)
++    {
++        case ReturnKind::FF_Align4:
++            memcpy(reinterpret_cast<char*>(pRegisterReturn), &(fret[0]), 4);
++            memcpy(reinterpret_cast<char*>(pRegisterReturn) + 4, &(fret[1]), 4);
++            break;
++        case ReturnKind::FF_Align8:
++            reinterpret_cast<double*>(pRegisterReturn)[0] = fret[0];
++            reinterpret_cast<double*>(pRegisterReturn)[1] = fret[1];
++            break;
++        case ReturnKind::FG_Align4:
++            memcpy(reinterpret_cast<char*>(pRegisterReturn), &(fret[0]), 4);
++            memcpy(reinterpret_cast<char*>(pRegisterReturn) + 4, &(gret[0]), 4);
++            break;
++        case ReturnKind::FG_Align8:
++            reinterpret_cast<double*>(pRegisterReturn)[0] = fret[0];
++            reinterpret_cast<sal_Int64*>(pRegisterReturn)[1] = gret[0];
++            break;
++        case ReturnKind::GF_Align4:
++            memcpy(reinterpret_cast<char*>(pRegisterReturn), &(gret[0]), 4);
++            memcpy(reinterpret_cast<char*>(pRegisterReturn) + 4, &(fret[0]), 4);
++            break;
++        case ReturnKind::GF_Align8:
++            reinterpret_cast<sal_Int64*>(pRegisterReturn)[0] = gret[0];
++            reinterpret_cast<double*>(pRegisterReturn)[1] = fret[0];
++            break;
++        default:
++            reinterpret_cast<sal_Int64*>(pRegisterReturn)[0] = gret[0];
++            reinterpret_cast<sal_Int64*>(pRegisterReturn)[1] = gret[1];
++            break;
+     }
+ }
++
++/*
++    Split zipped unoreturn to cpp func. This happens at the end of cpp2uno.
++
++    The data in pTarget will be extrat to return regs in privateSnippetExecutor:
++                  |  pTarget[0]  |  pTarget[1]  | return type |
++    default cases |     $a0      |     $a1      |      0      |
++    2 float       |     $fa0     |     $fa1     |      0      |
++    1 float 1 int |     $a0      |     $fa0     |      1      |
++
++    This looks like a reverse version of fillUNOStruct. The reason for such
++    "meaningless" effort is that java return a compact struct, but cpp not.
++*/
++void splitUNOStruct(const typelib_TypeDescription* pTypeDescr, sal_uInt64* pTarget,
++                    sal_uInt64* pSource, sal_Int32& returnType)
++{
++#ifdef BRIDGE_DEBUG
++    printf("In splitUNOStruct, pTypeDescr = %p, pTarget = %p, pSource = %p\n", pTypeDescr, pTarget,
++           pSource);
++#endif
++    sal_uInt64* pTemp = (sal_uInt64*)calloc(2, sizeof(sal_uInt64));
++    ReturnKind returnKind = getReturnKind(pTypeDescr);
++    switch (returnKind)
++    {
++        case ReturnKind::FF_Align4:
++            memcpy(reinterpret_cast<char*>(pTemp), reinterpret_cast<char*>(pSource), 4);
++            memset(reinterpret_cast<char*>(pTemp) + 4, 0xFF, 4);
++            memcpy(reinterpret_cast<char*>(pTemp) + 8, reinterpret_cast<char*>(pSource) + 4, 4);
++            memset(reinterpret_cast<char*>(pTemp) + 12, 0xFF, 4);
++            returnType = 0;
++            break;
++        case ReturnKind::FF_Align8:
++            pTemp[0] = pSource[0];
++            pTemp[1] = pSource[1];
++            returnType = 0;
++            break;
++        case ReturnKind::FG_Align4:
++            memcpy(reinterpret_cast<char*>(pTemp), reinterpret_cast<char*>(pSource) + 4, 4);
++            memcpy(reinterpret_cast<char*>(pTemp) + 8, reinterpret_cast<char*>(pSource), 4);
++            memset(reinterpret_cast<char*>(pTemp) + 12, 0xFF, 4);
++            returnType = 1;
++            break;
++        case ReturnKind::FG_Align8:
++            pTemp[0] = pSource[1];
++            pTemp[1] = pSource[0];
++            returnType = 1;
++            break;
++        case ReturnKind::GF_Align4:
++            memcpy(reinterpret_cast<char*>(pTemp), reinterpret_cast<char*>(pSource), 4);
++            memcpy(reinterpret_cast<char*>(pTemp) + 8, reinterpret_cast<char*>(pSource) + 4, 4);
++            memset(reinterpret_cast<char*>(pTemp) + 12, 0xFF, 4);
++            returnType = 1;
++            break;
++        case ReturnKind::GF_Align8:
++            pTemp[0] = pSource[0];
++            pTemp[1] = pSource[1];
++            returnType = 1;
++            break;
++        default:
++            pTemp[0] = pSource[0];
++            pTemp[1] = pSource[1];
++            returnType = 0;
++            break;
++    }
++    pTarget[0] = pTemp[0];
++    pTarget[1] = pTemp[1];
++    free(pTemp);
++}
++
++/*
++    Extend higher bits for integer types.
++
++    According to
++    https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc#integer-calling-convention
++
++    > When passed in registers or on the stack, integer scalars narrower than XLEN bits
++    > are widened according to the sign of their type up to 32 bits, then sign-extended
++    > to XLEN bits.
++*/
++void extIntBits(sal_uInt64* outData, const sal_uInt64* inData, bool isSigned, sal_uInt32 dataBytes)
++{
++    if (dataBytes > 8)
++    {
++        //SAL_WARN("bridges", "illegal dataBytes in dataBytes, please check the bridge.");
++        return;
++    }
++
++    sal_uInt64 data = *inData;
++    char* dataPointer = reinterpret_cast<char*>(&data);
++
++    // Clear bits which are not data
++    sal_uInt64* dataMask = (sal_uInt64*)calloc(1, 8);
++    memset(dataMask, 0xFF, dataBytes);
++    data = data & *dataMask;
++    free(dataMask);
++
++    // extend to 32 bit
++    if (dataBytes < 4)
++    {
++        if (isSigned)
++        {
++            // Detect the highest bit of the data.
++            // For example, if a one-byte integer data passed in, we need to detect the 8th bit(8 x 1)
++            // So left shift 1 three-times(8-1) we can get mask 1000 0000
++            sal_uInt64 detectMask = 1 << (dataBytes * 8 - 1);
++
++            if (detectMask & data)
++                // Is negative
++                memset(dataPointer + dataBytes, 0xFF, 4 - dataBytes);
++            else
++                // Is positive
++                memset(dataPointer + dataBytes, 0x0, 4 - dataBytes);
++        }
++        else
++            memset(dataPointer + dataBytes, 0x0, 4 - dataBytes);
++
++        // The highest data bit turns into 8 * 4 = 32 bit
++        dataBytes = 4;
++    }
++
++    // Sign extend to 64 bit
++    sal_uInt64 detectMask = 1 << (dataBytes * 8 - 1);
++    if (detectMask & data)
++        memset(dataPointer + dataBytes, 0xFF, 8 - dataBytes);
++    else
++        memset(dataPointer + dataBytes, 0x00, 8 - dataBytes);
++
++    *outData = data;
++}
+ }
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab cinoptions=b1,g0,N-s cinkeys+=0=break: */
+diff --git a/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.hxx b/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.hxx
+index 081e578150e1..ea5236220a07 100644
+--- a/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.hxx
++++ b/bridges/source/cpp_uno/gcc3_linux_riscv64/abi.hxx
+@@ -11,13 +11,24 @@
+ #include <uno/data.h>
+ #include <typelib/typedescription.hxx>
+ 
++//#define BRI_DEBUG
++
++#ifdef BRI_DEBUG
++#include <cstdio>
++#define BRIDGE_LOG(...) fprintf(stdout, __VA_ARGS__)
++#else
++#define BRIDGE_LOG(format, args...)
++#endif
++
+ namespace abi_riscv64
+ {
+-void countnGreg(sal_Int32& nGreg, sal_Int32& nFreg,
+-                const typelib_CompoundTypeDescription* pTypeDescr);
++void fillUNOStruct(const typelib_TypeDescription* pTypeDescr, sal_Int64* gret, double* fret,
++                   void* pRegisterReturn);
++
++void splitUNOStruct(const typelib_TypeDescription* pTypeDescr, sal_uInt64* pTarget,
++                    sal_uInt64* pSource, sal_Int32& returnType);
+ 
+-void fillStruct(const typelib_TypeDescription* pTypeDescr, sal_Int64* gret, double* fret,
+-                void* pRegisterReturn);
++void extIntBits(sal_uInt64* outData, const sal_uInt64* inData, bool isSigned, sal_uInt32 dataBytes);
+ }
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab cinoptions=b1,g0,N-s cinkeys+=0=break: */
+diff --git a/bridges/source/cpp_uno/gcc3_linux_riscv64/cpp2uno.cxx b/bridges/source/cpp_uno/gcc3_linux_riscv64/cpp2uno.cxx
+index 99965c570081..6754f23fde16 100644
+--- a/bridges/source/cpp_uno/gcc3_linux_riscv64/cpp2uno.cxx
++++ b/bridges/source/cpp_uno/gcc3_linux_riscv64/cpp2uno.cxx
+@@ -34,8 +34,6 @@
+ #include <cstring>
+ #include <typeinfo>
+ 
+-using namespace com::sun::star::uno;
+-
+ //#define BRIDGE_DEBUG
+ 
+ #ifdef BRIDGE_DEBUG
+@@ -46,6 +44,8 @@ using namespace ::osl;
+ using namespace ::rtl;
+ #endif
+ 
++using namespace com::sun::star::uno;
++
+ namespace CPPU_CURRENT_NAMESPACE
+ {
+ bool is_complex_struct(const typelib_TypeDescription* type)
+@@ -110,12 +110,10 @@ cpp2uno_call(bridges::cpp_uno::shared::CppInterfaceProxy* pThis,
+            pRegisterReturn);
+     printf("In cpp2uno_call, gpreg = %p, fpreg = %p, ovrflw = %p\n", gpreg, fpreg, ovrflw);
+ #endif
++
+     unsigned int nr_gpr = 0;
+     unsigned int nr_fpr = 0;
+ 
+-    char* gpreg_t = reinterpret_cast<char*>(gpreg);
+-    char* fpreg_t = reinterpret_cast<char*>(fpreg);
+-
+ #ifdef BRIDGE_DEBUG
+     fprintf(stdout, "cpp2uno_call:begin\n");
+ #endif
+@@ -151,6 +149,7 @@ cpp2uno_call(bridges::cpp_uno::shared::CppInterfaceProxy* pThis,
+     }
+ 
+     // pop this
++    // TODO: Is it really essential to pop?
+     gpreg++;
+     nr_gpr++;
+ 
+@@ -344,28 +343,19 @@ cpp2uno_call(bridges::cpp_uno::shared::CppInterfaceProxy* pThis,
+ 
+             TYPELIB_DANGER_RELEASE(pParamTypeDescr);
+         }
+-        void* retout = nullptr; // avoid false -Werror=maybe-uninitialized
++        //void* retout = nullptr; // avoid false -Werror=maybe-uninitialized
+         // return
+         sal_Int32 returnType = 0;
+         if (pReturnTypeDescr)
+         {
+-            char* pReturn = reinterpret_cast<char*>(pRegisterReturn);
+             if (!bridges::cpp_uno::shared::relatesToInterfaceType(pReturnTypeDescr))
+             {
++                const bool isSigned = true;
+                 switch (pReturnTypeDescr == nullptr ? typelib_TypeClass_VOID
+                                                     : pReturnTypeDescr->eTypeClass)
+                 {
+-                    case typelib_TypeClass_HYPER:
+-                    case typelib_TypeClass_UNSIGNED_HYPER:
+-                    case typelib_TypeClass_ENUM:
+-                    case typelib_TypeClass_CHAR:
+-                    case typelib_TypeClass_SHORT:
+-                    case typelib_TypeClass_UNSIGNED_SHORT:
+-                    case typelib_TypeClass_BOOLEAN:
+-                    case typelib_TypeClass_BYTE:
+-                        std::memcpy(pReturn, pUnoReturn, 8);
+-                        break;
+-                    // Sometimes we need to return a 32 bit integer into a 64 bit integer.
++                    // Sometimes we need to return a smaller type into a larger type.
++                    //
+                     // For example, in pyuno.cxx:PyUNO_bool(), an int(32bit) is returned
+                     // in type Py_ssize_t(64bit)
+                     // We assume that this 32bit int was put in low 32 bit of register a0.
+@@ -375,52 +365,57 @@ cpp2uno_call(bridges::cpp_uno::shared::CppInterfaceProxy* pThis,
+                     // This bug occurs when build pyuno with gcc-12 with -O2.
+                     // https://bugs.documentfoundation.org/show_bug.cgi?id=155937
+                     //
+-                    // So we need to clean the high 32 bit in bridge.
++                    // So we need to clean the higher bits in bridge.
++                    case typelib_TypeClass_BOOLEAN:
++                        abi_riscv64::extIntBits(pRegisterReturn,
++                                                reinterpret_cast<sal_uInt64*>(pUnoReturn),
++                                                !isSigned, 1);
++                        break;
++                    case typelib_TypeClass_BYTE:
++                        abi_riscv64::extIntBits(pRegisterReturn,
++                                                reinterpret_cast<sal_uInt64*>(pUnoReturn), isSigned,
++                                                1);
++                        break;
++                    case typelib_TypeClass_CHAR:
++                    case typelib_TypeClass_UNSIGNED_SHORT:
++                        abi_riscv64::extIntBits(pRegisterReturn,
++                                                reinterpret_cast<sal_uInt64*>(pUnoReturn),
++                                                !isSigned, 2);
++                        break;
++                    case typelib_TypeClass_SHORT:
++                        abi_riscv64::extIntBits(pRegisterReturn,
++                                                reinterpret_cast<sal_uInt64*>(pUnoReturn), isSigned,
++                                                2);
++                        break;
+                     case typelib_TypeClass_UNSIGNED_LONG:
+-                        std::memset(pReturn + 4, 0x0, 4);
+-                        std::memcpy(pReturn, pUnoReturn, 4);
++                        abi_riscv64::extIntBits(pRegisterReturn,
++                                                reinterpret_cast<sal_uInt64*>(pUnoReturn),
++                                                !isSigned, 4);
+                         break;
+                     case typelib_TypeClass_LONG:
+-                        if (*reinterpret_cast<sal_uInt32*>(pUnoReturn) & 0x80000000)
+-                            std::memset(pReturn + 4, 0xFF, 4);
+-                        else
+-                            std::memset(pReturn + 4, 0x0, 4);
+-                        std::memcpy(pReturn, pUnoReturn, 4);
++                        abi_riscv64::extIntBits(pRegisterReturn,
++                                                reinterpret_cast<sal_uInt64*>(pUnoReturn), isSigned,
++                                                4);
++                        break;
++                    // TODO: check the source of the enum type.
++                    case typelib_TypeClass_ENUM:
++                    case typelib_TypeClass_UNSIGNED_HYPER:
++                    case typelib_TypeClass_HYPER:
++                        std::memcpy(reinterpret_cast<char*>(pRegisterReturn), pUnoReturn, 8);
+                         break;
+                     case typelib_TypeClass_FLOAT:
+-                        std::memcpy(pReturn, pUnoReturn, 4);
+-                        std::memset(pReturn + 4, 0xFF, 4);
++                        std::memcpy(reinterpret_cast<char*>(pRegisterReturn), pUnoReturn, 4);
++                        std::memset(reinterpret_cast<char*>(pRegisterReturn) + 4, 0xFF, 4);
+                         break;
+                     case typelib_TypeClass_DOUBLE:
+-                        std::memcpy(pReturn, pUnoReturn, 8);
++                        std::memcpy(reinterpret_cast<char*>(pRegisterReturn), pUnoReturn, 8);
+                         break;
+                     case typelib_TypeClass_STRUCT:
+                     case typelib_TypeClass_EXCEPTION:
+-                    {
+-                        std::memcpy(pReturn, pUnoReturn, 16);
+-                        sal_Int32 nGreg = 0;
+-                        sal_Int32 nFreg = 0;
+-                        abi_riscv64::countnGreg(
+-                            nGreg, nFreg,
+-                            reinterpret_cast<typelib_CompoundTypeDescription const*>(
+-                                pReturnTypeDescr));
+-                        if (pReturnTypeDescr->nSize <= 8 && nFreg == 2 && nGreg == 0)
+-                        {
+-                            std::memcpy(pReturn + 8, pReturn + 4, 4);
+-                            std::memset(pReturn + 4, 0xFF, 4);
+-                            std::memset(pReturn + 12, 0xFF, 4);
+-                        }
+-                        else if (nGreg == 1 && nFreg == 1)
+-                        {
+-                            returnType = 1;
+-                            if (pReturnTypeDescr->nSize <= 8)
+-                            {
+-                                std::memcpy(pReturn + 8, pReturn + 4, 4);
+-                                std::memset(pReturn + 12, 0xFF, 4);
+-                            }
+-                        }
+-                    }
+-                    break;
++                        abi_riscv64::splitUNOStruct(
++                            pReturnTypeDescr, reinterpret_cast<sal_uInt64*>(pRegisterReturn),
++                            reinterpret_cast<sal_uInt64*>(pUnoReturn), returnType);
++                        break;
+                     case typelib_TypeClass_VOID:
+                         break;
+                     default:
+@@ -595,6 +590,7 @@ sal_Int32 cpp_vtable_call(sal_Int32 nFunctionIndex, sal_Int32 nVtableOffset, voi
+                         }
+                         TYPELIB_DANGER_RELEASE(pTD);
+                     }
++                    [[fallthrough]];
+                 } // else perform queryInterface()
+                 default:
+ #ifdef BRIDGE_DEBUG
+@@ -722,8 +718,7 @@ unsigned char* codeSnippet(unsigned char* code, sal_Int32 functionIndex, sal_Int
+ }
+ }
+ 
+-void bridges::cpp_uno::shared::VtableFactory::flushCode(unsigned char const* bptr,
+-                                                        unsigned char const* eptr)
++void bridges::cpp_uno::shared::VtableFactory::flushCode(unsigned char const*, unsigned char const*)
+ {
+     asm volatile("fence" :::);
+ }
+diff --git a/bridges/source/cpp_uno/gcc3_linux_riscv64/uno2cpp.cxx b/bridges/source/cpp_uno/gcc3_linux_riscv64/uno2cpp.cxx
+index a23bcc3e8cec..495fefa4d173 100644
+--- a/bridges/source/cpp_uno/gcc3_linux_riscv64/uno2cpp.cxx
++++ b/bridges/source/cpp_uno/gcc3_linux_riscv64/uno2cpp.cxx
+@@ -43,105 +43,16 @@
+ #include <stdio.h>
+ #endif
+ 
+-// FP reg -> GP reg -> stack
+-#define INSERT_FLOAT_DOUBLE(pSV, nfr, pFPR, ngr, pGPR, pDS)                                        \
+-    if (nfr < MAX_FP_REGS)                                                                         \
+-        pFPR[nfr++] = *reinterpret_cast<double*>(pSV);                                             \
+-    else if (ngr < MAX_FP_REGS)                                                                    \
+-        pGPR[ngr++] = *reinterpret_cast<sal_Int64*>(pSV);                                          \
+-    else                                                                                           \
+-        *pDS++ = *reinterpret_cast<sal_uInt64*>(pSV); // verbatim!
+-
+-#define INSERT_INT64(pSV, nr, pGPR, pDS)                                                           \
+-    if (nr < MAX_GP_REGS)                                                                          \
+-        pGPR[nr++] = *reinterpret_cast<sal_Int64*>(pSV);                                           \
+-    else                                                                                           \
+-        *pDS++ = *reinterpret_cast<sal_Int64*>(pSV);
+-
+-#define INSERT_INT32(pSV, nr, pGPR, pDS)                                                           \
+-    if (nr < MAX_GP_REGS)                                                                          \
+-        pGPR[nr++] = *reinterpret_cast<sal_Int32*>(pSV);                                           \
+-    else                                                                                           \
+-        *pDS++ = *reinterpret_cast<sal_Int32*>(pSV);
+-
+-#define INSERT_INT16(pSV, nr, pGPR, pDS)                                                           \
+-    if (nr < MAX_GP_REGS)                                                                          \
+-        pGPR[nr++] = *reinterpret_cast<sal_Int16*>(pSV);                                           \
+-    else                                                                                           \
+-        *pDS++ = *reinterpret_cast<sal_Int16*>(pSV);
+-
+-#define INSERT_UINT16(pSV, nr, pGPR, pDS)                                                          \
+-    if (nr < MAX_GP_REGS)                                                                          \
+-        pGPR[nr++] = *reinterpret_cast<sal_uInt16*>(pSV);                                          \
+-    else                                                                                           \
+-        *pDS++ = *reinterpret_cast<sal_uInt16*>(pSV);
+-
+-#define INSERT_INT8(pSV, nr, pGPR, pDS)                                                            \
+-    if (nr < MAX_GP_REGS)                                                                          \
+-        pGPR[nr++] = *reinterpret_cast<sal_Int8*>(pSV);                                            \
+-    else                                                                                           \
+-        *pDS++ = *reinterpret_cast<sal_Int8*>(pSV);
+-
+ using namespace ::com::sun::star::uno;
+ 
+ namespace
+ {
+-bool isReturnInFPR(const typelib_TypeDescription* pTypeDescr, sal_uInt32& nSize)
+-{
+-#ifdef BRIDGE_DEBUG
+-    printf("In isReturnInFPR, pTypeDescr = %p, nSize = %d\n", pTypeDescr, nSize);
+-#endif
+-    const typelib_CompoundTypeDescription* p
+-        = reinterpret_cast<const typelib_CompoundTypeDescription*>(pTypeDescr);
+-
+-    for (sal_Int32 i = 0; i < p->nMembers; ++i)
+-    {
+-        typelib_TypeDescriptionReference* pTypeInStruct = p->ppTypeRefs[i];
+-
+-        switch (pTypeInStruct->eTypeClass)
+-        {
+-            case typelib_TypeClass_STRUCT:
+-            case typelib_TypeClass_EXCEPTION:
+-            {
+-                typelib_TypeDescription* t = 0;
+-                TYPELIB_DANGER_GET(&t, pTypeInStruct);
+-                bool isFPR = isReturnInFPR(t, nSize);
+-                TYPELIB_DANGER_RELEASE(t);
+-                if (!isFPR)
+-                    return false;
+-            }
+-            break;
+-            case typelib_TypeClass_FLOAT:
+-            case typelib_TypeClass_DOUBLE:
+-                if (nSize >= 16)
+-                    return false;
+-                nSize += 8;
+-                break;
+-            default:
+-                return false;
+-        }
+-    }
+-    return true;
+-}
+-
+-void fillReturn(const typelib_TypeDescription* pTypeDescr, sal_Int64* gret, double* fret,
+-                void* pRegisterReturn)
++void insertArgs(sal_uInt64 value, sal_uInt64& nGPR, sal_uInt64* pGPR, sal_uInt64*& sp)
+ {
+-#ifdef BRIDGE_DEBUG
+-    printf("In fillReturn, pTypeDescr = %p, gret = %p, fret = %p, pRegisterReturn = %p\n",
+-           pTypeDescr, gret, fret, pRegisterReturn);
+-#endif
+-    sal_uInt32 nSize = 0;
+-    if (isReturnInFPR(pTypeDescr, nSize))
+-    {
+-        reinterpret_cast<double*>(pRegisterReturn)[0] = fret[0];
+-        reinterpret_cast<double*>(pRegisterReturn)[1] = fret[1];
+-    }
++    if (nGPR < MAX_GP_REGS)
++        pGPR[nGPR++] = value;
+     else
+-    {
+-        reinterpret_cast<sal_Int64*>(pRegisterReturn)[0] = gret[0];
+-        reinterpret_cast<sal_Int64*>(pRegisterReturn)[1] = gret[1];
+-    }
++        *(sp++) = value;
+ }
+ 
+ static void callVirtualMethod(void* pAdjustedThisPtr, sal_Int32 nVtableIndex, void* pRegisterReturn,
+@@ -249,7 +160,7 @@ static void callVirtualMethod(void* pAdjustedThisPtr, sal_Int32 nVtableIndex, vo
+             {
+                 typelib_TypeDescription* pTypeDescr = 0;
+                 TYPELIB_DANGER_GET(&pTypeDescr, pReturnTypeRef);
+-                abi_riscv64::fillStruct(pTypeDescr, gret, fret, pRegisterReturn);
++                abi_riscv64::fillUNOStruct(pTypeDescr, gret, fret, pRegisterReturn);
+                 TYPELIB_DANGER_RELEASE(pTypeDescr);
+             }
+             break;
+@@ -279,7 +190,7 @@ static void cpp_call(bridges::cpp_uno::shared::UnoInterfaceProxy* pThis,
+     sal_uInt64* pStackStart = pStack;
+ 
+     sal_uInt64 pGPR[MAX_GP_REGS];
+-    sal_uInt64 nREG = 0;
++    sal_uInt64 nGPR = 0;
+ 
+     double pFPR[MAX_FP_REGS];
+     sal_uInt32 nFPR = 0;
+@@ -304,7 +215,7 @@ static void cpp_call(bridges::cpp_uno::shared::UnoInterfaceProxy* pThis,
+             pCppReturn = bridges::cpp_uno::shared::relatesToInterfaceType(pReturnTypeDescr)
+                              ? __builtin_alloca(pReturnTypeDescr->nSize)
+                              : pUnoReturn;
+-            INSERT_INT64(&pCppReturn, nREG, pGPR, pStack);
++            pGPR[nGPR++] = reinterpret_cast<sal_uInt64>(pCppReturn);
+         }
+         else
+         {
+@@ -314,7 +225,7 @@ static void cpp_call(bridges::cpp_uno::shared::UnoInterfaceProxy* pThis,
+ 
+     // push this
+     void* pAdjustedThisPtr = reinterpret_cast<void**>(pThis->getCppI()) + aVtableSlot.offset;
+-    INSERT_INT64(&pAdjustedThisPtr, nREG, pGPR, pStack);
++    pGPR[nGPR++] = reinterpret_cast<sal_uInt64>(pAdjustedThisPtr);
+ 
+     // args
+     void** pCppArgs = (void**)alloca(3 * sizeof(void*) * nParams);
+@@ -351,29 +262,72 @@ static void cpp_call(bridges::cpp_uno::shared::UnoInterfaceProxy* pThis,
+ #endif
+             switch (pParamTypeDescr->eTypeClass)
+             {
+-                case typelib_TypeClass_LONG:
+-                case typelib_TypeClass_UNSIGNED_LONG:
+-                case typelib_TypeClass_ENUM:
+-                    INSERT_INT32(pCppArgs[nPos], nREG, pGPR, pStack);
++                // In types.h:
++                // typedef unsigned char sal_Bool
++                case typelib_TypeClass_BOOLEAN:
++                    insertArgs(*static_cast<sal_Bool*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
+                     break;
++                case typelib_TypeClass_BYTE:
++                    insertArgs(*static_cast<sal_Int8*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
++                    break;
++                // typedef sal_uInt16 sal_Unicode
+                 case typelib_TypeClass_CHAR:
+-                case typelib_TypeClass_SHORT:
+-                    INSERT_INT16(pCppArgs[nPos], nREG, pGPR, pStack);
++                    insertArgs(*static_cast<sal_Unicode*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
+                     break;
+                 case typelib_TypeClass_UNSIGNED_SHORT:
+-                    INSERT_UINT16(pCppArgs[nPos], nREG, pGPR, pStack);
++                    insertArgs(*static_cast<sal_uInt16*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
+                     break;
+-                case typelib_TypeClass_BOOLEAN:
+-                case typelib_TypeClass_BYTE:
+-                    INSERT_INT8(pCppArgs[nPos], nREG, pGPR, pStack);
++                case typelib_TypeClass_SHORT:
++                    insertArgs(*static_cast<sal_Int16*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
+                     break;
+-                case typelib_TypeClass_FLOAT:
+-                case typelib_TypeClass_DOUBLE:
+-                    INSERT_FLOAT_DOUBLE(pCppArgs[nPos], nFPR, pFPR, nREG, pGPR, pStack);
++                case typelib_TypeClass_UNSIGNED_LONG:
++                    insertArgs(*static_cast<sal_uInt32*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
+                     break;
+-                case typelib_TypeClass_HYPER:
++                case typelib_TypeClass_LONG:
++                    insertArgs(*static_cast<sal_Int32*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
++                    break;
++                // Todo: what type is enum?
++                case typelib_TypeClass_ENUM:
+                 case typelib_TypeClass_UNSIGNED_HYPER:
+-                    INSERT_INT64(pCppArgs[nPos], nREG, pGPR, pStack);
++                    insertArgs(*static_cast<sal_uInt64*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
++                    break;
++                case typelib_TypeClass_HYPER:
++                    insertArgs(*static_cast<sal_Int64*>(pCppArgs[nPos]), nGPR, pGPR, pStack);
++                    break;
++                // Floating point register -> General purpose register -> Stack
++                case typelib_TypeClass_FLOAT:
++                    char* higher32Bit;
++                    if (nFPR < MAX_FP_REGS)
++                    {
++                        higher32Bit = reinterpret_cast<char*>(&pFPR[nFPR]) + 4;
++                        std::memcpy(&(pFPR[nFPR++]), pCppArgs[nPos], 4);
++                    }
++                    else if (nGPR < MAX_GP_REGS)
++                    {
++                        higher32Bit = reinterpret_cast<char*>(&pGPR[nGPR]) + 4;
++                        std::memcpy(&(pGPR[nGPR++]), pCppArgs[nPos], 4);
++                    }
++                    else
++                    {
++                        higher32Bit = reinterpret_cast<char*>(pStack) + 4;
++                        std::memcpy(pStack++, pCppArgs[nPos], 4);
++                    }
++                    // Assure that the higher 32 bits are set to 1
++                    std::memset(higher32Bit, 0xFF, 4);
++                    break;
++                case typelib_TypeClass_DOUBLE:
++                    if (nFPR < MAX_FP_REGS)
++                    {
++                        std::memcpy(&(pFPR[nFPR++]), pCppArgs[nPos], 8);
++                    }
++                    else if (nGPR < MAX_GP_REGS)
++                    {
++                        std::memcpy(&(pGPR[nGPR++]), pCppArgs[nPos], 8);
++                    }
++                    else
++                    {
++                        std::memcpy(pStack++, pCppArgs[nPos], 8);
++                    }
+                     break;
+                 default:
+                     break;
+@@ -409,7 +363,7 @@ static void cpp_call(bridges::cpp_uno::shared::UnoInterfaceProxy* pThis,
+                 // no longer needed
+                 TYPELIB_DANGER_RELEASE(pParamTypeDescr);
+             }
+-            INSERT_INT64(&(pCppArgs[nPos]), nREG, pGPR, pStack);
++            insertArgs(reinterpret_cast<sal_uInt64>(pCppArgs[nPos]), nGPR, pGPR, pStack);
+         }
+     }
+ 
+@@ -587,6 +541,7 @@ void unoInterfaceProxyDispatch(uno_Interface* pUnoI, const typelib_TypeDescripti
+                         }
+                         TYPELIB_DANGER_RELEASE(pTD);
+                     }
++                    [[fallthrough]];
+                 } // else perform queryInterface()
+                 default:
+                     // dependent dispatch
+-- 
+2.39.2
+

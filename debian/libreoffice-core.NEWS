@@ -1,0 +1,13 @@
+libreoffice (1:7.4.2~rc1-1) unstable; urgency=low
+
+  * LibreOffice 7.4.0/7.4.1 contained a bug about wrongly remembering the
+    size of the LibreOffice windows. (Most prominently showing inside KDE).
+    .
+    This has been fixed in 7.4.2 but you experience this problem even after
+    a second start of the new LibreOffice you might either need to reset your
+    user profile or remove the affecting keys from it manuallly
+    (ooSetupFactoryWindowAttributes in
+    ~/.config/libreofficei/4/user/registrymodifications.xcu)
+
+ -- Rene Engelhard <rene@debian.org>  Wed, 09 Nov 2022 07:31:23 +0200
+

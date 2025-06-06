@@ -1,0 +1,3 @@
+PLATFORMID=linux_riscv64
+RTL_ARCH=RISCV64
+RTL_OS=Linux

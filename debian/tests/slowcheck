@@ -1,0 +1,60 @@
+#!/bin/bash
+# autopkgtest check: Run junit base tests against an installed version of LibreOffice
+# (c) 2021 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+SRCDIR=`pwd`
+CHECK_PARALLELISM=1
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+        WORKDIR=`mktemp -q -d -p $AUTOPKGTEST_TMP`
+else
+        WORKDIR=`mktemp -q -d`
+fi
+
+function unapply() {
+        cd $SRCDIR
+        echo
+        echo "====== Unapplying the patches ======"
+        patch -p1 -R < ./debian/tests/patches/cppunit-standalone.diff
+}
+
+trap "unapply" ERR
+
+echo
+echo "====== Patching the tree to only build the unittests against an existing installation ======"
+patch -p1 < ./debian/tests/patches/cppunit-standalone.diff
+
+echo
+echo "====== Enabling core dumps ======"
+# yes, we want core dumps and stack traces
+ulimit -c unlimited || true
+
+echo
+echo "====== Starting slowcheck with ${CHECK_PARALLELISM} job ======"
+
+# hack, otherwise it fails
+mkdir -p $SRCDIR/instdir/program/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/simpress/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/popupmenu/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/statusbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/toolbar/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/ui/.dir
+mkdir -p $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/menubar/.dir
+
+# all modules containing slowcheck
+export PARALLELISM=$CHECK_PARALLELISM
+for i in `grep slowcheck */*.mk | cut -d"/" -f1 | sort | uniq | xargs`; do
+	echo
+	echo "====== Running slowcheck in module $i ======"; \
+	cd $i && \
+	make -rk slowcheck \
+		INSTDIR=/usr/lib/libreoffice \
+		verbose=t; \
+	cd ..;\
+done
+
+unapply
+

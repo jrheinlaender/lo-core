@@ -1,0 +1,2 @@
+libuno-cppu3t64: symbols-declares-dependency-on-other-package libstdc++6 (>= 4.1.1) (libuno_cppu.so.3) [symbols]
+libuno-cppu3t64: package-name-doesnt-match-sonames libuno-cppu3

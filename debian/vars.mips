@@ -1,0 +1,3 @@
+PLATFORMID=linux_mips_eb
+RTL_ARCH=MIPS_EB
+RTL_OS=Linux

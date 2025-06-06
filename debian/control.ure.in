@@ -1,0 +1,180 @@
+Package: uno-libs-private
+Section: libs
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Replaces: uno-libs3
+Breaks: uno-libs3, libuno-cppuhelpergcc3-3 (<< 4:7.5.0~), libreoffice-core (<< 4:7.5.0~), libreoffice-core-nogui (<< 4:7.5.0~)
+Description: LibreOffice UNO runtime environment -- private libraries used by public ones
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+ .
+ This package contains some private UNO/URE libraries which are used by public
+ ones (e.g. cppu).
+
+Package: libuno-sal3t64
+Section: libs
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Replaces: ure (<< 5.0.0~rc2-1), uno-libs3, libuno-sal3
+Breaks: libreoffice-core (<< 1:4.3.0~), uno-libs3, libuno-sal3 (<< ${source:Version})
+Provides: ${t64:Provides}
+Description: LibreOffice UNO runtime environment -- SAL public library
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+ .
+ This package contains the System Abstraction Layer (SAL) library.
+
+Package: libuno-salhelpergcc3-3t64
+Section: libs
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Replaces: ure (<< 5.0.0~rc2-1), uno-libs3, libuno-salhelpergcc3-3
+Breaks: libreoffice-core (<< 1:4.3.0~), uno-libs3, libuno-salhelpergcc3-3 (<< ${source:Version})
+Provides: ${t64:Provides}
+Description: LibreOffice UNO runtime environment -- SAL helpers for C++ library
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+ .
+ This package contains C++ helpers to make use of sal easier.
+
+Package: libuno-cppu3t64
+Section: libs
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Replaces: ure (<< 5.0.0~rc2-1), uno-libs3, libuno-cppu3
+Breaks: libreoffice-core (<< 1:4.3.0~), uno-libs3, libuno-cppu3 (<< ${source:Version})
+Provides: ${t64:Provides}
+Description: LibreOffice UNO runtime environment -- CPPU public library
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+ .
+ This package contains CPPU, the type definitions/implementations for the core
+ of UNO.
+
+Package: libuno-cppuhelpergcc3-3t64
+Section: libs
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}, uno-libs-private (= ${binary:Version})
+Replaces: ure (<< 5.0.0~rc2-1), uno-libs3, libuno-cppuhelpergcc3-3
+Breaks: libreoffice-core (<< 1:4.3.0~), uno-libs3, libuno-cppuhelpergcc3-3 (<< ${source:Version})
+Provides: ${t64:Provides}
+Description: LibreOffice UNO runtime environment -- CPPU helper library
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+ .
+ This package contains the cppuhelper library (helpers for using cppu in C++,
+ e.g. templates for implementing UNO components, bootstrapping stuff)
+
+Package: libuno-purpenvhelpergcc3-3t64
+Section: libs
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Replaces: ure (<< 5.0.0~rc2-1), uno-libs3, libuno-purpenvhelpergcc3-3
+Breaks: libreoffice-core (<< 1:4.3.0~), uno-libs3, libuno-purpenvhelpergcc3-3 (<< ${source:Version})
+Provides: ${t64:Provides}
+Description: LibreOffice UNO runtime environment -- "purpose environment" helper
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+ .
+ This package contains a library which contains a helper for implementing
+ so-called "purpose environments".
+
+Package: ure
+Section: libs
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}, uno-libs-private (= ${binary:Version})
+Replaces: libreoffice-common (<< 1:4.5.0), libreoffice-core (<< 1:5.3.0~beta1~), libjuh-java (<< 1:6.4.0~rc1-6), libridl-java (<< 1:6.4.0~rc1-6), libunoloader-java (<< 1:6.4.0~rc1-6), libjurt-java (<< 1:6.4.0~rc1-6), ure-java (<< 1:7.1.1~rc2-1)
+Breaks: libreoffice-core (<< 1:7.4.0~), libreoffice-core-nogui (<< 1:7.4.0~), libreoffice-common (<< 1:4.5.0), libjuh-java (<< 1:6.4.0~rc1-6), libridl-java (<< 1:6.4.0~rc1-6), libunoloader-java (<< 1:6.4.0~rc1-6), libjurt-java (<< 1:6.4.0~rc1-6), ure-java (<< 1:7.1.1~rc2-1)
+Description: LibreOffice UNO runtime environment
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+
+Package: ure-java
+Section: java
+Architecture: %OOO_JAVA_ARCHS%
+Depends: ${misc:Depends}, ${shlibs:Depends}, ${java:Depends}, uno-libs-private (= ${binary:Version}), ure (= ${binary:Version}), libunoloader-java
+Recommends: liblibreoffice-java, ${java-runtime-depends}
+Replaces: ure (<< 4:24.2.0~rc1~)
+Breaks: ure (<< 4:24.2.0~rc1~)
+Build-Profiles: <!nojava>
+Description: LibreOffice UNO runtime environment -- Java support
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ It offers you a flexible, low-overhead component model that is most ideal
+ for (but not limited to) combining in one application components written in
+ different computer languages, and developed by different parties. You can use
+ it to create any kind of application, in whatever application domain you can
+ imagine.
+ .
+ This package contains the Java support in the URE.
+
+Package: libunoloader-java
+Architecture: all
+Section: java
+Depends: ${java:Depends}, ${misc:Depends}
+Replaces: ure (<< 6.4.0~rc1-6)
+Breaks: ure (<< 6.4.0~rc1-6)
+Build-Profiles: <!nojava>
+Description: LibreOffice UNO runtime environment -- (Java) UNO loader
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ This package contains a UNO loader library for Java.
+
+Package: liblibreoffice-java
+Architecture: all
+Section: java
+Depends: ure-java, libunoloader-java, ${java:Depends}, ${misc:Depends}
+Provides: libjuh-java, libridl-java, libjurt-java, libunoil-java
+Replaces: libjuh-java (<< 1:7.1.0~), libridl-java (<< 1:7.1.0~), libjurt-java (<< 1:7.1.0~), libunoil-java (<< 1:7.1.0~)
+Breaks: libjuh-java (<< 1:7.1.0~), libridl-java (<< 1:7.1.0~), libjurt-java (<< 1:7.1.0~), libunoil-java (<< 1:7.1.0~)
+Build-Profiles: <!nojava>
+Description: LibreOffice UNO runtime environment -- Java library
+ The Uno Runtime Environment (URE) is the well-known UNO component model
+ of LibreOffice, packaged up as an individual product.
+ .
+ This package contains the public Java libraries.
+

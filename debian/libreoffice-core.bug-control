@@ -1,0 +1,2 @@
+report-with: ure-java libreoffice-common libreoffice-java-common fonts-opensymbol
+package-status: libxrender1 libxinerama1 libsane iceweasel firefox icedove iceape-browser pstoedit imagemagick fglrx-driver nvidia-glx nvidia-glx-legacy

@@ -1,0 +1,18 @@
+Package: libreoffice-gtk4
+Architecture: %OOO_ARCHS%
+Depends: libreoffice-core (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Suggests: libreofficekit-data
+Replaces: libreoffice-core (<< 4:7.6.0~rc2)
+Section: gnome
+Enhances: libreoffice
+Description: office productivity suite -- GTK+ 4 integration
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the Gtk plugin for drawing LibreOffices widgets
+ with Gtk+ 4 and Gtk/GNOMEish print dialog.
+ .
+ You need to enable it manually by export SAL_USE_VCLPLUGIN=gtk4.
+

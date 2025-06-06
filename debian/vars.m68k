@@ -1,0 +1,3 @@
+PLATFORMID=linux_m68k
+RTL_ARCH=M68K
+RTL_OS=Linux

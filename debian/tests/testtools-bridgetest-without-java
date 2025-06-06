@@ -1,0 +1,57 @@
+#!/bin/bash
+# autopkgtest check: Run UNO tests against an installed version of the URE
+# (c) 2018 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+SRCDIR=`pwd`
+CHECK_PARALLELISM=1
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+	TMP=`mktemp -q -p $AUTOPKGTEST_TMP`
+	WORKDIR=`mktemp -q -d -p $AUTOPKGTEST_TMP`
+else
+	TMP=`mktemp -q`
+	WORKDIR=`mktemp -q -d`
+fi
+
+function unapply() {
+	cd $SRCDIR
+	echo
+	echo "====== Unapplying the patches ======"
+	patch -p1 -R < ./debian/tests/patches/testtools-standalone.diff
+}
+
+trap "unapply" ERR
+
+echo
+echo "====== Patching the tree to only build the testtools unittest against an existing installation ======"
+patch -p1 < ./debian/tests/patches/testtools-standalone.diff
+
+echo
+echo "====== Enabling core dumps ======"
+# yes, we want core dumps and stack traces
+ulimit -c unlimited || true
+
+if [ ! -f config_host.mk ]; then
+	# this normally shouldn't be needed but otherwise it wants a automatic
+	# re-autogen.
+	echo
+	echo "====== Generating configuration ======="
+	rm -f config_host.mk
+	./debian/rules config_host.mk ENABLE_PDFIUM=n ENABLE_MERGELIBS=n BUILD_GTK=n BUILD_GTK3=n BUILD_KDE=n ENABLE_JAVA=n
+fi
+
+echo
+echo "====== Starting uno test with ${CHECK_PARALLELISM} job against /usr/lib/libreoffice/program/uno ======"
+
+export PARALLELISM=$CHECK_PARALLELISM
+
+export LD_LIBRARY_PATH=/usr/lib/libreoffice/program:$LD_LIBRARY_PATH
+make testtools.allcheck verbose=t
+
+cd $SRCDIR
+
+unapply
+

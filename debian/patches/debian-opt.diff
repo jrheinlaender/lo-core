@@ -1,0 +1,26 @@
+diff --git a/configure.ac b/configure.ac
+index f06ef8e..91ce612 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -12776,6 +12776,9 @@ fi
+ AC_SUBST(SYSTEMD_RUN)
+ AC_SUBST(WITH_COREDUMPCTL)
+ 
++CDEFAULTOPT=`echo $CFLAGS 2>/dev/null | grep -E -o "\-O[[0-3]]"`
++AC_SUBST(CDEFAULTOPT)
++
+ dnl ===================================================================
+ dnl Setting up the environment.
+ dnl ===================================================================
+diff --git a/config_host.mk.in b/config_host.mk.in
+index 1ec3268..abb45b1 100644
+--- a/config_host.mk.in
++++ b/config_host.mk.in
+@@ -69,6 +69,7 @@ export CPP_LIBRARY=@CPP_LIBRARY@
+ export CPPUNIT_CFLAGS=$(gb_SPACE)@CPPUNIT_CFLAGS@
+ export CPPUNIT_LIBS=$(gb_SPACE)@CPPUNIT_LIBS@
+ export CPUNAME=@CPUNAME@
++export CDEFAULTOPT=@CDEFAULTOPT@
+ export CROSS_COMPILING=@CROSS_COMPILING@
+ export CURL=@CURL@
+ export CURL_CFLAGS=$(gb_SPACE)@CURL_CFLAGS@

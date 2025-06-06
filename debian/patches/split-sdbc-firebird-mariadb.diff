@@ -1,0 +1,58 @@
+diff --git a/postprocess/CustomTarget_registry.mk b/postprocess/CustomTarget_registry.mk
+index 1e2e473e0b4d..3741e94fd729 100644
+--- a/postprocess/CustomTarget_registry.mk
++++ b/postprocess/CustomTarget_registry.mk
+@@ -466,13 +467,17 @@ postprocess_DRIVERS += hsqldb jdbc mysql_jdbc
+ endif
+ 
+ ifeq ($(ENABLE_FIREBIRD_SDBC),TRUE)
+-postprocess_FILES_main += \
++postprocess_XCDS += firebird_sdbc.xcd
++postprocess_DEPS_firebird_sdbc := main
++postprocess_FILES_firebird_sdbc += \
+ 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/firebird)/org/openoffice/Office/DataAccess/Drivers-firebird.xcu
+ postprocess_DRIVERS += firebird_sdbc
+ endif
+ 
+ ifeq ($(ENABLE_MARIADBC),TRUE)
+-postprocess_FILES_main += \
++postprocess_XCDS += mysqlc.xcd
++postprocess_DEPS_mysqlc := main
++postprocess_FILES_mysqlc += \
+ 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/mysqlc)/org/openoffice/Office/DataAccess/Drivers-mysqlc.xcu
+ postprocess_DRIVERS += mysqlc
+ endif
+diff --git a/scp2/source/base/firebird.scp b/scp2/source/base/firebird.scp
+index 61cfff9cc496..0fdb2ffc6e66 100644
+--- a/scp2/source/base/firebird.scp
++++ b/scp2/source/base/firebird.scp
+@@ -20,15 +20,27 @@
+ 
+ #include "AutoInstall/firebirdsdbc"
+ 
+-#if defined( ENABLE_FIREBIRD_SDBC ) && !defined( SYSTEM_FIREBIRD )
++#if defined( ENABLE_FIREBIRD_SDBC )
++
++#if !defined( SYSTEM_FIREBIRD )
+ 
+ Module gid_Module_Optional_Firebird
+     Name = "Firebird";
+     Description = "Firebird embedded database";
+     PackageInfo = "packinfo_office.txt";
+     ParentID = gid_Module_Root_Brand;
+-    Files = (auto_firebirdsdbc_ALL);
++    Files = (auto_firebirdsdbc_ALL,
++             gid_File_FirebirdSdbc_Xcd);
+     Styles = (HIDDEN_ROOT);
+ End
+ 
+ #endif
++
++File gid_File_FirebirdSdbc_Xcd
++    TXT_FILE_BODY;
++    Dir = gid_Brand_Dir_Share_Registry;
++    Name = "firebird_sdbc.xcd";
++    Styles = (PACKED);
++End
++
++#endif

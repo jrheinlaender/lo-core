@@ -1,0 +1,3 @@
+PLATFORMID=linux_arm_eabi
+RTL_ARCH=ARM_EABI
+RTL_OS=Linux

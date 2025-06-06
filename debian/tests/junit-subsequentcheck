@@ -1,0 +1,64 @@
+#!/bin/bash
+# autopkgtest check: Run junit base tests against an installed version of LibreOffice
+# (C) 2013 Canonical Ltd.
+# (c) 2015-2017 Software in the Public Interest, Inc.
+# Authors: Bjoern Michaelsen <bjoern.michaelsen@canonical.com>
+#          Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+# skip on Zero using architectures
+if java -version 2>&1 | grep -q Zero; then
+	echo "Zero-using architecture. Skipping."
+	exit 77
+fi
+
+SRCDIR=`pwd`
+CHECK_PARALLELISM=1
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+        WORKDIR=`mktemp -q -d -p $AUTOPKGTEST_TMP`
+else
+        WORKDIR=`mktemp -q -d`
+fi
+
+function unapply() {
+	echo
+	echo "====== Unapplying the patch ======"
+	patch -p1 -R < ./debian/tests/patches/junit-subsequentcheck-standalone.diff
+}
+
+trap "unapply" ERR
+
+echo
+echo "====== Patching the tree to only build Java-based unittests against an existing installation ======"
+patch -p1 < ./debian/tests/patches/junit-subsequentcheck-standalone.diff
+
+if [ ! -f config_host.mk ]; then
+	echo
+	echo "====== Generating configuration ======="
+	rm -f config_host.mk
+	./debian/rules config_host.mk enable_report_builder=no
+	sed -i 's/export OOO_JUNIT_JAR=.*/export OOO_JUNIT_JAR=\/usr\/share\/java\/junit4.jar/' config_host.mk
+fi
+
+echo
+echo "====== Enabling core dumps ======"
+# yes, we want core dumps and stack traces
+ulimit -c unlimited || true
+
+OOO_TEST_SOFFICE="${1:-path:/usr/lib/libreoffice/program/soffice}"
+
+echo
+echo "====== Starting subsequentcheck with ${CHECK_PARALLELISM} job against ${OOO_TEST_SOFFICE} ======"
+
+eval `grep PLATFORMID config_host.mk`
+
+export PARALLELISM=$CHECK_PARALLELISM
+make -rk \
+    OOO_TEST_SOFFICE=${OOO_TEST_SOFFICE} \
+    bridges_SELECTED_BRIDGE=gcc3_$PLATFORMID \
+    subsequentcheck verbose=t
+
+unapply
+

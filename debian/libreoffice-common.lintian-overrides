@@ -1,0 +1,2 @@
+# this is essentially a breaks with version
+libreoffice-common: breaks-without-version libreoffice-help-5.2

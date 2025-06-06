@@ -1,0 +1,2 @@
+# "aged out" due to debhelpers changelog trimming (see #1021502)
+libreoffice-base-drivers: debian-news-entry-has-unknown-version 1:6.2.0~beta1-1 [usr/share/doc/libreoffice-base-drivers/NEWS.Debian.gz:1]

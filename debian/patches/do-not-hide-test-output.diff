@@ -1,0 +1,99 @@
+diff --git a/odk/build-examples_common.mk b/odk/build-examples_common.mk
+index abcb3a3e2593..35d45ad23413 100644
+--- a/odk/build-examples_common.mk
++++ b/odk/build-examples_common.mk
+@@ -49,12 +49,7 @@ else
+ 		&& printf 'yes\n' | LANGUAGE= LC_ALL=C make -j1 \
+ 			CC="$(CXX) $(gb_CXX03FLAGS)" LINK="$(CXX)" LIB="$(CXX)" \
+ 		    $(if $(MACOSX_SHELL_HACK), SHELL="$$$$ODK_BUILD_SHELL", ))) \
+-	$(if $(MACOSX_SHELL_HACK),&& rm -f "$$$$ODK_BUILD_SHELL")) \
+-	    >$(call gb_CustomTarget_get_workdir,$(1))/log 2>&1 \
+-	|| (RET=$$$$? \
+-	    $(if $(MACOSX_SHELL_HACK), && rm -f "$$$$ODK_BUILD_SHELL" , ) \
+-	    && cat $(call gb_CustomTarget_get_workdir,$(1))/log \
+-	    && exit $$$$RET)
++	2>&1 )
+ endif
+ 
+ $(call gb_CustomTarget_get_workdir,$(1))/setsdkenv: \
+diff --git a/solenv/gbuild/CppunitTest.mk b/solenv/gbuild/CppunitTest.mk
+index 45af5c9b25a7..7933fc84c8b2 100644
+--- a/solenv/gbuild/CppunitTest.mk
++++ b/solenv/gbuild/CppunitTest.mk
+@@ -139,12 +139,7 @@ else
+ 		$(call gb_CppunitTest__make_args) "-env:CPPUNITTESTTARGET=$@" \
+ 		$(if $(gb_CppunitTest_localized),|| exit $$?; done) \
+ 		) \
+-		$(if $(gb_CppunitTest__interactive),, \
+-			> $@.log 2>&1 \
+-			|| ($(if $(value gb_CppunitTest_postprocess), \
+-					RET=$$?; \
+-					$(call gb_CppunitTest_postprocess,$(gb_CppunitTest_CPPTESTCOMMAND),$@.core,$$RET) >> $@.log 2>&1;) \
+-				cat $@.log; $(gb_CppunitTest_UNITTESTFAILED) Cppunit $*)))
++		2>&1)
+ 	$(call gb_Trace_EndRange,$*,CUT)
+ endif
+ 
+diff --git a/solenv/gbuild/JunitTest.mk b/solenv/gbuild/JunitTest.mk
+index 36f29b50ef28..3ac4603ff6a0 100644
+--- a/solenv/gbuild/JunitTest.mk
++++ b/solenv/gbuild/JunitTest.mk
+@@ -44,17 +44,7 @@ else
+             -classpath "$(T_CP)" \
+             $(DEFS) \
+             org.junit.runner.JUnitCore \
+-            $(CLASSES) > $@.log 2>&1 || \
+-		(cat $@.log \
+-		&& echo "to rerun just this failed test without all others, run:" \
+-		&& echo && echo "    make JunitTest_$*" && echo \
+-		&& echo "cd into the module dir to run the tests faster" \
+-		&& echo "Or to do interactive debugging, run two shells with:" \
+-		&& echo \
+-		&& echo "    make debugrun" \
+-		&& echo "    make gb_JunitTest_DEBUGRUN=T JunitTest_$*" \
+-		&& echo \
+-		&& false)))
++            $(CLASSES) 2>&1))
+ 	$(CLEAN_CMD)
+ 	$(call gb_Trace_EndRange,$*,JUT)
+ endif
+diff --git a/solenv/gbuild/UITest.mk b/solenv/gbuild/UITest.mk
+index 03d30448ef7b..5628e47866f8 100644
+--- a/solenv/gbuild/UITest.mk
++++ b/solenv/gbuild/UITest.mk
+@@ -77,16 +77,7 @@ else
+ 		--userdir=$(call gb_Helper_make_url,$(dir $(call gb_UITest_get_target,$*))user) \
+ 		--dir=$(strip $(MODULES)) \
+ 		$(gb_UITest_GDBTRACE) \
+-		$(if $(gb_UITest__interactive),, \
+-		    > $@.log 2>&1 \
+-		    || ($(if $(value gb_CppunitTest_postprocess), \
+-				    RET=$$?; \
+-				    $(call gb_CppunitTest_postprocess,$(gb_UITest_EXECUTABLE_GDB),$@.core,$$RET) >> $@.log 2>&1;) \
+-                $(if $(filter WNT,$(OS)), \
+-                    printf '%s: <<<\n' $(dir $(call gb_UITest_get_target,$*))/soffice.out.log; \
+-                    cat $(dir $(call gb_UITest_get_target,$*))/soffice.out.log; \
+-                    printf ' >>>\n\n';) \
+-			    cat $@.log; $(gb_UITest_UNITTESTFAILED) UI $*))))
++		2>&1))
+ 	$(call gb_Trace_EndRange,$*,UIT)
+ endif
+ 
+diff --git a/solenv/gbuild/PythonTest.mk b/solenv/gbuild/PythonTest.mk
+index bc404d4fb817..f605634d3d07 100644
+--- a/solenv/gbuild/PythonTest.mk
++++ b/solenv/gbuild/PythonTest.mk
+@@ -67,12 +67,7 @@ else
+ 			$(gb_PythonTest_COMMAND) \
+ 			$(if $(PYTHON_TEST_NAME),$(PYTHON_TEST_NAME),$(MODULES)) \
+ 		; } \
+-		$(if $(gb_CppunitTest__interactive),, \
+-			> $@.log 2>&1 \
+-			|| ($(if $(value gb_CppunitTest_postprocess), \
+-					RET=$$?; \
+-					$(call gb_CppunitTest_postprocess,$(gb_PythonTest_EXECUTABLE_GDB),$@.core,$$RET) >> $@.log 2>&1;) \
+-				cat $@.log; $(gb_PythonTest_UNITTESTFAILED) Python $*)))
++		2>&1)
+ 	$(call gb_Trace_EndRange,$*,PYT)
+ endif
+ 

@@ -1,0 +1,12 @@
+diff --git a/sysui/desktop/apparmor/program.soffice.bin b/sysui/desktop/apparmor/program.soffice.bin
+index 42053db2abef..5b4355295c21 100644
+--- a/sysui/desktop/apparmor/program.soffice.bin
++++ b/sysui/desktop/apparmor/program.soffice.bin
+@@ -215,6 +215,7 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
+     owner @{HOME}/.gnupg/* r,
+     owner @{HOME}/.gnupg/random_seed rk,
+     owner @{HOME}/.gnupg/tofu.db rwk,
++    owner /{,var/}run/user/[0-9]*/gnupg/* rw,
+   }
+ 
+   # probably should become a subprofile like gpg above, but then it doesn't

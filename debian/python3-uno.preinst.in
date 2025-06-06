@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+# https://cgit.freedesktop.org/libreoffice/core/commit/?id=968166ba4ee96f7c9053c8f4c88ac82381ff7cf4
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "$2" lt "4:24.2.0~beta1"; then
+	echo "Removing obsolete configuration file /etc/libreoffice/registry/pyuno.xcd ..."
+	# It was unused anyway and thus no need to keep any (noop) adaptions here. But do it this
+	# way for policy sake...
+	if [ `ucfq -w /etc/libreoffice/registry/pyuno.xcd | cut -d: -f4` = "Yes" ]; then
+		mv /etc/libreoffice/registry/pyuno.xcd /etc/libreoffice/registry/pyuno.xcd.dpkg-bak
+	else
+		rm -f /etc/libreoffice/registry/pyuno.xcd
+	fi
+	ucf --purge /etc/libreoffice/registry/pyuno.xcd
+	ucfr --purge python3-uno /etc/libreoffice/registry/pyuno.xcd
+fi
+
+#DEBHELPER#

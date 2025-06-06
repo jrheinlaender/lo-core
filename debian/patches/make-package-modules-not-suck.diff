@@ -1,0 +1,133 @@
+Index: lo-imath-packaging/scp2/InstallModule_draw.mk
+===================================================================
+--- lo-imath-packaging.orig/scp2/InstallModule_draw.mk
++++ lo-imath-packaging/scp2/InstallModule_draw.mk
+@@ -10,6 +10,7 @@
+ $(eval $(call gb_InstallModule_InstallModule,scp2/draw))
+ 
+ $(eval $(call gb_InstallModule_use_auto_install_libs,scp2/draw,\
++	draw \
+ 	draw_brand \
+ ))
+ 
+Index: lo-imath-packaging/scp2/source/draw/module_draw.scp
+===================================================================
+--- lo-imath-packaging.orig/scp2/source/draw/module_draw.scp
++++ lo-imath-packaging/scp2/source/draw/module_draw.scp
+@@ -18,6 +18,7 @@
+ 
+ #include "macros.inc"
+ 
++#include "AutoInstall/draw"
+ #include "AutoInstall/draw_brand"
+ 
+ Module gid_Module_Prg_Draw
+@@ -34,7 +35,8 @@ Module gid_Module_Prg_Draw_Bin
+     Sortkey = "100";
+     Default = YES;
+     Styles = (HIDDEN_ROOT);
+-    Files = (gid_File_Extra_Urldesktop_Draw,gid_File_Extra_Urlnew_Draw,gid_File_Extra_Urlstart_Draw,gid_File_Extra_Urltasks_Draw,
++    Files = (auto_draw_ALL,
++    gid_File_Extra_Urldesktop_Draw,gid_File_Extra_Urlnew_Draw,gid_File_Extra_Urlstart_Draw,gid_File_Extra_Urltasks_Draw,
+     gid_File_Share_Registry_Draw_Xcd,
+     gid_File_Tmp_Userinstall_Draw_Inf);
+ End
+Index: lo-imath-packaging/scp2/AutoInstall.mk
+===================================================================
+--- lo-imath-packaging.orig/scp2/AutoInstall.mk
++++ lo-imath-packaging/scp2/AutoInstall.mk
+@@ -17,6 +17,7 @@ $(eval $(call gb_AutoInstall_add_module,
+ $(eval $(call gb_AutoInstall_add_module,brand,,LIBO_EXECUTABLE,,PACKAGE_FILELIST))
+ $(eval $(call gb_AutoInstall_add_module,calc,LIBO_LIB_FILE,,,PACKAGE_FILELIST))
+ $(eval $(call gb_AutoInstall_add_module,calc_brand,,LIBO_EXECUTABLE,,PACKAGE_FILELIST))
++$(eval $(call gb_AutoInstall_add_module,draw,LIBO_LIB_FILE))
+ $(eval $(call gb_AutoInstall_add_module,draw_brand,,LIBO_EXECUTABLE,,PACKAGE_FILELIST))
+ $(eval $(call gb_AutoInstall_add_module,extensions_bsh,,,LIBO_JAR_FILE))
+ $(eval $(call gb_AutoInstall_add_module,extensions_numbertext,,,,PACKAGE_FILELIST))
+Index: lo-imath-packaging/Repository.mk
+===================================================================
+--- lo-imath-packaging.orig/Repository.mk
++++ lo-imath-packaging/Repository.mk
+@@ -259,13 +259,29 @@ $(eval $(call gb_Helper_register_executa
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,base, \
+ 	abp \
++	calc \
++	dba \
++	dbahsql \
++	$(call gb_Helper_optional,DBCONNECTIVITY, \
++		dbase \
++		dbaxml) \
+ 	dbp \
+ 	dbu \
++       $(call gb_Helper_optional,DBCONNECTIVITY,flat) \
++       $(if $(ENABLE_JAVA),jdbc) \
++	$(call gb_Helper_optional,DBCONNECTIVITY,mysql_jdbc) \
++	$(call gb_Helper_optional,MARIADBC,$(call gb_Helper_optional,DBCONNECTIVITY,mysqlc)) \
++       odbc \
++))
++
++$(eval $(call gb_Helper_register_libraries_for_install,PLAINLIBS_OOO,base, \
++	$(call gb_Helper_optional,DBCONNECTIVITY,dbpool2) \
++       $(if $(ENABLE_JAVA),hsqldb) \
++       sdbc2 \
+ ))
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,calc, \
+ 	analysis \
+-	$(call gb_Helper_optional,DBCONNECTIVITY,calc) \
+ 	date \
+ 	pricing \
+ 	sc \
+@@ -280,6 +296,12 @@ $(eval $(call gb_Helper_register_plugins
+     scui \
+ ))
+ 
++$(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,draw, \
++	animcore \
++	sd \
++	sdd \
++))
++
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,graphicfilter, \
+ 	svgfilter \
+ 	wpftdraw \
+@@ -287,9 +309,9 @@ $(eval $(call gb_Helper_register_librari
+ ))
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,impress, \
+-	animcore \
+ 	PresentationMinimizer \
+ 	wpftimpress \
++	slideshow \
+ ))
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,onlineupdate, \
+@@ -394,11 +416,6 @@ $(eval $(call gb_Helper_register_librari
+ 	$(if $(filter $(OS),WNT),,cmdmail) \
+ 	configmgr \
+ 	ctl \
+-	dba \
+-	dbahsql \
+-	$(call gb_Helper_optional,DBCONNECTIVITY, \
+-		dbase \
+-		dbaxml) \
+ 	dbtools \
+ 	deploymentmisc \
+ 	$(if $(filter-out MACOSX WNT,$(OS)),desktopbe1) \
+@@ -410,7 +427,6 @@ $(eval $(call gb_Helper_register_librari
+ 	$(if $(filter WNT,$(OS)),emser) \
+ 	evtatt \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY, \
+-		flat \
+ 		file) \
+ 	filterconfig \
+ 	fps_office \
+@@ -423,7 +439,6 @@ $(eval $(call gb_Helper_register_librari
+ 	i18npool \
+ 	i18nsearch \
+ 	imath \
+-	$(if $(ENABLE_JAVA),jdbc) \
+ 	$(if $(filter WNT,$(OS)),jumplist) \
+ 	$(if $(ENABLE_LDAP),ldapbe2) \
+ 	$(if $(filter WNT,$(OS)),WinUserInfoBe) \

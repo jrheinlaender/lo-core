@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+# fix up broken 0 byte file, should be a dir
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "$2" lt-nl "1:7.4.1~rc1-3"; then
+        if [ -f /@OODIR@/share/extensions -a ! -s /@OODIR@/share/extensions ]; then
+                rm /@OODIR@/share/extensions
+        fi
+fi
+
+#DEBHELPER#

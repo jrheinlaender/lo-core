@@ -1,0 +1,14 @@
+diff --git a/sysui/desktop/apparmor/program.soffice.bin b/sysui/desktop/apparmor/program.soffice.bin
+index 2fc7fd6b5735..3fd82b08431e 100644
+--- a/sysui/desktop/apparmor/program.soffice.bin
++++ b/sysui/desktop/apparmor/program.soffice.bin
+@@ -144,6 +144,9 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
+   /usr/lib{,32,64}/jvm/**                       r,
+   /usr/lib{,32,64}/jvm/**/jre/bin/java          mix,
+   /usr/lib{,32,64}/jvm/**/bin/java              mix,
++  # should be included in the jvm/** above but there it is
++  # a symlink, so apparmor still doesn't allow it...
++  /etc/java-??-openjdk/security/java.security   r,
+   INSTDIR-**                        rw,
+   INSTDIR-**.so                     m,
+   INSTDIR-program/soffice.bin       mix,

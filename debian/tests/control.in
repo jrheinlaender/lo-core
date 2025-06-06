@@ -1,0 +1,134 @@
+Tests: testtools-bridgetest-without-java
+Depends: @builddeps@, ure
+Restrictions: allow-stderr, rw-build-tree, superficial
+
+Tests: testtools-bridgetest-with-java
+Architecture: amd64 arm64
+Depends: @builddeps@, ure-java, liblibreoffice-java, default-jdk
+Restrictions: allow-stderr, rw-build-tree, superficial
+
+Tests: pyuno-import, uno-import
+Depends: python3, python3-uno
+Restrictions: superficial
+
+Tests: access2base-import
+Depends: python3, python3-access2base
+Restrictions: superficial
+
+Tests: scriptforge-import
+Depends: python3, python3-scriptforge
+Restrictions: superficial
+
+## Is there a need for this small test given we run the UI tests etc.?
+#Tests: smoketest
+#Architecture: %OOO_CHECK_FATAL_ARCHS%
+#Depends: @builddeps@, libreoffice-smoketest-data, libreoffice-dev, libreoffice-core, libreoffice-writer, libreoffice-calc, libreoffice-impress, libreoffice-math, libreoffice-base, libreoffice-sdbc-hsqldb, libreoffice-sdbc-firebird
+#Restrictions: allow-stderr, build-needed, rw-build-tree, superficial
+
+# this is already done by smoketest upstream, but fails when doing it against
+# the installed LO. works standalone, though, so it's patched out of the
+# smoketest. Do it here separately.
+Tests: test-extension
+Architecture: %OOO_JAVA_AND_NOGUI_ARCHS%
+Depends: libreoffice-core-nogui, libreoffice-common, libreoffice-java-common, libreoffice-smoketest-data, default-jdk
+Restrictions: allow-stderr, superficial, skippable
+
+Tests: test-extension-shared
+Architecture: %OOO_JAVA_AND_NOGUI_ARCHS%
+Depends: libreoffice-core-nogui, libreoffice-common, libreoffice-java-common, libreoffice-smoketest-data, default-jdk
+Restrictions: allow-stderr, needs-root, superficial
+
+# in the following some tests need RTL and CJK language packs installed to pass.
+# he is the example for RTL, zh-tw for CJK (and zh-tw was choosen to also test xx-YY locales)
+
+# Maybe all those tests should be merged into one (especially for the "small" ones like writerperfect or
+# "tiny" ones like sfx2,svx,cui.
+# But it already takes ~1.5 h (though including copy..) for all them to run on amd64 and the overall autopkgtest
+# test timeout is 166 min (a bit over 2.5 hrs.). What are we doing on slow archs?
+# And secondly. one might miss breakage if Java or another package is not installed but is
+# required because everything needed would be in Depends: then for one test...
+# Try to optimize a bit though by not sorting alphabetically but where the  new packages are a superset so
+# we can reuse the testbed
+
+Tests: uicheck-sfx2
+Depends: @builddeps@, libreoffice-core, libreoffice-impress, python3-uno
+Restrictions: allow-stderr
+
+Tests: uicheck-svx
+Depends: @builddeps@, libreoffice-core, libreoffice-impress, python3-uno
+Restrictions: allow-stderr
+
+Tests: uicheck-cui
+Architecture: %OOO_JAVA_ARCHS%
+Depends: @builddeps@, libreoffice-core, libreoffice-impress, libreoffice-writer, python3-uno, libreoffice-script-provider-python, libreoffice-script-provider-js, libreoffice-script-provider-bsh
+Restrictions: allow-stderr, needs-internet
+
+Tests: uicheck-sd
+Depends: @builddeps@, libreoffice-core, libreoffice-draw, libreoffice-impress, libreoffice-calc, python3-uno
+Restrictions: allow-stderr
+
+Tests: uicheck-writerperfect
+Depends: @builddeps@, libreoffice-core, libreoffice-writer, python3-uno
+Restrictions: allow-stderr
+
+Tests: uicheck-sc
+Architecture: %OOO_JAVA_ARCHS%
+Depends: @builddeps@, libreoffice-core, libreoffice-calc, libreoffice-draw, libreoffice-impress, python3-uno, libreoffice-l10n-he, libreoffice-l10n-zh-tw, libreoffice-java-common, libreoffice-writer
+Restrictions: allow-stderr, skippable
+
+Tests: uicheck-sw
+Architecture: %OOO_JAVA_ARCHS%
+Depends: @builddeps@, libreoffice-core, libreoffice-writer, libreoffice-draw, libreoffice-calc, libreoffice-impress, libreoffice-base, python3-uno, libreoffice-l10n-he, libreoffice-l10n-zh-tw, libreoffice-librelogo, libreoffice-java-common
+Restrictions: allow-stderr, needs-internet, skippable
+
+Tests: uicheck-uitest
+Depends: @builddeps@, libreoffice-core, libreoffice-writer, libreoffice-calc, libreoffice-impress, libreoffice-math, libreoffice-base, python3-uno, libreoffice-l10n-he, libreoffice-l10n-zh-tw
+Restrictions: allow-stderr
+
+Test-Command: export DOXYGEN=`command -v doxygen`; export ENABLE_JAVA=TRUE; export JDK=sun; export JAVADOC=/usr/lib/jvm/default-java/bin/javadoc; perl odk/util/check.pl /usr/lib/libreoffice/sdk
+Features: test-name=sdk-complete
+Architecture: %OOO_JAVA_ARCHS%
+Depends: libreoffice-dev, libreoffice-dev-doc
+Restrictions: superficial
+
+Tests: odk-build-examples
+Architecture: %OOO_NOGUI_ARCHS%
+Depends: @builddeps@, libreoffice-core-nogui, libreoffice-dev, libreoffice-dev-doc, python3-uno
+Restrictions: allow-stderr, skippable
+
+Tests: odk-build-examples-java
+Architecture: %OOO_JAVA_AND_NOGUI_ARCHS%
+Depends: @builddeps@, libreoffice-core-nogui, libreoffice-dev, libreoffice-dev-doc, libreoffice-java-common, libofficebean-java
+Restrictions: allow-stderr, skippable
+
+#Tests: cppunit-subsequentcheck
+#Architecture: %OOO_CHECK_FATAL_ARCHS%
+#Depends: @builddeps@, %AUTOPKGTEST_CPPUNIT_PACKAGES%
+#Restrictions: build-needed, rw-build-tree, allow-stderr
+#
+## Those tests even work when there is no /usr/lib/libreoffice there in any way. @builddeps@ is enough.
+## That strictly violates the autopkgtest stuff thus mark them as superficial. But if a library
+## or whatever update broke it we should know
+#Tests: slowcheck
+#Architecture: %OOO_CHECK_FATAL_ARCHS%
+##Depends: @builddeps@, %AUTOPKGTEST_CPPUNIT_PACKAGES%
+#Restrictions: build-needed, rw-build-tree, allow-stderr, superficial
+#
+#Tests: unitcheck
+#Architecture: %OOO_CHECK_FATAL_ARCHS%
+#Depends: @builddeps@, %AUTOPKGTEST_CPPUNIT_PACKAGES%
+#Restrictions: build-needed, rw-build-tree, allow-stderr, superficial, skippable
+
+Test-Command: for i in /etc/apparmor.d/usr.lib.libreoffice.program.*; do /sbin/apparmor_parser --add --skip-cache --skip-kernel-load $i; done
+Features: test-name=apparmor-profiles-syntax-check
+Depends: libreoffice-common, apparmor
+Restrictions: allow-stderr, superficial
+
+## This one tests real connection to a MySQL and works by symlinking that one
+## specific library to the one in libreoffice-sdbc-mysql
+## Should probably always be last due to breaks-testbed?
+#Tests: cppunit-connectivity-mysql
+#Architecture: %OOO_CHECK_FATAL_ARCHS%
+#Depends: @builddeps@, pwgen, libreoffice-sdbc-mysql, libreoffice-core, default-mysql-server, default-mysql-client
+#Restrictions: build-needed, allow-stderr, needs-root, isolation-container, breaks-testbed, superficial
+

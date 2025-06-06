@@ -1,0 +1,15 @@
+Package: libreoffice-nlpsolver
+Architecture: all
+Depends: ${misc:Depends}, libreoffice-calc, libreoffice-core, liblibreoffice-java, ${java-common-depends}, ${java-runtime-depends}
+Suggests: libreoffice-help-common
+Section: math
+Description: "Solver for Nonlinear Programming" extension for LibreOffice
+ By default LibreOffice Calc ships with a solver engine for linear
+ programming only. This allows the optimization of models to a certain degree.
+ However, if the formulas or constraints become more complex,
+ nonlinear programming is required. That missing gap is now filled by the
+ Solver for Nonlinear Programming extension.
+ .
+ Currently it incorporates two Evolutionary Algorithms which are able to
+ handle floating point and integer variables as well as nonlinear constraints.
+

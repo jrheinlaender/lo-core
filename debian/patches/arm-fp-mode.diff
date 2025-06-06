@@ -1,0 +1,15 @@
+Description: Explicitly set fpu mode on armhf
+Author: Rico Tzschichholz <ricotz@ubuntu.com>
+
+diff --git a/bridges/source/cpp_uno/gcc3_linux_arm/armhelper.S b/bridges/source/cpp_uno/gcc3_linux_arm/armhelper.S
+index 4eff3ff0a012..7996b9c5b3f0 100644
+--- a/bridges/source/cpp_uno/gcc3_linux_arm/armhelper.S
++++ b/bridges/source/cpp_uno/gcc3_linux_arm/armhelper.S
+@@ -51,6 +51,7 @@ privateSnippetExecutor:
+ 	mov   r0, ip               @ r0 points to functionoffset/vtable
+ 	mov   r1, sp               @ r1 points to this and params
+ #ifdef __ARM_PCS_VFP
++	.fpu vfpv2
+ 	vpush {d0-d7}              @ floating point parameter on stack
+ #endif
+ 	UNWIND .pad  #PAD          @ throw this data away on exception

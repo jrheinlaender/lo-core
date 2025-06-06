@@ -1,0 +1,130 @@
+From 61a6811906d48bb3d92384a6aef6cabcfe4fdcca Mon Sep 17 00:00:00 2001
+From: Rene Engelhard <rene@rene-engelhard.de>
+Date: Fri, 15 Dec 2023 23:45:04 +0100
+Subject: [PATCH] fix system-abseil build even with 2022 version
+
+actually it seems it was a internal abseil header from pdfium vs. system
+header mismatch. Include proper absl/container/inlined_vector.h if using
+system-abseil.
+
+While at it we can also just use pkg-config, no idea why I did it
+without back then. Also gets the advantage that it knows that the libs
+needed for absl_inlined_vector is actually
+-labsl_throw_delegate -labsl_raw_logging_internal -labsl_log_severity
+
+This effectively reverts e89723103313ec4366ee58144c47d7a5c16bf838
+
+Change-Id: Ide4f79860b4e0673c5c6587d503058bdd2930744
+---
+ configure.ac                              | 19 +------------------
+ external/pdfium/Library_pdfium.mk         |  5 +++++
+ external/pdfium/UnpackedTarball_pdfium.mk |  2 ++
+ external/pdfium/system-abseil.diff        | 15 +++++++++++++++
+ 4 files changed, 23 insertions(+), 18 deletions(-)
+ create mode 100644 external/pdfium/system-abseil.diff
+
+diff --git a/configure.ac b/configure.ac
+index 97de2b514d3a..586e31f8bae5 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -12231,15 +12231,7 @@ if test "$ENABLE_PDFIUM" = "TRUE"; then
+         AC_MSG_RESULT([external])
+         SYSTEM_ABSEIL=TRUE
+         AC_LANG_PUSH([C++])
+-        AC_CHECK_HEADER(absl/types/bad_optional_access.h, [],
+-                        [AC_MSG_ERROR(abseil headers not found.)], [])
+-        AC_CHECK_HEADER(absl/types/bad_variant_access.h, [],
+-                        [AC_MSG_ERROR(abseil headers not found.)], [])
+-        AC_CHECK_LIB([absl_bad_optional_access], [main], [],
+-                     [AC_MSG_ERROR([libabsl_bad_optional_access library not found.])])
+-        AC_CHECK_LIB([absl_bad_variant_access], [main], [],
+-                     [AC_MSG_ERROR([libabsl_bad_variant_access library not found.])])
+-        ABSEIL_LIBS="-labsl_bad_optional_access -labsl_bad_variant_access"
++	PKG_CHECK_MODULES(ABSEIL, absl_bad_optional_access absl_bad_variant_access absl_inlined_vector )
+         AC_LANG_POP([C++])
+         ABSEIL_CFLAGS=$(printf '%s' "$ABSEIL_CFLAGS" | sed -e "s/-I/${ISYSTEM?}/g")
+         FilterLibs "${ABSEIL_LIBS}"
+diff --git a/external/pdfium/Library_pdfium.mk b/external/pdfium/Library_pdfium.mk
+index fc0903d873d1..85f9d953b752 100644
+--- a/external/pdfium/Library_pdfium.mk
++++ b/external/pdfium/Library_pdfium.mk
+@@ -40,6 +40,11 @@ $(eval $(call gb_Library_add_defs,pdfium,\
+     -DUSE_SYSTEM_LIBOPENJPEG2 \
+ ))
+ endif
++ifeq ($(SYSTEM_ABSEIL),TRUE)
++$(eval $(call gb_Library_add_defs,pdfium,\
++    -DUSE_SYSTEM_ABSEIL \
++))
++endif
+ 
+ 
+ $(eval $(call gb_Library_set_generated_cxx_suffix,pdfium,cpp))
+diff --git a/external/pdfium/UnpackedTarball_pdfium.mk b/external/pdfium/UnpackedTarball_pdfium.mk
+index 924bbe23a8b8..f8d95d2785c7 100644
+--- a/external/pdfium/UnpackedTarball_pdfium.mk
++++ b/external/pdfium/UnpackedTarball_pdfium.mk
+@@ -16,6 +16,8 @@ pdfium_patches += c++20-comparison.patch
+ 
+ pdfium_patches += annot.patch.1
+ 
++pdfium_patches += system-abseil.diff
++
+ $(eval $(call gb_UnpackedTarball_UnpackedTarball,pdfium))
+ 
+ $(eval $(call gb_UnpackedTarball_set_tarball,pdfium,$(PDFIUM_TARBALL)))
+diff --git a/external/pdfium/system-abseil.diff b/external/pdfium/system-abseil.diff
+new file mode 100644
+index 000000000000..841bc8ce9468
+--- /dev/null
++++ b/external/pdfium/system-abseil.diff
+@@ -0,0 +1,15 @@
++--- core/fpdfapi/page/cpdf_sampledfunc.cpp	2023-12-15 23:27:10.955659091 +0100
+++++ core/fpdfapi/page/cpdf_sampledfunc.cpp	2023-12-15 23:27:43.420136476 +0100
++@@ -16,8 +16,11 @@
++ #include "core/fxcrt/cfx_bitstream.h"
++ #include "core/fxcrt/fx_memory_wrappers.h"
++ #include "core/fxcrt/fx_safe_types.h"
+++#ifdef USE_SYSTEM_ABSEIL
+++#include <absl/container/inlined_vector.h>
+++#else
++ #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
++-
+++#endif
++ namespace {
++ 
++ // See PDF Reference 1.7, page 170, table 3.36.
+-- 
+2.39.2
+
+diff --git a/external/pdfium/annot.patch.1 b/external/pdfium/annot.patch.1
+index 330685962b4e..9ecd07643480 100644
+--- a/external/pdfium/annot.patch.1
++++ b/external/pdfium/annot.patch.1
+@@ -2,6 +2,17 @@ diff --git a/fpdfsdk/fpdf_annot.cpp b/fpdfsdk/fpdf_annot.cpp
+ index bc1f7f7eb..075baf1df 100644
+ --- a/fpdfsdk/fpdf_annot.cpp
+ +++ b/fpdfsdk/fpdf_annot.cpp
++@@ -8,6 +8,10 @@
++ #include <sstream>
++ #include <utility>
++ #include <vector>
+++#ifdef USE_SYSTEM_ABSEIL
+++#include <optional>
+++#include <absl/types/optional.h>
+++#endif
++ 
++ #include "constants/annotation_common.h"
++ #include "core/fpdfapi/edit/cpdf_pagecontentgenerator.h"
+ @@ -1366,6 +1366,42 @@ FPDFAnnot_GetFontSize(FPDF_FORMHANDLE hHandle,
+    return true;
+  }
+@@ -32,7 +40,7 @@ index bc1f7f7eb..075baf1df 100644
+ +  if (!pWidget)
+ +    return false;
+ +
+-+  std::optional<FX_COLORREF> text_color = pWidget->GetTextColor();
+++  absl::optional<FX_COLORREF> text_color = pWidget->GetTextColor();
+ +  if (!text_color)
+ +    return false;
+ +

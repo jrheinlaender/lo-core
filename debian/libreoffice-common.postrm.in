@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -e
+
+#INCLUDE_SHELL_LIB#
+
+case "$1" in
+	remove|abort-install|abort-upgrade)
+		rm -rf /`echo @OODIR@ | sed -e s,usr/,var/,g`/share/prereg/bundled
+		rmdir /`echo @OODIR@ | sed -e s,usr/,var/,g`/share/prereg/ || true
+		rmdir /`echo @OODIR@ | sed -e s,usr/,var/,g`/share/ || true
+		# this belongs to -core, but won't work until we have -common stuff removed, too, so try here again
+		# in adduition to -core
+		rmdir /`echo @OODIR@ | sed -e s,usr/,var/,g`/program/ || true
+		rmdir /`echo @OODIR@ | sed -e s,usr/,var/,g` || true
+		# and try to remove /@OOBRANDDIR@ itself
+		rmdir /`echo @OODIR@ | sed -e s,usr/,var/,g` || true
+	;;
+	purge)
+		rm -f /`echo @OODIR@ | sed -e s,usr/,var/,g`/share/config/javasettingsunopkginstall.xml
+		rmdir /`echo @OODIR@ | sed -e s,usr/,var/,g`/share/config || true
+		rmdir /`echo @OODIR@ | sed -e s,usr/,var/,g`/share || true
+	;;
+esac
+
+#DEBHELPER#

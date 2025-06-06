@@ -1,0 +1,214 @@
+diff --git a/testtools/CustomTarget_bridgetest.mk b/testtools/CustomTarget_bridgetest.mk
+index 9e934f03498a..7da8883c8e7c 100644
+--- a/testtools/CustomTarget_bridgetest.mk
++++ b/testtools/CustomTarget_bridgetest.mk
+@@ -28,7 +28,7 @@ $(testtools_BRIDGEDIR)/bridgetest_server$(testtools_BATCHSUFFIX) :| $(testtools_
+ 	$(call gb_Trace_StartRange,$(subst $(WORKDIR)/,,$@),ECH)
+ 	$(call gb_Helper_abbreviate_dirs,\
+ 		echo \
+-		"$(call gb_Executable_get_target_for_build,uno)" \
++		"/usr/lib/libreoffice/program/uno" \
+ 		"-s com.sun.star.test.bridge.CppTestObject" \
+ 		"-u 'uno:socket$(COMMA)host=127.0.0.1$(COMMA)port=2002;urp;test'" \
+ 		"--singleaccept" \
+@@ -63,7 +63,7 @@ $(testtools_BRIDGEDIR)/bridgetest_client$(testtools_BATCHSUFFIX) :| $(testtools_
+ 	$(call gb_Trace_StartRange,$(subst $(WORKDIR)/,,$@),ECH)
+ 	$(call gb_Helper_abbreviate_dirs,\
+ 		echo \
+-		"$(call gb_Executable_get_target_for_build,uno)" \
++		"/usr/lib/libreoffice/program/uno" \
+ 		"-s com.sun.star.test.bridge.BridgeTest --" \
+ 		"-u 'uno:socket$(COMMA)host=127.0.0.1$(COMMA)port=2002;urp;test'" \
+ 		"-env:LO_BUILD_LIB_DIR=$(call gb_Helper_make_url,$(gb_Library_WORKDIR_FOR_BUILD))" \
+diff --git a/testtools/CustomTarget_uno_test.mk b/testtools/CustomTarget_uno_test.mk
+index 04d600b17c64..c3b6069acc42 100644
+--- a/testtools/CustomTarget_uno_test.mk
++++ b/testtools/CustomTarget_uno_test.mk
+@@ -30,14 +30,14 @@ ifneq ($(gb_SUPPRESS_TESTS),)
+ 	@true
+ else
+ 	$(call gb_Helper_abbreviate_dirs,\
+-		$(call gb_Executable_get_command,uno) \
++		/usr/lib/libreoffice/program/uno \
+ 		-s com.sun.star.test.bridge.BridgeTest \
+ 		-- com.sun.star.test.bridge.CppTestObject \
+ 		-env:LO_BUILD_LIB_DIR=$(call gb_Helper_make_url,$(gb_Library_WORKDIR_FOR_BUILD)) \
+ 		-env:URE_MORE_SERVICES=$(call gb_Helper_make_url,$(call gb_Rdb_get_target,uno_services)) \
+ 		-env:URE_MORE_TYPES=$(call gb_Helper_make_url,$(WORKDIR)/UnoApiTarget/bridgetest.rdb) \
+ 		$(if $(ENABLE_JAVA), && \
+-			$(call gb_Executable_get_command,uno) \
++			/usr/lib/libreoffice/program/uno \
+ 			-s com.sun.star.test.bridge.BridgeTest \
+ 			-- com.sun.star.test.bridge.JavaTestObject noCurrentContext \
+ 			-env:LO_BUILD_LIB_DIR=$(call gb_Helper_make_url,$(gb_Library_WORKDIR_FOR_BUILD)) \
+#diff --git a/testtools/Library_bridgetest-common.mk b/testtools/Library_bridgetest-common.mk
+#index 1ca38bca6b49..cbc793c36d39 100644
+#--- a/testtools/Library_bridgetest-common.mk
+#+++ b/testtools/Library_bridgetest-common.mk
+#@@ -20,16 +20,6 @@ $(eval $(call gb_Library_use_internal_api,testtools_bridgetest-common,\
+#     bridgetest \
+# ))
+# 
+#-$(eval $(call gb_Library_use_libraries,testtools_bridgetest-common, \
+#-    cppu \
+#-    cppuhelper \
+#-    sal \
+#-))
+#-
+#-$(eval $(call gb_Library_use_api,testtools_bridgetest-common,\
+#-    udkapi \
+#-))
+#-
+# $(eval $(call gb_Library_add_exception_objects,testtools_bridgetest-common,\
+#     testtools/source/bridgetest/currentcontextchecker \
+#     testtools/source/bridgetest/multi \
+#diff --git a/testtools/Library_bridgetest.mk b/testtools/Library_bridgetest.mk
+#index 52f335761fdf..f0bafca0998f 100644
+#--- a/testtools/Library_bridgetest.mk
+#+++ b/testtools/Library_bridgetest.mk
+#@@ -15,16 +15,9 @@ $(eval $(call gb_Library_use_internal_api,testtools_bridgetest,\
+#     bridgetest \
+# ))
+# 
+#-$(eval $(call gb_Library_use_api,testtools_bridgetest,\
+#-    udkapi \
+#-))
+#-
+# $(eval $(call gb_Library_use_external,testtools_bridgetest,boost_headers))
+# 
+# $(eval $(call gb_Library_use_libraries,testtools_bridgetest,\
+#-    cppu \
+#-    cppuhelper \
+#-    sal \
+#     testtools_bridgetest-common \
+# ))
+# 
+#diff --git a/testtools/Library_constructors.mk b/testtools/Library_constructors.mk
+#index 516c05d62db8..3a2a4b8bca24 100644
+#--- a/testtools/Library_constructors.mk
+#+++ b/testtools/Library_constructors.mk
+#@@ -22,16 +22,6 @@ $(eval $(call gb_Library_use_internal_api,testtools_constructors,\
+#     bridgetest \
+# ))
+# 
+#-$(eval $(call gb_Library_use_api,testtools_constructors,\
+#-    udkapi \
+#-))
+#-
+#-$(eval $(call gb_Library_use_libraries,testtools_constructors,\
+#-    cppu \
+#-    cppuhelper \
+#-    sal \
+#-))
+#-
+# $(eval $(call gb_Library_add_exception_objects,testtools_constructors,\
+#     testtools/source/bridgetest/constructors \
+# ))
+#diff --git a/testtools/Library_cppobj.mk b/testtools/Library_cppobj.mk
+#index 086b1fa0b6f5..9348254b6da8 100644
+#--- a/testtools/Library_cppobj.mk
+#+++ b/testtools/Library_cppobj.mk
+#@@ -20,16 +20,9 @@ $(eval $(call gb_Library_use_internal_api,testtools_cppobj,\
+#     bridgetest \
+# ))
+# 
+#-$(eval $(call gb_Library_use_api,testtools_cppobj,\
+#-    udkapi \
+#-))
+#-
+# $(eval $(call gb_Library_use_external,testtools_cppobj,boost_headers))
+# 
+# $(eval $(call gb_Library_use_libraries,testtools_cppobj,\
+#-    cppu \
+#-    cppuhelper \
+#-    sal \
+#     testtools_bridgetest-common \
+# ))
+# 
+#diff --git a/unoidl/Executable_unoidl-check.mk b/unoidl/Executable_unoidl-check.mk
+#index 36dfc44de635..a1bb6ed14d80 100644
+#--- a/unoidl/Executable_unoidl-check.mk
+#+++ b/unoidl/Executable_unoidl-check.mk
+#@@ -15,10 +15,13 @@ $(eval $(call gb_Executable_add_exception_objects,unoidl-check, \
+# 
+# $(eval $(call gb_Executable_use_libraries,unoidl-check, \
+#     unoidl \
+#-    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),reg) \
+#-    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),store) \
+#-    salhelper \
+#-    sal \
+#+))
+#+
+#+$(eval $(call gb_Executable_add_ldflags,unoidl-check, \
+#+    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),-L/usr/lib/libreoffice/program/ -lreglo) \
+#+     $(if $(filter TRUE,$(DISABLE_DYNLOADING)),-L/usr/lib/libreoffice/program/ -lstorelo) \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_sal \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_salhelpergcc3 \
+# ))
+# 
+# # vim: set noet sw=4 ts=4:
+#diff --git a/unoidl/Executable_unoidl-read.mk b/unoidl/Executable_unoidl-read.mk
+#index b134c30b1a72..2bfd0ea3057f 100644
+#--- a/unoidl/Executable_unoidl-read.mk
+#+++ b/unoidl/Executable_unoidl-read.mk
+#@@ -15,10 +15,13 @@ $(eval $(call gb_Executable_add_exception_objects,unoidl-read, \
+# 
+# $(eval $(call gb_Executable_use_libraries,unoidl-read, \
+#     unoidl \
+#-    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),reg) \
+#-    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),store) \
+#-    salhelper \
+#-    sal \
+#+))
+#+
+#+$(eval $(call gb_Executable_add_ldflags,unoidl-read, \
+#+    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),-L/usr/lib/libreoffice/program/ -lreglo) \
+#+     $(if $(filter TRUE,$(DISABLE_DYNLOADING)),-L/usr/lib/libreoffice/program/ -lstorelo) \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_sal \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_salhelpergcc3 \
+# ))
+# 
+# # vim: set noet sw=4 ts=4:
+#diff --git a/unoidl/Executable_unoidl-write.mk b/unoidl/Executable_unoidl-write.mk
+#index 9accb31ac14d..f69d78a09c32 100644
+#--- a/unoidl/Executable_unoidl-write.mk
+#+++ b/unoidl/Executable_unoidl-write.mk
+#@@ -15,10 +15,15 @@ $(eval $(call gb_Executable_add_exception_objects,unoidl-write, \
+# 
+# $(eval $(call gb_Executable_use_libraries,unoidl-write, \
+#     unoidl \
+#-    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),reg) \
+#-    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),store) \
+#-    salhelper \
+#-    sal \
+# ))
+# 
+#+$(eval $(call gb_Executable_add_ldflags,unoidl-write, \
+#+    $(if $(filter TRUE,$(DISABLE_DYNLOADING)),-L/usr/lib/libreoffice/program/ -lreglo) \
+#+     $(if $(filter TRUE,$(DISABLE_DYNLOADING)),-L/usr/lib/libreoffice/program/ -lstorelo) \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_sal \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_salhelpergcc3 \
+#+))
+#+
+#+
+#+
+# # vim: set noet sw=4 ts=4:
+#diff --git a/unoidl/Library_unoidl.mk b/unoidl/Library_unoidl.mk
+#index c98fc69f4945..bdc8285fe234 100644
+#--- a/unoidl/Library_unoidl.mk
+#+++ b/unoidl/Library_unoidl.mk
+#@@ -32,10 +32,10 @@ $(eval $(call gb_Library_set_include,unoidl, \
+#     -I$(SRCDIR)/unoidl/source \
+# ))
+# 
+#-$(eval $(call gb_Library_use_libraries,unoidl, \
+#-    reg \
+#-    sal \
+#-    salhelper \
+#+$(eval $(call gb_Library_add_libs,unoidl, \
+#+    -L/usr/lib/libreoffice/program/ -lreglo \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_sal \
+#+    -L/usr/lib/libreoffice/sdk/lib/ -luno_salhelpergcc3 \
+# ))
+# 
+# # vim: set noet sw=4 ts=4:

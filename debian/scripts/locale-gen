@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# generate locales that uicheck depend on
+# "stolen" from gcc
+
+LOCPATH=`pwd`/debian/locales
+export LOCPATH
+
+[ -d $LOCPATH ] || mkdir -p $LOCPATH
+
+[ -n "$USE_CPUS" ] || USE_CPUS=1
+
+umask 022
+
+echo "Generating locales..."
+xargs -L 1 -P $USE_CPUS -I{} \
+    sh -c '
+	set {}; locale=$1; charset=$2
+	case $locale in \#*) exit;; esac
+	[ -n "$locale" -a -n "$charset" ] || exit
+	echo "  `echo $locale | sed \"s/\([^.\@]*\).*/\1/\"`.$charset`echo $locale | sed \"s/\([^\@]*\)\(\@.*\)*/\2/\"`..."
+        if [ -f $LOCPATH/$locale ]; then
+	    input=$locale
+	else
+            input=`echo $locale | sed "s/\([^.]*\)[^@]*\(.*\)/\1\2/"`
+	fi
+	localedef -i $input -c -f $charset $LOCPATH/$locale #-A /etc/locale.alias
+    ' <<EOF
+en_US.UTF-8		UTF-8
+EOF
+
+echo "Generation complete."

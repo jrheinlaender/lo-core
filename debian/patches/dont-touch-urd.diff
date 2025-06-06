@@ -1,0 +1,80 @@
+18:43 <@_rene_> hmm. /me wonders why after a rm config.status autogen.lastrun 
+                and a re-configure (and make clean for odk/scp2/scripting) LO 
+                master tries to rebuild offapi/udkapi again?
+18:44 <@_rene_> this a) takes with cpp instead of ucpp and b) causes all kind 
+                of stuff "down" to be rebuilt.... :(
+18:44 <@_rene_> which is extremely bad.
+18:44 <@_rene_> if it isn't solvable easily: what to touch to prevent it from 
+                doing that? :-)
+18:45 < loirkerbot> LibreOffice (core) mstahl * desktop/source/app/main.c: 
+                    desktop: tweak xmlCleanupParser hack: disable on return 
+                    from main
+18:46 < mst__> _rene_, did you switch between --with-system-ucpp and without? 
+               that should rebuild IDL file...
+18:47 <@_rene_> nah, first run is just --disable-help, --disable-scripting etc
+18:47 <@_rene_> and the second run does that
+18:47 <@_rene_> (first pass to "just" build what is needed for arch-specific 
+                stuff)
+18:48 <@_rene_> (and I am not using ucpp at all, but cpp ;))
+18:51 < mst__> _rene_, hmm don't know why that would happen then... you could 
+               try running second make with -d and redirect to a file, but 
+               beware that file will be huge... then grep for "Must 
+               remake.*urd" or something should give you the problem area
+18:59 -!- reisi007 [~chatzilla@cpe90-146-226-33.liwest.at] has quit [Quit: 
+          ChatZilla 0.9.89 [Firefox 14.0.1/20120713134347]]
+19:00 -!- crossmanith_ [~cr@p3E9EAEF6.dip.t-dialin.net] has joined 
+          #libreoffice-dev
+19:00 -!- erAck_away is now known as erAck
+19:05 -!- cbosdonnat [~cbosdo@ALyon-651-1-309-127.w90-14.abo.wanadoo.fr] has 
+          quit [Quit: Leaving]
+19:07 <@_rene_> mst__: ok, starting a new build, let's see
+[...]
+10:36 <@_rene_> mst__: nothing interesting there instead of the loads of 
+                touch'es...
+10:36 <@_rene_> mst__: butI just removed the touch from the UnoApiTarget and 
+                let's see now :)
+10:36 -!- erAck [~erathke@f054050047.adsl.alicedsl.de] has joined 
+          #libreoffice-dev
+10:36 -!- mode/#libreoffice-dev [+o erAck] by ChanServ
+10:36 <@_rene_>  $(call gb_UnoApiPartTarget_get_target,%.urd) :
+10:36 <@_rene_> -       touch $@
+10:36 <@_rene_> +       
+[...]
+10:38 < mst__> _rene_, there must be something interesting there: preceding the 
+               "Must remake.*urd" line there must be some line that says target 
+               "foo" is "newer" than the .urd and therefor it will be rebuilt
+[...]
+10:40 <@_rene_> mst__: I didn't see anything there, no ".*urd*muss neu"
+10:41 < mst__> _rene_, there must be a message like that immediately preceding 
+               running the touch command
+10:41 -!- pepp [~pierre-er@vaf26-6-78-248-2-61.fbx.proxad.net] has joined 
+          #libreoffice-dev
+10:42 <@vmiklos> mst__: makes sense.
+10:42 -!- matus [~ubuntu@adsl-dyn17.78-98-107.t-com.sk] has joined 
+          #libreoffice-dev
+10:42 <@_rene_> as said, there was done. I don't think I oversaw it
+10:43 <@_rene_> but can try again later, for now I will just keep removing the 
+                touch. according to the comment this shoudln't do harm
+10:43 < mst__> _rene_, removing it will break incremental builds iirc
+10:44 <@_rene_> but only if you change idl stuff inbetween
+10:44 <@_rene_> which won't happen that often in package builds ;)
+10:44 < mst__> _rene_, exactly
+10:44 -!- Fridrich [~fridrich@71-99.199-178.cust.bluewin.ch] has joined 
+          #libreoffice-dev
+10:44 -!- mode/#libreoffice-dev [+o Fridrich] by ChanServ
+10:45 <@_rene_> (when I am out of "use git", only when there's a new 
+                (pre-)release"
+
+diff --git a/solenv/gbuild/UnoApiTarget.mk b/solenv/gbuild/UnoApiTarget.mk
+index 98734ab..b281a84 100644
+--- a/solenv/gbuild/UnoApiTarget.mk
++++ b/solenv/gbuild/UnoApiTarget.mk
+@@ -46,7 +46,7 @@ $(dir $(call gb_UnoApiPartTarget_get_target,))%/.dir :
+ 	$(if $(wildcard $(dir $@)),,mkdir -p $(dir $@))
+ 
+ $(call gb_UnoApiPartTarget_get_target,%.urd) :
+-	touch $@
++	
+ 
+ # TODO:
+ # - get idlc switch "-P" (generate .urd into package dir)

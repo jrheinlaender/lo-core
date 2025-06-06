@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -e
+
+#INCLUDE_SHELL_LIB#
+
+if [ upgrade = "$1" ] || dpkg --compare-versions "$2" lt 1:6.4.0~beta1-2; then
+       dpkg-divert --remove --no-rename \
+               --divert /usr/lib/libreoffice/share/basic/dialog.xlc.noaccess \
+                       /usr/lib/libreoffice/share/basic/dialog.xlc
+       dpkg-divert --remove --no-rename \
+               --divert /usr/lib/libreoffice/share/basic/script.xlc.noaccess \
+                       /usr/lib/libreoffice/share/basic/script.xlc
+	# cleanup
+	rm -f /usr/lib/libreoffice/share/basic/script.xlc.noaccess
+	rm -f /usr/lib/libreoffice/share/basic/dialog.xlc.noaccess
+fi
+
+#DEBHELPER#
+
+exit 0

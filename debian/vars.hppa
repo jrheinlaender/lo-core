@@ -1,0 +1,3 @@
+PLATFORMID=linux_hppa
+RTL_ARCH=HPPA
+RTL_OS=Linux

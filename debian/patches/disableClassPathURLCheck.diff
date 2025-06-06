@@ -1,0 +1,10 @@
+--- a/configure.ac-old	2020-09-13 14:08:41.553174902 +0200
++++ b/configure.ac	2020-09-13 14:08:54.365300591 +0200
+@@ -7833,6 +7833,7 @@
+ 
+             # set to limit VM usage for JunitTests
+             JAVAIFLAGS=-Xmx64M
++	    JAVAIFLAGS="$JAVAIFLAGS -Djdk.net.URLClassPath.disableClassPathURLCheck=true"
+             # set to limit VM usage for javac
+             JAVACFLAGS=-J-Xmx128M
+ 

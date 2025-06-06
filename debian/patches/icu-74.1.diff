@@ -1,0 +1,26 @@
+From 885116dbf2f77d9faaadf1da6e12dd79d7b057f8 Mon Sep 17 00:00:00 2001
+From: Rico Tzschichholz <ricotz@ubuntu.com>
+Date: Wed, 20 Dec 2023 18:56:00 +0100
+Subject: [PATCH] Allow build with ICU 74.1
+
+Change-Id: I2299c8f76a163ebcebdfc63679794703713945be
+---
+ i18npool/source/breakiterator/data/line.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/i18npool/source/breakiterator/data/line.txt b/i18npool/source/breakiterator/data/line.txt
+index 9521c833fe74..855173c18f9c 100644
+--- a/i18npool/source/breakiterator/data/line.txt
++++ b/i18npool/source/breakiterator/data/line.txt
+@@ -14,7 +14,7 @@
+ #
+ 
+ !!chain;
+-!!LBCMNoChain;
++# !!LBCMNoChain; # tdf#158108
+ 
+ 
+ !!lookAheadHardBreak;
+-- 
+2.43.0
+

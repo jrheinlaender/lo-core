@@ -1,0 +1,61 @@
+From 85aecfe4fa9b28baf4b4b44b80f03d14f91c5eb2 Mon Sep 17 00:00:00 2001
+From: WANG Xuerui <xen0n@gentoo.org>
+Date: Thu, 22 Aug 2024 14:22:49 +0800
+Subject: [PATCH] sunjre: check all four possible OpenJDK variants for
+ libjvm.so
+
+Since OpenJDK 21, the "minimal" and "zero" variants of JVM no longer
+reside in the "server" directory in $JAVA_HOME/lib, making the loader
+unable to find libjvm.so. This regresses LO builds on platforms with
+only those variants of JVM (i.e. without a HotSpot port).
+
+Example error message is like this:
+
+> exception occurred: Could not create Java implementation loader at
+> ./stoc/source/javaloader/javaloader.cxx:551
+
+Fix it by probing all four possible variant directories for libjvm.so.
+This is tested on Debian unstable (loong64 port) to fix the packaging.
+
+Link: https://bugs.openjdk.org/browse/JDK-8273494
+Link: https://github.com/openjdk/jdk/pull/5440
+Link: https://github.com/openjdk/jdk/commit/8fbcc8239a3fc04e56ebbd287c7bb5db731977b7
+Change-Id: I3545f93054d7a3af0181e4c739c82efaaf8aeaed
+---
+ jvmfwk/plugins/sunmajor/pluginlib/sunjre.cxx | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/jvmfwk/plugins/sunmajor/pluginlib/sunjre.cxx b/jvmfwk/plugins/sunmajor/pluginlib/sunjre.cxx
+index a0f8cbee1f3e..926a0e469935 100644
+--- a/jvmfwk/plugins/sunmajor/pluginlib/sunjre.cxx
++++ b/jvmfwk/plugins/sunmajor/pluginlib/sunjre.cxx
+@@ -63,10 +63,15 @@ char const* const* SunInfo::getRuntimePaths(int * size)
+         "/lib/jli/libjli.dylib"
+ #elif defined UNX
+         "/lib/" JFW_PLUGIN_ARCH "/client/libjvm.so",
++        "/lib/" JFW_PLUGIN_ARCH "/minimal/libjvm.so",
+         "/lib/" JFW_PLUGIN_ARCH "/server/libjvm.so",
++        "/lib/" JFW_PLUGIN_ARCH "/zero/libjvm.so",
+         "/lib/" JFW_PLUGIN_ARCH "/classic/libjvm.so",
+         "/lib/" JFW_PLUGIN_ARCH "/jrockit/libjvm.so",
+-        "/lib/server/libjvm.so"
++        "/lib/client/libjvm.so",
++        "/lib/minimal/libjvm.so",
++        "/lib/server/libjvm.so",
++        "/lib/zero/libjvm.so"
+ #endif
+     };
+     *size = SAL_N_ELEMENTS(ar);
+@@ -78,7 +83,9 @@ char const* const* SunInfo::getLibraryPaths(int* size)
+ #if defined UNX && !defined MACOSX
+     static char const * ar[] = {
+         "/lib/" JFW_PLUGIN_ARCH "/client",
++        "/lib/" JFW_PLUGIN_ARCH "/minimal",
+         "/lib/" JFW_PLUGIN_ARCH "/server",
++        "/lib/" JFW_PLUGIN_ARCH "/zero",
+         "/lib/" JFW_PLUGIN_ARCH "/native_threads",
+         ("/lib/" JFW_PLUGIN_ARCH)
+     };
+-- 
+2.39.2
+

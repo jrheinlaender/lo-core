@@ -1,0 +1,103 @@
+Package directory modes
+=======================
+The packages can be built directly from a set of git checkouts (vcs mode),
+or from a set of release tarballs (tarball mode).
+
+Vcs mode is useful if you want to work on libreoffice during the development
+cycle. You can check out the latest sources and track them while you make
+changes.
+
+Tarball mode is used to prepare packages of official libreoffice releases
+from the tarballs created by upstream.
+
+Source package creation steps for tarball mode
+==============================================
+The .orig.tar.gz consists of the (separate) source tarballs available
+from The Document Foundation from
+http://download.documentfoundation.org/libreoffice/src/<version/
+
+The libreoffice-x.y.z.a.tar.xz is taken verbatim as original tarball:
+$ ln -s libreoffice-x.y.z.a.tar.xz libreoffice_x.y.z.orig.tar.xz
+$ tar xfvJ libreoffice-x.y.z.a.tar.xz
+
+For a full build you also need helpcontent2 and translations (and the external
+modules' tarballs) which normally are git submodules and/or downloaded during
+the build.
+
+As dpkg-source expects e.g. helpcontent2 as a subdir we can't directly
+symlink (as the tarball contains libreoffice-x.y.z.a/helpcontent2).
+We need to create them manually/repack them:
+
+$ tar xfvJ libreoffice-helpcontent2-x.y.z.a.tar.xz
+$ tar xfvJ libreoffice-translations-x.y.z.a.tar.xz
+$ cd libreoffice-x.y.z.a
+$ for i in helpcontent2 translations tarballs; do \
+	tar cfvJ ../libreoffice_5.2.1.orig-$i.tar.xz $i; \
+  done
+
+The get-orig-source debian/rules target does this with our custom
+mk-origtargz script.
+
+Given those files are not in the tarballs above they need to be removed
+as otherwise dpkg complains
+$ rm ChangeLog-*
+
+We also need the "tarballs".
+A standard upstream build downloads it during the build, but we neither can't nor want it here of course. So:
+
+$ rm -rf tarballs
+$ mkdir -p tarballs
+$ ./autogen.sh $(filter-out --disable-fetch-external,$(CONFIGURE_FLAGS)) --with-all-tarballs
+$ make download gb_LO_VER=<version>
+
+or base on an old version and add/remove the files manually and/or symlink
+to the old version if this didn't change - see git diff of download.lst. This
+is even better given we probably want to add only needed stuff there, and not
+all tarballs (most of those we don't use)
+
+See the "Format: 3.0 (quilt)" section dpkg-source(1) for more details.
+
+Package directory layout - vcs mode
+===================================
+
+In vcs mode we are working directly from checkouts of the libreoffice sources.
+
+We pull in sources to these places:
+
+ "top" directory - checkout of LO's "core" repo
+ debian - git packaging repository from pkg-openoffice project on alioth
+ helpcontent2 - checkout of LO's "help" repo (git submodule)
+ translations - checkout of LO's "translations" repo (git submodule)
+ tarballs - see above in tarball mode
+
+$ git clone git://gerrit.libreoffice.org/core
+$ cd core
+$ git submodule init
+
+(maybe remove dictionaries again, see .git/config, we don't need it here.)
+
+./g pull -r (git pull -r, but also does the necessary steps for the submodules)
+
+For tarballs/, see above
+
+Build profiles
+==============
+
+Except the "common" build profiles
+ - nodoc
+ - nocheck
+ - nopython
+ - nojava
+ - nogir
+this source package also has 
+ - an own one which controls whether opens___.ttf of fonts-opensymbol is rebuilt
+   (which needs fontforge-nox | fontforge) (pkg.libreoffice.opensymbolbuild, default on arch
+   inde builds) or not.
+   If this is disabled you must provide opens___.ttf itself since the upstream build will fail
+   wiithout it being present. The canonical way (which is what upstream does per default actually)
+   is to put https://dev-www.libreoffice.org/extern/f543e6e2d7275557a839a164941c0a86e5f2c3f2a0042bfc434c88c6dde9e140-opens___.ttf
+   into tarballs/. It will be picked up from there.
+ - Then we get a fonts-opensymbol Build-Depends-Arch to make arch-dep builds use the
+   rebuilt font. In case this makes problem this can be built still by
+   debuild (-b) -Ppkg.libreoffice.opensymbolbuild
+

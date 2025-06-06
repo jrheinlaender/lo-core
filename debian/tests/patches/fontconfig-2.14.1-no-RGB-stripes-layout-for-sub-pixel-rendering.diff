@@ -1,0 +1,13 @@
+diff --git a/extras/source/truetype/symbol/fc_local.snippet b/extras/source/truetype/symbol/fc_local.snippet
+index 5b29e1d58744..acf37fcfc192 100644
+--- a/extras/source/truetype/symbol/fc_local.snippet
++++ b/extras/source/truetype/symbol/fc_local.snippet
+@@ -4,3 +4,8 @@
+     <string>OpenSymbol</string>
+   </edit>
+ </match>
++<!-- work around fontconfig 2.14.1-3 (probably all of 2.14.1) enabling this unconditionally.
++The testSimpleText test doesn't expect that -->
++<match target="font">            
++  <edit name="rgba" mode="delete"><const>rgb</const></edit>            
++</match>

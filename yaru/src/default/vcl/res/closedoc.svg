@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 11 11"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="closedoc.svg"
+   inkscape:export-filename="/home/jupiter007/Libreoffice yaru theme fullcolor/build/vcl/res/closedoc.png"
+   inkscape:export-xdpi="95"
+   inkscape:export-ydpi="95"
+   inkscape:version="1.2 (1:1.2.1+202207142221+cd75a1ee6d)"
+   width="11"
+   height="11"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata
+     id="metadata10">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs8" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1043"
+     id="namedview6"
+     showgrid="true"
+     inkscape:zoom="41.7193"
+     inkscape:cx="3.4995793"
+     inkscape:cy="7.4545834"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg4"
+     inkscape:document-rotation="0"
+     inkscape:snap-bbox="true"
+     inkscape:showpageshadow="2"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1">
+    <inkscape:grid
+       type="xygrid"
+       id="grid837" />
+  </sodipodi:namedview>
+  <circle
+     style="opacity:1;fill:#4d4d4d;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1.7143;stroke-linecap:round;stroke-linejoin:round"
+     id="path837"
+     cx="5.5"
+     cy="5.5"
+     r="5.5" />
+  <path
+     style="fill:#ffffff;fill-opacity:1"
+     d="M 7.520751,8.0855024 5.6006074,6.1653584 3.479249,8.2867165 2.772218,7.5796854 4.8935765,5.4583273 2.772218,3.3369688 3.479249,2.6299377 5.6006073,4.7512961 7.7219653,2.6299379 8.4289962,3.3369689 6.3076379,5.4583273 8.227782,7.3784711 Z"
+     id="path835"
+     sodipodi:nodetypes="ccccccccccccc" />
+</svg>

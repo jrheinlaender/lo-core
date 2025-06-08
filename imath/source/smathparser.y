@@ -873,7 +873,12 @@ statement: OPTIONS options {
          }
          | FUNCTION '{' funchints ',' STRING ',' gsymbol ',' ex '}' {
            std::string fname = ex_to<symbol>($7).get_name();
-           params.compiler->register_function(fname, {$9}, $3, $5);
+           std::string printname = $5;
+           if (printname.empty()) {
+             size_t pos = fname.find_last_of("::");
+             printname = (pos == std::string::npos ? fname : fname.substr(pos+1));
+           }
+           params.compiler->register_function(fname, {$9}, $3, std::move(printname));
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), params.compiler->create_function(fname)));
@@ -884,7 +889,12 @@ statement: OPTIONS options {
          }
          | FUNCTION '{' funchints ',' STRING ',' gsymbol ',' exvec '}' {
            std::string fname = ex_to<symbol>($7).get_name();
-           params.compiler->register_function(fname, $9, $3, $5);
+           std::string printname = $5;
+           if (printname.empty()) {
+             size_t pos = fname.find_last_of("::");
+             printname = (pos == std::string::npos ? fname : fname.substr(pos+1));
+           }
+           params.compiler->register_function(fname, $9, $3, std::move(printname));
            if (include_level == 0) {
              std::vector<OUString> formulaParts = {OU("{"), GETARG(@3), OU(","), GETARG(@5), OU(","), GETARG(@7), OU(","), GETARG(@9), OU("}")};
              params.lines.push_back(std::make_shared<iFormulaNodeStmFunction>(current_options, std::move(formulaParts), params.compiler->create_function(fname)));
@@ -1677,9 +1687,17 @@ funchints: '{' hints '}' {
           }
 ;
 %type <unsigned>  hints "hints";
-hints:      IDENTIFIER { $$ = Functionmanager::hint($1); }
+hints:      IDENTIFIER {
+              // Strip namespace, which might have been prepended here
+              auto hint = $1;
+              auto pos = hint.find_last_of(':');
+              $$ = Functionmanager::hint(pos == std::string::npos ? std::move(hint) : hint.substr(pos+1));
+          }
           | hints ';' IDENTIFIER {
-            $$ = $1 | Functionmanager::hint($3);
+            // Strip namespace, which might have been prepended here
+            auto hint = $3;
+            auto pos = hint.find_last_of(':');
+            $$ = $1 | Functionmanager::hint(pos == std::string::npos ? std::move(hint) : hint.substr(pos+1));
           }
 ;
 %type <bool> asterisk "*";
@@ -2209,11 +2227,11 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       delete($3); delete($5); delete($8);
     }*/
     | INTEGRAL '{' ex '}' {
-      $$ = dynallocate<extintegral>($3, _ex0, params.compiler->getsym("C")); // $3 must contain a differential, the integration variable is deduced from it
+      $$ = dynallocate<extintegral>(_ex0, $3, params.compiler->getsym("C")); // $3 must contain a differential, the integration variable is deduced from it
     }
     | INTEGRAL FROM lowerbound TO upperbound IMPMUL '{' ex '}' { // We can't prevent the IMPMUL appearing here
       auto lower = $3;
-			$$ = dynallocate<extintegral>(lower.lhs(), lower.rhs(), $5, $8 / differential(lower.lhs(), false, _ex1)); // TODO: A sanity check für *$8 to contain the correct differential would be nice
+			$$ = dynallocate<extintegral>(lower.lhs(), lower.rhs(), $5, $8); // TODO: A sanity check für *$8 to contain the correct differential would be nice
     }
     | DIFFERENTIAL '(' ex ')' {
         $$ = dynallocate<differential>($3, $1 == "PARTIAL", _ex1);

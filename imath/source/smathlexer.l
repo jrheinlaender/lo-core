@@ -256,7 +256,7 @@ BEGIN(INITIAL);
               else if (str == "< " || str == "<\n") {
                 str = "<";
                 yylloc->columns(-1);
-                yyless(str.size()); // Re-scan line break in INITIAL condition
+                yyless(int(str.size())); // Re-scan line break in INITIAL condition
               }
               yylval->as<std::string>() = str;
               return token::OPERATOR;
@@ -283,7 +283,7 @@ BEGIN(INITIAL);
               if (str.back() == '\n') {
                 str = str.substr(0, str.size() - 1);
                 yylloc->columns(-1);
-                yyless(str.size()); // Re-scan line break in INITIAL condition
+                yyless(int(str.size())); // Re-scan line break in INITIAL condition
               }
               yylval->as<std::string>() = str;
               return token::OPERATOR;

@@ -100,10 +100,13 @@ extintegral::extintegral(const ex & x_, const ex & a_, const ex & b_, const ex &
   auto [var, diff] = extract_differential(f_);
   if (var.is_zero() && x_.is_zero())
       throw std::runtime_error("An integration variable must be provided, or the expression must contain a differential");
-  let_op(0) = x_;
+  let_op(0) = x_.is_zero() ? var : x_;
   let_op(1) = a_;
   let_op(2) = b_;
-  let_op(3) = var.is_equal(x_) ?  f_ / diff : f_;
+  if (x_.is_zero() || x_.is_equal(var))
+    let_op(3) = f_ / diff;
+  else
+    let_op(3) = f_;
   C = dynallocate<extsymbol>("C");
   hasboundaries = true;
 }
@@ -111,13 +114,18 @@ extintegral::extintegral(const ex & x_, const ex & a_, const ex & b_, const ex &
 extintegral::extintegral(const ex & x_, const ex & f_, const ex & C_)
   : integral()
 {
+  MSG_INFO(3, "Constructing extintegral without boundaries from " << f_ << endline);
   auto [var, diff] = extract_differential(f_);
   if (var.is_zero() && x_.is_zero())
       throw std::runtime_error("An integration variable must be provided, or the expression must contain a differential");
-  let_op(0) = x_;
+  let_op(0) = x_.is_zero() ? var : x_;
   let_op(1) = _ex0;
   let_op(2) = _ex0;
-  let_op(3) = var.is_equal(x_) ? f_ / diff : f_;
+  if (x_.is_zero() || x_.is_equal(var))
+    let_op(3) = f_ / diff;
+  else
+    let_op(3) = f_;
+
   hasboundaries = false;
   MSG_INFO(3, "Constructing extintegral of expression " << op(3) << " to variable " << op(0) << endline);
 }
@@ -689,6 +697,9 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
         remainder += e;
     }
   }
+
+  if (remainder.is_equal(differential(var)))
+      return var;
 
   if (remainder.is_equal(var))
     return _ex1_2 * pow(var, _ex2);

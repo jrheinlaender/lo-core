@@ -1479,6 +1479,8 @@ struct SalInstanceTreeIter final : public weld::TreeIter
 
 class SalInstanceTreeView : public SalInstanceWidget, public virtual weld::TreeView
 {
+public:
+    typedef std::pair<SvTreeListEntry*, OUString> IterString;
 protected:
     // owner for UserData
     std::vector<std::unique_ptr<OUString>> m_aUserData;
@@ -1504,7 +1506,6 @@ protected:
     DECL_LINK(StartDragHdl, SvTreeListBox*, bool);
     DECL_STATIC_LINK(SalInstanceTreeView, FinishDragHdl, SvTreeListBox*, void);
     DECL_LINK(EditingEntryHdl, SvTreeListEntry*, bool);
-    typedef std::pair<SvTreeListEntry*, OUString> IterString;
     DECL_LINK(EditedEntryHdl, IterString, bool);
     DECL_LINK(EditingCanceledHdl, IterString, void);
     DECL_LINK(VisibleRangeChangedHdl, SvTreeListBox*, void);

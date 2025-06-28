@@ -125,7 +125,7 @@ extintegral::extintegral(const ex & x_, const ex & f_, const ex & C_)
     let_op(3) = f_ / diff;
   else
     let_op(3) = f_;
-
+  C = C_;
   hasboundaries = false;
   MSG_INFO(3, "Constructing extintegral of expression " << op(3) << " to variable " << op(0) << endline);
 }
@@ -844,9 +844,6 @@ ex extintegral::eval_integ() const
   MSG_INFO(1, "eval_integ() for " << *this << endline);
   const ex& var = op(0);
   ex fun = op(3);
-  if (is_a<extintegral>(fun)) // Handle multiple integrals
-    fun = ex_to<extintegral>(fun).eval_integ();
-
   ex constfactor(_ex1);
   ex nonintegrable(_ex0);
   ex integrated = find_integral(fun, var, constfactor, nonintegrable);

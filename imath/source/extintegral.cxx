@@ -131,7 +131,7 @@ extintegral::extintegral(const ex& x_, const ex& f_, const ex& C_)
         let_op(3) = f_ / diff;
     else
         let_op(3) = f_;
-
+    C = C_;
     hasboundaries = false;
     MSG_INFO(3, "Constructing extintegral of expression " << op(3) << " to variable " << op(0)
                                                           << endline);
@@ -1707,28 +1707,14 @@ return _ex0;
 // Handle substitution of the differential
 if (is_a<extintegral>(result))
 {
-    for (const auto& r : m)
-    {
-        if (is_a<differential>(r.first))
-        {
-            const differential& lhs = ex_to<differential>(r.first);
-            if (lhs.op(0).is_equal(result.op(0)))
-            {
-                auto[var, diff] = extract_differential(r.second);
-                extintegral res(op(3) * r.second / diff, var,
-                                C); // Construct new extintegral from expression
-                res.hasboundaries = hasboundaries;
-                if (hasboundaries)
-                {
-                    res.let_op(1) = op(1);
-                    res.let_op(2) = op(2);
-                }
-                return res;
-            }
-        }
-
-        return result;
-    }
+    MSG_INFO(1, "eval_integ() for " << *this << endline);
+    const ex& var = op(0);
+    ex fun = op(3);
+    ex constfactor(_ex1);
+    ex nonintegrable(_ex0);
+    ex integrated = find_integral(fun, var, constfactor, nonintegrable);
+    MSG_INFO(1, "Integrated: " << integrated << ", nonintegrable: " << nonintegrable
+                               << ", constfactor: " << constfactor << endline);
 
     ex extintegral::eval_integ() const
     {

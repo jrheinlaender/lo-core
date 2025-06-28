@@ -5501,7 +5501,7 @@ IMPL_LINK(SalInstanceTreeView, EditingEntryHdl, SvTreeListEntry*, pEntry, bool)
     return signal_editing_started(SalInstanceTreeIter(pEntry));
 }
 
-IMPL_LINK(SalInstanceTreeView, EditedEntryHdl, const IterString&, rIterString, bool)
+IMPL_LINK(SalInstanceTreeView, EditedEntryHdl, IterString, rIterString, bool)
 {
     return signal_editing_done(
         iter_string(SalInstanceTreeIter(rIterString.first), rIterString.second));

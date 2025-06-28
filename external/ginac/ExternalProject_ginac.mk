@@ -24,7 +24,7 @@ ginac_CPPCLAGS=$(CPPFLAGS)
 # Note: Make install is required to get a clean include file directory
 # Note: It would be desirable to build GiNaC as a DLL on Windows. But this proves very difficult. Some notes:
 #       General: See notes in ExternalProject_cln.mk
-#       Configure: pkg-config does not recognize the DLL. Use CLN_CFLAGS="-I$(call gb_UnpackedTarball_get_dir,cln)/include/" CLN_LIBS="$(call gb_UnpackedTarball_get_dir,cln)/instdir/lib/libcln-6.dll"
+#       Configure: pkg-config does not recognize the DLL. Use CLN_CFLAGS="-I$(gb_UnpackedTarball_workdir)/cln/include/" CLN_LIBS="$(gb_UnpackedTarball_workdir)/cln/instdir/lib/libcln-6.dll"
 $(call gb_ExternalProject_get_state_target,ginac,build): $(call gb_ExternalProject_get_state_target,ginac,configure)
 	$(call gb_Trace_StartRange,ginac,EXTERNAL)
 ifneq ($(COM),MSC)
@@ -34,7 +34,7 @@ ifneq ($(COM),MSC)
 else
 	+$(call gb_ExternalProject_run,build,\
 	cd ginac && $(MAKE) install && \
-	dlltool --export-all-symbols -z $(call gb_UnpackedTarball_get_dir,ginac)/instdir/libginac.def $(call gb_UnpackedTarball_get_dir,ginac)/ginac/*.obj \
+	dlltool --export-all-symbols -z $(gb_UnpackedTarball_workdir)/ginac/instdir/libginac.def $(gb_UnpackedTarball_workdir)/ginac/ginac/*.obj \
 	)
 endif
 	$(call gb_Trace_EndRange,ginac,EXTERNAL)
@@ -50,8 +50,8 @@ ifeq ($(COM),MSC)
 			--host=$(HOST_PLATFORM) \
 			--with-pic \
 			--disable-shared --enable-static \
-			PKG_CONFIG_PATH=$(call gb_UnpackedTarball_get_dir,cln) \
-			--prefix=$(call gb_UnpackedTarball_get_dir,ginac)/instdir \
+			PKG_CONFIG_PATH=$(gb_UnpackedTarball_workdir)/cln \
+			--prefix=$(gb_UnpackedTarball_workdir)/ginac/instdir \
 			$(if $(ginac_CPPFLAGS),CPPFLAGS='$(ginac_CPPFLAGS)') \
 			CPPFLAGS="$(CPPFLAGS) -MD -EHsc -Zc:__cplusplus -std:c++20" \
 			CXXFLAGS="$(CXXFLAGS) $(gb_EMSCRIPTEN_CPPFLAGS) $(if $(ENABLE_OPTIMIZED),$(gb_COMPILEROPTFLAGS),$(gb_COMPILERNOOPTFLAGS)) $(if $(debug),$(gb_DEBUGINFO_FLAGS))" \
@@ -61,8 +61,8 @@ else
 		$(gb_RUN_CONFIGURE) ./configure \
 			--with-pic \
 			--enable-shared --disable-static \
-			PKG_CONFIG_PATH=$(call gb_UnpackedTarball_get_dir,cln) \
-			--prefix=$(call gb_UnpackedTarball_get_dir,ginac)/instdir \
+			PKG_CONFIG_PATH=$(gb_UnpackedTarball_workdir)/cln \
+			--prefix=$(gb_UnpackedTarball_workdir)/ginac/instdir \
 			$(if $(CROSS_COMPILING),--build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM))\
 			$(if $(filter AIX,$(OS)),CFLAGS="-D_LINUX_SOURCE_COMPAT") \
 			$(if $(ginac_CPPFLAGS),CPPFLAGS='$(ginac_CPPFLAGS)') \

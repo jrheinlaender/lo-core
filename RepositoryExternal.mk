@@ -4435,7 +4435,7 @@ else # !SYSTEM_CLN
 define gb_LinkTarget__use_cln
 $(call gb_LinkTarget_use_unpacked,$(1),cln)
 $(call gb_LinkTarget_set_include,$(1),\
-	-I$(call gb_UnpackedTarball_get_dir,cln/include)\
+	-I$(gb_UnpackedTarball_workdir)/cln/include\
 	$$(INCLUDE) \
 )
 
@@ -4468,7 +4468,7 @@ else # !SYSTEM_GINAC
 define gb_LinkTarget__use_ginac
 $(call gb_LinkTarget_use_unpacked,$(1),ginac)
 $(call gb_LinkTarget_set_include,$(1),\
-	-I$(call gb_UnpackedTarball_get_dir,ginac/instdir/include) \
+	-I$(gb_UnpackedTarball_workdir)/ginac/instdir/include \
 	$$(INCLUDE) \
 )
 
@@ -4495,7 +4495,7 @@ else
 define gb_LinkTarget__use_frozen
 $(call gb_LinkTarget_use_unpacked,$(1),frozen)
 $(call gb_LinkTarget_set_include,$(1),\
-	-I$(call gb_UnpackedTarball_get_dir,frozen/include/)\
+	-I$(gb_UnpackedTarball_workdir)/frozen/include\
 	$$(INCLUDE) \
 )
 endef

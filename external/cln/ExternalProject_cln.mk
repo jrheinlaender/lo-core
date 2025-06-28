@@ -41,7 +41,7 @@ cln_CPPCLAGS="$(CPPFLAGS)"
 #
 $(call gb_ExternalProject_get_state_target,cln,build): $(call gb_ExternalProject_get_state_target,cln,configure)
 	$(call gb_Trace_StartRange,cln,EXTERNAL)
-	+$(call gb_ExternalProject_run,build,\
+	$(call gb_ExternalProject_run,build,\
 		cd src && $(MAKE) install \
 	)
 	$(call gb_Trace_EndRange,cln,EXTERNAL)
@@ -56,8 +56,8 @@ ifeq ($(COM),MSC)
 			--with-pic \
 			--disable-shared --enable-static \
 			--without-gmp \
-			--prefix=$(call gb_UnpackedTarball_get_dir,cln)/instdir \
-			--includedir=$(call gb_UnpackedTarball_get_dir,cln)/include \
+			--prefix=$(gb_UnpackedTarball_workdir)/cln/instdir \
+			--includedir=$(gb_UnpackedTarball_workdir)/cln/include \
 			$(if $(cln_CPPFLAGS),CPPFLAGS='$(cln_CPPFLAGS)') \
 			CPPFLAGS="$(CPPFLAGS) -MD -DNO_ASM -EHsc" \
 			CXXFLAGS="$(CXXFLAGS) $(gb_EMSCRIPTEN_CPPFLAGS) $(if $(ENABLE_OPTIMIZED),$(gb_COMPILEROPTFLAGS),$(gb_COMPILERNOOPTFLAGS)) $(if $(debug),$(gb_DEBUGINFO_FLAGS))" \
@@ -68,7 +68,7 @@ else
 			--with-pic \
 			--enable-shared --disable-static \
 			--without-gmp \
-			--prefix=$(call gb_UnpackedTarball_get_dir,cln)/instdir --includedir=$(call gb_UnpackedTarball_get_dir,cln)/include \
+			--prefix=$(gb_UnpackedTarball_workdir)/cln/instdir --includedir=$(gb_UnpackedTarball_workdir)/cln/include \
 			$(if $(CROSS_COMPILING),--build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM)) \
 			$(if $(filter AIX,$(OS)),CFLAGS="-D_LINUX_SOURCE_COMPAT") \
 			$(if $(cln_CPPFLAGS),CPPFLAGS='$(cln_CPPFLAGS)') \

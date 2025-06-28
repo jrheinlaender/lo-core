@@ -157,7 +157,7 @@ public:
   expression collect(const expression& e = _expr0) const;
 
   /// Evaluate all integral objects in the expression
-  expression eval_integral();
+  expression eval_integral() const;
 
   /**
   Differentiates the expression with respect to the dependant variable given

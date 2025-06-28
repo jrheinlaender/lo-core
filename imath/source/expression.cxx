@@ -677,40 +677,24 @@ expression expression::eval_differential() const {
   return eval_diffs(match_diffs(*this));
 }
 
-expression expression::eval_integral() {
+struct eval_integrals : public map_function {
+  ex operator()(const ex &e);
+};
+
+ex eval_integrals::operator()(const ex& e) {
+  MSG_INFO(3, "eval_integrals() for " << e << endline);
+  if (is_a<extintegral>(e)) {
+    ex mapped_e = e.map(*this); // Handle inner integrals first
+    return ex_to<extintegral>(mapped_e).eval_integ();
+  }
+
+  return e.map(*this);
+}
+
+expression expression::eval_integral() const {
   MSG_INFO(1, "Evaluating integrals for " << ex(*this) << endline);
-  if (is_a<add>(*this)) {
-    expression result(_expr0);
-    for (const auto& i : *this)
-      result = result + expression(i).eval_integral();
-    return result;
-  }
-
-  expression integrals(_expr1);
-  expression rest(_expr1);
-
-  MSG_INFO(2, "Examining " << ex(*this) << endline);
-
-  // Find the integral(s)
-  for (const auto& i : (is_a<mul>(*this) ? *this : lst{*this})) {
-    if (is_a<extintegral>(i))
-      integrals = integrals * expression(i);
-    else if (is_a<add>(i))
-      rest = rest * expression(i).eval_integral();
-    else
-      rest = rest * expression(i);
-  }
-
-  MSG_INFO(2, "Integrals: " << integrals << endline);
-  MSG_INFO(2, "Rest: " << rest << endline);
-  if (integrals.is_equal(_expr1)) return *this; // no integrals found
-
-  // Evaluate the integrals
-  expression result(_expr1);
-  for (const auto& i : (is_a<mul>(integrals) ? integrals : lst{integrals}))
-    result = result * expression(ex_to<extintegral>(i).eval_integ());
-
-  return rest * result;
+  eval_integrals eval_integs;
+  return eval_integs(*this);
 }
 
 expression expression::integrate(const ex& var, const extsymbol& integration_constant) const {

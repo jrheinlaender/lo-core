@@ -539,8 +539,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
         break;
     case FN_IMATH_INSERT_CHART:
         {
-            SvtModuleOptions aMOpt;
-            if ( !aMOpt.IsChart() )
+            if ( !SvtModuleOptions().IsChartInstalled() )
                 break;
             if(rReq.IsAPI())
                 break;

@@ -1317,7 +1317,7 @@ sal_Int16 SmMathConfig::GetDefaultSmSyntaxVersion() const
 
 sal_Int32 SmMathConfig::GetDefaultImSyntaxVersion() const
 {
-    if (utl::ConfigManager::IsFuzzing())
+    if (comphelper::IsFuzzing())
         return nDefaultImSyntaxVersion;
     if (!pOther)
         const_cast<SmMathConfig*>(this)->LoadOther();

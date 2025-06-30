@@ -303,10 +303,7 @@ void SvTabListBox::SetTabs(sal_uInt16 nTabs, tools::Long const pTabPositions[], 
         aSize = LogicToLogic( aSize, &aMMSource, &aMMDest );
         tools::Long nNewTab = aSize.Width();
         mvTabList[nIdx].SetPos( nNewTab );
-        mvTabList[nIdx].nFlags &= MYTABMASK;
     }
-    // by default, 1st one is editable, others not; override with set_column_editables
-    mvTabList[0].nFlags |= SvLBoxTabFlags::EDITABLE;
     SvTreeListBox::nTreeFlags |= SvTreeFlags::RECALCTABS;
     if( IsUpdateMode() )
         Invalidate();

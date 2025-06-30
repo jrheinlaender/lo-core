@@ -3848,6 +3848,9 @@ SalInstanceTreeView::SalInstanceTreeView(SvTabListBox* pTreeView, SalInstanceBui
     m_xTreeView->SetCustomMeasureHdl(LINK(this, SalInstanceTreeView, CustomMeasureHdl));
     const tools::Long aTabPositions[] = { 0 };
     m_xTreeView->SetTabs(SAL_N_ELEMENTS(aTabPositions), aTabPositions);
+    // by default, 1st one is editable, others not; override with set_column_editables
+    m_xTreeView->SetTabEditable(0, true);
+
     LclHeaderTabListBox* pHeaderBox = dynamic_cast<LclHeaderTabListBox*>(m_xTreeView.get());
 
     if (pHeaderBox)
@@ -3895,6 +3898,7 @@ void SalInstanceTreeView::columns_autosize()
     m_xTreeView->getPreferredDimensions(aWidths);
     if (aWidths.size() > 2)
     {
+        aWidths[0] = m_xTreeView->GetLogicTab(0); // PreferredDimensions returns 0 here, but the actual view uses this value
         std::vector<int> aColWidths;
         aColWidths.push_back(aWidths[1] + aWidths[0]);
         for (size_t i = 2; i < aWidths.size() - 1; ++i)

@@ -1404,15 +1404,15 @@ void SmViewShell::InsertFrom(SfxMedium &rMedium)
     if (!bSuccess)
         return;
 
-    OUString aText = pEditWin->IsImWindow() ? pDoc->GetImText() : pDoc->GetText();
     AbstractEditWindow *pEditWin = GetEditWindow();
-
     if (pEditWin)
+    {
+        OUString aText = pEditWin->IsImWindow() ? pDoc->GetImText() : pDoc->GetText();
         pEditWin->InsertText(aText);
+        if (!pEditWin->IsImWindow()) pDoc->Parse();
+    }
     else
         SAL_WARN( "starmath", "EditWindow missing" );
-
-    if (!pEditWin->IsImWindow()) pDoc->Parse();
     pDoc->SetModified();
 
     SfxBindings& rBnd = GetViewFrame().GetBindings();
@@ -1567,8 +1567,6 @@ void SmViewShell::Execute(SfxRequest& rReq)
                     if( aDataHelper.GetTransferable().is() &&
                         aDataHelper.HasFormat( SotClipboardFormatId::STRING ))
                         pWin->Paste();
-                    else
-                        bCallExec = true;
                 }
             }
             break;
@@ -1576,14 +1574,14 @@ void SmViewShell::Execute(SfxRequest& rReq)
         case SID_MATRIXEDITOR:
             {
                 ESelection eSelection = pWin->GetSelection();
-                sal_Int32 nPara = std::min(eSelection.nStartPara, eSelection.nEndPara);
+                sal_Int32 nPara = std::min(eSelection.start.nPara, eSelection.end.nPara);
 
                 // Get all text starting with the paragraph of the selection up to the end
                 auto pEngine = pWin->GetEditEngine();
                 OUString sText;
                 for (sal_Int32 p = nPara; p < pEngine->GetParagraphCount(); ++p)
                     sText += pEngine->GetText(p) + "\n";
-                int pos = std::min(eSelection.nStartPos, eSelection.nEndPos);
+                int pos = std::min(eSelection.start.nIndex, eSelection.end.nIndex);
 
                 const auto [matrixText, startPos, endPos] (MatrixEditorDialog::scanForMatrix(sText, pos));
                 auto pMatrixEditorDialog = std::make_unique<MatrixEditorDialog>(rReq.GetFrameWeld(), nullptr, nullptr, matrixText, nullptr);
@@ -1944,7 +1942,7 @@ void SmViewShell::Execute(SfxRequest& rReq)
                     if (xQuery->run() == RET_NO)
                         break;
                 }
-                if (SmEditWindow* pEditWin = GetEditWindow())
+                if (AbstractEditWindow* pEditWin = GetEditWindow())
                     SmModule::get()->GetConfig()->SaveUserDefinedFormula(aName, pEditWin->GetText());
 
                 // Show the Elements sidebar with the "User-defined" entry selected

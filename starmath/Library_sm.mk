@@ -27,8 +27,8 @@ $(eval $(call gb_Library_set_include,sm,\
 	-I$(SRCDIR)/starmath/inc \
 	-I$(SRCDIR)/starmath/inc/mathml \
 	-I$(WORKDIR)/SdiTarget/starmath/sdi \
-	-I$(call gb_UnpackedTarball_get_dir,ginac)/instdir/include \
-	-I$(call gb_UnpackedTarball_get_dir,cln)/include \
+	-I$(gb_UnpackedTarball_workdir)/,ginac/instdir/include \
+	-I$(gb_UnpackedTarball_workdir)/cln/include \
 	$$(INCLUDE) \
 ))
 endif

@@ -458,7 +458,7 @@ void SmXMLImport::endDocument()
             pDocShell->SetText(aText);
             pDocShell->SetSmSyntaxVersion(mnSmSyntaxVersion);
 
-            sal_Int32 programVersion = SM_MOD()->GetConfig()->GetDefaultImSyntaxVersion();
+            sal_Int32 programVersion = SmModule::get()->GetConfig()->GetDefaultImSyntaxVersion();
 
             if (mnImSyntaxVersion < 20301 && aImText == "") {
                 // Legacy document created with iMath extension

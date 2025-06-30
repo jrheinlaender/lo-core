@@ -19,7 +19,8 @@ $(eval $(call gb_Library_set_include,imath,\
 
 ifeq ($(COM), MSC)
 $(eval $(call gb_Library_set_include,imath,\
-	-I/usr/include \
+	-IC:/cygwin/usr/include \
+	$$(INCLUDE) \
 ))
 endif
 
@@ -35,7 +36,7 @@ $(eval $(call gb_Library_add_defs,imath,\
 
 ifeq ($(COM), MSC)
 $(eval $(call gb_Library_add_ldflags,imath,\
-	/DEF:$(call gb_UnpackedTarball_get_dir,ginac)/instdir/libginac.def \
+	/DEF:$(gb_UnpackedTarball_workdir)/ginac/instdir/libginac.def \
 ))
 endif
 

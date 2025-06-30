@@ -26,6 +26,7 @@
 #include <comphelper/accessibletexthelper.hxx>
 #include <comphelper/string.hxx>
 #include <comphelper/processfactory.hxx>
+#include <comphelper/servicehelper.hxx>
 #include <rtl/ustrbuf.hxx>
 #include <rtl/ustring.hxx>
 #include <sal/log.hxx>
@@ -2009,7 +2010,6 @@ void SmDocShell::UpdateGuiText()
     else
         SAL_INFO_LEVEL(0, "starmath.imath", "Formula unchanged, not updating GUI");
 }
-
 
 bool SmDocShell::SaveAs( SfxMedium& rMedium )
 {

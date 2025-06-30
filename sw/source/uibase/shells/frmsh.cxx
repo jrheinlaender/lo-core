@@ -1196,10 +1196,9 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
             case FN_IMATH_EDIT_SHOW:
             case FN_IMATH_INSERT_CLEAR:
             {
-                SvtModuleOptions aMOpt;
                 const SelectionType nType = rSh.GetSelectionType();
 
-                if (aMOpt.IsMath() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame().GetFrame().IsInPlace())
+                if (SvtModuleOptions().IsMathInstalled() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame().GetFrame().IsInPlace())
                 {
                     // Note: Charts also pass the test above (!)
                     svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
@@ -1242,10 +1241,9 @@ void SwFrameShell::GetState(SfxItemSet& rSet)
             break;
             case FN_IMATH_INSERT_CHARTSERIES:
             {
-                SvtModuleOptions aMOpt;
                 const SelectionType nType = rSh.GetSelectionType();
 
-                if (!(aMOpt.IsChart() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame().GetFrame().IsInPlace()))
+                if (!(SvtModuleOptions().IsChartInstalled() && (nType & SelectionType::Ole) && rSh.GetCntType() == CNT_OLE && !rSh.GetView().GetViewFrame().GetFrame().IsInPlace()))
                 {
                     rSet.DisableItem(nWhich);
                 } else {

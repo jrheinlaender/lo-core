@@ -11,6 +11,8 @@ $(eval $(call gb_Module_Module,testtools))
 
 ifeq ($(CROSS_COMPILING),)
 
+ifeq ($(ENABLE_CPPUNIT),TRUE)
+
 $(eval $(call gb_Module_add_targets,testtools,\
 	CustomTarget_bridgetest \
 	InternalUnoApi_bridgetest \
@@ -40,6 +42,8 @@ endif
 $(eval $(call gb_Module_add_check_targets,testtools,\
 	CustomTarget_uno_test \
 ))
+
+endif
 
 endif
 

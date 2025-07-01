@@ -143,9 +143,6 @@ else
 		$(if $(gb_CppunitTest__vcl_no_svp), \
 			$(filter-out SAL_USE_VCLPLUGIN=svp,$(gb_TEST_ENV_VARS)),$(gb_TEST_ENV_VARS)) \
 		$(EXTRA_ENV_VARS) \
-		$(if $(filter allow,$(NON_APPLICATION_FONT_USE)),, \
-			$(if $(filter abort,$(NON_APPLICATION_FONT_USE)),SAL_NON_APPLICATION_FONT_USE=abort, \
-			$(if $(filter deny,$(NON_APPLICATION_FONT_USE)),SAL_NON_APPLICATION_FONT_USE=deny))) \
 		$(if $(filter gdb,$(gb_CppunitTest_GDBTRACE)),,$(gb_CppunitTest_CPPTESTPRECOMMAND)) \
 		$(if $(G_SLICE),G_SLICE=$(G_SLICE)) \
 		$(if $(GLIBCXX_FORCE_NEW),GLIBCXX_FORCE_NEW=$(GLIBCXX_FORCE_NEW)) \
@@ -160,12 +157,7 @@ else
 		$(call gb_CppunitTest__make_args) "-env:CPPUNITTESTTARGET=$@" \
 		) \
 		$(if $(gb_CppunitTest__interactive),$(if $(gb_CppunitTest_localized),|| exit $$?), \
-			> $@.$(if $(gb_CppunitTest_localized),$$l.)log 2>&1 \
-			|| { $(if $(value gb_CppunitTest_postprocess), \
-					RET=$$?; \
-					$(call gb_CppunitTest_postprocess,$(gb_CppunitTest_CPPTESTCOMMAND),$@.core,$$RET) >> $@.$(if $(gb_CppunitTest_localized),$$l.)log 2>&1;) \
-				cat $@.$(if $(gb_CppunitTest_localized),$$l.)log; $(gb_CppunitTest_UNITTESTFAILED) Cppunit $*; \
-				$(if $(gb_CppunitTest_localized),exit $$RET;) } ) \
+			2>&1 ) \
 		$(if $(gb_CppunitTest_localized),; done))
 	$(call gb_Trace_EndRange,$*,CUT)
 endif

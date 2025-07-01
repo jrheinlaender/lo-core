@@ -20,15 +20,27 @@
 
 #include "AutoInstall/firebirdsdbc"
 
-#if defined( ENABLE_FIREBIRD_SDBC ) && !defined( SYSTEM_FIREBIRD )
+#if defined( ENABLE_FIREBIRD_SDBC )
+
+#if !defined( SYSTEM_FIREBIRD )
 
 Module gid_Module_Optional_Firebird
     Name = "Firebird";
     Description = "Firebird embedded database";
     PackageInfo = "packinfo_office.txt";
     ParentID = gid_Module_Root_Brand;
-    Files = (auto_firebirdsdbc_ALL);
+    Files = (auto_firebirdsdbc_ALL,
+             gid_File_FirebirdSdbc_Xcd);
     Styles = (HIDDEN_ROOT);
+End
+
+#endif
+
+File gid_File_FirebirdSdbc_Xcd
+    TXT_FILE_BODY;
+    Dir = gid_Brand_Dir_Share_Registry;
+    Name = "firebird_sdbc.xcd";
+    Styles = (PACKED);
 End
 
 #endif

@@ -47,17 +47,7 @@ else
             -classpath "$(T_CP)" \
             $(DEFS) \
             org.junit.runner.JUnitCore \
-            $(CLASSES) > $@.log 2>&1 || \
-		(cat $@.log \
-		&& echo "to rerun just this failed test without all others, run:" \
-		&& echo && echo "    make JunitTest_$*" && echo \
-		&& echo "cd into the module dir to run the tests faster" \
-		&& echo "Or to do interactive debugging, run two shells with:" \
-		&& echo \
-		&& echo "    make debugrun" \
-		&& echo "    make gb_JunitTest_DEBUGRUN=T JunitTest_$*" \
-		&& echo \
-		&& false)))
+            $(CLASSES) 2>&1))
 	$(CLEAN_CMD)
 	$(call gb_Trace_EndRange,$*,JUT)
 endif

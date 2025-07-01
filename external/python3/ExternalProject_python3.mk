@@ -113,7 +113,7 @@ $(call gb_ExternalProject_get_state_target,python3,build) :
 			$(if $(SYSTEM_EXPAT),,-I$(gb_UnpackedTarball_workdir)/expat/lib) \
 			$(if $(SYSBASE), -I$(SYSBASE)/usr/include) \
 			)" \
-		$(if $(python3_cflags),CFLAGS='$(python3_cflags)') \
+		$(if $(python3_cflags),CFLAGS='$(CFLAGS) $(python3_cflags)') \
 		$(if $(filter -fsanitize=%,$(CC)),LINKCC="$(CXX) -pthread") \
 		LDFLAGS="$(strip $(LDFLAGS) \
 			$(if $(filter LINUX,$(OS)),-L$(gb_UnpackedTarball_workdir)/libffi/$(HOST_PLATFORM)/.libs) \

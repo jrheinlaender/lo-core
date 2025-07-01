@@ -277,9 +277,13 @@ SearchAndParseThread::SearchAndParseThread(AdditionsDialog* pDialog, const bool 
     , m_bExecute(true)
     , m_bIsFirstLoading(isFirstLoading)
 {
-    // if we are running a UITest, e.g. UITest_sw_options then
-    // don't attempt to downloading anything
-    m_bUITest = o3tl::IsRunningUITest();
+    if (getenv("AUTOPKGTEST_TMP") != NULL) {
+	 m_bUITest = false; // run always in autopkgtest
+    } else {
+        // if we are running a UITest, e.g. UITest_sw_options then
+        // don't attempt to downloading anything
+        m_bUITest = o3tl::IsRunningUITest();
+    }
 }
 
 SearchAndParseThread::~SearchAndParseThread() {}

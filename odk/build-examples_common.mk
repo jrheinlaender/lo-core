@@ -49,12 +49,7 @@ else
 		&& printf 'yes\n' | LANGUAGE= LC_ALL=C make -j1 \
 			CC="$(CXX) $(gb_CXX03FLAGS)" LINK="$(CXX)" LIB="$(CXX)" \
 		    $(if $(MACOSX_SHELL_HACK), SHELL="$$$$ODK_BUILD_SHELL", ))) \
-	$(if $(MACOSX_SHELL_HACK),&& rm -f "$$$$ODK_BUILD_SHELL")) \
-	    >$(gb_CustomTarget_workdir)/$(1)/log 2>&1 \
-	|| (RET=$$$$? \
-	    $(if $(MACOSX_SHELL_HACK), && rm -f "$$$$ODK_BUILD_SHELL" , ) \
-	    && cat $(gb_CustomTarget_workdir)/$(1)/log \
-	    && exit $$$$RET)
+	2>&1 )
 endif
 
 $(gb_CustomTarget_workdir)/$(1)/setsdkenv: \

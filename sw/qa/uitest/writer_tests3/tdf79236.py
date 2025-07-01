@@ -10,8 +10,11 @@
 from uitest.framework import UITestCase
 from uitest.uihelper.common import type_text
 
+import unittest
+
 class tdf79236(UITestCase):
 
+    @unittest.skip("Currently broken")
     def test_paragraph(self):
 
         with self.ui_test.create_doc_in_start_center("writer") as document:

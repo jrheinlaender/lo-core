@@ -12,11 +12,13 @@ $(eval $(call gb_Module_Module,unotest))
 
 ifeq ($(gb_Side),host)
 ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
+ifeq ($(ENABLE_CPPUNIT),TRUE)
 $(eval $(call gb_Module_add_targets,unotest,\
 	Library_unobootstrapprotector \
 	Library_unoexceptionprotector \
 	Library_unotest \
 ))
+endif
 endif
 
 ifneq ($(ENABLE_JAVA),)

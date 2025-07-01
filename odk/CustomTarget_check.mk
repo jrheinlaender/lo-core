@@ -35,7 +35,7 @@ $(gb_CustomTarget_workdir)/odk/check/checkbin : \
 		$(if $(filter WNT,$(OS)),$(call gb_Package_get_target,odk_config_win)) \
 		$(call gb_Package_get_target,odk_docs) \
 		$(call gb_Package_get_target,odk_html) \
-		$(if $(ENABLE_JAVA),$(call gb_GeneratedPackage_get_target,odk_javadoc)) \
+		$(if $(JAVADOC),$(call gb_GeneratedPackage_get_target,odk_javadoc)) \
 		$(call gb_Package_get_target,odk_settings) \
 		$(call gb_Package_get_target,odk_settings_generated)
 ifneq ($(gb_SUPPRESS_TESTS),)

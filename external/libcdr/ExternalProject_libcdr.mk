@@ -38,9 +38,9 @@ $(call gb_ExternalProject_get_state_target,libcdr,build) :
 			--disable-weffc \
 			$(if $(gb_FULLDEPS),,--disable-dependency-tracking) \
 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libcdr)" \
+			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libcdr)" \
 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libcdr)" \
+			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,libcdr)" \
 			$(gb_CONFIGURE_PLATFORMS) \
 		&& $(MAKE) \
 	)

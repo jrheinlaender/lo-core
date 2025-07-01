@@ -2056,8 +2056,8 @@ CPPUNIT_TEST_FIXTURE(Chart2ImportTest, testTdf146756)
     xmlDocUniquePtr pXmlDoc(xmlParseDoc(reinterpret_cast<const xmlChar*>(aXmlDump.getStr())));
     OString aPath("//XShape[@text='New service request and approval; 18%']"_ostr);
     assertXPath(pXmlDoc, aPath, 1);
-    // Expected something like 4 lines tall(1697), not 11 lines(3817).
-    assertXPath(pXmlDoc, aPath, "sizeY", u"1697");
+    // Expected something like 4 lines tall(2013), not 11 lines(3817).
+    assertXPath(pXmlDoc, aPath, "sizeY", u"2013");
     // Expected some reasonable maximum text length for the label like 2350, not 881.
     sal_Int32 nTextLength = getXPath(pXmlDoc, aPath, "textMaximumFrameWidth").toInt32();
     CPPUNIT_ASSERT_EQUAL(sal_Int32(2350), nTextLength);

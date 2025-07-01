@@ -29,6 +29,7 @@ $(eval $(call gb_InstallModule_add_templates,scp2/base,\
 $(eval $(call gb_InstallModule_add_scpfiles,scp2/base,\
     scp2/source/base/file_base \
     scp2/source/base/firebird \
+    scp2/source/base/hsqldb \
 ))
 
 $(eval $(call gb_InstallModule_add_localized_scpfiles,scp2/base,\

@@ -1,0 +1,29 @@
+--- misc/hsqldb/build/build.xml
++++ misc/build/hsqldb/build/build.xml
+@@ -356,7 +356,7 @@
+                  optimize="${build.optimize}"
+        >
+          <classpath>
+-            <pathelement location="lib/servlet.jar"/>
++            <pathelement location="/usr/share/java/servlet-api-3.1.jar"/>
+          </classpath>
+          <include name="*.java"/>
+          <include name="org/hsqldb/*.java"/>
+@@ -818,7 +818,7 @@
+ 		   				${src}/org/hsqldb/util/RCData.java,
+ 		   				${src}/org/hsqldb/util/SqlTool.java"
+            destdir="${basedir}/doc/src"
+-           classpath="${basedir}/lib/servlet.jar;${basedir}/lib/junit.jar"
++           classpath="/usr/share/java/servlet-api-3.1.jar;${basedir}/lib/junit.jar"
+            author="true"
+            version="false"
+            use="true"
+@@ -839,7 +839,7 @@
+       <javadoc packagenames="org.hsqldb.*,org.hsqldb.jdbc.*,org.hsqldb.lib.*,org.hsqldb.util.*"
+            sourcepath="${src}"
+            destdir="${basedir}/doc/src"
+-           classpath="${basedir}/lib/servlet.jar;${basedir}/lib/junit.jar"
++           classpath="/usr/share/java/servlet-api-3.1.jar;${basedir}/lib/junit.jar"
+            author="true"
+            version="false"
+            use="true"

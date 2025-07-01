@@ -77,7 +77,6 @@ gb_CFLAGS_COMMON := \
 	-fno-common \
 	-pipe \
 	$(if $(ENABLE_HARDENING_FLAGS),$(HARDENING_CFLAGS)) \
-	$(if $(filter EMSCRIPTEN,$(OS)),-fno-stack-protector,-fstack-protector-strong) \
 
 gb_CXXFLAGS_COMMON := \
 	-Wall \
@@ -94,7 +93,6 @@ gb_CXXFLAGS_COMMON := \
 	-fno-common \
 	-pipe \
 	$(if $(ENABLE_HARDENING_FLAGS),$(HARDENING_CFLAGS)) \
-	$(if $(filter EMSCRIPTEN,$(OS)),-fno-stack-protector,-fstack-protector-strong) \
 
 ifeq ($(HAVE_WDEPRECATED_COPY_DTOR),TRUE)
 gb_CXXFLAGS_COMMON += -Wdeprecated-copy-dtor
@@ -152,8 +150,6 @@ gb_VISIBILITY_FLAGS := -fvisibility=hidden
 endif
 gb_VISIBILITY_FLAGS_CXX := -fvisibility-inlines-hidden
 gb_CXXFLAGS_COMMON += $(gb_VISIBILITY_FLAGS_CXX)
-
-gb_LinkTarget_LDFLAGS += $(if $(filter EMSCRIPTEN,$(OS)),-fno-stack-protector,-fstack-protector-strong)
 
 ifneq ($(gb_ENABLE_PCH),)
 ifeq ($(COM_IS_CLANG),TRUE)
@@ -222,6 +218,8 @@ gb_COMPILERDEBUGOPTFLAGS := -Og
 ifeq ($(OS),ANDROID)
 gb_DEBUGINFO_FLAGS=-glldb
 # Clang does not know -ggdb2 or some other options
+else ifeq ($(enable_symbols),SMALL)
+gb_DEBUGINFO_FLAGS=-g1
 else ifeq ($(HAVE_GCC_GGDB2),TRUE)
 gb_DEBUGINFO_FLAGS=-ggdb2
 else

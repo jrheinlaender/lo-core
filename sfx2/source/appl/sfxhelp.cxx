@@ -891,7 +891,7 @@ static bool impl_showOfflineHelp(const OUString& rURL, weld::Widget* pDialogPare
     // technical reasons, so that it can be accessed by the browser running outside the sandbox):
     static constexpr OUStringLiteral aExtension(u".html");
     OUString * parent = nullptr;
-    if (flatpak::isFlatpak() && !flatpak::createTemporaryHtmlDirectory(&parent)) {
+    if (!flatpak::createTemporaryHtmlDirectory(&parent)) {
         return false;
     }
     ::utl::TempFileNamed aTempFile(u"NewHelp", true, aExtension, parent, false );

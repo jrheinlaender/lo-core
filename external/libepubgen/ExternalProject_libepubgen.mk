@@ -32,9 +32,9 @@ $(call gb_ExternalProject_get_state_target,libepubgen,build) :
 			$(if $(ENABLE_DEBUG),--enable-debug,--disable-debug) \
 			--disable-werror \
 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libepubgen)" \
+			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libepubgen)" \
 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libepubgen)" \
+			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,libepubgen)" \
 			$(gb_CONFIGURE_PLATFORMS) \
 		&& $(MAKE) \
 	)

@@ -50,7 +50,7 @@ $(call gb_ExternalProject_get_state_target,libassuan,build):
 		   GPG_ERROR_CFLAGS="$(GPG_ERROR_CFLAGS)" \
 		   GPG_ERROR_LIBS="$(GPG_ERROR_LIBS)" \
 		   $(if $(filter LINUX,$(OS)), \
-				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
+				'LDFLAGS=$(LDFLAGS) -Wl$(COMMA)-z$(COMMA)origin \
 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN') \
 		   $(gb_CONFIGURE_PLATFORMS) \
 		   $(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \

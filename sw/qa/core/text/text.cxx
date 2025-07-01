@@ -9,6 +9,8 @@
 
 #include <swmodeltestbase.hxx>
 
+#include <config_fonts.h>
+
 #include <memory>
 
 #include <com/sun/star/text/BibliographyDataField.hpp>
@@ -1594,6 +1596,8 @@ CPPUNIT_TEST_FIXTURE(SwCoreTextTest, testParaUpperMarginFlyIntersect)
     CPPUNIT_ASSERT_EQUAL(521, nHeight);
 }
 
+/* needs Source Han Serif SC*/
+#if HAVE_MORE_FONTS
 CPPUNIT_TEST_FIXTURE(SwCoreTextTest, testTdf129810)
 {
     // Load the document.
@@ -1630,6 +1634,7 @@ CPPUNIT_TEST_FIXTURE(SwCoreTextTest, testTdf129810)
         }
     }
 }
+#endif
 
 CPPUNIT_TEST_FIXTURE(SwCoreTextTest, testScriptinfosurrogatePairs)
 {

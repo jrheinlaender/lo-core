@@ -51,6 +51,7 @@ privateSnippetExecutor:
 	mov   r0, ip               @ r0 points to functionoffset/vtable
 	mov   r1, sp               @ r1 points to this and params
 #ifdef __ARM_PCS_VFP
+	.fpu vfpv2
 	vpush {d0-d7}              @ floating point parameter on stack
 #endif
 	UNWIND .pad  #PAD          @ throw this data away on exception

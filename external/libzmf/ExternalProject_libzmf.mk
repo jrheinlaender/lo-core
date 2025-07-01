@@ -38,7 +38,7 @@ $(call gb_ExternalProject_get_state_target,libzmf,build) :
 			--disable-werror \
 			--disable-weffc \
 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libzmf)" \
+			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libzmf)" \
 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libzmf)" \
 			$(gb_CONFIGURE_PLATFORMS) \

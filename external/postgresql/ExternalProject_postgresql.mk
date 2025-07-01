@@ -34,7 +34,7 @@ $(call gb_ExternalProject_get_state_target,postgresql,build) :
 
 else
 
-postgresql_CPPFLAGS := $(ZLIB_CFLAGS)
+postgresql_CPPFLAGS := $(CPPFLAGS) $(ZLIB_CFLAGS)
 postgresql_LDFLAGS  := $(LDFLAGS)
 
 ifeq ($(SYSTEM_ZLIB),)
@@ -71,7 +71,7 @@ $(call gb_ExternalProject_get_state_target,postgresql,build) :
 			$(if $(ENABLE_OPENSSL),--with-openssl \
 				$(if $(WITH_GSSAPI),--with-gssapi)) \
 				$(if $(ENABLE_LDAP),,--with-ldap=no) \
-			CFLAGS="-fPIC" \
+			CFLAGS="$(CFLAGS) -fPIC" \
 			CPPFLAGS="$(postgresql_CPPFLAGS)" \
 			LDFLAGS="$(postgresql_LDFLAGS)" \
 			$(if $(ENABLE_LDAP),EXTRA_LDAP_LIBS="-llber") \

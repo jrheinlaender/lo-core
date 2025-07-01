@@ -24,6 +24,8 @@
 #include <unotools/tempfile.hxx>
 #include <unotools/ucbhelper.hxx>
 
+#include <glib.h>
+
 bool flatpak::isFlatpak() {
     static auto const flatpak = [] { return std::getenv("LIBO_FLATPAK") != nullptr; }();
     return flatpak;
@@ -44,7 +46,7 @@ bool flatpak::createTemporaryHtmlDirectory(OUString ** url) {
     DBG_TESTSOLARMUTEX();
     if (!temporaryHtmlDirectoryStatus.created) {
         // coverity[tainted_return_value] - we trust the contents of this variable
-        auto const env = std::getenv("XDG_CACHE_HOME");
+        auto const env = g_get_user_special_dir(G_USER_DIRECTORY_DOWNLOAD);
         if (env == nullptr) {
             SAL_WARN("sfx.appl", "LIBO_FLATPAK mode but unset XDG_CACHE_HOME");
             return false;

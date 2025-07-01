@@ -2799,8 +2799,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering)
     sal_Int32 nViewWidth = 2000;
     sal_Int32 nViewHeight = 2000;
     CPPUNIT_ASSERT(pXImpressDocument->createSlideRenderer(0, nViewWidth, nViewHeight, true, true));
-    CPPUNIT_ASSERT_EQUAL(2000, nViewWidth);
-    CPPUNIT_ASSERT_EQUAL(1125, nViewHeight);
+    CPPUNIT_ASSERT_EQUAL(2000, static_cast<int>(nViewWidth));
+    CPPUNIT_ASSERT_EQUAL(1125, static_cast<int>(nViewHeight));
 
     const Color aTransparentColor(ColorAlpha, 0x00000000);
 
@@ -2878,8 +2878,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_WithFie
     sal_Int32 nViewWidth = 2000;
     sal_Int32 nViewHeight = 2000;
     CPPUNIT_ASSERT(pXImpressDocument->createSlideRenderer(0, nViewWidth, nViewHeight, true, true));
-    CPPUNIT_ASSERT_EQUAL(2000, nViewWidth);
-    CPPUNIT_ASSERT_EQUAL(1125, nViewHeight);
+    CPPUNIT_ASSERT_EQUAL(2000, static_cast<int>(nViewWidth));
+    CPPUNIT_ASSERT_EQUAL(1125, static_cast<int>(nViewHeight));
 
     const Color aTransparentColor(ColorAlpha, 0x00000000);
 
@@ -2975,8 +2975,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
     sal_Int32 nViewWidth = 2000;
     sal_Int32 nViewHeight = 2000;
     CPPUNIT_ASSERT(pXImpressDocument->createSlideRenderer(0, nViewWidth, nViewHeight, true, true));
-    CPPUNIT_ASSERT_EQUAL(2000, nViewWidth);
-    CPPUNIT_ASSERT_EQUAL(1125, nViewHeight);
+    CPPUNIT_ASSERT_EQUAL(2000, static_cast<int>(nViewWidth));
+    CPPUNIT_ASSERT_EQUAL(1125, static_cast<int>(nViewHeight));
 
     {
         std::vector<sal_uInt8> pBuffer(nViewWidth * nViewHeight * 4);
@@ -2987,8 +2987,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"Background\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 0") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"hash\""));
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"initVisible\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"hash\"")));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"initVisible\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"content\": { \"type\": \"%IMAGETYPE%\", \"checksum\": \"%IMAGECHECKSUM%\"}") >= 0);
 
@@ -3004,8 +3004,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"MasterPage\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 0") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"hash\""));
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"initVisible\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"hash\"")));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"initVisible\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"content\": { \"type\": \"%IMAGETYPE%\", \"checksum\": \"%IMAGECHECKSUM%\"}") >= 0);
 
@@ -3021,8 +3021,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"MasterPage\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 1") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"hash\""));
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"initVisible\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"hash\"")));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"initVisible\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"content\": { \"type\": \"%IMAGETYPE%\", \"checksum\": \"%IMAGECHECKSUM%\"}") >= 0);
 
@@ -3084,8 +3084,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
     sal_Int32 nViewWidth = 2000;
     sal_Int32 nViewHeight = 2000;
     CPPUNIT_ASSERT(pXImpressDocument->createSlideRenderer(0, nViewWidth, nViewHeight, true, true));
-    CPPUNIT_ASSERT_EQUAL(2000, nViewWidth);
-    CPPUNIT_ASSERT_EQUAL(1125, nViewHeight);
+    CPPUNIT_ASSERT_EQUAL(2000, static_cast<int>(nViewWidth));
+    CPPUNIT_ASSERT_EQUAL(1125, static_cast<int>(nViewHeight));
 
     {
         std::vector<sal_uInt8> pBuffer(nViewWidth * nViewHeight * 4);
@@ -3096,9 +3096,9 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"Background\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 0") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"hash\""));
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"initVisible\""));
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"bounds\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"hash\"")));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"initVisible\"")));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"bounds\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"content\": { \"type\": \"%IMAGETYPE%\", \"checksum\": \"%IMAGECHECKSUM%\"}") >= 0);
 
@@ -3114,7 +3114,7 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"MasterPage\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 0") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"bounds\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"bounds\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
 
         debugWriteImageToFile(1, pBuffer, nViewWidth, nViewHeight, rJsonMsg.toUtf8().getStr());
@@ -3129,7 +3129,7 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"MasterPage\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 1") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"bounds\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"bounds\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
 
         debugWriteImageToFile(2, pBuffer, nViewWidth, nViewHeight, rJsonMsg.toUtf8().getStr());
@@ -3144,8 +3144,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"DrawPage\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 0") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"initVisible\""));
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"bounds\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"initVisible\"")));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"bounds\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
 
         debugWriteImageToFile(3, pBuffer, nViewWidth, nViewHeight, rJsonMsg.toUtf8().getStr());
@@ -3193,8 +3193,8 @@ CPPUNIT_TEST_FIXTURE(SdTiledRenderingTest, testSlideshowLayeredRendering_Animati
 
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"group\": \"DrawPage\"") >= 0);
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"index\": 3") >= 0);
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"initVisible\""));
-        CPPUNIT_ASSERT_EQUAL(-1, rJsonMsg.indexOf(u"\"bounds\""));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"initVisible\"")));
+        CPPUNIT_ASSERT_EQUAL(-1, static_cast<int>(rJsonMsg.indexOf(u"\"bounds\"")));
         CPPUNIT_ASSERT(rJsonMsg.indexOf(u"\"type\": \"bitmap\"") >= 0);
 
         debugWriteImageToFile(6, pBuffer, nViewWidth, nViewHeight, rJsonMsg.toUtf8().getStr());

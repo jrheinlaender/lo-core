@@ -36,10 +36,10 @@ $(call gb_ExternalProject_get_state_target,libwpd,build) :
 			$(if $(filter MACOSX,$(OS)), \
 				--prefix=/@.__________________________________________________OOO) \
 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwpd)" \
+			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwpd)" \
 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
 			$(if $(filter LINUX,$(OS)),$(if $(SYSTEM_REVENGE),, \
-				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
+				'LDFLAGS=$(LDFLAGS) -Wl$(COMMA)-z$(COMMA)origin \
 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN')) \
 			$(gb_CONFIGURE_PLATFORMS) \
 		&& $(MAKE) \

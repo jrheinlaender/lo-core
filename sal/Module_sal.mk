@@ -10,7 +10,6 @@
 $(eval $(call gb_Module_Module,sal))
 
 $(eval $(call gb_Module_add_targets,sal,\
-	$(if $(CROSS_COMPILING),,$(if $(filter TRUE,$(DISABLE_DYNLOADING)),,Executable_cppunittester)) \
 	$(if $(filter $(OS),ANDROID EMSCRIPTEN), \
 		Library_lo-bootstrap) \
 	Library_sal \
@@ -37,6 +36,12 @@ $(eval $(call gb_Module_add_check_targets,sal,\
 	    CompilerTest_sal_rtl_oustring)) \
 ))
 
+endif
+
+ifeq ($(ENABLE_CPPUNIT),TRUE)
+$(eval $(call gb_Module_add_check_targets,sal,\
+	$(if $(CROSS_COMPILING),,$(if $(filter TRUE,$(DISABLE_DYNLOADING)),,Executable_cppunittester)) \
+))
 endif
 
 # vim: set noet sw=4 ts=4:

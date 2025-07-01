@@ -19,4 +19,8 @@ $(eval $(call gb_InstallModule_add_localized_scpfiles,scp2/gnome,\
     scp2/source/gnome/module_gnome \
 ))
 
+$(eval $(call gb_InstallModule_define_if_set,scp2/gnome,\
+    ENABLE_EVOAB2 \
+))
+
 # vim: set shiftwidth=4 tabstop=4 noexpandtab:

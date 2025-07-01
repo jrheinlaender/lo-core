@@ -2280,7 +2280,7 @@ void SfxViewShell::ExecMisc_Impl( SfxRequest &rReq )
                 // flatpak case, create it in XDG_CACHE_HOME instead of /tmp for technical reasons,
                 // so that it can be accessed by the browser running outside the sandbox):
                 OUString * parent = nullptr;
-                if (flatpak::isFlatpak() && !flatpak::createTemporaryHtmlDirectory(&parent))
+                if (!flatpak::createTemporaryHtmlDirectory(&parent))
                 {
                     SAL_WARN("sfx.view", "cannot create Flatpak html temp dir");
                 }

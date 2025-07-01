@@ -2,6 +2,7 @@
 #
 #    Copyright (C) 2016 Canonical Ltd.
 #    Copyright (C) 2018 Software in the Public Interest, Inc.
+#    Copyright (C) 2021 Google LLC
 #
 #    This Source Code Form is subject to the terms of the Mozilla Public
 #    License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -75,7 +76,7 @@
 
 #include <tunables/global>
 
-profile libreoffice-soffice INSTDIR-program/soffice.bin {
+profile libreoffice-soffice INSTDIR-program/soffice.bin flags=(complain) {
   #include <abstractions/private-files>
 
   #include <abstractions/audio>
@@ -84,6 +85,8 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
   #include <abstractions/dbus>
   #include <abstractions/dbus-session>
   #include <abstractions/dbus-accessibility>
+  #include <abstractions/dri-enumerate>
+  #include <abstractions/mesa>
   #include <abstractions/ibus>
   #include <abstractions/nameservice>
   #include <abstractions/gnome>
@@ -94,6 +97,10 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
 
   #include <abstractions/user-tmp>
 
+  #include <abstractions/opencl-intel>
+  #include <abstractions/opencl-mesa>
+  #include <abstractions/opencl-nvidia>
+
   #List directories for file browser
   /                                     r,
   /**/                                  r,
@@ -101,7 +108,7 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
   owner @{libo_user_dirs}/**/           rw,  #allow creating directories that we own
   owner @{libo_user_dirs}/**~lock.*     rw,  #lock file support
   owner @{libo_user_dirs}/**.@{libreoffice_ext} rwk,  #Open files rw with the right exts
-  owner @{libo_user_dirs}/{,**/}lu??????????{,?}.tmp rwk, #Temporary file used when saving
+  owner @{libo_user_dirs}/{,**/}lu???????{,?,??,???,????,?????}.tmp rwk, #Temporary file used when saving
   owner @{libo_user_dirs}/{,**/}.directory r, #Read directory settings on KDE
 
   # Settings
@@ -110,6 +117,7 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
 
   /etc/cups/ppd/*.ppd                   r,
   /etc/xml/catalog                      r, #exporting to .xhtml, for libxml2
+  /etc/paperspecs                       r, # used by paperconf
   /proc/*/status                        r,
 
   owner @{HOME}/.config/libreoffice{,dev}/** rwk,
@@ -154,6 +162,9 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
   /usr/lib{,32,64}/jvm/**                       r,
   /usr/lib{,32,64}/jvm/**/jre/bin/java          mix,
   /usr/lib{,32,64}/jvm/**/bin/java              mix,
+  # should be included in the jvm/** above but there it is
+  # a symlink, so apparmor still doesn't allow it...
+  /etc/java-??-openjdk/security/java.security   r,
   INSTDIR-**                        rw,
   INSTDIR-**.so                     m,
   INSTDIR-program/soffice.bin       mix,
@@ -184,7 +195,6 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
   #Likely moving to abstractions in the future
   owner @{HOME}/.icons/*/cursors/*      r,
   /etc/fstab r, # Solid::DeviceNotifier::instance() TODO: deny?
-  /sys/devices/pci[0-9]*/**/{device,subsystem_device,subsystem_vendor,uevent,vendor} r, # for libdrm
   /usr/share/*-fonts/conf.avail/*.conf  r,
   /usr/share/fonts-config/conf.avail/*.conf r,
   /{,var/}run/udev/data/+usb:* r, # Solid::Device::listFromQuery()
@@ -215,6 +225,8 @@ profile libreoffice-soffice INSTDIR-program/soffice.bin {
 
     owner @{HOME}/.gnupg/* r,
     owner @{HOME}/.gnupg/random_seed rk,
+    owner @{HOME}/.gnupg/tofu.db rwk,
+    owner /{,var/}run/user/[0-9]*/gnupg/* rw,
   }
 
   # probably should become a subprofile like gpg above, but then it doesn't

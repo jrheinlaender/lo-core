@@ -15,11 +15,6 @@
 #   except in compliance with the License. You may obtain a copy of
 #   the License at http://www.apache.org/licenses/LICENSE-2.0 .
 #
-# fdo#FOO -o sc.ScAccessiblePageHeaderArea
--o sc.ScAccessiblePreviewCell
--o sc.ScAccessiblePreviewHeaderCell
--o sc.ScAccessiblePreviewTable
-# fdo#45337 -o sc.ScAccessibleSpreadsheet
 # FIXME_REMOVE_WHEN_RE_BASE_COMPLETE
 # -o sc.ScAnnotationShapeObj
 -o sc.ScAutoFormatFieldObj

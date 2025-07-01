@@ -67,9 +67,9 @@ $(call gb_ExternalProject_get_state_target,curl,build):
 				-mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)') \
 			$(if $(ENABLE_EMSCRIPTEN_PROXY_POSIX_SOCKETS),--disable-socketpair) \
 			$(if $(filter -fsanitize=undefined,$(CC)),CC='$(CC) -fno-sanitize=function') \
-			CPPFLAGS='$(curl_CPPFLAGS)' \
-			CFLAGS="$(gb_CFLAGS) $(call gb_ExternalProject_get_build_flags,curl)" \
-			LDFLAGS='$(call gb_ExternalProject_get_link_flags,curl) $(curl_LDFLAGS)' \
+			CPPFLAGS='$(CPPFLAGS) $(curl_CPPFLAGS)' \
+			CFLAGS="$(CFLAGS) $(gb_CFLAGS) $(call gb_ExternalProject_get_build_flags,curl)" \
+			LDFLAGS='$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,curl) $(curl_LDFLAGS)' \
 			ZLIB_CFLAGS='$(ZLIB_CFLAGS)' ZLIB_LIBS='$(ZLIB_LIBS)' \
 		&& cd lib \
 		&& $(MAKE) \

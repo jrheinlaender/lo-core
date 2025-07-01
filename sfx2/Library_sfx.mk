@@ -39,6 +39,7 @@ $(eval $(call gb_Library_set_include,sfx,\
     -I$(SRCDIR)/sfx2/inc \
     -I$(SRCDIR)/sfx2/source/inc \
     -I$(WORKDIR)/SdiTarget/sfx2/sdi \
+    $(GLIB_CFLAGS) \
     $$(INCLUDE) \
 ))
 
@@ -89,6 +90,10 @@ $(eval $(call gb_Library_add_exception_objects,sfx,\
     sfx2/source/control/recentdocsviewitem \
 ))
 endif
+
+$(eval $(call gb_Library_add_libs,sfx,\
+    $(GLIB_LIBS) \
+))
 
 $(eval $(call gb_Library_add_exception_objects,sfx,\
     sfx2/source/accessibility/AccessibilityCheck \

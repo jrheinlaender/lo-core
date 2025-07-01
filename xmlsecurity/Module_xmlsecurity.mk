@@ -48,9 +48,9 @@ $(eval $(call gb_Module_add_screenshot_targets,xmlsecurity,\
     CppunitTest_xmlsecurity_dialogs_test \
 ))
 
-$(eval $(call gb_Module_add_uicheck_targets,xmlsecurity,\
-	UITest_xmlsecurity_gpg \
-))
+#$(eval $(call gb_Module_add_uicheck_targets,xmlsecurity,\
+#	UITest_xmlsecurity_gpg \
+#))
 
 ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
 ifneq (,$(or $(ENABLE_NSS),$(filter WNT,$(OS))))

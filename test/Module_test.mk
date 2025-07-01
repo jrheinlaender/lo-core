@@ -11,6 +11,7 @@ $(eval $(call gb_Module_Module,test))
 
 ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
 
+ifeq ($(ENABLE_CPPUNIT),TRUE)
 $(eval $(call gb_Module_add_targets,test,\
     Library_test \
     Library_test_setupvcl \
@@ -23,6 +24,7 @@ $(eval $(call gb_Module_add_check_targets,test,\
     CppunitTest_test_a11y \
     CppunitTest_test_xpath \
 ))
+endif
 
 endif
 

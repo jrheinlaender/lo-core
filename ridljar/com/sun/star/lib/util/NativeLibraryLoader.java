@@ -123,6 +123,8 @@ public final class NativeLibraryLoader {
                 }
             }
         }
+        if (name.equals("soffice"))
+            return new File("/usr/lib/libreoffice/program/soffice");
         return null;
     }
 

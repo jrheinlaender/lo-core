@@ -14,6 +14,16 @@
 #include <com/sun/star/sheet/XSolverDescription.hpp>
 #include <test/bootstrapfixture.hxx>
 
+#ifdef ENABLE_LPSOLVE
+ /* works constantly on some buildds (arm-conova-*) but fails on arm-ubc-*.
+  * On my rpi4 some attempts work, some not. 
+  * Disable it on armhf based on flakiness
+  */
+ #if defined(__arm__) && defined(__ARM_EABI__) && defined(__ARM_PCS_VFP)
+  #undef ENABLE_LPSOLVE
+ #endif
+#endif
+
 using namespace css;
 
 namespace {

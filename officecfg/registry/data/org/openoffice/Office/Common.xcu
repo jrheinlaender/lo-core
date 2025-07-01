@@ -483,7 +483,7 @@
   </node>
   <node oor:name="ExternalMailer" install:module="unixdesktop">
     <prop oor:name="Program">
-      <value oor:external="com.sun.star.configuration.backend.DesktopBackend ExternalMailer"/>
+      <value>sensible-lomua</value>
     </prop>
   </node>
   <node oor:name="Font">
@@ -498,13 +498,13 @@
   </node>
   <node oor:name="PackageKit">
       <prop oor:name="EnableFontInstallation" oor:type="xs:boolean">
-        <value install:module="unx">true</value>
+        <value install:module="unx">false</value>
       </prop>
       <prop oor:name="EnableLangpackInstallation" oor:type="xs:boolean">
-        <value install:module="unx">true</value>
+        <value install:module="unx">false</value>
       </prop>
       <prop oor:name="EnableBaseInstallation" oor:type="xs:boolean">
-        <value install:module="unx">true</value>
+        <value install:module="unx">false</value>
       </prop>
   </node>
   <node oor:name="Classification">

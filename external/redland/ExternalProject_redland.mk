@@ -28,7 +28,7 @@ $(call gb_ExternalProject_get_state_target,redland,build):
 		LDFLAGS='$(strip \
 		    $(if $(filter LINUX FREEBSD,$(OS)),$(strip -Wl,-z,origin -Wl,-rpath,\$$$$ORIGIN -Wl,-rpath-link,$(INSTROOT)/$(LIBO_URE_LIB_FOLDER))) \
 		    $(if $(SYSBASE),$(if $(filter LINUX SOLARIS,$(OS)),-L$(SYSBASE)/lib -L$(SYSBASE)/usr/lib -lpthread -ldl)))' \
-		CPPFLAGS="$(if $(SYSBASE),-I$(SYSBASE)/usr/include)" \
+		CPPFLAGS="$(CPPFLAGS) $(if $(SYSBASE),-I$(SYSBASE)/usr/include)" \
 		PKG_CONFIG="" \
 		RAPTOR2_CFLAGS="-I$(gb_UnpackedTarball_workdir)/raptor/src" \
 		RAPTOR2_LIBS="-L$(gb_UnpackedTarball_workdir)/raptor/src/.libs -lraptor2 $(LIBXML_LIBS)" \

@@ -1,0 +1,26 @@
+Format: 1.8
+Date: Tue, 01 Jul 2025 20:19:09 +0200
+Source: libreoffice-build-deps
+Binary: libreoffice-build-deps
+Built-For-Profiles: noudeb
+Architecture: amd64
+Version: 4:25.2.3-0ubuntu0.25.04.1
+Distribution: unstable
+Urgency: low
+Maintainer: Equivs Dummy Package Generator <root@jan-laptop.fritz.box>
+Changed-By: Equivs Dummy Package Generator <root@jan-laptop.fritz.box>
+Description:
+ libreoffice-build-deps - build-dependencies for libreoffice
+Changes:
+ libreoffice-build-deps (4:25.2.3-0ubuntu0.25.04.1) unstable; urgency=low
+ .
+   * First version
+Checksums-Sha1:
+ c1f951adbedf64f9cda667f8945fa612001e9465 8507 libreoffice-build-deps_25.2.3-0ubuntu0.25.04.1_amd64.buildinfo
+ ea9f1522df66133cf320ab66508b44ff849a0e3e 4546 libreoffice-build-deps_25.2.3-0ubuntu0.25.04.1_amd64.deb
+Checksums-Sha256:
+ 2dccb8f0e4b036cac02905c58f6cb185f651da073d6369b52c6d508625f1bc3c 8507 libreoffice-build-deps_25.2.3-0ubuntu0.25.04.1_amd64.buildinfo
+ 7e93cb26638a31852a0fc794bd7555b34ed3d268374c453cb6b960e348a115b5 4546 libreoffice-build-deps_25.2.3-0ubuntu0.25.04.1_amd64.deb
+Files:
+ 05da4cb7d68d97f6c3e25547a39c03ea 8507 devel optional libreoffice-build-deps_25.2.3-0ubuntu0.25.04.1_amd64.buildinfo
+ 4e50e7738c469f21a72244786c7444bd 4546 devel optional libreoffice-build-deps_25.2.3-0ubuntu0.25.04.1_amd64.deb

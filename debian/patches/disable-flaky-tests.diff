@@ -1,0 +1,154 @@
+14:13 < mst__> _rene_, the toolkit unoapi tests are known to be flaky (in some 
+               system dependent way) e.g. on the Win@6 tinderbox it always 
+               crashes
+14:14 < mst__> _rene_, sc.ScAccessible* tests also fail on some systems some of 
+               the time
+
+diff --git a/toolkit/Module_toolkit.mk b/toolkit/Module_toolkit.mk
+index 25db0b6..14e507c 100644
+--- a/toolkit/Module_toolkit.mk
++++ b/toolkit/Module_toolkit.mk
+@@ -26,11 +26,11 @@ $(eval $(call gb_Module_add_targets,toolkit,\
+ ifneq ($(OOO_JUNIT_JAR),)
+ $(eval $(call gb_Module_add_subsequentcheck_targets,toolkit,\
+     JunitTest_toolkit_complex \
+-    JunitTest_toolkit_unoapi_1 \
+-    JunitTest_toolkit_unoapi_2 \
+-    JunitTest_toolkit_unoapi_3 \
+-    JunitTest_toolkit_unoapi_4 \
+ ))
+ endif
++#    JunitTest_toolkit_unoapi_1 \
++#    JunitTest_toolkit_unoapi_2 \
++#    JunitTest_toolkit_unoapi_3 \
++#    JunitTest_toolkit_unoapi_4 \
+ 
+ # vim: set noet sw=4 ts=4:
+diff --git a/sc/qa/unoapi/sc_1.sce b/sc/qa/unoapi/sc_1.sce
+index fa1684c..cc8e1a5 100644
+--- a/sc/qa/unoapi/sc_1.sce
++++ b/sc/qa/unoapi/sc_1.sce
+@@ -24,10 +24,3 @@
+ # i84554 -o sc.AccessibleEditableTextPara_PreviewNote
+ # i88241 -o sc.AccessibleEditableTextPara_HeaderFooter
+ -o sc.AccessibleEditableTextPara_PreviewCell
+--o sc.ScAccessibleCell
+-# i91044 -o sc.ScAccessibleCsvCell
+-# i91044 -o sc.ScAccessibleCsvGrid
+-# i84641 -o sc.ScAccessibleCsvRuler
+-# i88330 -o sc.ScAccessibleDocument
+-# i91045 -o sc.ScAccessibleDocumentPagePreview
+--o sc.ScAccessiblePageHeader
+diff --git a/sc/qa/unoapi/sc_2.sce b/sc/qa/unoapi/sc_2.sce
+index dbfc3e1..d235c5d 100644
+--- a/sc/qa/unoapi/sc_2.sce
++++ b/sc/qa/unoapi/sc_2.sce
+@@ -15,11 +15,6 @@
+ #   except in compliance with the License. You may obtain a copy of
+ #   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+ #
+-# fdo#FOO -o sc.ScAccessiblePageHeaderArea
+--o sc.ScAccessiblePreviewCell
+--o sc.ScAccessiblePreviewHeaderCell
+--o sc.ScAccessiblePreviewTable
+-# fdo#45337 -o sc.ScAccessibleSpreadsheet
+ # FIXME_REMOVE_WHEN_RE_BASE_COMPLETE
+ # -o sc.ScAnnotationShapeObj
+ -o sc.ScAutoFormatFieldObj
+
+diff --git a/svx/qa/unoapi/svx.sce b/svx/qa/unoapi/svx.sce
+index 1c3925f..a16f001 100644
+--- a/svx/qa/unoapi/svx.sce
++++ b/svx/qa/unoapi/svx.sce
+@@ -25,7 +25,7 @@
+ #i111216 -o svx.AccessiblePresentationGraphicShape
+ #i111216 -o svx.AccessiblePresentationOLEShape
+ #i85539 -o svx.AccessiblePresentationShape
+--o svx.AccessibleShape
++#-o svx.AccessibleShape
+ #i90294 -o svx.GraphicExporter
+ -o svx.SvxDrawPage
+ #i85501 -o svx.SvxGraphCtrlAccessibleContext
+
+19:26 <@x1sc0> _rene_, since that test is using exact dimensions, it seems it 
+               fails on your side probably because the paragraph style is 
+               different. 1. I will change the test to avoid the exact 
+               dimensions. 2. meantime you can skip that test: 
+https://cgit.freedesktop.org/libreoffice/core/commit/?id=e05f16e6bf36efbaab16dd2ed1427a750ce7cafd
+19:26 < IZBot> core - disable UI test that does exact comparison
+19:27 < _rene_> mmh, ok, saw that but that was for a different test, so.. :)
+19:27 -!- jacobo [~jaragunde@fanzine.igalia.com] has quit [Quit: Leaving.]
+19:27 < _rene_> thanks, will do
+
+diff --git a/uitest/writer_tests/tdf79236.py b/uitest/writer_tests/tdf79236.py
+index 8585e48d8c64..704f42c009a1 100644
+--- a/sw/qa/uitest/writer_tests3/tdf79236.py
++++ b/sw/qa/uitest/writer_tests3/tdf79236.py
+@@ -8,8 +8,11 @@ from uitest.framework import UITestCase
+ from uitest.framework import UITestCase
+ from uitest.uihelper.common import type_text
+ 
++import unittest
++
+ class tdf79236(UITestCase):
+ 
++    @unittest.skip("Currently broken")
+     def test_paragraph(self):
+ 
+         with self.ui_test.create_doc_in_start_center("writer") as document:
+
+14:39 < ztamas> _rene_: chart2dump is used to fail because of font size differences, just use a bigger delta or disable it if it 
+                fails for you.
+14:40 <@sberg_> noelgrandin, no
+14:40 < noelgrandin> sberg_, sure seems that way both in the debugger and in the resulting SAL_WARN output
+14:42 < ztamas> _rene_: there were some work on making font rendering consistent on different platforms, but it's not finished 
+                yet, I guess
+diff --git a/chart2/Module_chart2.mk b/chart2/Module_chart2.mk
+index 37acfdc3730f..7d26342f179f 100644
+--- a/chart2/Module_chart2.mk
++++ b/chart2/Module_chart2.mk
+@@ -33,9 +33,9 @@ $(eval $(call gb_Module_add_slowcheck_targets,chart2,\
+     CppunitTest_chart2_import2 \
+     CppunitTest_chart2_trendcalculators \
+-    CppunitTest_chart2_dump \
+     CppunitTest_chart2_pivot_chart_test \
+     CppunitTest_chart2_geometry \
+     CppunitTest_chart2_uichart \
+ ))
++#    CppunitTest_chart2_dump \
+ 
+ ifeq ($(WITH_FONTS), TRUE)
+diff --git a/sccomp/qa/unit/solver.cxx b/sccomp/qa/unit/solver.cxx
+index 536df7425bb9..f3e37932c79c 100644
+--- a/sccomp/qa/unit/solver.cxx
++++ b/sccomp/qa/unit/solver.cxx
+@@ -14,6 +14,16 @@
+ #include <com/sun/star/sheet/XSolverDescription.hpp>
+ #include <test/bootstrapfixture.hxx>
+ 
++#ifdef ENABLE_LPSOLVE
++ /* works constantly on some buildds (arm-conova-*) but fails on arm-ubc-*.
++  * On my rpi4 some attempts work, some not. 
++  * Disable it on armhf based on flakiness
++  */
++ #if defined(__arm__) && defined(__ARM_EABI__) && defined(__ARM_PCS_VFP)
++  #undef ENABLE_LPSOLVE
++ #endif
++#endif
++
+ using namespace css;
+ 
+ namespace {
+diff --git a/sw/qa/unoapi/sw_1.sce b/sw/qa/unoapi/sw_1.sce
+index f55cfaba4a26..fbc24334df3f 100644
+--- a/sw/qa/unoapi/sw_1.sce
++++ b/sw/qa/unoapi/sw_1.sce
+@@ -34,7 +34,7 @@
+ #i111178 -o sw.SwAccessibleTextFrameView
+ -o sw.SwAccessibleTextGraphicObject
+ -o sw.SwXAutoTextEntry
+--o sw.SwXAutoTextGroup
++#-o sw.SwXAutoTextGroup
+ -o sw.SwXCell
+ -o sw.SwXCellRange
+ -o sw.SwXChapterNumbering

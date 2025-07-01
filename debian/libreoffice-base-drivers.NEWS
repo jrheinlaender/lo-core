@@ -1,0 +1,14 @@
+libreoffice (1:6.2.0~beta1-1) unstable; urgency=low
+
+  * The JDBC Driver used for JDBC Access by the LibreOffice MySQL driver
+    (NOT libreoffice-mysql-connector) contained in this package has been
+    changed from MySQL to MariaDB (libmysql-java -> libmariadb-java). See
+    http://bugs.debian.org/913360 and https://bugs.debian.org/912916.
+
+    This also involves changing the classes used in the code, so using
+    libmysql-java and com.mysql.jdbc.Driver does not work anymore.
+
+    If you want to connect to MySQL or MariaDB databases over JDBC, use
+    libmariadb-java.
+
+ -- Rene Engelhard <rene@debian.org>  Fri, 16 Nov 2018 19:35:22 +0100

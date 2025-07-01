@@ -1,0 +1,47 @@
+diff --git a/solenv/gbuild/platform/com_GCC_defs.mk b/solenv/gbuild/platform/com_GCC_defs.mk
+index 9de88a2..9161a4e 100644
+--- a/solenv/gbuild/platform/com_GCC_defs.mk
++++ b/solenv/gbuild/platform/com_GCC_defs.mk
+@@ -170,6 +170,8 @@ gb_COMPILERNOOPTFLAGS := -O0 -fstrict-aliasing -fstrict-overflow
+ ifeq ($(OS),ANDROID)
+ gb_DEBUGINFO_FLAGS=-glldb
+ # Clang does not know -ggdb2 or some other options
++else ifeq ($(enable_symbols),SMALL)
++gb_DEBUGINFO_FLAGS=-g1
+ else ifeq ($(HAVE_GCC_GGDB2),TRUE)
+ gb_DEBUGINFO_FLAGS=-ggdb2
+ else
+diff --git a/configure.ac b/configure.ac
+index 2d62af9981a9..b1ad5a970700 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -4056,6 +4056,9 @@ fi
+ if test "$enable_symbols" = yes; then
+     ENABLE_SYMBOLS_FOR=all
+     AC_MSG_RESULT([yes])
++elif test "$enable_symbols" = "SMALL" -o "$enable_symbols" = "small"; then
++    ENABLE_SYMBOLS_FOR=all
++    AC_MSG_RESULT([yes, small ones])
+ elif test "$enable_symbols" = no; then
+     ENABLE_SYMBOLS_FOR=
+     AC_MSG_RESULT([no])
+@@ -4064,6 +4067,7 @@ else
+     ENABLE_SYMBOLS_FOR="$enable_symbols"
+     AC_MSG_RESULT([for "$enable_symbols"])
+ fi
++AC_SUBST(enable_symbols)
+ AC_SUBST(ENABLE_SYMBOLS_FOR)
+ 
+ if test -n "$with_android_ndk" -a \( -n "$ENABLE_DEBUG" -o -n "$ENABLE_DBGUTIL" \) -a "$ENABLE_SYMBOLS_FOR" = "all"; then
+diff --git a/config_host.mk.in b/config_host.mk.in
+index 7df26713a1dd..174c4e50466c 100644
+--- a/config_host.mk.in
++++ b/config_host.mk.in
+@@ -208,6 +209,7 @@ export ENABLE_SDREMOTE_BLUETOOTH=@ENABLE_SDREMOTE_BLUETOOTH@
+ export ENABLE_SILENT_MSI=@ENABLE_SILENT_MSI@
+ export ENABLE_SKIA=@ENABLE_SKIA@
+ export ENABLE_SKIA_DEBUG=@ENABLE_SKIA_DEBUG@
++export enable_symbols=@enable_symbols@
+ export ENABLE_SYMBOLS_FOR=@ENABLE_SYMBOLS_FOR@
+ export ENABLE_VALGRIND=@ENABLE_VALGRIND@
+ export ENABLE_WASM_STRIP_ACCESSIBILITY=@ENABLE_WASM_STRIP_CALC@

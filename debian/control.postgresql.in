@@ -1,0 +1,18 @@
+Package: libreoffice-sdbc-postgresql
+Section: misc
+Architecture: %OOO_BASE_ARCHS%
+Depends: libreoffice-core-nogui | libreoffice-core,
+         libreoffice-common (>= 1:7.0.0~alpha),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Suggests: postgresql (>= 8.4)
+Enhances: libreoffice-base-drivers
+Pre-Depends: ucf, libreoffice-common (>= 4:25.2.1~rc1-3~)
+Description: PostgreSQL SDBC driver for LibreOffice
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ The PostgreSQL SDBC Driver allows one to use the PostgreSQL database from
+ LibreOffice without any wrapper layer such as ODBC or JDBC.
+Homepage: http://wiki.documentfoundation.org/PostgreSQL-SDBC
+

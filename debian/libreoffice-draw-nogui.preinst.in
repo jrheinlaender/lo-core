@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "$2" lt 4:25.2.1~rc1-3; then
+	for i in draw.xcd graphicfilter.xcd; do
+		rm -f /etc/libreoffice/registry/$i
+		ucf --purge /etc/libreoffice/registry/$i
+		ucfr --force --purge libreoffice-draw-nogui /etc/libreoffice/registry/$i
+	done
+elif [ "$1" = "install" ] && [ -f /etc/libreoffice/registry/draw.xcd ]; then
+	for i in draw.xcd graphicfilter.xcd; do
+		rm -f /etc/libreoffice/registry/$i
+		ucf --purge /etc/libreoffice/registry/$i
+		ucfr --force --purge libreoffice-draw-nogui /etc/libreoffice/registry/$i
+	done
+fi
+
+#DEBHELPER#

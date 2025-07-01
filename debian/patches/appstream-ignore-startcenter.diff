@@ -1,0 +1,10 @@
+--- a/sysui/desktop/menus/startcenter.desktop
++++ b/sysui/desktop/menus/startcenter.desktop
+@@ -31,6 +31,7 @@ StartupNotify=true
+ X-GIO-NoFuse=true
+ StartupWMClass=libreoffice-startcenter
+ X-KDE-Protocols=file,http,webdav,webdavs
++X-AppStream-Ignore=True
+ 
+ ##Define Actions
+ Actions=Writer;Calc;Impress;Draw;Base;Math;

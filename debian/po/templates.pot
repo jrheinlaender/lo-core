@@ -1,0 +1,41 @@
+# Copyright (C) 2024 Software in the Public Interest, Inc.
+# This file is distributed under the same license as the libreoffice package.
+# Rene Engelhard <rene@debian.org>, 2024
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: libreoffice\n"
+"Report-Msgid-Bugs-To: libreoffice@packages.debian.org\n"
+"POT-Creation-Date: 2024-05-13 17:33+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: note
+#. Description
+#: ../libreoffice-calc.templates:1001
+msgid "Architecture doesn't support \"NaN passing\""
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../libreoffice-calc.templates:1001
+msgid ""
+"LibreOffice Calc relies on a feature called \"NaN passing\" which is "
+"optional in the IEEE 754 standard. Your architecture (riscv64) does not "
+"support it, though."
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../libreoffice-calc.templates:1001
+msgid ""
+"This package is shipped nevertheless for use cases where this does not "
+"matter but you should be aware that Calc can give you wrong results, "
+"especially with =IFERROR() etc."
+msgstr ""

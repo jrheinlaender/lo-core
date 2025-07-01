@@ -1,0 +1,2 @@
+libreoffice-calc: binary-or-shlib-defines-rpath
+libreoffice-calc: desktop-command-not-in-package libreoffice [usr/share/applications/libreoffice-calc.desktop]

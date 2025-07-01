@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+
+import sys, os
+sys.path.append('/usr/lib/libreoffice/program')
+os.putenv('URE_BOOTSTRAP', 'vnd.sun.star.pathname:/usr/lib/libreoffice/program/fundamentalrc')
+
+import pyuno
+print(pyuno)

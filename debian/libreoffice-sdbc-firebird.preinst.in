@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "$2" lt 4:25.2.1~rc1-3; then
+	rm -f /etc/libreoffice/registry/firebird_sdbc.xcd
+	ucf --purge /etc/libreoffice/registry/firebird_sdbc.xcd
+	ucfr --force --purge libreoffice-sdbc-firebird /etc/libreoffice/registry/firebird_sdbc.xcd
+elif [ "$1" = "install" ] && [ -f /etc/libreoffice/registry/firebird_sdbc.xcd ]; then
+	rm -f /etc/libreoffice/registry/firebird_sdbc.xcd
+	ucf --purge /etc/libreoffice/registry/firebird_sdbc.xcd
+	ucfr --force --purge libreoffice-sdbc-firebird /etc/libreoffice/registry/firebird_sdbc.xcd
+fi
+
+#DEBHELPER#

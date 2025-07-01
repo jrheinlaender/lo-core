@@ -1,0 +1,17 @@
+Package: libreoffice-kf5
+Architecture: %OOO_ARCHS%
+Depends: libreoffice-core (= ${binary:Version}),
+         ${kf5-qt5-depends},
+         ${misc:Depends},
+         ${shlibs:Depends}
+Recommends: ${plasma-iconset-dep}
+Replaces: libreoffice-kde (<< 1:6.1.0~alpha1-1)
+Section: kde
+Enhances: libreoffice
+Description: office productivity suite -- KDE Frameworks 5 integration
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the KF5 plugin for LibreOffice and a KF5-based File
+ Picker when running under Plasma.
+

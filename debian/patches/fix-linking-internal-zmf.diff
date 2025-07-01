@@ -1,0 +1,22 @@
+Partially revert https://gerrit.libreoffice.org/c/core/+/156553 to fix build with internal libzmf and external zlib
+
+/<<PKGBUILDDIR>>/workdir/UnpackedTarball/libzmf/src/lib/BMIParser.cpp:52:(.text+0x572): undefined reference to `inflateInit2_'
+/usr/bin/ld: /<<PKGBUILDDIR>>/workdir/UnpackedTarball/libzmf/src/lib/.libs/libzmf-0.0.a(BMIParser.o): in function `uncompress':
+/<<PKGBUILDDIR>>/workdir/UnpackedTarball/libzmf/src/lib/BMIParser.cpp:74:(.text+0x65d): undefined reference to `inflate'
+/usr/bin/ld: /<<PKGBUILDDIR>>/workdir/UnpackedTarball/libzmf/src/lib/BMIParser.cpp:90:(.text+0x67a): undefined reference to `inflateEnd'
+collect2: error: ld returned 1 exit status
+make[3]: *** [/<<PKGBUILDDIR>>/writerperfect/Library_wpftdraw.mk:20: /<<PKGBUILDDIR>>/instdir/program/libwpftdrawlo.so] Error 1
+
+diff --git a/writerperfect/Library_wpftdraw.mk b/writerperfect/Library_wpftdraw.mk
+index a369a626cccf..340cb889b416 100644
+--- a/writerperfect/Library_wpftdraw.mk
++++ b/writerperfect/Library_wpftdraw.mk
+@@ -60,6 +60,7 @@ $(eval $(call gb_Library_use_externals,wpftdraw,\
+ 	visio \
+ 	wpg \
+ 	wpd \
++	zlib \
+ 	lcms2 \
+ 	libxml2 \
+ 	icu_headers \
+

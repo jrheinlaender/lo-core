@@ -1,0 +1,31 @@
+diff --git a/RepositoryExternal.mk b/RepositoryExternal.mk
+index 16eb38a..8983376 100644
+--- a/RepositoryExternal.mk
++++ b/RepositoryExternal.mk
+@@ -2392,7 +2392,7 @@ ifneq ($(ENABLE_LPSOLVE),)
+ ifneq ($(SYSTEM_LPSOLVE),)
+ 
+ define gb_LinkTarget__use_lpsolve
+-$(call gb_LinkTarget_add_libs,$(1),-llpsolve55)
++$(call gb_LinkTarget_add_ldflags,$(1),-llpsolve55_pic)
+ $(call gb_LinkTarget_add_defs,$(1),\
+ 	-DSYSTEM_LPSOLVE \
+ )
+diff --git a/configure.ac b/configure.ac
+index df7cb4c..9eb5bad 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -9790,10 +9812,11 @@ if test "$ENABLE_LPSOLVE" = TRUE; then
+         # some systems need this. Like Ubuntu....
+         AC_CHECK_LIB(m, floor)
+         AC_CHECK_LIB(dl, dlopen)
+-        AC_CHECK_LIB([lpsolve55], [make_lp], [:],
++        AC_CHECK_LIB(colamd, colamd)
++        AC_CHECK_LIB([lpsolve55_pic], [make_lp], [:],
+             [ AC_MSG_ERROR(lpsolve library not found or too old.)], [])
+         LIBS=$save_LIBS
+-        libo_MINGW_CHECK_DLL([lpsolve55])
++        libo_MINGW_CHECK_DLL([lpsolve55_pic])
+     else
+         AC_MSG_RESULT([internal])
+         SYSTEM_LPSOLVE=

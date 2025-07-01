@@ -1,0 +1,18 @@
+libuno_cppuhelpergcc3.so.3 libuno-cppuhelpergcc3-3t64 #MINVER#, uno-libs-private
+| libuno-cppuhelpergcc3-3t64 #MINVER#, uno-libs-private, libstdc++6 (>= 4.1.1)
+ (symver)UDK_3_0_0 1.4.0
+ (symver)UDK_3.1 1.4.0
+ (symver)UDK_3.2 1.4.0
+ (symver)UDK_3.3 1.4.0
+ (symver)UDK_3.4 1.4.0
+ (symver)UDK_3.5 1.4.0
+ (symver)UDK_3.6 1.7.0
+ (symver)UDK_3.7 3.4.0
+ (symver)UDK_3.8 3.5.0~beta
+ (symver)GLIBCXX_3.4 3.6 1
+ (symver)LIBO_UDK_3.9 4.0.0~alpha
+ (symver)LIBO_UDK_5.3 5.3.0~alpha
+# add new stuff BELOW this line
+# and note that the stuff above HAS NO epoch but the
+# below HAS
+ (symver)LIBO_UDK_7.4 1:7.4.0~alpha

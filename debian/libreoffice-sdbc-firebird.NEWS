@@ -1,0 +1,21 @@
+libreoffice (1:5.3.0~alpha1-1) experimental; urgency=low
+
+  * LibreOffice switched from Firebird 2.5 to Firebird 3. Unfortunately
+    the format used by the Firebird 2.5 code (fdb - the native on-disk format)
+    is NOT compatible with the "new" one (the archive format). LibreOffice 5.3
+    can NOT read older .odbs having .fdb embedded.
+
+    Some future firebird version might have a way to convert itself/make LO
+    able to convert but until then you need to convert manually as follows:
+
+    You need the gbak tool from firebird2.5:
+    https://packages.debian.org/search?searchon=contents&keywords=gbak&mode=exactfilename&suite=oldstable&arch=any
+
+    Then execute:
+	 unzip -d oldFirebird.odb temp;
+	 gbak -b temp/database/firebird.fdb temp/database/firebird.fbk;
+	 rm temp/database/firebird.fdb
+	 zip -FSr oldFirebird.odb temp;
+	 rm -r temp;
+
+ -- Rene Engelhard <rene@debian.org>  Mon, 28 Nov 2016 10:27:15 +0200

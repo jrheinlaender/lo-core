@@ -1,0 +1,27 @@
+diff --git a/configure.ac b/configure.ac
+index cdae8b5..49f3ba2 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -9468,8 +9468,9 @@ if test "$with_system_lpsolve" = "yes"; then
+         # some systems need this. Like Ubuntu...
+         AC_CHECK_LIB(m, floor)
+         AC_CHECK_LIB(dl, dlopen)
++        AC_CHECK_LIB(colamd, colamd)
+         AC_CHECK_LIB([lpsolve55], [make_lp], [:],
+-            [ AC_MSG_ERROR(lpsolve library not found or too old.)], [])
++            [ AC_MSG_ERROR(lpsolve library not found or too old.)], [-L/usr/lib/lp_solve])
+         LIBS=$save_LIBS
+     else
+         AC_MSG_RESULT([internal])
+diff --git a/RepositoryExternal.mk b/RepositoryExternal.mk
+index a4daea7..0dea12d 100644
+--- a/RepositoryExternal.mk
++++ b/RepositoryExternal.mk
+@@ -1961,6 +1961,7 @@ ifeq ($(WITH_LPSOLVER),lpsolve)
+ 
+ define gb_LinkTarget__use_lpsolve
+ $(call gb_LinkTarget_add_libs,$(1),-llpsolve55)
++$(call gb_LinkTarget_add_ldflags,$(1),-L/usr/lib/lp_solve -Wl$(COMMA)-rpath=/usr/lib/lp_solve)
+ $(call gb_LinkTarget_add_defs,$(1),\
+ 	-DSYSTEM_LPSOLVE \
+ )

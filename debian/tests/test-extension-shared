@@ -1,0 +1,34 @@
+#!/bin/bash
+# autopkgtest check: Install a test extension shared
+# (c) 2017 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+        TMP=`mktemp -q -p $AUTOPKGTEST_TMP`
+else
+        TMP=`mktemp -q`
+fi
+
+
+echo
+echo "====== Add the extension ======"
+# does it install fine?
+unopkg add --shared -v /usr/share/libreoffice/TestExtension.oxt
+
+echo
+echo "====== Show extension status ======"
+# does it list? For whatever reason unopkg leaves a stale .lock behind when
+# doing this grep directly on the output so do it on a tmpfile
+unopkg list --shared | tee $TMP
+grep -q org.libreoffice.smoketest.TestExtension $TMP || exit 1
+rm $TMP
+
+echo
+echo "====== Remove the extension ======"
+# does it remove?
+unopkg remove --shared -v org.libreoffice.smoketest.TestExtension
+
+

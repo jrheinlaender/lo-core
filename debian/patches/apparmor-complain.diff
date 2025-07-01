@@ -1,0 +1,26 @@
+diff --git a/sysui/desktop/apparmor/program.oosplash b/sysui/desktop/apparmor/program.oosplash
+index fef54b7ee384..9dde31a63615 100644
+--- a/sysui/desktop/apparmor/program.oosplash
++++ b/sysui/desktop/apparmor/program.oosplash
+@@ -12,7 +12,7 @@
+ 
+ #include <tunables/global>
+ 
+-profile libreoffice-oosplash INSTDIR-program/oosplash {
++profile libreoffice-oosplash INSTDIR-program/oosplash flags=(complain) {
+   #include <abstractions/base>
+   #include <abstractions/X>
+ 
+diff --git a/sysui/desktop/apparmor/program.soffice.bin b/sysui/desktop/apparmor/program.soffice.bin
+index b4baeab8f5ee..7861c9eac9bd 100644
+--- a/sysui/desktop/apparmor/program.soffice.bin
++++ b/sysui/desktop/apparmor/program.soffice.bin
+@@ -60,7 +60,7 @@
+ 
+ #include <tunables/global>
+ 
+-profile libreoffice-soffice INSTDIR-program/soffice.bin {
++profile libreoffice-soffice INSTDIR-program/soffice.bin flags=(complain) {
+   #include <abstractions/private-files>
+ 
+   #include <abstractions/audio>

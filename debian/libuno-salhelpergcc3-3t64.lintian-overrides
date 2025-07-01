@@ -1,0 +1,2 @@
+libuno-salhelpergcc3-3t64: symbols-declares-dependency-on-other-package libstdc++6 (>= 4.1.1) (libuno_salhelpergcc3.so.3) [symbols]
+libuno-salhelpergcc3-3t64: package-name-doesnt-match-sonames libuno-salhelpergcc3-3

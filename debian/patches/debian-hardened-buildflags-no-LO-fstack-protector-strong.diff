@@ -1,0 +1,32 @@
+don't hardcode -fstack-protector-strong in configure.ac/gbuild. We get the
+hardening flags from dpkg-buildflags anyway.
+
+diff --git a/solenv/gbuild/platform/com_GCC_defs.mk b/solenv/gbuild/platform/com_GCC_defs.mk
+index 712a61df544f..0d50f538ba7b 100644
+--- a/solenv/gbuild/platform/com_GCC_defs.mk
++++ b/solenv/gbuild/platform/com_GCC_defs.mk
+@@ -77,7 +77,6 @@ gb_CFLAGS_COMMON := \
+ 	-fno-common \
+ 	-pipe \
+ 	$(if $(ENABLE_HARDENING_FLAGS),$(HARDENING_CFLAGS)) \
+-	$(if $(filter EMSCRIPTEN,$(OS)),-fno-stack-protector,-fstack-protector-strong) \
+ 
+ gb_CXXFLAGS_COMMON := \
+ 	-Wall \
+@@ -94,7 +93,6 @@ gb_CXXFLAGS_COMMON := \
+ 	-fno-common \
+ 	-pipe \
+ 	$(if $(ENABLE_HARDENING_FLAGS),$(HARDENING_CFLAGS)) \
+-	$(if $(filter EMSCRIPTEN,$(OS)),-fno-stack-protector,-fstack-protector-strong) \
+ 
+ ifeq ($(HAVE_WDEPRECATED_COPY_DTOR),TRUE)
+ gb_CXXFLAGS_COMMON += -Wdeprecated-copy-dtor
+@@ -136,8 +134,6 @@ endif
+ gb_VISIBILITY_FLAGS_CXX := -fvisibility-inlines-hidden
+ gb_CXXFLAGS_COMMON += $(gb_VISIBILITY_FLAGS_CXX)
+ 
+-gb_LinkTarget_LDFLAGS += $(if $(filter EMSCRIPTEN,$(OS)),-fno-stack-protector,-fstack-protector-strong)
+-
+ ifneq ($(gb_ENABLE_PCH),)
+ ifeq ($(COM_IS_CLANG),TRUE)
+ # Clang by default includes in the PCH timestamps of the files it was

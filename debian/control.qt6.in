@@ -1,0 +1,15 @@
+Package: libreoffice-qt6
+Architecture: %OOO_ARCHS%
+Depends: libreoffice-core (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Enhances: libreoffice
+Description: office productivity suite -- Qt 6 integration
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the Qt 6 plugin for drawing LibreOffices widgets
+ with Qt 6 and a Qt File Picker and print dialog.
+ .
+ You need to enable it manually by export SAL_USE_VCLPLUGIN=qt6.
+

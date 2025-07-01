@@ -1,0 +1,213 @@
+diff --git a/configure.ac b/configure.ac
+index c12fe95a561c..66d327ae8fb8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -2047,6 +2047,11 @@ AC_ARG_WITH(bffvalidator,
+          See https://web.archive.org/web/20200804155745/https://www.microsoft.com/en-us/download/details.aspx?id=26794]),
+ ,with_bffvalidator=no)
+ 
++libo_FUZZ_ARG_WITH(cppunit,
++    AS_HELP_STRING([--without-cppunit>],
++        [disable building(!) of cppunit stuff also built during make build]),
++,with_cppunit=yes)
++
+ libo_FUZZ_ARG_WITH(junit,
+     AS_HELP_STRING([--with-junit=<absolute path to JUnit 4 jar>],
+         [Specifies the JUnit 4 jar file to use for JUnit-based tests.
+@@ -7932,8 +7959,12 @@ dnl ===================================================================
+ dnl Check for system cppunit
+ dnl ===================================================================
+ if test "$_os" != "Android" ; then
++  if test "$with_cppunit" != "no"; then
+     libo_CHECK_SYSTEM_MODULE([cppunit],[CPPUNIT],[cppunit >= 1.14.0])
++    ENABLE_CPPUNIT=TRUE
++  fi
+ fi
++AC_SUBST(ENABLE_CPPUNIT)
+ 
+ dnl ===================================================================
+ dnl Check whether freetype is available
+diff --git a/config_host.mk.in b/config_host.mk.in
+index 8888355642ef..ac8a4b64967e 100644
+--- a/config_host.mk.in
++++ b/config_host.mk.in
+@@ -147,6 +147,7 @@ export ENABLE_COINMP=@ENABLE_COINMP@
+ SYSTEM_COINMP=@SYSTEM_COINMP@
+ export COINMP_CFLAGS=@COINMP_CFLAGS@
+ export COINMP_LIBS=@COINMP_LIBS@
++export ENABLE_CPPUNIT=@ENABLE_CPPUNIT@
+ export ENABLE_ATSPI_TESTS=@ENABLE_ATSPI_TESTS@
+ export ENABLE_CPDB=@ENABLE_CPDB@
+ export ENABLE_CUPS=@ENABLE_CUPS@
+diff --git a/sal/Module_sal.mk b/sal/Module_sal.mk
+index fe9523a7a6e2..719edf8c6252 100644
+--- a/sal/Module_sal.mk
++++ b/sal/Module_sal.mk
+@@ -10,7 +10,6 @@
+ $(eval $(call gb_Module_Module,sal))
+ 
+ $(eval $(call gb_Module_add_targets,sal,\
+-	$(if $(CROSS_COMPILING),,$(if $(filter TRUE,$(DISABLE_DYNLOADING)),,Executable_cppunittester)) \
+ 	$(if $(filter $(OS),ANDROID EMSCRIPTEN), \
+ 		Library_lo-bootstrap) \
+ 	Library_sal \
+@@ -33,4 +32,10 @@ $(eval $(call gb_Module_add_check_targets,sal,\
+ 
+ endif
+ 
++ifeq ($(ENABLE_CPPUNIT),TRUE)
++$(eval $(call gb_Module_add_check_targets,sal,\
++	$(if $(CROSS_COMPILING),,$(if $(filter TRUE,$(DISABLE_DYNLOADING)),,Executable_cppunittester)) \
++))
++endif
++
+ # vim: set noet sw=4 ts=4:
+diff --git a/sdext/Executable_pdf2xml.mk b/sdext/Executable_pdf2xml.mk
+index 373f40da36fd..c0401bef9c7a 100644
+--- a/sdext/Executable_pdf2xml.mk
++++ b/sdext/Executable_pdf2xml.mk
+@@ -13,10 +13,10 @@ $(eval $(call gb_Executable_use_sdk_api,pdf2xml))
+ 
+ $(eval $(call gb_Executable_use_externals,pdf2xml,\
+     boost_headers \
+-    cppunit \
+     zlib \
+ ))
+ 
++
+ $(eval $(call gb_Executable_set_include,pdf2xml,\
+     -I$(SRCDIR)/sdext/source/pdfimport/inc \
+     $$(INCLUDE) \
+@@ -29,7 +29,6 @@ $(eval $(call gb_Executable_use_libraries,pdf2xml,\
+     cppu \
+     drawinglayercore \
+     drawinglayer \
+-    unotest \
+     cppuhelper \
+     sal \
+     salhelper \
+@@ -38,6 +37,15 @@ $(eval $(call gb_Executable_use_libraries,pdf2xml,\
+     i18nutil \
+ ))
+ 
++ifeq ($(ENABLE_CPPUNIT),TRUE)
++$(eval $(call gb_Executable_use_externals,pdf2xml,\
++    cppunit \
++))
++$(eval $(call gb_Executable_use_libraries,pdf2xml,\
++    unotest \
++))
++endif
++
+ $(eval $(call gb_Executable_use_library_objects,pdf2xml,pdfimport))
+ 
+ $(eval $(call gb_Executable_add_exception_objects,pdf2xml,\
+diff --git a/smoketest/Module_smoketest.mk b/smoketest/Module_smoketest.mk
+index 217dbfa6543a..fa2d0d489bd7 100644
+--- a/smoketest/Module_smoketest.mk
++++ b/smoketest/Module_smoketest.mk
+@@ -13,8 +13,12 @@ $(eval $(call gb_Module_Module,smoketest))
+ ifeq ($(CROSS_COMPILING),)
+ 
+ ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
++ifeq ($(ENABLE_CPPUNIT),TRUE)
+ $(eval $(call gb_Module_add_targets,smoketest,\
+ 	Library_smoketest \
++))
++endif
++$(eval $(call gb_Module_add_targets,smoketest,\
+ 	Zip_smoketestdoc \
+ ))
+ endif
+@@ -26,6 +30,7 @@ $(eval $(call gb_Module_add_targets,smoketest,\
+ endif
+ endif
+ 
++ifeq ($(ENABLE_CPPUNIT),TRUE)
+ ifneq (MACOSX/TRUE,$(OS)/$(ENABLE_MACOSX_SANDBOX))
+ ifneq ($(filter EXTENSIONS,$(BUILD_TYPE)),)
+ $(eval $(call gb_Module_add_subsequentcheck_targets,smoketest,\
+@@ -33,6 +38,7 @@ $(eval $(call gb_Module_add_subsequentcheck_targets,smoketest,\
+ ))
+ endif
+ endif
++endif
+ 
+ endif
+ 
+diff --git a/test/Module_test.mk b/test/Module_test.mk
+index e1051f16b5a0..d1787cb5789b 100644
+--- a/test/Module_test.mk
++++ b/test/Module_test.mk
+@@ -11,6 +11,7 @@ $(eval $(call gb_Module_Module,test))
+ 
+ ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
+ 
++ifeq ($(ENABLE_CPPUNIT),TRUE)
+ $(eval $(call gb_Module_add_targets,test,\
+     Library_test \
+     Library_test_setupvcl \
+@@ -18,6 +19,7 @@ $(eval $(call gb_Module_add_targets,test,\
+     CppunitTest_test_a11y \
+     CppunitTest_test_xpath \
+ ))
++endif
+ 
+ endif
+ 
+diff --git a/unotest/Module_unotest.mk b/unotest/Module_unotest.mk
+index bdffe8e8ac14..acdd4da6c539 100644
+--- a/unotest/Module_unotest.mk
++++ b/unotest/Module_unotest.mk
+@@ -12,12 +12,14 @@ $(eval $(call gb_Module_Module,unotest))
+ 
+ ifeq ($(gb_Side),host)
+ ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
++ifeq ($(ENABLE_CPPUNIT),TRUE)
+ $(eval $(call gb_Module_add_targets,unotest,\
+ 	Library_unobootstrapprotector \
+ 	Library_unoexceptionprotector \
+ 	Library_unotest \
+ ))
+ endif
++endif
+ 
+ ifneq ($(ENABLE_JAVA),)
+ $(eval $(call gb_Module_add_targets,unotest,\
+diff --git a/testtools/Module_testtools.mk b/testtools/Module_testtools.mk
+index a1b84e175b30..08e4aad24c11 100644
+--- a/testtools/Module_testtools.mk
++++ b/testtools/Module_testtools.mk
+@@ -11,6 +11,8 @@ $(eval $(call gb_Module_Module,testtools))
+ 
+ ifeq ($(CROSS_COMPILING),)
+ 
++ifeq ($(ENABLE_CPPUNIT),TRUE)
++
+ $(eval $(call gb_Module_add_targets,testtools,\
+ 	CustomTarget_bridgetest \
+ 	InternalUnoApi_bridgetest \
+@@ -41,4 +43,6 @@ $(eval $(call gb_Module_add_check_targets,testtools,\
+ 
+ endif
+ 
++endif
++
+ # vim:set noet sw=4 ts=4:
+diff --git a/Repository.mk b/Repository.mk
+index dbb628f2a6b3..4387e665624e 100644
+--- a/Repository.mk
++++ b/Repository.mk
+@@ -799,8 +805,12 @@ endif
+ 
+ # 'test_unittest' is only package delivering to workdir.
+ # Other packages could be potentially autoinstalled.
++ifeq ($(ENABLE_CPPUNIT),TRUE)
+ $(eval $(call gb_Helper_register_packages, \
+ 	test_unittest \
++))
++endif
++$(eval $(call gb_Helper_register_packages, \
+ 	$(if $(ENABLE_CLI),cli_basetypes_copy) \
+ 	extras_wordbook \
+ 	instsetoo_native_setup \

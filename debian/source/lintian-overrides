@@ -1,0 +1,30 @@
+# This *is* the code. lintian, don't assume every HTML file with long lines is generated, thanks, bye!
+libreoffice source: source-is-missing [odk/index.html]
+libreoffice source: source-is-missing [odk/docs/tools.html]
+libreoffice source: source-is-missing [odk/examples/DevelopersGuide/examples.html]
+libreoffice source: source-is-missing [odk/examples/examples.html]
+libreoffice source: source-is-missing [odk/index_online.html]
+# sw/qa/extras/htmlimport/data/PageAndParagraphFilled.html:	<meta name="generator" content="LibreOfficeDev 5.1.0.0.alpha1 (Windows)"/>
+# sw/qa/extras/htmlimport/data/inlined_image.html:	<meta name="generator" content="LibreOfficeDev 4.4.0.0.alpha0 (Linux)"/>
+# long lines due to inline base64 image
+libreoffice source: source-is-missing [sw/qa/extras/htmlimport/data/PageAndParagraphFilled.html]
+libreoffice source: source-is-missing [sw/qa/extras/htmlimport/data/inlined_image.html]
+# as above, but without generator meta tag
+libreoffice source: source-is-missing [sw/qa/extras/htmlexport/data/clearing-break.html]
+libreoffice source: source-is-missing [sw/qa/extras/htmlimport/data/image-lazy-read.html]
+libreoffice source: source-is-missing [sw/qa/extras/htmlimport/data/tdf142781.html]
+# <META NAME="GENERATOR" CONTENT="OpenOffice.org 2.3  (Linux)">
+libreoffice source: source-is-missing [sw/qa/extras/layout/data/forcepoint94.html]
+# hrmpf. of course they are there
+# $ ls tarballs/*
+# tarballs/a7983f859eafb2677d7ff386a023bc40-xsltml_2.1.2.zip  tarballs/skia-m103-b301ff025004c9cd82816c86c547588e6c24b466.tar.xz
+libreoffice source: superfluous-file-pattern tarballs/*xsltml* [debian/copyright:140]
+libreoffice source: superfluous-file-pattern tarballs/dtoa* [debian/copyright:126]
+libreoffice source: superfluous-file-pattern tarballs/pdfium* [debian/copyright:173]
+libreoffice source: superfluous-file-pattern tarballs/skia* [debian/copyright:131]
+# patched in by us
+libreoffice source: superfluous-file-pattern wizards/source/access2base/access2base.html [debian/copyright:203]
+libreoffice source: source-is-missing [wizards/source/access2base/access2base.html]
+# two licenses..
+libreoffice source: duplicate-globbing-patterns helpcontent2/help3xsl/polyfills.js (lines 232 236) [debian/copyright]
+

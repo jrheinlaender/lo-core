@@ -1,0 +1,3 @@
+PLATFORMID=linux_loongarch64
+RTL_ARCH=LOONGARCH64
+RTL_OS=Linux

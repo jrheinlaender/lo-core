@@ -1,0 +1,70 @@
+Package: libreoffice-dev
+Section: devel
+Architecture: %OOO_ARCHS%
+Depends: libreoffice-core-nogui (= ${binary:Version}) | libreoffice-core (= ${binary:Version}),
+         libreoffice-dev-common (= ${source:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Recommends: g++, ${java-common-depends}, ${java-runtime-depends}, libreofficekit-dev
+Suggests: libmythes-dev, libreofficekit-dev-gtk, libreoffice-dev-doc
+Replaces: libreoffice-dev-common (<< 1:5.4.1~)
+Conflicts: libreoffice-dev-doc (<< 1:5.2.5-2~), libreoffice (<< 1:5.2.5-2~)
+Breaks: libreoffice-dev-common (<< 1:5.4.1~)
+Description: office productivity suite -- SDK -- architecture-dependent parts
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the (architecture-dependent) files needed to build
+ plugins/add-ons for LibreOffice (build tools, libraries, arch-dependent
+ includes, ...).
+
+Package: libreoffice-dev-gui
+Section: devel
+Architecture: %OOO_ARCHS%
+Depends: libreoffice-core (= ${binary:Version}),
+         libreoffice-dev (= ${binary:Version}),
+         libreoffice-dev-common (= ${source:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Replaces: libreoffice-dev (<< 1:7.0.0~)
+Breaks: libreoffice-dev (<< 1:7.0.0~)
+Description: office productivity suite -- "GUI" development stuff
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the gengal utility which was moved from
+ libreoffice-dev.
+
+Package: libreoffice-dev-common
+Section: devel
+Architecture: all
+Depends: ${misc:Depends}
+Recommends: python3
+Replaces: libreoffice-dev (<< 4:24.8.0~beta1~)
+Breaks: libreoffice-dev (<< 1:5.2.0~)
+Conflicts: libreoffice (<< 1:5.2.5-2~)
+Description: office productivity suite -- SDK -- architecture-independent parts
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the (architecture-independent) files needed to build
+ plugins/add-ons for LibreOffice (includes, IDL files, ...)
+
+Package: libreoffice-dev-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Recommends: libreoffice-dev (= ${binary:Version}),
+            www-browser
+Conflicts: openoffice.org-dev-doc, libreoffice-dev (<= 1:5.0.3~rc1-2), libreoffice (<< 1:5.2.5-2~)
+Build-Profiles: <!nodoc>
+Description: office productivity suite -- SDK documentation
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the documentation of the LibreOffice SDK:
+ .
+  * C++/Java API reference
+  * IDL reference
+  * C++/Java/Basic examples
+

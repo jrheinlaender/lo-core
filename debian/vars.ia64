@@ -1,0 +1,3 @@
+PLATFORMID=linux_ia64
+RTL_ARCH=IA64
+RTL_OS=Linux

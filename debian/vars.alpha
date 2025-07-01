@@ -1,0 +1,3 @@
+PLATFORMID=linux_alpha
+RTL_ARCH=ALPHA
+RTL_OS=Linux

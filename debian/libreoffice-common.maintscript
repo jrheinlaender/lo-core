@@ -1,0 +1,1 @@
+symlink_to_dir /usr/lib/libreoffice/share/registry /etc/libreoffice/registry 4:25.2.1~rc1-3~ libreoffice-common

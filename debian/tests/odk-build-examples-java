@@ -1,0 +1,56 @@
+#!/bin/bash
+# autopkgtest check: Run the odk/build-examples check against an installed
+# version of the LibreOffice SDK
+# (c) 2017 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+# skip on Zero using architectures
+if java -version 2>&1 | grep -q Zero; then
+        echo "Zero-using architecture. Skipping."
+        exit 77
+fi
+
+SRCDIR=`pwd`
+CHECK_PARALLELISM=1
+
+function unapply() {
+	cd $SRCDIR
+	echo
+	echo "====== Unapplying the patch ======"
+	patch -p1 -R < ./debian/tests/patches/odk-build-examples-standalone.diff
+}
+
+trap "unapply" ERR
+
+# skip if building as root:
+# unopkg errors out with "ERROR: Cannot run unopkg as root without --shared or --bundled option."
+# if ran as root
+if [ `id -u` = "0" ]; then
+        exit 77
+fi
+
+echo
+echo "====== Patching the tree to build the odk build-examples test against an existing installation ======"
+patch -p1 < ./debian/tests/patches/odk-build-examples-standalone.diff
+
+if [ ! -f config_host.mk ]; then
+	echo
+	echo "====== Generating configuration ======="
+	rm -f config_host.mk
+	./debian/rules config_host.mk
+fi
+
+echo
+echo "====== Starting build with ${CHECK_PARALLELISM} job against /usr/lib/libreoffice/sdk ======"
+
+cd $SRCDIR/odk
+
+export PARALLELISM=$CHECK_PARALLELISM
+make -rk \
+	CustomTarget_odk/build-examples_java verbose=t
+
+unapply
+

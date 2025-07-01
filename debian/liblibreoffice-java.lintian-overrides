@@ -1,0 +1,5 @@
+liblibreoffice-java: codeless-jar [usr/share/java/juh-*.jar]
+liblibreoffice-java: codeless-jar [usr/share/java/jurt-*.jar]
+liblibreoffice-java: codeless-jar [usr/share/java/ridl-*.jar]
+liblibreoffice-java: codeless-jar [usr/share/java/unoil-*.jar]
+liblibreoffice-java: classpath-contains-relative-path ../ [usr/share/java/libreoffice-*.jar]

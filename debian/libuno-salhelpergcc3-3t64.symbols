@@ -1,0 +1,9 @@
+libuno_salhelpergcc3.so.3 libuno-salhelpergcc3-3t64 #MINVER#
+| libuno-salhelpergcc3-3t64 #MINVER#, libstdc++6 (>= 4.1.1)
+ (symver)UDK_3_0_0 1.4.0
+ (symver)UDK_3.1 1.4.0
+ (symver)LIBO_UDK_3.6 3.6.0~beta
+ (symver)GLIBCXX_3.4 3.6 1
+# add new stuff BELOW this line
+# and note that the stuff above HAS NO epoch but the
+# below HAS

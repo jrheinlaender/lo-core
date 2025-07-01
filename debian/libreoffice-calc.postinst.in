@@ -1,0 +1,11 @@
+#!/bin/sh -e
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+if [ "@DEB_HOST_ARCH@" = "riscv64" ]; then
+	db_get libreoffice-calc/no_nan_passing_support_warning
+fi
+
+#DEBHELPER#
+

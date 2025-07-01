@@ -1,0 +1,211 @@
+diff --git a/scp2/InstallModule_draw.mk b/scp2/InstallModule_draw.mk
+index a7c02be..d48edf2 100644
+--- a/scp2/InstallModule_draw.mk
++++ b/scp2/InstallModule_draw.mk
+@@ -10,6 +10,7 @@
+ $(eval $(call gb_InstallModule_InstallModule,scp2/draw))
+ 
+ $(eval $(call gb_InstallModule_use_auto_install_libs,scp2/draw,\
++	draw \
+ 	draw_brand \
+ ))
+ 
+diff --git a/scp2/source/draw/module_draw.scp b/scp2/source/draw/module_draw.scp
+index 8737579..0913c61 100644
+--- a/scp2/source/draw/module_draw.scp
++++ b/scp2/source/draw/module_draw.scp
+@@ -18,6 +18,7 @@
+ 
+ #include "macros.inc"
+ 
++#include "AutoInstall/draw"
+ #include "AutoInstall/draw_brand"
+ 
+ Module gid_Module_Prg_Draw
+@@ -34,7 +35,8 @@ Module gid_Module_Prg_Draw_Bin
+     Sortkey = "100";
+     Default = YES;
+     Styles = (HIDDEN_ROOT);
+-    Files = (gid_File_Extra_Urldesktop_Draw,gid_File_Extra_Urlnew_Draw,gid_File_Extra_Urlstart_Draw,gid_File_Extra_Urltasks_Draw,
++    Files = (auto_draw_ALL,
++    gid_File_Extra_Urldesktop_Draw,gid_File_Extra_Urlnew_Draw,gid_File_Extra_Urlstart_Draw,gid_File_Extra_Urltasks_Draw,
+     gid_File_Share_Registry_Draw_Xcd,
+     gid_File_Tmp_Userinstall_Draw_Inf);
+ End
+diff --git a/scp2/AutoInstall.mk b/scp2/AutoInstall.mk
+index 7d2a347..a15ac52 100644
+--- a/scp2/AutoInstall.mk
++++ b/scp2/AutoInstall.mk
+@@ -17,6 +17,7 @@ $(eval $(call gb_AutoInstall_add_module,base_brand,,LIBO_EXECUTABLE,,PACKAGE_FIL
+ $(eval $(call gb_AutoInstall_add_module,brand,,LIBO_EXECUTABLE,,PACKAGE_FILELIST))
+ $(eval $(call gb_AutoInstall_add_module,calc,LIBO_LIB_FILE,,,PACKAGE_FILELIST))
+ $(eval $(call gb_AutoInstall_add_module,calc_brand,,LIBO_EXECUTABLE,,PACKAGE_FILELIST))
++$(eval $(call gb_AutoInstall_add_module,draw,LIBO_LIB_FILE))
+ $(eval $(call gb_AutoInstall_add_module,draw_brand,,LIBO_EXECUTABLE,,PACKAGE_FILELIST))
+ $(eval $(call gb_AutoInstall_add_module,extensions_bsh,,,LIBO_JAR_FILE))
+ $(eval $(call gb_AutoInstall_add_module,extensions_numbertext,,,,PACKAGE_FILELIST))
+diff --git a/Repository.mk b/Repository.mk
+index f386b8aa7c05..7c337f23891b 100644
+--- a/Repository.mk
++++ b/Repository.mk
+@@ -244,13 +244,29 @@ $(eval $(call gb_Helper_register_executables_for_install,UREBIN,ure,\
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,base, \
+ 	abp \
++	calc \
++	dba \
++	dbahsql \
++	$(call gb_Helper_optional,DBCONNECTIVITY, \
++		dbase \
++		dbaxml) \
+ 	dbp \
+ 	dbu \
++       $(call gb_Helper_optional,DBCONNECTIVITY,flat) \
++       $(if $(ENABLE_JAVA),jdbc) \
++	$(call gb_Helper_optional,DBCONNECTIVITY,mysql_jdbc) \
++	$(call gb_Helper_optional,MARIADBC,$(call gb_Helper_optional,DBCONNECTIVITY,mysqlc)) \
++       odbc \
++))
++
++$(eval $(call gb_Helper_register_libraries_for_install,PLAINLIBS_OOO,base, \
++	$(call gb_Helper_optional,DBCONNECTIVITY,dbpool2) \
++       $(if $(ENABLE_JAVA),hsqldb) \
++       sdbc2 \
+ ))
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,calc, \
+ 	analysis \
+-	$(call gb_Helper_optional,DBCONNECTIVITY,calc) \
+ 	date \
+ 	pricing \
+ 	sc \
+@@ -265,6 +281,12 @@ $(eval $(call gb_Helper_register_plugins_for_install,OOOLIBS,calc, \
+     scui \
+ ))
+ 
++$(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,draw, \
++	animcore \
++	sd \
++	sdd \
++))
++
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,graphicfilter, \
+ 	svgfilter \
+ 	wpftdraw \
+@@ -272,10 +295,10 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,graphicfilter, \
+ ))
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,impress, \
+-	animcore \
+ 	PresentationMinimizer \
+ 	wpftimpress \
++	slideshow \
+ ))
+ 
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,onlineupdate, \
+ 	$(if $(ENABLE_ONLINE_UPDATE), \
+@@ -355,11 +378,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
+ 	$(if $(filter $(OS),WNT),,cmdmail) \
+ 	configmgr \
+ 	ctl \
+-	dba \
+-	dbahsql \
+-	$(call gb_Helper_optional,DBCONNECTIVITY, \
+-		dbase \
+-		dbaxml) \
+ 	dbtools \
+ 	deploymentmisc \
+ 	$(if $(filter-out MACOSX WNT,$(OS)),desktopbe1) \
+@@ -373,7 +391,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
+ 	$(if $(filter WNT,$(OS)),emser) \
+ 	evtatt \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY, \
+-		flat \
+ 		file) \
+ 	filterconfig \
+ 	fps_office \
+@@ -412,7 +412,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
+     $(call gb_Helper_optionals_or,HELPTOOLS XMLHELP,helplinker) \
+ 	i18npool \
+ 	i18nsearch \
+ 	imath \
+-	$(if $(ENABLE_JAVA),jdbc) \
+ 	$(if $(filter WNT,$(OS)),jumplist) \
+ 	$(if $(ENABLE_LDAP),ldapbe2) \
+ 	$(if $(filter WNT,$(OS)),WinUserInfoBe) \
+@@ -403,10 +419,7 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
+ 	msfilter \
+ 	$(call gb_Helper_optional,SCRIPTING,msforms) \
+ 	mtfrenderer \
+-	$(call gb_Helper_optional,DBCONNECTIVITY,mysql_jdbc) \
+-	$(call gb_Helper_optional,MARIADBC,$(call gb_Helper_optional,DBCONNECTIVITY,mysqlc)) \
+ 	numbertext \
+-	odbc \
+ 	odfflatxml \
+ 	offacc \
+ 	oox \
+@@ -443,10 +443,7 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
+ 	sb \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY,sdbt) \
+ 	scn \
+-	sd \
+-	sdd \
+ 	sfx \
+-	slideshow \
+ 	sot \
+ 	$(if $(or $(DISABLE_GUI),$(ENABLE_WASM_STRIP_SPLASH)),,spl) \
+ 	storagefd \
+@@ -436,7 +445,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
+ 	svt \
+ 	svx \
+ 	svxcore \
+-	sw \
+ 	syssh \
+ 	textconversiondlgs \
+ 	textfd \
+@@ -506,12 +501,15 @@ $(eval $(call gb_Helper_register_plugins_for_install,OOOLIBS,ooo, \
+     $(if $(ENABLE_CUSTOMTARGET_COMPONENTS),components) \
+     cui \
+     icg \
+-    sdui \
+     $(if $(ENABLE_GEN),vclplug_gen) \
+     $(if $(filter $(OS),WNT),vclplug_win) \
+     $(if $(filter $(OS),MACOSX),vclplug_osx) \
+ ))
+ 
++$(eval $(call gb_Helper_register_plugins_for_install,OOOLIBS,draw, \
++    sdui \
++))
++
+ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,postgresqlsdbc, \
+ 	$(if $(BUILD_POSTGRESQL_SDBC), \
+ 		postgresql-sdbc \
+@@ -529,6 +540,7 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,writer, \
+ 	hwp \
+ 	$(if $(ENABLE_LWP),lwpft) \
+ 	msword \
++	sw \
+ 	swd \
+ 	t602filter \
+ 	$(call gb_Helper_optional,SCRIPTING,vbaswobj) \
+@@ -622,12 +634,10 @@ $(eval $(call gb_Helper_register_libraries_for_install,PLAINLIBS_OOO,ooo, \
+     ) \
+ 	cached1 \
+ 	comphelper \
+-	$(call gb_Helper_optional,DBCONNECTIVITY,dbpool2) \
+ 	$(call gb_Helper_optional,BREAKPAD,crashreport) \
+ 	deployment \
+ 	deploymentgui \
+ 	embobj \
+-	$(if $(ENABLE_JAVA),hsqldb) \
+ 	i18nutil \
+ 	$(if $(and $(ENABLE_GTK3), $(filter LINUX %BSD SOLARIS,$(OS))), libreofficekitgtk) \
+ 	$(if $(and $(ENABLE_GTKTILEDVIEWER), $(filter WNT,$(OS))), libreofficekitgtk) \
+@@ -636,7 +646,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,PLAINLIBS_OOO,ooo, \
+ 	emboleobj \
+ 	package2 \
+ 	$(call gb_Helper_optional,SCRIPTING,scriptframe) \
+-	sdbc2 \
+ 	sofficeapp \
+ 	srtrs1 \
+ 	ucb1 \

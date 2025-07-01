@@ -1,0 +1,70 @@
+diff --git a/vcl/Module_vcl.mk b/vcl/Module_vcl.mk
+index a5e4bf5d68d2..3e9e1bf9fe27 100644
+--- a/vcl/Module_vcl.mk
++++ b/vcl/Module_vcl.mk
+@@ -28,28 +28,9 @@ $(eval $(call gb_Module_add_targets,vcl,\
+         StaticLibrary_vclmain \
+ 		$(if $(ENABLE_MACOSX_SANDBOX),, \
+ 			$(if $(DISABLE_GUI),, \
+-				Executable_ui-previewer)) \
+-		$(if $(filter LINUX MACOSX SOLARIS WNT %BSD,$(OS)), \
+-			Executable_outdevgrind \
+-			$(if $(DISABLE_GUI),, \
+-				Executable_vcldemo \
+-				Executable_icontest \
+-				Executable_visualbackendtest \
+-				Executable_mtfdemo ))) \
++				Executable_ui-previewer))) \
+ ))
+ 
+-ifeq ($(CROSS_COMPILING)$(DISABLE_DYNLOADING),)
+-
+-$(eval $(call gb_Module_add_targets,vcl,\
+-    $(if $(filter-out ANDROID iOS WNT,$(OS)), \
+-        Executable_svdemo \
+-        Executable_fftester \
+-        Executable_svptest \
+-        Executable_svpclient) \
+-))
+-
+-endif
+-
+ $(eval $(call gb_Module_add_l10n_targets,vcl,\
+     AllLangMoTarget_vcl \
+ ))
+diff --git a/xmlsecurity/Module_xmlsecurity.mk b/xmlsecurity/Module_xmlsecurity.mk
+index d3fafeb7e4ec..87b8c067903e 100644
+--- a/xmlsecurity/Module_xmlsecurity.mk
++++ b/xmlsecurity/Module_xmlsecurity.mk
+@@ -45,14 +45,6 @@ $(eval $(call gb_Module_add_screenshot_targets,xmlsecurity,\
+     CppunitTest_xmlsecurity_dialogs_test \
+ ))
+ 
+-ifneq (,$(filter DESKTOP,$(BUILD_TYPE)))
+-
+-$(eval $(call gb_Module_add_targets,xmlsecurity,\
+-    Executable_pdfverify \
+-))
+-
+-endif
+-
+ endif
+ 
+ # vim: set noet sw=4 ts=4:
+diff --git a/libreofficekit/Module_libreofficekit.mk b/libreofficekit/Module_libreofficekit.mk
+index 351f89a33e48..defe0b14a681 100644
+--- a/libreofficekit/Module_libreofficekit.mk
++++ b/libreofficekit/Module_libreofficekit.mk
+@@ -23,12 +23,10 @@ $(eval $(call gb_Module_add_check_targets,libreofficekit, \
+ ifneq ($(ENABLE_GTK3),)
+ $(eval $(call gb_Module_add_targets,libreofficekit,\
+     Library_libreofficekitgtk \
+-    Executable_gtktiledviewer \
+ ))
+ endif # ($(ENABLE_GTK3),)
+ 
+ $(eval $(call gb_Module_add_targets,libreofficekit,\
+-    Executable_tilebench \
+     Package_selectionhandles \
+     UIConfig_libreofficekit \
+ ))

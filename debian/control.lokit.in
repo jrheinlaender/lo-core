@@ -1,0 +1,12 @@
+Package: libreofficekit-dev
+Section: libdevel
+Architecture: all
+Depends: ${misc:Depends}
+Suggests: libreofficekit-dev-gtk
+Recommends: libreoffice-core, libreofficekit-data
+Description: LibreOfficeKit -- headers
+ LibreOfficeKit can be used for accessing LibreOffice functionality through
+ C/C++, without any need to use UNO.
+ .
+ This package contains the headers needed for using LibreOfficeKit.
+

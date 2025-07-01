@@ -1,0 +1,3 @@
+PLATFORMID=linux_powerpc64
+RTL_ARCH=PowerPC_64
+RTL_OS=Linux

@@ -1,0 +1,153 @@
+#!/bin/bash
+# autopkgtest check: Run junit base tests against an installed version of LibreOffice
+# (c) 2021 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+SRCDIR=`pwd`
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+        WORKDIR=`mktemp -q -d -p $AUTOPKGTEST_TMP`
+else
+        WORKDIR=`mktemp -q -d`
+fi
+
+echo
+echo "====== Building the tests ======"
+
+# hack, otherwise it fails
+touch $SRCDIR/instdir/program/.dir
+touch $SRCDIR/instdir/program/services/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/simpress/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/schart/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/dbaccess/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbapp/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbbrowser/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbbrowser/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbbrowser/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbquery/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbquery/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbrelation/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbrelation/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtable/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtable/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtdata/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtdata/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/dbtdata/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sabpilot/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sbibliography/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sbibliography/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/scanner/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/spropctrlr/ui/.dir
+
+touch $SRCDIR/instdir/share/dtd/officedocument/1_0/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/StartModule/menubar/.dir
+
+touch $SRCDIR/instdir/program/opencl/.dir
+
+touch $SRCDIR/instdir/share/calc/.dir 
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/scalc/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/simpress/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sdraw/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/simpress/menubar/.dir
+
+touch $SRCDIR/instdir/share/classification/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/sfx/ui/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/smath/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/svt/ui/.dir 
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/svx/ui/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/vcl/ui/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sglobal/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/sweb/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swform/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swreport/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/ui/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swriter/menubar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/popupmenu/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/statusbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/toolbar/.dir
+touch $SRCDIR/instdir/share/config/soffice.cfg/modules/swxform/menubar/.dir
+
+touch $SRCDIR/instdir/share/config/soffice.cfg/xmlsec/ui/.dir
+
+touch $SRCDIR/instdir/share/registry/.dir
+touch $SRCDIR/instdir/share/registry/res/.dir
+
+touch $SRCDIR/instdir/share/filter/.dir
+
+#cd $SRCDIR/instdir/program/resource && \
+#	for i in `ls -1 | grep -v common`; do touch $i/LC_MESSAGES/.dir;  done
+
+cd $SRCDIR
+
+if [ -n $AUTOPKGTEST_TMP ]; then
+	TIMEOUT="timeout -k 160m 150m"
+fi
+
+export DEB_BUILD_OPTIONS="`echo $DEB_BUILD_OPTIONS | sed -e s/nocheck//`"
+$TIMEOUT ./debian/rules build-tests
+if [ -n $AUTOPKGTEST_TMP ] & [ "$?" = "77" ]; then
+	touch $AUTOPKGTEST_TMP/build-tests-skipped
+	exit $?
+fi

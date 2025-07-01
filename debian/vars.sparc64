@@ -1,0 +1,3 @@
+PLATFORMID=linux_sparc64
+RTL_ARCH=SPARC64
+RTL_OS=Linux

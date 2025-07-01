@@ -1,0 +1,485 @@
+Description: Pass CFLAGS, CPPFLAGS, CXXFLAGS, LDFLAGS to external projects
+ LDFLAGS commonly are passed automatically by gb_ExternalProject_get_link_flags,
+ but gb_ExternalProject_get_build_flags can't pass CXXFLAGS/CFLAGS because it
+ does not know what language it is building, so ensure we explicitly pass that
+ everywhere.
+ .
+ This patch is arguably incomplete, we are not passing gb_CFLAGS and so on
+ consistently, nor are we even passing the gb_ExternalProject_get_build_flags
+ and others consistently either - we just care about passing dpkg-buildflags
+ correctly here.
+ .
+ Some external projects may be passing build flags multiple time, as some
+ include CFLAGS in foo_CFLAGS that others reuse, whereas others don't put
+ them in their bar_CFLAGS.
+ .
+ This all should be cleaned up and made consistent upstream.
+Author: Julian Andres Klode <juliank@ubuntu.com>
+
+Bug-Ubuntu: https://launchpad.net/bugs/2073128
+Last-Update: 2024-09-03
+
+--- a/external/curl/ExternalProject_curl.mk
++++ b/external/curl/ExternalProject_curl.mk
+@@ -62,9 +62,9 @@ $(call gb_ExternalProject_get_state_targ
+ 				-mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)') \
+ 			$(if $(ENABLE_EMSCRIPTEN_PROXY_POSIX_SOCKETS),--disable-socketpair) \
+ 			$(if $(filter -fsanitize=undefined,$(CC)),CC='$(CC) -fno-sanitize=function') \
+-			CPPFLAGS='$(curl_CPPFLAGS)' \
+-			CFLAGS="$(gb_CFLAGS) $(call gb_ExternalProject_get_build_flags,curl)" \
+-			LDFLAGS='$(call gb_ExternalProject_get_link_flags,curl) $(curl_LDFLAGS)' \
++			CPPFLAGS='$(CPPFLAGS) $(curl_CPPFLAGS)' \
++			CFLAGS="$(CFLAGS) $(gb_CFLAGS) $(call gb_ExternalProject_get_build_flags,curl)" \
++			LDFLAGS='$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,curl) $(curl_LDFLAGS)' \
+ 			ZLIB_CFLAGS='$(ZLIB_CFLAGS)' ZLIB_LIBS='$(ZLIB_LIBS)' \
+ 		&& cd lib \
+ 		&& $(MAKE) \
+--- a/external/firebird/ExternalProject_firebird.mk
++++ b/external/firebird/ExternalProject_firebird.mk
+@@ -30,6 +30,7 @@ $(call gb_ExternalProject_get_state_targ
+ 	$(call gb_ExternalProject_run,build,\
+ 		export PKG_CONFIG="" \
+ 		&& export CPPFLAGS=" \
++			$(CPPFLAGS) \
+ 			$(BOOST_CPPFLAGS) \
+ 			$(if $(SYSTEM_LIBATOMIC_OPS),$(LIBATOMIC_OPS_CFLAGS), \
+ 				-I$(gb_UnpackedTarball_workdir)/libatomic_ops/src \
+@@ -45,6 +46,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(filter GCC-INTEL,$(COM)-$(CPUNAME)),-Di386=1) \
+ 			" \
+ 		&& export CFLAGS=" \
++			$(CFLAGS) \
+ 			$(if $(filter MSC,$(COM)),$(if $(MSVC_USE_DEBUG_RUNTIME),-DMSVC_USE_DEBUG_RUNTIME)) \
+ 			$(if $(filter MSC-TRUE-X86_64,$(COM)-$(COM_IS_CLANG)-$(CPUNAME)),-march=x86-64-v2) \
+ 			$(if $(HAVE_GCC_FNO_SIZED_DEALLOCATION),-fno-sized-deallocation -fno-delete-null-pointer-checks) \
+@@ -52,6 +54,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(ENABLE_DEBUG),$(if $(filter MSC,$(COM)),-Od -Z7)) \
+ 		" \
+ 		&& export CXXFLAGS=" \
++			$(CXXFLAGS) \
+ 			$(BOOST_CXXFLAGS) \
+ 			$(if $(filter MSC,$(COM)),$(if $(MSVC_USE_DEBUG_RUNTIME),-DMSVC_USE_DEBUG_RUNTIME)) \
+ 			$(if $(filter MSC-TRUE-X86_64,$(COM)-$(COM_IS_CLANG)-$(CPUNAME)),-march=x86-64-v2) \
+@@ -62,6 +65,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(ENABLE_DEBUG),$(if $(filter MSC,$(COM)),-Od -Z7)) \
+ 		" \
+ 		&& export LDFLAGS=" \
++			$(LDFLAGS) \
+ 			$(call gb_ExternalProject_get_link_flags,firebird) \
+ 			$(if $(SYSTEM_LIBATOMIC_OPS),$(LIBATOMIC_OPS_LIBS), \
+ 				-L$(gb_UnpackedTarball_workdir)/libatomic_ops/src \
+--- a/external/gpgmepp/ExternalProject_gpgmepp.mk
++++ b/external/gpgmepp/ExternalProject_gpgmepp.mk
+@@ -63,7 +63,7 @@ $(call gb_ExternalProject_get_state_targ
+ 				$(call gb_ExternalProject_get_build_flags,gpgmepp) \
+ 				$(gb_COMPILERDEFS_STDLIB_DEBUG)' \
+ 		   $(if $(filter LINUX,$(OS)), \
+-				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
++				'LDFLAGS=$(LDFLAGS) -Wl$(COMMA)-z$(COMMA)origin \
+ 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN') \
+ 		   $(gb_CONFIGURE_PLATFORMS) \
+ 		   $(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \
+--- a/external/harfbuzz/ExternalProject_harfbuzz.mk
++++ b/external/harfbuzz/ExternalProject_harfbuzz.mk
+@@ -43,12 +43,13 @@ $(call gb_ExternalProject_get_state_targ
+ 			--libdir=$(gb_UnpackedTarball_workdir)/harfbuzz/src/.libs \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 			CXXFLAGS=' \
++				$(CXXFLAGS) \
+ 				$(if $(filter ANDROID,$(OS)),-DHB_NO_MMAP=1,) \
+ 				$(call gb_ExternalProject_get_build_flags,harfbuzz) \
+ 				$(if $(ENABLE_RUNTIME_OPTIMIZATIONS),,-frtti) \
+ 				$(CXXFLAGS) $(CXXFLAGS_CXX11) \
+ 				$(if $(filter LINUX,$(OS)),-fvisibility=hidden)' \
+-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,harfbuzz)" \
++			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,harfbuzz)" \
+ 			MAKE=$(MAKE) \
+ 		&& (cd $(EXTERNAL_WORKDIR)/src && $(MAKE) lib) \
+ 	)
+--- a/external/hunspell/ExternalProject_hunspell.mk
++++ b/external/hunspell/ExternalProject_hunspell.mk
+@@ -21,7 +21,7 @@ hunspell_CXXFLAGS:=$(CXXFLAGS) $(gb_LTOF
+        $(gb_EMSCRIPTEN_CPPFLAGS) \
+        $(call gb_ExternalProject_get_build_flags,hunspell)
+ 
+-hunspell_LDFLAGS:=$(gb_LTOFLAGS) $(call gb_ExternalProject_get_link_flags,hunspell)
++hunspell_LDFLAGS:=$(LDFLAGS) $(gb_LTOFLAGS) $(call gb_ExternalProject_get_link_flags,hunspell)
+ 
+ $(call gb_ExternalProject_get_state_target,hunspell,build):
+ 	$(call gb_Trace_StartRange,hunspell,EXTERNAL)
+--- a/external/hyphen/ExternalProject_hyphen.mk
++++ b/external/hyphen/ExternalProject_hyphen.mk
+@@ -25,7 +25,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 			$(if $(CROSS_COMPILING),gio_can_sniff=no) \
+ 			CFLAGS=" $(CFLAGS) $(call gb_ExternalProject_get_build_flags,libgpg-error)" \
+-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,hyphen)" \
++			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,hyphen)" \
+ 		&& $(MAKE) \
+ 	)
+ 	$(call gb_Trace_EndRange,hyphen,EXTERNAL)
+--- a/external/icu/ExternalProject_icu.mk
++++ b/external/icu/ExternalProject_icu.mk
+@@ -53,6 +53,7 @@ icu_CXXFLAGS:="$(CXXFLAGS) $(CXXFLAGS_CX
+ 	$(if $(filter FUZZERS,$(BUILD_TYPE)),-DU_USE_STRTOD_L=0) \
+ 	$(if $(filter ANDROID,$(OS)),-fvisibility=hidden -fno-omit-frame-pointer -I$(SRCDIR)/include)"
+ icu_LDFLAGS:=" \
++	$(LDFLAGS) \
+ 	$(if $(ENABLE_LTO),$(gb_LTOFLAGS)) \
+ 	$(call gb_ExternalProject_get_link_flags,icu) \
+ 	$(if $(filter TRUE,$(HAVE_LD_HASH_STYLE)),-Wl$(COMMA)--hash-style=$(WITH_LINKER_HASH_STYLE)) \
+--- a/external/lcms2/ExternalProject_lcms2.mk
++++ b/external/lcms2/ExternalProject_lcms2.mk
+@@ -30,7 +30,7 @@ $(call gb_ExternalProject_get_state_targ
+ 		$(gb_RUN_CONFIGURE) ./configure --without-jpeg --without-tiff --with-pic \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 			$(if $(CROSS_COMPILING),$(if $(filter INTEL ARM,$(CPUNAME)),ac_cv_c_bigendian=no)) \
+-			CPPFLAGS=" $(SOLARINC)" \
++			CPPFLAGS="$(CPPFLAGS) $(SOLARINC)" \
+ 			CFLAGS='$(CFLAGS) $(call gb_ExternalProject_get_build_flags,lcms2)' \
+ 			$(if $(DISABLE_DYNLOADING), \
+ 				--enable-static --disable-shared \
+--- a/external/libabw/ExternalProject_libabw.mk
++++ b/external/libabw/ExternalProject_libabw.mk
+@@ -36,9 +36,9 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-werror \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+ 			$(if $(gb_FULLDEPS),,--disable-dependency-tracking) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libabw)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libabw)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libabw)" \
++			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,libabw)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 		&& $(MAKE) \
+ 	)
+--- a/external/libassuan/ExternalProject_libassuan.mk
++++ b/external/libassuan/ExternalProject_libassuan.mk
+@@ -50,7 +50,7 @@ $(call gb_ExternalProject_get_state_targ
+ 		   GPG_ERROR_CFLAGS="$(GPG_ERROR_CFLAGS)" \
+ 		   GPG_ERROR_LIBS="$(GPG_ERROR_LIBS)" \
+ 		   $(if $(filter LINUX,$(OS)), \
+-				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
++				'LDFLAGS=$(LDFLAGS) -Wl$(COMMA)-z$(COMMA)origin \
+ 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN') \
+ 		   $(gb_CONFIGURE_PLATFORMS) \
+ 		   $(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \
+--- a/external/libatomic_ops/ExternalProject_libatomic_ops.mk
++++ b/external/libatomic_ops/ExternalProject_libatomic_ops.mk
+@@ -23,7 +23,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			, \
+ 			CFLAGS="$(CFLAGS) $(gb_VISIBILITY_FLAGS) $(call gb_ExternalProject_get_build_flags,libatomic_ops)" \
+ 			CXXFLAGS="$(CXXFLAGS) $(gb_VISIBILITY_FLAGS) $(gb_VISIBILITY_FLAGS_CXX) $(call gb_ExternalProject_get_build_flags,libatomic_ops)" \
+-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libatomic_ops)") \
++			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,libatomic_ops)") \
+ 		$(gb_RUN_CONFIGURE) ./configure \
+ 			--disable-gpl \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+--- a/external/libcdr/ExternalProject_libcdr.mk
++++ b/external/libcdr/ExternalProject_libcdr.mk
+@@ -38,9 +38,9 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-weffc \
+ 			$(if $(gb_FULLDEPS),,--disable-dependency-tracking) \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libcdr)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libcdr)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libcdr)" \
++			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,libcdr)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 		&& $(MAKE) \
+ 	)
+--- a/external/libebook/ExternalProject_libebook.mk
++++ b/external/libebook/ExternalProject_libebook.mk
+@@ -39,9 +39,9 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+ 			--disable-werror \
+ 			--disable-weffc \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libebook)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libebook)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libebook)" \
++			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,libebook)" \
+ 			LANGTAG_CFLAGS="$(LIBLANGTAG_CFLAGS)" \
+ 			LANGTAG_LIBS="$(LIBLANGTAG_LIBS)" \
+ 			XML_CFLAGS="$(LIBXML_CFLAGS)" \
+--- a/external/libepubgen/ExternalProject_libepubgen.mk
++++ b/external/libepubgen/ExternalProject_libepubgen.mk
+@@ -32,9 +32,9 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(ENABLE_DEBUG),--enable-debug,--disable-debug) \
+ 			--disable-werror \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libepubgen)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libepubgen)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+-			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libepubgen)" \
++			LDFLAGS="$(LDFLAGS) $(call gb_ExternalProject_get_link_flags,libepubgen)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 		&& $(MAKE) \
+ 	)
+--- a/external/libetonyek/ExternalProject_libetonyek.mk
++++ b/external/libetonyek/ExternalProject_libetonyek.mk
+@@ -49,7 +49,7 @@ $(call gb_ExternalProject_get_state_targ
+ 				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
+ 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN') \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libetonyek)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libetonyek)" \
+ 			LANGTAG_CFLAGS="$(LIBLANGTAG_CFLAGS)" \
+ 			LANGTAG_LIBS="$(LIBLANGTAG_LIBS)" \
+ 			XML_CFLAGS="$(LIBXML_CFLAGS)" \
+--- a/external/libfreehand/ExternalProject_libfreehand.mk
++++ b/external/libfreehand/ExternalProject_libfreehand.mk
+@@ -38,7 +38,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-werror \
+ 			--disable-weffc \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libfreehand)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libfreehand)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+ 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libfreehand)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+--- a/external/libgpg-error/ExternalProject_libgpg-error.mk
++++ b/external/libgpg-error/ExternalProject_libgpg-error.mk
+@@ -40,7 +40,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-languages \
+ 			--disable-doc \
+ 			CFLAGS="$(CFLAGS) $(call gb_ExternalProject_get_build_flags,libgpg-error)" \
+-			CPPFLAGS="$(SOLARINC)" \
++			CPPFLAGS="$(CPPFLAGS) $(SOLARINC)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 			$(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \
+ 	                $(if $(filter TRUE,$(DISABLE_DYNLOADING)),--disable-shared,--disable-static) \
+--- a/external/libmspub/ExternalProject_libmspub.mk
++++ b/external/libmspub/ExternalProject_libmspub.mk
+@@ -44,7 +44,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-werror \
+ 			--disable-weffc \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libmspub)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libmspub)" \
+ 			CPPFLAGS="$(libmspub_CPPFLAGS)" \
+ 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libmspub)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+--- a/external/libmwaw/ExternalProject_libmwaw.mk
++++ b/external/libmwaw/ExternalProject_libmwaw.mk
+@@ -36,7 +36,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(ENABLE_DEBUG),--enable-debug,--disable-debug) \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+ 			--disable-werror \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libmwaw)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libmwaw)" \
+ 			$(if $(filter LINUX,$(OS)),$(if $(SYSTEM_REVENGE),, \
+ 				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
+ 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN')) \
+--- a/external/libnumbertext/ExternalProject_libnumbertext.mk
++++ b/external/libnumbertext/ExternalProject_libnumbertext.mk
+@@ -18,7 +18,7 @@ $(eval $(call gb_ExternalProject_registe
+ 
+ libnumbertext_CXXFLAGS=$(CXXFLAGS) $(CXXFLAGS_CXX11) $(gb_EMSCRIPTEN_CXXFLAGS)
+ 
+-libnumbertext_CPPFLAGS+=$(gb_COMPILERDEFS_STDLIB_DEBUG) $(gb_EMSCRIPTEN_CPPFLAGS)
++libnumbertext_CPPFLAGS+=$(CPPFLAGS) $(gb_COMPILERDEFS_STDLIB_DEBUG) $(gb_EMSCRIPTEN_CPPFLAGS)
+ 
+ $(call gb_ExternalProject_get_state_target,libnumbertext,build):
+ 	$(call gb_Trace_StartRange,libnumbertext,EXTERNAL)
+--- a/external/libodfgen/ExternalProject_libodfgen.mk
++++ b/external/libodfgen/ExternalProject_libodfgen.mk
+@@ -36,7 +36,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-weffc \
+ 			--without-docs \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libodfgen)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libodfgen)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(if $(SYSTEM_REVENGE),,$(if $(filter-out MSC,$(COM)),-DLIBREVENGE_VISIBILITY))" \
+ 			XML_CFLAGS="$(LIBXML_CFLAGS)" \
+ 			XML_LIBS="$(LIBXML_LIBS)" \
+--- a/external/libpagemaker/ExternalProject_libpagemaker.mk
++++ b/external/libpagemaker/ExternalProject_libpagemaker.mk
+@@ -34,7 +34,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-werror \
+ 			--disable-weffc \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libpagemaker)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libpagemaker)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+ 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libpagemaker)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+--- a/external/libqxp/ExternalProject_libqxp.mk
++++ b/external/libqxp/ExternalProject_libqxp.mk
+@@ -37,7 +37,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-weffc \
+ 			$(if $(gb_FULLDEPS),,--disable-dependency-tracking) \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libqxp)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libqxp)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+ 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libqxp)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+--- a/external/librevenge/ExternalProject_librevenge.mk
++++ b/external/librevenge/ExternalProject_librevenge.mk
+@@ -35,7 +35,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-generators \
+ 			--without-docs \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,librevenge)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,librevenge)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 			$(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \
+--- a/external/libstaroffice/ExternalProject_libstaroffice.mk
++++ b/external/libstaroffice/ExternalProject_libstaroffice.mk
+@@ -37,7 +37,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(ENABLE_DEBUG),--enable-debug,--disable-debug) \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+ 			--disable-werror \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libstaroffice)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libstaroffice)" \
+ 			$(if $(filter LINUX,$(OS)),$(if $(SYSTEM_REVENGE),, \
+ 				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
+ 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN')) \
+--- a/external/libtommath/ExternalProject_libtommath.mk
++++ b/external/libtommath/ExternalProject_libtommath.mk
+@@ -28,6 +28,7 @@ $(call gb_ExternalProject_get_state_targ
+ 	$(call gb_ExternalProject_run,build,\
+ 		unset MAKEFLAGS \
+ 		&& export CFLAGS=" \
++			$(CFLAGS) \
+ 			-fPIC \
+ 		" \
+ 		&& $(MAKE) $(if $(verbose),V=1) NO_ADDTL_WARNINGS=1 \
+--- a/external/libwpd/ExternalProject_libwpd.mk
++++ b/external/libwpd/ExternalProject_libwpd.mk
+@@ -36,10 +36,10 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(filter MACOSX,$(OS)), \
+ 				--prefix=/@.__________________________________________________OOO) \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwpd)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwpd)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+ 			$(if $(filter LINUX,$(OS)),$(if $(SYSTEM_REVENGE),, \
+-				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
++				'LDFLAGS=$(LDFLAGS) -Wl$(COMMA)-z$(COMMA)origin \
+ 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN')) \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 		&& $(MAKE) \
+--- a/external/libwpg/ExternalProject_libwpg.mk
++++ b/external/libwpg/ExternalProject_libwpg.mk
+@@ -36,10 +36,10 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwpg)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwpg)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+ 			$(if $(filter LINUX,$(OS)), \
+-				'LDFLAGS=-Wl$(COMMA)-z$(COMMA)origin \
++				'LDFLAGS=$(LDFLAGS) -Wl$(COMMA)-z$(COMMA)origin \
+ 					-Wl$(COMMA)-rpath$(COMMA)\$$$$ORIGIN') \
+ 		&& $(MAKE) \
+ 		$(if $(filter MACOSX,$(OS)),\
+--- a/external/libwps/ExternalProject_libwps.mk
++++ b/external/libwps/ExternalProject_libwps.mk
+@@ -19,9 +19,9 @@ $(eval $(call gb_ExternalProject_use_ext
+ 	revenge \
+ ))
+ 
+-libwps_CPPFLAGS+=$(gb_COMPILERDEFS_STDLIB_DEBUG)
++libwps_CPPFLAGS+=$(CPPFLAGS) $(gb_COMPILERDEFS_STDLIB_DEBUG)
+ 
+-libwps_CXXFLAGS=$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwps)
++libwps_CXXFLAGS=$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libwps)
+ 
+ libwps_LDFLAGS=$(call gb_ExternalProject_get_link_flags,libwps)
+ ifeq ($(OS),LINUX)
+--- a/external/libxslt/ExternalProject_libxslt.mk
++++ b/external/libxslt/ExternalProject_libxslt.mk
+@@ -35,9 +35,9 @@ $(call gb_ExternalProject_get_state_targ
+ 		$(gb_RUN_CONFIGURE) ./configure --without-crypto --without-python \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+ 			$(if $(filter MACOSX,$(OS)),--prefix=/@.__________________________________________________OOO) \
+-			LDFLAGS="$(if $(filter LINUX FREEBSD,$(OS)),-Wl$(COMMA)-z$(COMMA)origin -Wl$(COMMA)-rpath$(COMMA)\\"\$$\$$ORIGIN" -Wl$(COMMA)-noinhibit-exec) \
++			LDFLAGS="$(LDFLAGS) $(if $(filter LINUX FREEBSD,$(OS)),-Wl$(COMMA)-z$(COMMA)origin -Wl$(COMMA)-rpath$(COMMA)\\"\$$\$$ORIGIN" -Wl$(COMMA)-noinhibit-exec) \
+ 			$(if $(SYSBASE),$(if $(filter SOLARIS LINUX,$(OS)),-L$(SYSBASE)/lib -L$(SYSBASE)/usr/lib -lpthread -ldl))" \
+-			$(if $(SYSBASE),CPPFLAGS="-I$(SYSBASE)/usr/include") \
++			$(if $(SYSBASE),CPPFLAGS="$(CPPFLAGS) -I$(SYSBASE)/usr/include") \
+ 			$(if $(filter TRUE,$(DISABLE_DYNLOADING)), \
+ 			$(if $(filter iOS,$(OS)),LIBS="-liconv") \
+ 			--disable-shared,--disable-static) \
+--- a/external/libzmf/ExternalProject_libzmf.mk
++++ b/external/libzmf/ExternalProject_libzmf.mk
+@@ -38,7 +38,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			--disable-werror \
+ 			--disable-weffc \
+ 			$(if $(verbose),--disable-silent-rules,--enable-silent-rules) \
+-			CXXFLAGS="$(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libzmf)" \
++			CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS) $(call gb_ExternalProject_get_build_flags,libzmf)" \
+ 			CPPFLAGS="$(CPPFLAGS) $(BOOST_CPPFLAGS)" \
+ 			LDFLAGS="$(call gb_ExternalProject_get_link_flags,libzmf)" \
+ 			$(gb_CONFIGURE_PLATFORMS) \
+--- a/external/postgresql/ExternalProject_postgresql.mk
++++ b/external/postgresql/ExternalProject_postgresql.mk
+@@ -34,7 +34,7 @@ $(call gb_ExternalProject_get_state_targ
+ 
+ else
+ 
+-postgresql_CPPFLAGS := $(ZLIB_CFLAGS)
++postgresql_CPPFLAGS := $(CPPFLAGS) $(ZLIB_CFLAGS)
+ postgresql_LDFLAGS  := $(LDFLAGS)
+ 
+ ifeq ($(SYSTEM_ZLIB),)
+@@ -71,7 +71,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(ENABLE_OPENSSL),--with-openssl \
+ 				$(if $(WITH_GSSAPI),--with-gssapi)) \
+ 				$(if $(ENABLE_LDAP),,--with-ldap=no) \
+-			CFLAGS="-fPIC" \
++			CFLAGS="$(CFLAGS) -fPIC" \
+ 			CPPFLAGS="$(postgresql_CPPFLAGS)" \
+ 			LDFLAGS="$(postgresql_LDFLAGS)" \
+ 			$(if $(ENABLE_LDAP),EXTRA_LDAP_LIBS="-llber") \
+--- a/external/python3/ExternalProject_python3.mk
++++ b/external/python3/ExternalProject_python3.mk
+@@ -113,7 +113,7 @@ $(call gb_ExternalProject_get_state_targ
+ 			$(if $(SYSTEM_EXPAT),,-I$(gb_UnpackedTarball_workdir)/expat/lib) \
+ 			$(if $(SYSBASE), -I$(SYSBASE)/usr/include) \
+ 			)" \
+-		$(if $(python3_cflags),CFLAGS='$(python3_cflags)') \
++		$(if $(python3_cflags),CFLAGS='$(CFLAGS) $(python3_cflags)') \
+ 		$(if $(filter -fsanitize=%,$(CC)),LINKCC="$(CXX) -pthread") \
+ 		LDFLAGS="$(strip $(LDFLAGS) \
+ 			$(if $(filter LINUX,$(OS)),-L$(gb_UnpackedTarball_workdir)/libffi/$(HOST_PLATFORM)/.libs) \
+--- a/external/redland/ExternalProject_raptor.mk
++++ b/external/redland/ExternalProject_raptor.mk
+@@ -27,7 +27,7 @@ $(call gb_ExternalProject_get_state_targ
+ 		LDFLAGS='$(strip \
+ 		    $(if $(filter LINUX FREEBSD,$(OS)),$(strip -Wl,-z,origin -Wl,-rpath,\$$$$ORIGIN -Wl,-rpath-link,$(INSTROOT)/$(LIBO_URE_LIB_FOLDER))) \
+ 		    $(if $(SYSBASE),$(if $(filter LINUX SOLARIS,$(OS)),-L$(SYSBASE)/lib -L$(SYSBASE)/usr/lib -lpthread -ldl)))' \
+-		CPPFLAGS="$(if $(SYSBASE),-I$(SYSBASE)/usr/include) $(gb_EMSCRIPTEN_CPPFLAGS)" \
++		CPPFLAGS="$(CPPFLAGS) $(if $(SYSBASE),-I$(SYSBASE)/usr/include) $(gb_EMSCRIPTEN_CPPFLAGS)" \
+ 		ICU_LIBS='$(if $(filter-out MACOSX,$(OS)),$(ICU_LIBS))' \
+ 		$(gb_RUN_CONFIGURE) ./configure --disable-gtk-doc \
+ 			--enable-parsers="rdfxml" \
+--- a/external/redland/ExternalProject_redland.mk
++++ b/external/redland/ExternalProject_redland.mk
+@@ -28,7 +28,7 @@ $(call gb_ExternalProject_get_state_targ
+ 		LDFLAGS='$(strip \
+ 		    $(if $(filter LINUX FREEBSD,$(OS)),$(strip -Wl,-z,origin -Wl,-rpath,\$$$$ORIGIN -Wl,-rpath-link,$(INSTROOT)/$(LIBO_URE_LIB_FOLDER))) \
+ 		    $(if $(SYSBASE),$(if $(filter LINUX SOLARIS,$(OS)),-L$(SYSBASE)/lib -L$(SYSBASE)/usr/lib -lpthread -ldl)))' \
+-		CPPFLAGS="$(if $(SYSBASE),-I$(SYSBASE)/usr/include)" \
++		CPPFLAGS="$(CPPFLAGS) $(if $(SYSBASE),-I$(SYSBASE)/usr/include)" \
+ 		PKG_CONFIG="" \
+ 		RAPTOR2_CFLAGS="-I$(gb_UnpackedTarball_workdir)/raptor/src" \
+ 		RAPTOR2_LIBS="-L$(gb_UnpackedTarball_workdir)/raptor/src/.libs -lraptor2 $(LIBXML_LIBS)" \
+--- a/external/zxcvbn-c/ExternalProject_zxcvbn-c.mk
++++ b/external/zxcvbn-c/ExternalProject_zxcvbn-c.mk
+@@ -27,8 +27,8 @@ $(call gb_ExternalProject_get_state_targ
+ 		,\
+ 			$(MAKE) dict-src.h \
+ 				AR="$(gb_AR)" \
+-				CFLAGS="$(gb_CFLAGS)" \
+-				CXXFLAGS="$(gb_CXXFLAGS)" \
++				CFLAGS="$(CFLAGS) $(gb_CFLAGS)" \
++				CXXFLAGS="$(CXXFLAGS) $(gb_CXXFLAGS)" \
+ 				$(if $(filter MSC,$(COM)),$(gb_AUTOCONF_WRAPPERS) )\
+ 		)\
+ 	)

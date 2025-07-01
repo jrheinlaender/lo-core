@@ -1,0 +1,58 @@
+diff --git a/config_host.mk.in b/config_host.mk.in
+index 6cea6ccf795e..d08fac922239 100644
+--- a/config_host.mk.in
++++ b/config_host.mk.in
+@@ -324,6 +324,7 @@ export JAVACFLAGS=@JAVACFLAGS@
+ export JAVAIFLAGS=@JAVAIFLAGS@
+ export JAVAIFLAGS_FOR_BUILD=@JAVAIFLAGS_FOR_BUILD@
+ export JAVAINTERPRETER=@JAVAINTERPRETER@
++export JAVA_HAS_ZERO_VM=@JAVA_HAS_ZERO_VM@
+ export JAVA_HOME=@JAVA_HOME@
+ export JAVA_HOME_FOR_BUILD=@JAVA_HOME_FOR_BUILD@
+ export JAVA_SOURCE_VER=@JAVA_SOURCE_VER@
+diff --git a/configure.ac b/configure.ac
+index 06398bfa99a7..06835ae884c4 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -7826,6 +7826,14 @@ if test "$ENABLE_JAVA" != "" -a "$cross_compiling" != "yes"; then
+             JAVAIFLAGS=-Xmx64M
+             # set to limit VM usage for javac
+             JAVACFLAGS=-J-Xmx128M
++
++            AC_MSG_CHECKING([whether $JAVAINTERPRETER is using the Zero VM])
++            if $JAVAINTERPRETER -version 2>&1 | grep -q Zero; then
++               JAVA_HAS_ZERO_VM=y
++               AC_MSG_RESULT([yes])
++            else
++               AC_MSG_RESULT([no])
++            fi
+         fi
+     else
+         AC_MSG_ERROR([Java not found. You need at least JDK 8])
+@@ -7841,6 +7849,7 @@ else
+         JAVAIFLAGS=$JAVAIFLAGS_FOR_BUILD
+     fi
+ fi
++AC_SUBST(JAVA_HAS_ZERO_VM)
+ 
+ dnl ===================================================================
+ dnl Checks for javac
+diff --git a/odk/Module_odk.mk b/odk/Module_odk.mk
+index 410f8cf8ef1e..bd05d4bba200 100644
+--- a/odk/Module_odk.mk
++++ b/odk/Module_odk.mk
+@@ -60,10 +62,14 @@ $(eval $(call gb_Module_add_check_targets,odk,\
+ ifneq ($(filter $(OS),LINUX MACOSX),)
+ $(eval $(call gb_Module_add_subsequentcheck_targets,odk, \
+     CustomTarget_build-examples \
++))
++ifneq ($(JAVA_HAS_ZERO_VM),y)
++$(eval $(call gb_Module_add_subsequentcheck_targets,odk, \
+     $(if $(ENABLE_JAVA),\
+         CustomTarget_build-examples_java \
+     ) \
+ ))
+ endif
++endif
+ 
+ # vim: set noet sw=4 ts=4:

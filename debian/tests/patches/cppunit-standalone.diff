@@ -1,0 +1,15 @@
+diff --git a/solenv/gbuild/Module.mk b/solenv/gbuild/Module.mk
+index 0d87ccc55379..41c6564d3d7e 100644
+--- a/solenv/gbuild/Module.mk
++++ b/solenv/gbuild/Module.mk
+@@ -338,10 +338,6 @@ define gb_Module_add_subsequentcheck_target
+ $(call gb_Module__read_targetfile,$(1),$(2),subsequentcheck target)
+ 
+ $(call gb_Module_get_subsequentcheck_target,$(1)) : $$(gb_Module_CURRENTTARGET)
+-$$(gb_Module_CURRENTTARGET) :| \
+-	$(call gb_Postprocess_get_target,AllModulesButInstsetNative) \
+-    $(call gb_Package_get_target,instsetoo_native_setup) \
+-    $(call gb_Package_get_target,instsetoo_native_setup_ure)
+ $(call gb_Module_get_clean_target,$(1)) : $$(gb_Module_CURRENTCLEANTARGET)
+ 
+ endef

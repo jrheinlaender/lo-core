@@ -1,0 +1,10 @@
+Template: libreoffice-calc/no_nan_passing_support_warning
+Type: note
+_Description: Architecture doesn't support "NaN passing"
+ LibreOffice Calc relies on a feature called "NaN passing" which is optional
+ in the IEEE 754 standard. Your architecture (riscv64) does not support it, though.
+ .
+ This package is shipped nevertheless for use cases where this does not matter
+ but you should be aware that Calc can give you wrong results, especially
+ with =IFERROR() etc.
+

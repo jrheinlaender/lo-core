@@ -1,0 +1,3 @@
+PLATFORMID=linux_mips64_el
+RTL_ARCH=MIPS64_EL
+RTL_OS=Linux

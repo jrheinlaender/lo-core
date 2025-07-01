@@ -1,0 +1,14 @@
+libreoffice (1:4.2.1-1) experimental; urgency=low
+
+  * the database drivers have been split out to a new libreoffice-base-drivers
+    package. This package depends on most of them, but that explicitly
+    _does not_ include the HSQLDB SDBC Driver or the new Firebird SDBC Driver
+    (both for the embedded database) - whose because of their dependencies are
+    split into extra packages.
+    .
+    If you used a "normal" embedded database in your (old) database file you
+    _must_ install libreoffice-sdbc-hsqldb so that it can "connect" to it.
+    .
+    Similar with the new Firebird embedded database in 4.2 and -sdbc-firebird.
+
+ -- Rene Engelhard <rene@debian.org>  Fri, 16 Aug 2013 10:21:53 +0200

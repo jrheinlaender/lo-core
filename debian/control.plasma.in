@@ -1,0 +1,13 @@
+Package: libreoffice-plasma
+Architecture: @PLASMA_ARCHITECTURE@
+Depends: ${misc:Depends},
+        ${shlibs:Depends}
+Recommends: libreoffice-kf@PLASMA_VERSION@
+Replaces: libreoffice-kde5 (<< 1:6.4.0~)
+Description: office productivity suite -- some Plasma integration
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains some minor Plasma integration (like AppData
+ and "Create New..." integration) and a KDE/KF@PLASMA_KF_VERSION@ configuration backend.
+

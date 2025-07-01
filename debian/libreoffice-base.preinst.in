@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -e
+
+#INCLUDE_SHELL_LIB#
+
+if [ upgrade = "$1" ] || dpkg --compare-versions "$2" lt 1:6.4.0~beta1-2; then
+       dpkg-divert --remove --no-rename \
+               --divert /usr/lib/libreoffice/share/basic/dialog.xlc.noaccess \
+                       /usr/lib/libreoffice/share/basic/dialog.xlc
+       dpkg-divert --remove --no-rename \
+               --divert /usr/lib/libreoffice/share/basic/script.xlc.noaccess \
+                       /usr/lib/libreoffice/share/basic/script.xlc
+	# cleanup
+	rm -f /usr/lib/libreoffice/share/basic/script.xlc.noaccess
+	rm -f /usr/lib/libreoffice/share/basic/dialog.xlc.noaccess
+fi
+
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "$2" lt 4:25.2.1~rc1-3; then
+	rm -f /etc/libreoffice/registry/base.xcd
+	ucf --purge /etc/libreoffice/registry/base.xcd
+	ucfr --force --purge libreoffice-base /etc/libreoffice/registry/base.xcd
+elif [ "$1" = "install" ] && [ -f /etc/libreoffice/registry/base.xcd ]; then
+	rm -f /etc/libreoffice/registry/base.xcd
+	ucf --purge /etc/libreoffice/registry/base.xcd
+	ucfr --force --purge libreoffice-base /etc/libreoffice/registry/base.xcd
+fi
+
+#DEBHELPER#
+
+exit 0

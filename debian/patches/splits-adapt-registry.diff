@@ -1,0 +1,168 @@
+diff --git a/scp2/source/gnome/file_gnome.scp b/scp2/source/gnome/file_gnome.scp
+index c7a13c8..a3f59a6 100644
+--- a/scp2/source/gnome/file_gnome.scp
++++ b/scp2/source/gnome/file_gnome.scp
+@@ -25,3 +25,13 @@ File gid_File_Share_Registry_Gnome_Xcd
+     Name = "gnome.xcd";
+ End
+ #endif
++
++#ifdef ENABLE_EVOAB2
++File gid_File_Share_Registry_Evoab_Xcd
++    TXT_FILE_BODY;
++    Styles = (PACKED);
++    Dir = gid_Brand_Dir_Share_Registry;
++    Name = "evoab.xcd";
++End
++#endif
++
+diff --git a/scp2/source/gnome/module_gnome.scp b/scp2/source/gnome/module_gnome.scp
+index 08d9efe..492e274 100644
+--- a/scp2/source/gnome/module_gnome.scp
++++ b/scp2/source/gnome/module_gnome.scp
+@@ -31,6 +31,9 @@ Module gid_Module_Optional_Gnome
+ #if ENABLE_GIO
+       ,gid_File_Share_Registry_Gnome_Xcd
+ #endif
++#ifdef ENABLE_EVOAB2
++      ,gid_File_Share_Registry_Evoab_Xcd
++#endif
+     );
+ End
+ 
+diff --git a/scp2/InstallModule_gnome.mk b/scp2/InstallModule_gnome.mk
+index c33f4f52d67b..8f06c0273eff 100644
+--- a/scp2/InstallModule_gnome.mk
++++ b/scp2/InstallModule_gnome.mk
+@@ -19,4 +19,8 @@ $(eval $(call gb_InstallModule_add_localized_scpfiles,scp2/gnome,\
+     scp2/source/gnome/module_gnome \
+ ))
+ 
++$(eval $(call gb_InstallModule_define_if_set,scp2/gnome,\
++    ENABLE_EVOAB2 \
++))
++
+ # vim: set shiftwidth=4 tabstop=4 noexpandtab:
+diff --git a/postprocess/CustomTarget_registry.mk b/postprocess/CustomTarget_registry.mk
+index 4be442c49ae4..c5f5c7166fdd 100644
+--- a/postprocess/CustomTarget_registry.mk
++++ b/postprocess/CustomTarget_registry.mk
+@@ -453,7 +453,9 @@ postprocess_FILES_calc += \
+ postprocess_DRIVERS += calc
+ 
+ ifeq ($(ENABLE_EVOAB2),TRUE)
+-postprocess_FILES_main += \
++postprocess_XCDS += evoab.xcd
++postprocess_DEPS_evoab := main
++postprocess_FILES_evoab += \
+     $(call gb_XcuModuleTarget_get_target,connectivity/registry/evoab2)/org/openoffice/Office/DataAccess/Drivers-evoab2.xcu \
+     $(postprocess_MOD)/org/openoffice/Office/DataAccess-evoab2.xcu
+ postprocess_DRIVERS += evoab
+@@ -464,20 +464,27 @@ endif
+ 
+ ifeq ($(ENABLE_JAVA),TRUE)
++postprocess_XCDS += hsqldb.xcd
++postprocess_DEPS_hsqldb := main
++postprocess_FILES_hsqldb += \
++	$(call gb_XcuModuleTarget_get_target,connectivity/registry/hsqldb)/org/openoffice/Office/DataAccess/Drivers-hsqldb.xcu
+ postprocess_FILES_main += \
+-	$(call gb_XcuModuleTarget_get_target,connectivity/registry/hsqldb)/org/openoffice/Office/DataAccess/Drivers-hsqldb.xcu \
+ 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/jdbc)/org/openoffice/Office/DataAccess/Drivers-jdbc.xcu \
+ 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/mysql_jdbc)/org/openoffice/Office/DataAccess/Drivers-mysql_jdbc.xcu
+ postprocess_DRIVERS += hsqldb jdbc mysql_jdbc
+ endif
+ 
+ ifeq ($(ENABLE_FIREBIRD_SDBC),TRUE)
+-postprocess_FILES_main += \
++postprocess_XCDS += firebird_sdbc.xcd
++postprocess_DEPS_firebird_sdbc := main
++postprocess_FILES_firebird_sdbc += \
+ 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/firebird)/org/openoffice/Office/DataAccess/Drivers-firebird.xcu
+ postprocess_DRIVERS += firebird_sdbc
+ endif
+ 
+ ifeq ($(ENABLE_MARIADBC),TRUE)
+-postprocess_FILES_main += \
++postprocess_XCDS += mysqlc.xcd
++postprocess_DEPS_mysqlc := main
++postprocess_FILES_mysqlc += \
+ 	$(call gb_XcuModuleTarget_get_target,connectivity/registry/mysqlc)/org/openoffice/Office/DataAccess/Drivers-mysqlc.xcu
+ postprocess_DRIVERS += mysqlc
+ endif
+diff --git a/scp2/source/base/firebird.scp b/scp2/source/base/firebird.scp
+index 61cfff9cc496..0fdb2ffc6e66 100644
+--- a/scp2/source/base/firebird.scp
++++ b/scp2/source/base/firebird.scp
+@@ -20,15 +20,27 @@
+ 
+ #include "AutoInstall/firebirdsdbc"
+ 
+-#if defined( ENABLE_FIREBIRD_SDBC ) && !defined( SYSTEM_FIREBIRD )
++#if defined( ENABLE_FIREBIRD_SDBC )
++
++#if !defined( SYSTEM_FIREBIRD )
+ 
+ Module gid_Module_Optional_Firebird
+     Name = "Firebird";
+     Description = "Firebird embedded database";
+     PackageInfo = "packinfo_office.txt";
+     ParentID = gid_Module_Root_Brand;
+-    Files = (auto_firebirdsdbc_ALL);
++    Files = (auto_firebirdsdbc_ALL,
++             gid_File_FirebirdSdbc_Xcd);
+     Styles = (HIDDEN_ROOT);
+ End
+ 
+ #endif
++
++File gid_File_FirebirdSdbc_Xcd
++    TXT_FILE_BODY;
++    Dir = gid_Brand_Dir_Share_Registry;
++    Name = "firebird_sdbc.xcd";
++    Styles = (PACKED);
++End
++
++#endif
+diff --git a/scp2/InstallModule_base.mk b/scp2/InstallModule_base.mk
+index 709d1493e0d8..52318117cd49 100644
+--- a/scp2/InstallModule_base.mk
++++ b/scp2/InstallModule_base.mk
+@@ -29,6 +29,7 @@ $(eval $(call gb_InstallModule_add_templates,scp2/base,\
+ $(eval $(call gb_InstallModule_add_scpfiles,scp2/base,\
+     scp2/source/base/file_base \
+     scp2/source/base/firebird \
++    scp2/source/base/hsqldb \
+ ))
+ 
+ $(eval $(call gb_InstallModule_add_localized_scpfiles,scp2/base,\
+--- a/scp2/source/base/hsqldb.scp	2025-02-15 08:57:11.237759355 +0100
++++ b/scp2/source/base/hsqldb.scp	2025-02-15 17:45:20.400734156 +0100
+@@ -0,0 +1,28 @@
++/*
++ * This file is part of the LibreOffice project.
++ *
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
++ *
++ * This file incorporates work covered by the following license notice:
++ *
++ *   Licensed to the Apache Software Foundation (ASF) under one or more
++ *   contributor license agreements. See the NOTICE file distributed
++ *   with this work for additional information regarding copyright
++ *   ownership. The ASF licenses this file to you under the Apache
++ *   License, Version 2.0 (the "License"); you may not use this file
++ *   except in compliance with the License. You may obtain a copy of
++ *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
++ */
++
++#include "macros.inc"
++
++#if defined ENABLE_JAVA
++File gid_File_Hsqldb_Xcd
++    TXT_FILE_BODY;
++    Dir = gid_Brand_Dir_Share_Registry;
++    Name = "hsqldb.xcd";
++    Styles = (PACKED);
++End
++#endif

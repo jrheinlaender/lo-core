@@ -1,0 +1,64 @@
+#!/bin/bash
+# autopkgtest check: Run junit base tests against an installed version of LibreOffice
+# (c) 2021 Software in the Public Interest, Inc.
+# Authors: Rene Engelhard <rene@debian.org>
+
+set -e
+set -E
+
+SRCDIR=`pwd`
+CHECK_PARALLELISM=1
+if [ -n "$AUTOPKGTEST_TMP" ]; then
+        WORKDIR=`mktemp -q -d -p $AUTOPKGTEST_TMP`
+else
+        WORKDIR=`mktemp -q -d`
+fi
+
+function unapply() {
+        cd $SRCDIR
+        echo
+        echo "====== Unapplying the patches ======"
+        patch -p1 -R < ./debian/tests/patches/cppunit-standalone.diff
+}
+
+trap "unapply" ERR
+
+# skip if building as root:
+# fails with permission errors (seems to assume it runs as user)
+if [ `id -u` = "0" ]; then
+        exit 77
+fi
+if [ -f $AUTOPKGTEST_TMP/build-tests-skipped ]; then exit 77; fi
+
+echo
+echo "====== Patching the tree to only build the unittests against an existing installation ======"
+patch -p1 < ./debian/tests/patches/cppunit-standalone.diff
+
+echo
+echo "====== Enabling core dumps ======"
+# yes, we want core dumps and stack traces
+ulimit -c unlimited || true
+
+echo
+echo "====== Starting unitcheck with ${CHECK_PARALLELISM} job ======"
+
+# all modules containing unitcheck
+export PARALLELISM=$CHECK_PARALLELISM
+# helpcontent2
+# idlc - tries to *write* /usr/lib/libreoffice/sdk/bin/idlc...
+# unoidl - tries to *write* /usr/lib/libreoffice/sdk/bin/unoidl-check (and  more?)...
+# odk - tries to *write* to the SDK dirs and we do test _using_ the ODK
+#       in odk-build-examples anyway
+# testtools - already tested in the "uno" test
+for i in `grep check */*.mk | grep -v helpcontent2 | grep -E -v '(idlc|unoidl)' | grep -v odk | grep -v testtools | cut -d"/" -f1 | sort | uniq | xargs`; do
+	echo
+	echo "====== Running unitcheck in module $i ======"; \
+	cd $i && \
+	make -rk unitcheck \
+		INSTDIR=/usr/lib/libreoffice \
+		verbose=t; \
+	cd ..;\
+done
+
+unapply
+

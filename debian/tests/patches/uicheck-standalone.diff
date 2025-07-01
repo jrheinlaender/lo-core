@@ -1,0 +1,69 @@
+diff --git a/solenv/gbuild/UITest.mk b/solenv/gbuild/UITest.mk
+index cebb030a12cd..88ec5499dcbd 100644
+--- a/solenv/gbuild/UITest.mk
++++ b/solenv/gbuild/UITest.mk
+@@ -34,7 +34,7 @@ ifneq ($(gb_UITest_DEBUGRUN),)
+ gb_UITest_SOFFICEARG:=connect:pipe,name=$(USER)
+ gb_UITest__interactive := $(true)
+ else
+-gb_UITest_SOFFICEARG:=path:$(INSTROOT)/$(LIBO_BIN_FOLDER)/soffice
++gb_UITest_SOFFICEARG:=$(OOO_TEST_SOFFICE)
+ endif
+ 
+ gb_UITest_COMMAND = $(ICECREAM_RUN) $(gb_CppunitTest_RR) $(gb_UITest_EXECUTABLE) $(SRCDIR)/uitest/test_main.py
+@@ -71,8 +71,8 @@ else
+ 		$(if $(filter WNT,$(OS)),SAL_LOG_FILE="$(dir $(call gb_UITest_get_target,$*))/soffice.out.log") \
+ 		TEST_LIB=$(call gb_Library_get_target,test) \
+ 		UNOTEST_LIB=$(call gb_Library_get_target,unotest) \
+-		URE_BOOTSTRAP=vnd.sun.star.pathname:$(call gb_Helper_get_rcfile,$(INSTROOT)/$(LIBO_ETC_FOLDER)/fundamental) \
+-		PYTHONPATH="$(PYPATH)" \
++		URE_BOOTSTRAP=vnd.sun.star.pathname:/usr/lib/libreoffice/program/fundamentalrc \
++		PYTHONPATH="$(filter-out $I/program,$(PYPATH):/usr/lib/libreoffice/program)" \
+ 		TestUserDir="$(call gb_Helper_make_url,$(dir $(call gb_UITest_get_target,$*)))" \
+ 		PYTHONDONTWRITEBYTECODE=0 \
+ 		LO_RUNNING_UI_TEST=1 \
+@@ -101,7 +101,6 @@ define gb_UITest_UITest
+ $(call gb_UITest_get_target,$(1)) : PYPATH := $(SRCDIR)/uitest$$(gb_CLASSPATHSEP)$(SRCDIR)/unotest/source/python$$(gb_CLASSPATHSEP)$(INSTROOT)/$(LIBO_LIB_PYUNO_FOLDER)$(if $(filter-out $(LIBO_LIB_PYUNO_FOLDER),$(LIBO_LIB_FOLDER)),$(gb_CLASSPATHSEP)$(INSTROOT)/$(LIBO_LIB_FOLDER))
+ $(call gb_UITest_get_target,$(1)) : MODULES :=
+ 
+-$(eval $(call gb_TestHelpers_use_more_fonts,$(call gb_UITest_get_target,$(1))))
+ $(eval $(call gb_Module_register_target,$(call gb_UITest_get_target,$(1)),$(call gb_UITest_get_clean_target,$(1))))
+ $(call gb_Helper_make_userfriendly_targets,$(1),UITest)
+ 
+-- 
+2.20.1
+
+diff --git a/solenv/gbuild/Module.mk b/solenv/gbuild/Module.mk
+index 4073dcfd9bf5..856f5efee988 100644
+--- a/solenv/gbuild/Module.mk
++++ b/solenv/gbuild/Module.mk
+@@ -214,7 +214,7 @@ perfcheck :
+ 	$(call gb_Output_announce_title,all perftests checked.)
+ 	$(call gb_Output_announce_bell)
+ 
+-uicheck : build
++uicheck :
+ 	$(if $(gb_VERBOSE),$(call gb_Output_announce,loaded modules: $(sort $(gb_Module_ALLMODULES)),$(true),UIT,6))
+ 	$(call gb_Output_announce_title,all uicheck checked.)
+ 	$(call gb_Output_announce_bell)
+@@ -390,11 +390,6 @@ endef
+ define gb_Module_add_uicheck_target
+ $(call gb_Module__read_targetfile,$(1),$(2),uicheck target)
+ 
+-$(call gb_Module_get_uicheck_target,$(1)) : $$(gb_Module_CURRENTTARGET)
+-$$(gb_Module_CURRENTTARGET) :| \
+-	$(call gb_Postprocess_get_target,AllModulesButInstsetNative) \
+-    $(call gb_Package_get_target,instsetoo_native_setup) \
+-    $(call gb_Package_get_target,instsetoo_native_setup_ure)
+ $(call gb_Module_get_uicheck_target,$(1)) : $$(gb_Module_CURRENTTARGET)
+ $(call gb_Module_get_clean_target,$(1)) : $$(gb_Module_CURRENTCLEANTARGET)
+ 
+@@ -503,7 +498,7 @@ screenshot : $(call gb_CustomTarget_get_workdir,postprocess/signing)/signing.don
+ endif
+ subsequentcheck : $$(firstword $$(gb_Module_SUBSEQUENTCHECKTARGETSTACK))
+ perfcheck : $$(firstword $$(gb_Module_PERFCHECKTARGETSTACK))
+-uicheck : build $$(firstword $$(gb_Module_UICHECKTARGETSTACK))
++uicheck : $$(firstword $$(gb_Module_UICHECKTARGETSTACK))
+ clean : $$(firstword $$(gb_Module_CLEANTARGETSTACK))
+ 
+ ifneq ($$(words $$(gb_Module_TARGETSTACK)),1)

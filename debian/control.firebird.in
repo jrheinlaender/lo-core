@@ -1,0 +1,13 @@
+Package: libreoffice-sdbc-firebird
+Depends: libreoffice-core-nogui | libreoffice-core, ${shlibs:Depends}, ${misc:Depends}, ${firebird-engine-depends}
+Architecture: %OOO_FIREBIRD_ARCHS%
+Section: database
+Enhances: libreoffice-base-drivers
+Pre-Depends: ucf, libreoffice-common (>= 4:25.2.1~rc1-3~)
+Description: (embedded) Firebird SDBC driver for LibreOffice
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ The Firebird SDBC Driver allows one to use the Firebird (embedded) database
+ from LibreOffice without any wrapper layer such as ODBC or JDBC.
+

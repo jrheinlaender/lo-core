@@ -1,0 +1,8 @@
+## This one tests real connection to a MySQL and works by symlinking that one
+## specific library to the one in libreoffice-sdbc-mysql
+## Should probably always be last due to breaks-testbed?
+#Tests: cppunit-connectivity-mysql
+#Architecture: amd64
+#Depends: @builddeps@, pwgen, libreoffice-sdbc-mysql, libreoffice-core, default-mysql-server, default-mysql-client
+#Restrictions: build-needed, allow-stderr, needs-root, isolation-container, breaks-testbed, superficial, skippable
+

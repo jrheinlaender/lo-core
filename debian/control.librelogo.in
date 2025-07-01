@@ -1,0 +1,23 @@
+Package: libreoffice-librelogo
+Section: misc
+Architecture: all
+Pre-Depends: ucf, libreoffice-common (>= 4:25.2.1~rc1-3~)
+Depends: libreoffice-core,
+         libreoffice-writer,
+         libreoffice-script-provider-python,
+         libreoffice-common (>= 1:7.0.0~alpha),
+         ${misc:Depends}
+Build-Profiles: <!nopython>
+Homepage: http://librelogo.org
+Description: Logo-like programming language for LibreOffice
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains Librelogo, which is a pyuno-based Logo-like programming
+ language with interactive vectorgraphics for education and DTP
+  - basic Logo syntax for back compatibility with educational Logo systems
+  - interactive vectorgraphics in LibreOffice Writer
+  - native commands (easily translatable)
+  - Python data structures (list, tuple, set, dictionary) and other Python
+    features
+

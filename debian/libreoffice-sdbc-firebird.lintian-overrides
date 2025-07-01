@@ -1,0 +1,2 @@
+# "aged out" due to debhelpers changelog trimming (see #1021502)
+libreoffice-sdbc-firebird: debian-news-entry-has-unknown-version 1:5.3.0~alpha1-1 [usr/share/doc/libreoffice-sdbc-firebird/NEWS.Debian.gz:1]

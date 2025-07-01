@@ -1,0 +1,59 @@
+>From 1172166889764ae0e77488e5d173f33961b9859b Mon Sep 17 00:00:00 2001
+From: Markus Koschany <apo@debian.org>
+Date: Fri, 9 Nov 2018 23:06:15 +0100
+Subject: [PATCH] mariadb
+
+---
+ connectivity/qa/complex/connectivity/JdbcLongVarCharTest.java | 4 ++--
+ .../mysql/org/openoffice/Office/DataAccess/Drivers.xcu        | 2 +-
+ connectivity/source/drivers/mysql/YDriver.cxx                 | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/connectivity/qa/complex/connectivity/JdbcLongVarCharTest.java b/connectivity/qa/complex/connectivity/JdbcLongVarCharTest.java
+index 3817add48da6..ace57bd35d98 100644
+--- a/connectivity/qa/complex/connectivity/JdbcLongVarCharTest.java
++++ b/connectivity/qa/complex/connectivity/JdbcLongVarCharTest.java
+@@ -64,7 +64,7 @@ public class JdbcLongVarCharTest extends ComplexTestCase
+             */
+             String url = System.getenv("CONNECTIVITY_TEST_MYSQL_DRIVER_JDBC");
+             com.sun.star.beans.PropertyValue prop[] = new PropertyValue[1];
+-            prop[0] = new PropertyValue("JavaDriverClass", 0, "com.mysql.jdbc.Driver", PropertyState.DIRECT_VALUE);
++            prop[0] = new PropertyValue("JavaDriverClass", 0, "org.mariadb.jdbc.Driver", PropertyState.DIRECT_VALUE);
+ 
+             // get the remote office component context
+             XMultiServiceFactory xServiceManager = param.getMSF();
+diff --git a/connectivity/registry/mysql/org/openoffice/Office/DataAccess/Drivers.xcu b/connectivity/registry/mysql/org/openoffice/Office/DataAccess/Drivers.xcu
+index 77988448f..acd8bfdaf 100644
+--- a/connectivity/registry/mysql_jdbc/org/openoffice/Office/DataAccess/Drivers.xcu
++++ b/connectivity/registry/mysql_jdbc/org/openoffice/Office/DataAccess/Drivers.xcu
+@@ -33,7 +33,7 @@
+         </node>
+         <node oor:name="JavaDriverClass" oor:op="replace">
+           <prop oor:name="Value" oor:type="xs:string">
+-            <value>com.mysql.jdbc.Driver</value>
++            <value>org.mariadb.jdbc.Driver</value>
+           </prop>
+         </node>
+         <node oor:name="AddIndexAppendix" oor:op="replace">
+diff --git a/connectivity/source/drivers/mysql/YDriver.cxx b/connectivity/source/drivers/mysql/YDriver.cxx
+index 95094265e..c0ad7802e 100644
+--- a/connectivity/source/drivers/mysql_jdbc/YDriver.cxx
++++ b/connectivity/source/drivers/mysql_jdbc/YDriver.cxx
+@@ -54,7 +54,7 @@ namespace
+ OUString getJavaDriverClass(css::uno::Sequence<css::beans::PropertyValue> const& info)
+ {
+     return comphelper::NamedValueCollection::getOrDefault(info, u"JavaDriverClass",
+-                                                          u"com.mysql.jdbc.Driver"_ustr);
++                                                          u"org.mariadb.jdbc.Driver"_ustr);
+ }
+ }
+ 
+@@ -165,7 +165,7 @@ Sequence<PropertyValue> lcl_convertProperties(T_DRIVERTYPE _eType,
+     {
+         if (!jdc)
+         {
+-            aProps.emplace_back("JavaDriverClass", 0, Any(u"com.mysql.jdbc.Driver"_ustr),
++            aProps.emplace_back("JavaDriverClass", 0, Any(u"org.mariadb.jdbc.Driver"_ustr),
+                                 PropertyState_DIRECT_VALUE);
+         }
+     }

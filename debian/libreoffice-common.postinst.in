@@ -1,0 +1,29 @@
+#!/bin/sh
+
+set -e
+
+#INCLUDE_SHELL_LIB#
+
+if [ "$1" = "triggered" ]; then
+        for triggername in $2; do
+                case "$triggername" in
+                        # new "bundled" extensions (since 3.3)
+                        "/@OODIR@/share/extensions")
+                          make_lo_sync_extensions
+                        ;;
+                        "/@OODIR@")
+                        # check also whether /usr/bin/loolwsd-systemplate-setup
+                        # is +x do to not fail when it's gone but
+                        # /var/lib/lool/systemplate is still there (loolwsd
+			# removed but not purged)
+                          if [ -x /usr/bin/loolwsd-systemplate-setup -a \
+				-d /var/lib/lool/systemplate ]; then
+                            update_lool_systemplate
+                          fi
+                        ;;
+                esac
+        done
+fi
+
+#DEBHELPER#
+

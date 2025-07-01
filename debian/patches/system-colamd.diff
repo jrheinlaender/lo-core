@@ -1,0 +1,160 @@
+From ea8cd33bc395497fbbe8a3a98e59fd2fecacfd16 Mon Sep 17 00:00:00 2001
+From: Rene Engelhard <rene@rene-engelhard.de>
+Date: Mon, 3 Mar 2025 21:48:18 +0100
+Subject: [PATCH] implement --with-system-colamd (for internal lpsolve)
+
+using suitesparse. Tested with both suitesparse 5.12.0 (Debian stable,
+without pc) and 7.9.0 (Debian unstable, with .pc)
+
+Change-Id: I6e0d014455ea2dec111aa3380bd49bd586dfad0a
+---
+ config_host.mk.in                           |  3 ++
+ configure.ac                                | 35 +++++++++++++++++-
+ external/lpsolve/UnpackedTarball_lpsolve.mk |  1 +
+ external/lpsolve/ccc.static                 | 13 ++++++-
+ external/lpsolve/system-colamd.diff         | 41 +++++++++++++++++++++
+ 5 files changed, 89 insertions(+), 4 deletions(-)
+ create mode 100644 external/lpsolve/system-colamd.diff
+
+diff --git a/configure.ac b/configure.ac
+index b4c4cfecf2e2..ab0c24296df6 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -2678,6 +2678,11 @@ AC_ARG_WITH(system-lpsolve,
+         [Use lpsolve already on system.]),,
+     [with_system_lpsolve="$with_system_libs"])
+ 
++AC_ARG_WITH(system-colamd,
++    AS_HELP_STRING([--with-system-colamd],
++        [Use COLAMD already on system.]),,
++    [with_system_lpsolve="$with_system_libs"])
++
+ AC_ARG_WITH(system-coinmp,
+     AS_HELP_STRING([--with-system-coinmp],
+         [Use CoinMP already on system.]),,
+@@ -11971,8 +11976,34 @@ if test "$ENABLE_LPSOLVE" = TRUE; then
+         AC_MSG_RESULT([internal])
+         SYSTEM_LPSOLVE=
+         BUILD_TYPE="$BUILD_TYPE LPSOLVE"
+-    fi
+-fi
++        AC_MSG_CHECKING([which colamd to use])
++        if test "$with_system_colamd" = "yes"; then
++               AC_MSG_RESULT([external])
++               SYSTEM_COLAMD=TRUE
++               # This assumes suitesparse, which has
++               # /usr/lib/x86_64-linux-gnu/pkgconfig/COLAMD.pc
++               PKG_CHECK_MODULES([COLAMD], [COLAMD],
++                      [],
++                      [
++                       # older versions don't. Look in /usr/include/suitesparse
++                       COLAMD_CFLAGS=-I/usr/include/suitesparse
++                       save_CFLAGS=$CFLAGS
++                       CFLAGS="$CFLAGS $COLAMD_CFLAGS"
++                       AC_CHECK_HEADER(colamd.h, [],
++                               [ AC_MSG_ERROR(colamd.h header not found.)], [])
++                       CFLAGS=$save_CFLAGS
++                       AC_CHECK_LIB(colamd, colamd)
++                       COLAMD_LIBS=-lcolamd
++                     ])
++       else
++               AC_MSG_RESULT([internal])
++               SYSTEM_COLAMD=
++       fi
++    fi
++fi
++AC_SUBST(SYSTEM_COLAMD)
++AC_SUBST(COLAMD_CFLAGS)
++AC_SUBST(COLAMD_LIBS)
+ AC_SUBST(SYSTEM_LPSOLVE)
+ 
+ dnl ===================================================================
+diff --git a/external/lpsolve/UnpackedTarball_lpsolve.mk b/external/lpsolve/UnpackedTarball_lpsolve.mk
+index bcb885fb9186..c1e6be8e3c09 100644
+--- a/external/lpsolve/UnpackedTarball_lpsolve.mk
++++ b/external/lpsolve/UnpackedTarball_lpsolve.mk
+@@ -25,6 +25,7 @@ else
+ $(eval $(call gb_UnpackedTarball_add_patches,lpsolve,\
+ 	external/lpsolve/lp_solve_5.5.patch \
+ 	external/lpsolve/lpsolve-ubsan.patch.0 \
++	external/lpsolve/system-colamd.diff \
+ ))
+ 
+ $(eval $(call gb_UnpackedTarball_add_file,lpsolve,lpsolve55/ccc.static,external/lpsolve/ccc.static))
+diff --git a/external/lpsolve/ccc.static b/external/lpsolve/ccc.static
+index 6911c4b2c892..c78a9583089a 100644
+--- a/external/lpsolve/ccc.static
++++ b/external/lpsolve/ccc.static
+@@ -1,11 +1,20 @@
+-src='../lp_MDO.c ../shared/commonlib.c ../shared/mmio.c ../shared/myblas.c ../ini.c ../fortify.c ../colamd/colamd.c ../lp_rlp.c ../lp_crash.c ../bfp/bfp_LUSOL/lp_LUSOL.c ../bfp/bfp_LUSOL/LUSOL/lusol.c ../lp_Hash.c ../lp_lib.c ../lp_wlp.c ../lp_matrix.c ../lp_mipbb.c ../lp_MPS.c ../lp_params.c ../lp_presolve.c ../lp_price.c ../lp_pricePSE.c ../lp_report.c ../lp_scale.c ../lp_simplex.c ../lp_SOS.c ../lp_utils.c ../yacc_read.c'
++if [ "$SYSTEM_COLAMD" != "TRUE" ]; then
++    colamd_c=../colamd/colamd.c
++fi
++src='../lp_MDO.c ../shared/commonlib.c ../shared/mmio.c ../shared/myblas.c ../ini.c ../fortify.c $colamd_c ../lp_rlp.c ../lp_crash.c ../bfp/bfp_LUSOL/lp_LUSOL.c ../bfp/bfp_LUSOL/LUSOL/lusol.c ../lp_Hash.c ../lp_lib.c ../lp_wlp.c ../lp_matrix.c ../lp_mipbb.c ../lp_MPS.c ../lp_params.c ../lp_presolve.c ../lp_price.c ../lp_pricePSE.c ../lp_report.c ../lp_scale.c ../lp_simplex.c ../lp_SOS.c ../lp_utils.c ../yacc_read.c'
+ obj=`echo $src|sed -e 's/\.c/.o/g' -e 's!\([^ ]*/\)*!!g'`
+ 
+ opts='-O3'
+ 
+ def=
+ 
+-$CC -I.. -I../bfp -I../bfp/bfp_LUSOL -I../bfp/bfp_LUSOL/LUSOL -I../colamd -I../shared $opts $def -DYY_NEVER_INTERACTIVE -DPARSER_LP -DINVERSE_ACTIVE=INVERSE_LUSOL -DRoleIsExternalInvEngine -c $src
++# FIMXE: Link statically with colamd?
++if test "$SYSTEM_COLAMD" = "TRUE"; then
++    colamd_i=$COLAMD_CFLAGS
++else
++    colamd_i=-I../colamd
++fi
++$CC -I.. -I../bfp -I../bfp/bfp_LUSOL -I../bfp/bfp_LUSOL/LUSOL $colamd_i -I../shared $opts $def -DYY_NEVER_INTERACTIVE -DPARSER_LP -DINVERSE_ACTIVE=INVERSE_LUSOL -DRoleIsExternalInvEngine -c $src
+ 
+ $AR -r liblpsolve55.a $obj
+ rm $obj
+diff --git a/external/lpsolve/system-colamd.diff b/external/lpsolve/system-colamd.diff
+new file mode 100644
+index 000000000000..a872d96ef282
+--- /dev/null
++++ b/external/lpsolve/system-colamd.diff
+@@ -0,0 +1,41 @@
++diff -urN lp_solve_5.5-old/lpsolve55/ccc lp_solve_5.5/lpsolve55/ccc
++--- misc/build/lp_solve_5.5/lpsolve55/ccc	2005-06-11 21:27:18.000000000 +0200
+++++ misc/build/lp_solve_5.5/lpsolve55/ccc	2025-03-02 17:58:19.904235635 +0100
++@@ -1,4 +1,7 @@
++-src='../lp_MDO.c ../shared/commonlib.c ../shared/mmio.c ../shared/myblas.c ../ini.c ../fortify.c ../colamd/colamd.c ../lp_rlp.c ../lp_crash.c ../bfp/bfp_LUSOL/lp_LUSOL.c ../bfp/bfp_LUSOL/LUSOL/lusol.c ../lp_Hash.c ../lp_lib.c ../lp_wlp.c ../lp_matrix.c ../lp_mipbb.c ../lp_MPS.c ../lp_params.c ../lp_presolve.c ../lp_price.c ../lp_pricePSE.c ../lp_report.c ../lp_scale.c ../lp_simplex.c ../lp_SOS.c ../lp_utils.c ../yacc_read.c'
+++if test "$SYSTEM_COLAMD" != "TRUE"; then
+++     colamd_c=../colamd/colamd.c
+++fi
+++src="../lp_MDO.c ../shared/commonlib.c ../shared/mmio.c ../shared/myblas.c ../ini.c ../fortify.c $colamd_c ../lp_rlp.c ../lp_crash.c ../bfp/bfp_LUSOL/lp_LUSOL.c ../bfp/bfp_LUSOL/LUSOL/lusol.c ../lp_Hash.c ../lp_lib.c ../lp_wlp.c ../lp_matrix.c ../lp_mipbb.c ../lp_MPS.c ../lp_params.c ../lp_presolve.c ../lp_price.c ../lp_pricePSE.c ../lp_report.c ../lp_scale.c ../lp_simplex.c ../lp_SOS.c ../lp_utils.c ../yacc_read.c"
++ ar=$AR
++ c=$CC
++ ranlib=$RANLIB
++@@ -25,17 +28,26 @@
++ 
++ if [ "$OS" = "LINUX" ]; then
++      libs="$libs -ldl"
+++     if test "$SYSTEM_COLAMD" = "TRUE"; then
+++         libs="$libs $COLAMD_LIBS"
+++     fi
++ fi
++ 
++ opts='-O3'
++ 
++-$c -s $inline -c -I.. -I../shared -I../bfp -I../bfp/bfp_LUSOL -I../bfp/bfp_LUSOL/LUSOL -I../colamd $opts $def -DYY_NEVER_INTERACTIVE -DPARSER_LP -DINVERSE_ACTIVE=INVERSE_LUSOL -DRoleIsExternalInvEngine $src
+++if test "$SYSTEM_COLAMD" = "TRUE"; then
+++    colamd_i=$COLAMD_CFLAGS
+++else
+++    colamd_i=-I../colamd
+++fi
+++
+++$c -s $inline -c -I.. -I../shared -I../bfp -I../bfp/bfp_LUSOL -I../bfp/bfp_LUSOL/LUSOL $colamd_i $opts $def -DYY_NEVER_INTERACTIVE -DPARSER_LP -DINVERSE_ACTIVE=INVERSE_LUSOL -DRoleIsExternalInvEngine $src
++ $ar rv liblpsolve55.$a `echo $src|sed s/[.]c/.o/g|sed 's/[^ ]*\///g'`
++ $ranlib liblpsolve55.$a
++ 
++ if [ "$so" != "" ]
++ then
++-  $c $pic -s $inline -c -I.. -I../shared -I../bfp -I../bfp/bfp_LUSOL -I../bfp/bfp_LUSOL/LUSOL -I../colamd -I. $opts -DYY_NEVER_INTERACTIVE -DPARSER_LP -DINVERSE_ACTIVE=INVERSE_LUSOL -DRoleIsExternalInvEngine $src
+++  $c $pic -s $inline -c -I.. -I../shared -I../bfp -I../bfp/bfp_LUSOL -I../bfp/bfp_LUSOL/LUSOL $colamd_i -I. $opts -DYY_NEVER_INTERACTIVE -DPARSER_LP -DINVERSE_ACTIVE=INVERSE_LUSOL -DRoleIsExternalInvEngine $src
++   $c -shared $ldflags -o ${soprefix}lpsolve55.$so `echo $src|sed s/[.]c/.o/g|sed 's/[^ ]*\///g'` $libs
++ fi
++ 
+-- 
+2.47.2
+

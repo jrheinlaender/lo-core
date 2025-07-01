@@ -1,0 +1,123 @@
+From 5a5de48fc6e5fe5dfaa7f556d20290e7b6bf1656 Mon Sep 17 00:00:00 2001
+From: Rico Tzschichholz <ricotz@ubuntu.com>
+Date: Fri, 25 Mar 2022 13:44:00 +0100
+Subject: [PATCH] sfx2: Put temp file for offline help inside user's download
+ folder
+
+This is required for browser snaps being able to read this file.
+
+Change-Id: I8b1856754d1cdf58ca168c9e30151fd30596d06e
+---
+ config_host.mk.in            | 2 ++
+ configure.ac                 | 7 +++++++
+ sfx2/Library_sfx.mk          | 5 +++++
+ sfx2/source/appl/flatpak.cxx | 4 +++-
+ sfx2/source/appl/sfxhelp.cxx | 2 +-
+ sfx2/source/view/viewsh.cxx  | 2 +-
+ 6 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/config_host.mk.in b/config_host.mk.in
+index 02f6ec6aba46..17a8d90a1805 100644
+--- a/config_host.mk.in
++++ b/config_host.mk.in
+@@ -235,6 +235,8 @@ export FREETYPE_LIBS=$(gb_SPACE)@FREETYPE_LIBS@
+ export GCC_VERSION=@GCC_VERSION@
+ export GIO_CFLAGS=$(gb_SPACE)@GIO_CFLAGS@
+ export GIO_LIBS=$(gb_SPACE)@GIO_LIBS@
++export GLIB_CFLAGS=$(gb_SPACE)@GLIB_CFLAGS@
++export GLIB_LIBS=$(gb_SPACE)@GLIB_LIBS@
+ export GIT_REFERENCE_SRC=@GIT_REFERENCE_SRC@
+ export GIT_LINK_SRC=@GIT_LINK_SRC@
+ export GIT_NEEDED_SUBMODULES=@GIT_NEEDED_SUBMODULES@
+diff --git a/configure.ac b/configure.ac
+index d5c7cb76c917..10e186682a8c 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -11680,6 +11680,13 @@ fi
+ AC_SUBST(GTK3_CFLAGS)
+ AC_SUBST(ENABLE_GTKTILEDVIEWER)
+ 
++PKG_CHECK_MODULES(GLIB, [glib-2.0])
++GLIB_CFLAGS=$(printf '%s' "$GLIB_CFLAGS" | sed -e "s/-I/${ISYSTEM?}/g")
++FilterLibs "${GLIB_LIBS}"
++GLIB_LIBS="${filteredlibs}"
++AC_SUBST(GLIB_LIBS)
++AC_SUBST(GLIB_CFLAGS)
++
+ GTK4_CFLAGS=""
+ GTK4_LIBS=""
+ if test "$test_gtk4" = yes -a "x$enable_gtk4" = "xyes"; then
+diff --git a/sfx2/Library_sfx.mk b/sfx2/Library_sfx.mk
+index d5f1c28ed436..a2ed67af5d6c 100644
+--- a/sfx2/Library_sfx.mk
++++ b/sfx2/Library_sfx.mk
+@@ -35,6 +35,7 @@ $(eval $(call gb_Library_set_include,sfx,\
+     -I$(SRCDIR)/sfx2/inc \
+     -I$(SRCDIR)/sfx2/source/inc \
+     -I$(WORKDIR)/SdiTarget/sfx2/sdi \
++    $(GLIB_CFLAGS) \
+     $$(INCLUDE) \
+ ))
+ 
+@@ -80,6 +81,10 @@ $(eval $(call gb_Library_use_externals,sfx,\
+ ))
+ endif
+ 
++$(eval $(call gb_Library_add_libs,sfx,\
++    $(GLIB_LIBS) \
++))
++
+ $(eval $(call gb_Library_add_exception_objects,sfx,\
+     sfx2/source/accessibility/AccessibilityCheck \
+     sfx2/source/accessibility/AccessibilityIssue \
+diff --git a/sfx2/source/appl/flatpak.cxx b/sfx2/source/appl/flatpak.cxx
+index 14411dafc5d0..d5e0155b6329 100644
+--- a/sfx2/source/appl/flatpak.cxx
++++ b/sfx2/source/appl/flatpak.cxx
+@@ -24,6 +24,8 @@
+ #include <unotools/tempfile.hxx>
+ #include <unotools/ucbhelper.hxx>
+ 
++#include <glib.h>
++
+ bool flatpak::isFlatpak() {
+     static auto const flatpak = [] { return std::getenv("LIBO_FLATPAK") != nullptr; }();
+     return flatpak;
+@@ -43,7 +45,7 @@ bool flatpak::createTemporaryHtmlDirectory(OUString ** url) {
+     DBG_TESTSOLARMUTEX();
+     if (!temporaryHtmlDirectoryStatus.created) {
+         // coverity[tainted_return_value] - we trust the contents of this variable
+-        auto const env = std::getenv("XDG_CACHE_HOME");
++        auto const env = g_get_user_special_dir(G_USER_DIRECTORY_DOWNLOAD);
+         if (env == nullptr) {
+             SAL_WARN("sfx.appl", "LIBO_FLATPAK mode but unset XDG_CACHE_HOME");
+             return false;
+diff --git a/sfx2/source/appl/sfxhelp.cxx b/sfx2/source/appl/sfxhelp.cxx
+index 73d86cba8266..864412edc0b0 100644
+--- a/sfx2/source/appl/sfxhelp.cxx
++++ b/sfx2/source/appl/sfxhelp.cxx
+@@ -958,7 +958,7 @@ static bool impl_showOfflineHelp(const OUString& rURL, weld::Widget* pDialogPare
+     // technical reasons, so that it can be accessed by the browser running outside the sandbox):
+     static constexpr OUStringLiteral aExtension(u".html");
+     OUString * parent = nullptr;
+-    if (flatpak::isFlatpak() && !flatpak::createTemporaryHtmlDirectory(&parent)) {
++    if (!flatpak::createTemporaryHtmlDirectory(&parent)) {
+         return false;
+     }
+     ::utl::TempFileNamed aTempFile(u"NewHelp", true, aExtension, parent, false );
+diff --git a/sfx2/source/view/viewsh.cxx b/sfx2/source/view/viewsh.cxx
+index f4ec9b29b0a1..421775f5d7d9 100644
+--- a/sfx2/source/view/viewsh.cxx
++++ b/sfx2/source/view/viewsh.cxx
+@@ -612,7 +612,7 @@ void SfxViewShell::ExecMisc_Impl( SfxRequest &rReq )
+                 // flatpak case, create it in XDG_CACHE_HOME instead of /tmp for technical reasons,
+                 // so that it can be accessed by the browser running outside the sandbox):
+                 OUString * parent = nullptr;
+-                if (flatpak::isFlatpak() && !flatpak::createTemporaryHtmlDirectory(&parent))
++                if (!flatpak::createTemporaryHtmlDirectory(&parent))
+                 {
+                     SAL_WARN("sfx.view", "cannot create Flatpak html temp dir");
+                 }
+-- 
+2.34.1
+

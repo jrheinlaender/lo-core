@@ -1,0 +1,14 @@
+diff --git a/vcl/source/app/IconThemeSelector.cxx b/vcl/source/app/IconThemeSelector.cxx
+index e98d63657c83..7c6ea9183226 100644
+--- a/vcl/source/app/IconThemeSelector.cxx
++++ b/vcl/source/app/IconThemeSelector.cxx
+@@ -67,6 +67,9 @@ IconThemeSelector::GetIconThemeForDesktopEnvironment(const OUString& desktopEnvi
+         else
+             r = "sukapura_dark_svg";
+     }
++    else if ( desktopEnvironment.equalsIgnoreAsciiCase("ubuntu") ) {
++        r = "yaru";
++    }
+     else if ( desktopEnvironment.equalsIgnoreAsciiCase("gnome") ||
+          desktopEnvironment.equalsIgnoreAsciiCase("mate") ||
+          desktopEnvironment.equalsIgnoreAsciiCase("unity") ) {

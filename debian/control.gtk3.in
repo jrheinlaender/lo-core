@@ -1,0 +1,63 @@
+Package: libreoffice-gtk3
+Architecture: %OOO_ARCHS%
+Depends: libreoffice-core (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Suggests: libreofficekit-data
+Recommends: gstreamer1.0-gtk3
+Section: gnome
+Enhances: libreoffice
+Description: office productivity suite -- GTK+ 3 integration
+ LibreOffice is a full-featured office productivity suite that provides
+ a near drop-in replacement for Microsoft(R) Office.
+ .
+ This package contains the GTK+ plugin for drawing LibreOffices widgets
+ with GTK+ 3 and GTK+/GNOMEish print dialog when running under GNOME.
+
+Package: gir1.2-lokdocview-0.1
+Architecture: %OOO_ARCHS%
+Section: introspection
+Build-Profiles: <!nogir>
+Depends: ${gir:Depends}, ${misc:Depends}, liblibreofficekitgtk (= ${binary:Version})
+Description: GTK+ 3 widget wrapping LibreOffice functionality - introspection
+ LOKDocView is the GTK+ 3 widget that wraps the libreoffice functionality and
+ exposes a simple API for applications to use this widget.
+ .
+ This package contains the Introspection data.
+
+Package: libreofficekit-dev-gtk
+Section: libdevel
+Architecture: %OOO_ARCHS%
+Depends: ${misc:Depends}, ${gir:Depends}, gir1.2-lokdocview-0.1 (= ${binary:Version}), libreofficekit-dev, libgtk-3-dev, liblibreofficekitgtk
+Replaces: gir1.2-lokdocview-0.1 (<< 1:5.4.0~rc1), libreofficekit-dev (<< 4:25.2~)
+Provides: ${gir:Provides}
+Description: LibreOfficeKit -- Gtk header and introspection development
+ LibreOfficeKit can be used for accessing LibreOffice functionality through
+ C/C++, without any need to use UNO.
+ .
+ This package contains the header needed for using LibreOfficeKit with Gtk
+ and for developing stuff using introspection.
+
+Package: liblibreofficekitgtk
+Section: gnome
+Architecture: %OOO_ARCHS%
+Depends: ${shlibs:Depends}, ${misc:Depends}, libreofficekit-data
+Replaces: libreoffice-gtk3 (<< 1:5.2.0~)
+Breaks: libreoffice-gtk3 (<< 1:5.2.0~)
+Recommends: libreoffice-gtk3
+Description: GTK+ 3 widget wrapping LibreOffice functionality
+ This package contains a (basic) GTK+ document viewer widget (used
+ by e.g. LOKDocView)
+
+Package: libreofficekit-data
+Architecture: all
+Section: web
+Depends: ${misc:Depends}
+Recommends: gir1.2-lokdocview-0.1
+Description: common data for LOKDocView
+ LOKDocView is the GTK+ 3 widget that wraps the libreoffice functionality and
+ exposes a simple API for applications to use this widget.
+ .
+ This package contains architecture-independent data (e.g. the selection
+ handlers).
+

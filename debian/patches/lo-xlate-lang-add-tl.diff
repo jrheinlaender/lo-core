@@ -1,0 +1,12 @@
+diff --git a/bin/lo-xlate-lang b/bin/lo-xlate-lang
+index 9b939012e99a..967a188c14e5 100755
+--- a/bin/lo-xlate-lang
++++ b/bin/lo-xlate-lang
+@@ -178,6 +178,7 @@ __DATA__
+ :gug:guarani
+ :szl:upper_silesian
+ :hy:armenian
++:tl:tagalog
+ 01:en-US:english_american
+ 03:pt:portuguese
+ 07:ru:russian

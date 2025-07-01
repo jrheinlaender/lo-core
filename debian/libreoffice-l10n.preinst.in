@@ -1,0 +1,38 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "$2" lt 4:25.2.1~rc1-3; then
+	for i in Langpack-@ISO@.xcd ctl_@ISO@.xcd ctlseqcheck_@ISO@.xcd cjk_@ISO@.xcd; do
+		rm -f /etc/libreoffice/registry/$i
+		ucf --purge /etc/libreoffice/registry/$i
+		ucfr --force --purge libreoffice-l10n-@PKGISO@ /etc/libreoffice/registry/$i
+	done
+	for i in registry_@ISO@.xcd fcfg_langpack_@ISO@.xcd; do
+		rm -f /etc/libreoffice/registry/res/$i
+		ucf --purge /etc/libreoffice/registry/res/$i
+		ucfr --force --purge libreoffice-l10n-@PKGISO@ /etc/libreoffice/registry/res/$i
+	done
+elif [ "$1" = "install" ] && [ -f /etc/libreoffice/registry/Langpack-@ISO@.xcd ]; then
+	for i in Langpack-@ISO@.xcd ctl_@ISO@.xcd ctlseqcheck_@ISO@.xcd cjk_@ISO@.xcd; do
+		rm -f /etc/libreoffice/registry/$i
+		ucf --purge /etc/libreoffice/registry/$i
+		ucfr --force --purge libreoffice-l10n-@PKGISO@ /etc/libreoffice/registry/$i
+	done
+	for i in registry_@ISO@.xcd fcfg_langpack_@ISO@.xcd; do
+		rm -f /etc/libreoffice/registry/res/$i
+		ucf --purge /etc/libreoffice/registry/res/$i
+		ucfr --force --purge libreoffice-l10n-@PKGISO@ /etc/libreoffice/registry/res/$i
+	done
+fi
+
+# try to clean up
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "$2" lt 4:25.2.1-2; then
+	if [ -d /etc/libreoffice/registry/res/ ]; then
+		rmdir --ignore-fail-on-non-empty /etc/libreoffice/registry/res
+	fi
+elif [ "$1" = "install" ] && [ -d /etc/libreoffice/registry/res ]; then
+	rmdir --ignore-fail-on-non-empty /etc/libreoffice/registry/res/
+fi
+
+#DEBHELPER#

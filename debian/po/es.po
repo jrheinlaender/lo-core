@@ -1,0 +1,50 @@
+# Spanish translation of libreoffice calc debconf templates for risc.
+# Copyright (C) 2024 Software in the Public Interest, Inc.
+# This file is distributed under the same license as the libreoffice package.
+# Rene Engelhard <rene@debian.org>, 2024
+# Translation: Camaleón <noelamac@gmail.com>, 2025.
+msgid ""
+msgstr ""
+"Project-Id-Version: libreoffice\n"
+"Report-Msgid-Bugs-To: libreoffice@packages.debian.org\n"
+"POT-Creation-Date: 2024-05-13 17:33+0200\n"
+"PO-Revision-Date: 2025-03-18 18:05+0100\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Last-Translator: Camaleón <noelamac@gmail.com>\n"
+"Language-Team: Debian Spanish <debian-l10n-spanish@lists.debian.org>\n"
+"X-Generator: Poedit 2.4.2\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+
+#. Type: note
+#. Description
+#: ../libreoffice-calc.templates:1001
+msgid "Architecture doesn't support \"NaN passing\""
+msgstr "La arquitectura no admite «NaN passing\"»"
+
+#. Type: note
+#. Description
+#: ../libreoffice-calc.templates:1001
+msgid ""
+"LibreOffice Calc relies on a feature called \"NaN passing\" which is "
+"optional in the IEEE 754 standard. Your architecture (riscv64) does "
+"not support it, though."
+msgstr ""
+"LibreOffice Calc depende de una característica denominada «NaN "
+"passing» que es opcional en la norma IEEE 754. Sin embargo, su "
+"arquitectura (riscv64) no lo admite."
+
+#. Type: note
+#. Description
+#: ../libreoffice-calc.templates:1001
+msgid ""
+"This package is shipped nevertheless for use cases where this does "
+"not matter but you should be aware that Calc can give you wrong "
+"results, especially with =IFERROR() etc."
+msgstr ""
+"No obstante, este paquete se suministra para casos de uso en los que "
+"esto no es relevante, pero debe tener en cuenta que Calc puede "
+"generar resultados erróneos, especialmente con =IFERROR(), etc."

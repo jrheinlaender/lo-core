@@ -1,0 +1,13 @@
+diff --git a/include/sfx2/strings.hrc b/include/sfx2/strings.hrc
+index 1b0ea6ccb2ff..630f4330552a 100644
+--- a/include/sfx2/strings.hrc
++++ b/include/sfx2/strings.hrc
+@@ -132,7 +132,7 @@
+ #define STR_GID_CONTROLS                        NC_("STR_GID_CONTROLS", "Controls")
+ #define STR_QUITAPP                             NC_("STR_QUITAPP", "E~xit %PRODUCTNAME")
+ #define RID_STR_HELP                            NC_("RID_STR_HELP", "Help")
+-#define RID_STR_HLPFILENOTEXIST                 NC_("RID_STR_HLPFILENOTEXIST", "The help file for this topic is not installed.")
++#define RID_STR_HLPFILENOTEXIST                 NC_("RID_STR_HLPFILENOTEXIST", "The help file for this topic is not installed. Please install the libreoffice-help-en-us package or the locale specific help package libreoffice-help-<language-code>.")
+ #define STR_QUICKSTART_EXIT                     NC_("STR_QUICKSTART_EXIT", "Exit Quickstarter")
+ #define STR_QUICKSTART_TIP                      NC_("STR_QUICKSTART_TIP", "%PRODUCTNAME %PRODUCTVERSION Quickstarter")
+ #define STR_QUICKSTART_FILEOPEN                 NC_("STR_QUICKSTART_FILEOPEN", "Open Document...")

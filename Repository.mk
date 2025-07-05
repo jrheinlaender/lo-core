@@ -463,10 +463,7 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
 	msfilter \
 	$(call gb_Helper_optional,SCRIPTING,msforms) \
 	mtfrenderer \
-	$(call gb_Helper_optional,DBCONNECTIVITY,mysql_jdbc) \
-	$(call gb_Helper_optional,MARIADBC,$(call gb_Helper_optional,DBCONNECTIVITY,mysqlc)) \
 	numbertext \
-	odbc \
 	odfflatxml \
 	offacc \
 	oox \
@@ -479,10 +476,7 @@ $(eval $(call gb_Helper_register_libraries_for_install,OOOLIBS,ooo, \
 	sb \
 	$(call gb_Helper_optional,DBCONNECTIVITY,sdbt) \
 	scn \
-	sd \
-	sdd \
 	sfx \
-	slideshow \
 	sot \
 	$(if $(or $(DISABLE_GUI),$(ENABLE_WASM_STRIP_SPLASH)),,spl) \
 	storagefd \
@@ -689,12 +683,10 @@ $(eval $(call gb_Helper_register_libraries_for_install,PLAINLIBS_OOO,ooo, \
     ) \
 	cached1 \
 	comphelper \
-	$(call gb_Helper_optional,DBCONNECTIVITY,dbpool2) \
 	$(call gb_Helper_optional,BREAKPAD,crashreport) \
 	deployment \
 	deploymentgui \
 	embobj \
-	$(if $(ENABLE_JAVA),hsqldb) \
 	i18nutil \
 	$(if $(and $(ENABLE_GTK3), $(filter LINUX %BSD SOLARIS,$(OS))), libreofficekitgtk) \
 	$(if $(and $(ENABLE_GTKTILEDVIEWER), $(filter WNT,$(OS))), libreofficekitgtk) \
@@ -704,7 +696,6 @@ $(eval $(call gb_Helper_register_libraries_for_install,PLAINLIBS_OOO,ooo, \
 	emboleobj \
 	package2 \
 	$(call gb_Helper_optional,SCRIPTING,scriptframe) \
-	sdbc2 \
 	sofficeapp \
 	srtrs1 \
 	ucb1 \

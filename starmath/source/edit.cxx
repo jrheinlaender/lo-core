@@ -660,9 +660,14 @@ void ImGuiWindow::ResetModel()
     {
         std::vector<int> widths;
         for (int col = 0; col < IMGUIWINDOW_COL_LAST; ++col)
-            widths.emplace_back(mxFormulaList->get_column_width(col) + 8); // Note: SV_TAB_BORDER is subtracted by get_column_width(), it is defined in include/vcl/toolkit/treelistbox.hxx
+            widths.emplace_back(mxFormulaList->get_column_width(col));
 
-        widths[IMGUIWINDOW_COL_FORMULA] = std::max(widths[IMGUIWINDOW_COL_FORMULA] + 100, 300); // Ensure enough space for formula
+        // Set some widths manually because autosize doesn't do it propertly
+        widths[IMGUIWINDOW_COL_TYPE] = std::max(widths[IMGUIWINDOW_COL_TYPE] + 20, 120);
+        widths[IMGUIWINDOW_COL_FORMULA] = std::max(widths[IMGUIWINDOW_COL_FORMULA] + 100, 300);
+        widths[IMGUIWINDOW_COL_CHILD] = widths[IMGUIWINDOW_COL_DELETE] + 10;
+        widths[IMGUIWINDOW_COL_ERRMSG] = 0;
+
         int totalWidth = std::accumulate(widths.begin(), widths.end(), 0);
         mxFormulaList->set_column_fixed_widths(widths);
         mxFormulaList->set_size_request(totalWidth, mxFormulaList->get_height_rows(lineCount) + 1);

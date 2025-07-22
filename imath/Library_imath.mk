@@ -17,13 +17,6 @@ $(eval $(call gb_Library_set_include,imath,\
     $$(INCLUDE) \
 ))
 
-ifeq ($(COM), MSC)
-$(eval $(call gb_Library_set_include,imath,\
-	-IC:/cygwin/usr/include \
-	$$(INCLUDE) \
-))
-endif
-
 $(eval $(call gb_Library_add_defs,imath,\
         -DIMATH_DLLIMPLEMENTATION \
 	-DINSIDE_SM \

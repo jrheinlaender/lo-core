@@ -818,11 +818,11 @@ void imathprint_mul(const mul& m, const imathprint& c, unsigned) {
             if (subMatch.empty())
                 result.s << "1"; // Empty matches by definition print 1
 
-            for (size_t m = 0; m < subMatch.size(); ++m) {
-                if (subMatch.size() != 1 && subMatch[m] == 'a')
+            for (size_t sm = 0; sm < subMatch.size(); ++sm) {
+                if (subMatch.size() != 1 && subMatch[sm] == 'a')
                     printMulItem("a", is_numer ? numer : denom, result, 1, negative); // A single add with preceding or following other operands must be bracketed
                 else
-                    printMulItem(std::string(1, static_cast<char>(std::tolower(subMatch[m]))), is_numer ? numer : denom, result, 0, negative);
+                    printMulItem(std::string(1, static_cast<char>(std::tolower(subMatch[sm]))), is_numer ? numer : denom, result, 0, negative);
                 result.s << " ";
             }
         } else {

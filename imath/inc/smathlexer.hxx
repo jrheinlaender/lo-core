@@ -19,7 +19,13 @@
 #define SMATHLEXER_H
 
 #ifndef __FLEX_LEXER_H
+#ifdef _MSC_VER
+// Note that setting C:/Cygwin/usr/include as an include directory breaks other compiles because of conflicting headers
+// But still compiling smathlexer.cxx breaks and can only be solved by copying FlexLexer.h into imath/inc
+#include "C:/Cygwin/usr/include/FlexLexer.h"
+#else
 #include <FlexLexer.h>
+#endif
 #endif
 #include <istream>
 

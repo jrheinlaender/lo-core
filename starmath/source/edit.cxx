@@ -665,13 +665,11 @@ void ImGuiWindow::ResetModel()
         // Set some widths manually because autosize doesn't do it propertly
         widths[IMGUIWINDOW_COL_TYPE] = std::max(widths[IMGUIWINDOW_COL_TYPE] + 20, 120);
         widths[IMGUIWINDOW_COL_FORMULA] = std::max(widths[IMGUIWINDOW_COL_FORMULA] + 100, 300);
-        widths[IMGUIWINDOW_COL_CHILD] = widths[IMGUIWINDOW_COL_DELETE] + 10;
+        widths[IMGUIWINDOW_COL_CHILD] = widths[IMGUIWINDOW_COL_DELETE];
         widths[IMGUIWINDOW_COL_ERRMSG] = 0;
 
         int totalWidth = std::accumulate(widths.begin(), widths.end(), 0);
         mxFormulaList->set_column_fixed_widths(widths);
-        mxFormulaList->set_size_request(totalWidth, mxFormulaList->get_height_rows(lineCount) + 1);
-        GetFrameWeld()->resize_to_request();
     }
 
     if (mpOptionsDialog != nullptr)

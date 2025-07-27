@@ -670,6 +670,10 @@ void ImGuiWindow::ResetModel()
 
         int totalWidth = std::accumulate(widths.begin(), widths.end(), 0);
         mxFormulaList->set_column_fixed_widths(widths);
+        mxFormulaList->set_size_request(totalWidth + 5,  mxFormulaList->get_height_rows(lineCount) + 1);
+#ifndef _MSC_VER
+        GetFrameWeld()->resize_to_request(); // This minimizes the window for Windows build
+#endif
     }
 
     if (mpOptionsDialog != nullptr)

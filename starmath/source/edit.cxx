@@ -930,7 +930,10 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 return false;
 
             mpOptionsDialog = std::make_unique<ImGuiOptionsDialog>(GetFrameWeld(), this, pLine, lastOptionsPage);
-            positionImGuiDialog(mpOptionsDialog->getDialog(), GetFrameWeld());
+            if (mVclIsGtk)
+                positionImGuiDialog(mpOptionsDialog->getDialog(), GetFrameWeld());
+            else
+                mpOptionsDialog->getDialog()->set_centered_on_parent(true); // Because, for SAL_USE_VCLPLUGIN=gen, the dialog height is returned as zero
             mpOptionsDialog->run();
             lastOptionsPage = mpOptionsDialog->getCurrentPage();
             mpOptionsDialog = nullptr;

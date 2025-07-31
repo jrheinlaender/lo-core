@@ -1358,6 +1358,8 @@ void SwDocShell::UpdatePreviousIFormulaLinks()
                     {
                         setFormulaProperty(xFormulaComp, "PreviousIFormula", uno::Any(pMasterDocumentShell->m_IFormulaNames.back()));
                         SAL_INFO_LEVEL(2, "sw.imath", "Set previous formula '" << pMasterDocumentShell->m_IFormulaNames.back() << "' in master document '" << xStorable->getLocation() << "'");
+                        xProperties->setHierarchicalPropertyValue(OU("Cache/Writer/OLE_Objects"), Any(sal_Int32( count) + sal_Int32(pMasterDocumentShell->m_IFormulaNames.size()) + 20));
+                        xUpdateCommit->commitChanges();
                     }
                 }
             }

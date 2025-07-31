@@ -663,16 +663,17 @@ void ImGuiWindow::ResetModel()
             widths.emplace_back(mxFormulaList->get_column_width(col));
 
         // Set some widths manually because autosize doesn't do it propertly
-        widths[IMGUIWINDOW_COL_TYPE] = std::max(widths[IMGUIWINDOW_COL_TYPE] + 20, 120);
+        widths[IMGUIWINDOW_COL_INSERT_BEFORE] = 3 * widths[IMGUIWINDOW_COL_DELETE] / 2; // This one is set to zero
+        widths[IMGUIWINDOW_COL_TYPE] = std::max(widths[IMGUIWINDOW_COL_TYPE] + 20, 120); // This one takes no heed of the contents of the combo box
         widths[IMGUIWINDOW_COL_FORMULA] = std::max(widths[IMGUIWINDOW_COL_FORMULA] + 100, 300);
-        widths[IMGUIWINDOW_COL_CHILD] = widths[IMGUIWINDOW_COL_DELETE];
+        widths[IMGUIWINDOW_COL_CHILD] = widths[IMGUIWINDOW_COL_DELETE]; // This one is too narrow
         widths[IMGUIWINDOW_COL_ERRMSG] = 0;
 
         int totalWidth = std::accumulate(widths.begin(), widths.end(), 0);
         mxFormulaList->set_column_fixed_widths(widths);
         mxFormulaList->set_size_request(totalWidth + 5,  mxFormulaList->get_height_rows(lineCount) + 1);
 #ifndef _MSC_VER
-        GetFrameWeld()->resize_to_request(); // This minimizes the window for Windows build
+        GetFrameWeld()->resize_to_request(); // This minimizes the window for Windows build (!)
 #endif
     }
 
@@ -900,7 +901,10 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (u_line != nullptr)
             {
                 mpUnitPrintnameDialog = std::make_unique<ImGuiUnitPrintnameDialog>(GetFrameWeld(), this, pLine);
-                positionImGuiDialog(mpUnitPrintnameDialog->getDialog(), GetFrameWeld());
+                if (mVclIsGtk)
+                    positionImGuiDialog(mpUnitPrintnameDialog->getDialog(), GetFrameWeld());
+                else
+                    mpUnitPrintnameDialog->getDialog()->set_centered_on_parent(true); // Because, for SAL_USE_VCLPLUGIN=gen, the dialog height is returned as zero
                 mpUnitPrintnameDialog->run();
                 mpUnitPrintnameDialog = nullptr;
                 break;
@@ -910,7 +914,10 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (f_line != nullptr)
             {
                 mpFunctionDialog = std::make_unique<ImGuiFunctionDialog>(GetFrameWeld(), this, pLine);
-                positionImGuiDialog(mpFunctionDialog->getDialog(), GetFrameWeld());
+                if (mVclIsGtk)
+                    positionImGuiDialog(mpFunctionDialog->getDialog(), GetFrameWeld());
+                else
+                    mpFunctionDialog->getDialog()->set_centered_on_parent(true); // Because, for SAL_USE_VCLPLUGIN=gen, the dialog height is returned as zero
                 mpFunctionDialog->run();
                 mpFunctionDialog = nullptr;
                 break;
@@ -920,7 +927,10 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
             if (c_line != nullptr)
             {
                 mpChartDialog = std::make_unique<ImGuiChartDialog>(GetFrameWeld(), this, pLine);
-                positionImGuiDialog(mpChartDialog->getDialog(), GetFrameWeld());
+                if (mVclIsGtk)
+                    positionImGuiDialog(mpChartDialog->getDialog(), GetFrameWeld());
+                else
+                    mpChartDialog->getDialog()->set_centered_on_parent(true); // Because, for SAL_USE_VCLPLUGIN=gen, the dialog height is returned as zero
                 mpChartDialog->run();
                 mpChartDialog = nullptr;
                 break;

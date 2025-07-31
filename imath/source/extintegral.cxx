@@ -539,7 +539,6 @@ void init_table()
 
     // Taken from Bronstein/Semendjajew, Taschenbuch der Mathematik
     // Beware: The compiler views 1/2 as an integer expression with value 0!
-    // Note: There is no guarantee that the table will be iterated in this order!
     integrals = {
         { a, a * x },
         { pow(x, n), 1 / (n + 1) * pow(x, n + 1) },
@@ -886,6 +885,7 @@ void init_table()
           (x * GiNaC::sqrt(a2px2) + pow(a, 2) * Functionmanager::create_hard("arsinh", { x / a }))
               / 2 },
         /*186*/ { x * GiNaC::sqrt(a2px2), GiNaC::sqrt(pow(a2px2, 3)) / 3 },
+        /*193*/ { x / GiNaC::sqrt(a2px2), GiNaC::sqrt(a2px2) },
         /*213*/
         { GiNaC::sqrt(x2ma2),
           (x * GiNaC::sqrt(x2ma2) - pow(a, 2) * Functionmanager::create_hard("arcosh", { x / a }))

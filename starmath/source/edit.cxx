@@ -675,6 +675,13 @@ void ImGuiWindow::ResetModel()
 #ifndef _MSC_VER
         GetFrameWeld()->resize_to_request(); // This minimizes the window for Windows build (!)
 #endif
+
+        // Work around bug that resets the editable flag on all columns when inserting a NEW formula (if the ImGuiWindow is closed and re-opened then everything is OK, though!)
+        std::vector<bool> editableColumns(IMGUIWINDOW_COL_ERRMSG, false);
+        editableColumns[IMGUIWINDOW_COL_LABEL] = true;
+        editableColumns[IMGUIWINDOW_COL_TYPE] = true;
+        editableColumns[IMGUIWINDOW_COL_FORMULA] = true;
+        mxFormulaList->set_column_editables(editableColumns);
     }
 
     if (mpOptionsDialog != nullptr)
@@ -766,7 +773,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
     auto pLine = *ppLine;
 
     if (!inEdit && (clickedColumn == IMGUIWINDOW_COL_LABEL || clickedColumn == IMGUIWINDOW_COL_TYPE || clickedColumn == IMGUIWINDOW_COL_FORMULA))
-        mxFormulaList->set_cursor(*xIter, clickedColumn, true); // Select item to be edited. This avoids one mouse click when changing entries
+        mxFormulaList->set_cursor(*xIter, clickedColumn, true); // Select item to be edited. This avoids one mouse click when changing entries. Triggers treelistbox EditEntry()
 
     switch (clickedColumn)
     {

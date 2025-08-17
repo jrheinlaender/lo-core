@@ -61,7 +61,7 @@
               <object class="GtkMenuItem" id="transform_substitute">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes" context="addiformulamenu|substitute">Substitute variable</property>
+                <property name="label" translatable="yes" context="addiformulamenu|substitute">Substitute</property>
               </object>
             </child>
             <child>

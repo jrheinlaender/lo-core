@@ -57,6 +57,9 @@ public:
   ex eval_integ() const override;
 public:
   void set_integration_constant(const extsymbol& newconstant);
+  ex get_integration_constant() const { return C; }
+  bool has_boundaries() const { return hasboundaries; }
+  void set_boundaries(const ex& lb, const ex ub) { hasboundaries = true; let_op(1) = lb; let_op(2) = ub; }
 protected:
   ex derivative(const symbol & s) const override; // TODO Will this cause problems with extsymbols that do not match the symbol?
 

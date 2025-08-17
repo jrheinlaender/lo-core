@@ -3927,10 +3927,16 @@ void SalInstanceTreeView::columns_autosize()
 {
     std::vector<tools::Long> aWidths;
     m_xTreeView->getPreferredDimensions(aWidths);
-    std::vector<int> aColWidths(aWidths.size());;
-    for (size_t i = 0; i < aWidths.size(); ++i)
-        aColWidths[i] = aWidths[i];
-    set_column_fixed_widths(aColWidths);
+
+    if (aWidths.size() > 2)
+    {
+        std::vector<int> aColWidths(aWidths.size() - 1);
+        aWidths[0] = m_xTreeView->GetLogicTab(0); // PreferredDimensions returns 0 here, but the actual view uses this value
+        aColWidths[0] = aWidths[1] + aWidths[0];
+        for (size_t i = 2; i < aWidths.size(); ++i)
+            aColWidths[i-1] = aWidths[i];
+        set_column_fixed_widths(aColWidths);
+    }
 }
 
 void SalInstanceTreeView::freeze()

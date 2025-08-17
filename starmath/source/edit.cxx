@@ -1000,6 +1000,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
 
                 if (rMEvt.IsRight())
                 {
+                    // Note: This code is only reached for mVclIsGtk == false
 
                     mxFormulaList->end_editing(); // Otherwise the newly edited text will not be found by get_text()
                     // TODO unfortunately end_editing() triggers a recompile, and invalidates pLine
@@ -1103,7 +1104,7 @@ IMPL_LINK(ImGuiWindow, MousePressHdl, const MouseEvent&, rMEvt, bool)
                 }
                 else if (sCommand == "transform_simplify")
                 {
-                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"SIMPLIFY(@prev@, \"expand\""}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
+                    newLine = std::make_shared<iFormulaNodeEq>(uvec, gopt, GiNaC::optionmap(), fparts({"SIMPLIFY(@prev@, \"expand\")"}), pDoc->GetTempFormulaLabel(), GiNaC::equation(), false);
                 }
                 else if (sCommand == "transform_solve")
                 {

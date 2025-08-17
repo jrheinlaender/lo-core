@@ -75,25 +75,59 @@ extintegral::extintegral()
 
 namespace
 {
-std::pair<ex, ex> extract_differential(const ex& f)
+// Possible cases:
+//  !x_.is_zero(): The differential(x) was found and var == x and the differential is removed from f
+// !x_.is_zero(): No differential was found, differential(x) was intended and f remains unchanged
+//  x_.is_zero(): A (arbitrary) differential was found and removed from f
+// x.is_zero(): No differential at all was found (error)
+// Option force inserts a differential if no matching one is found
+std::pair<ex, ex> extract_differential(const ex& f, const ex& x, const bool force)
 {
     ex f_ = GiNaC::collect_common_factors(f);
+    exvector integrals;
 
     for (const auto& m : (is_a<mul>(f_) ? f_ : lst{ f_ }))
     {
-        if (is_a<differential>(m))
+        if (is_a<differential>(m) && (x.is_zero() || ex_to<differential>(m).argument().is_equal(x)))
         {
-            return { ex_to<differential>(m).argument(), m };
+            return { ex_to<differential>(m).argument(), f_ / m };
         }
         else if (is_a<power>(m))
         {
             ex basis = get_basis(ex_to<power>(m));
-            if (is_a<differential>(basis))
-                return { ex_to<differential>(basis).argument(), basis };
+            if (is_a<differential>(basis)
+                && (x.is_zero() || ex_to<differential>(basis).argument().is_equal(x)))
+                return { ex_to<differential>(basis).argument(), f_ / basis };
+        }
+        else if (is_a<extintegral>(m))
+        {
+            integrals.push_back(m); // Save for later, in case no other differential is found
         }
     }
 
+    for (const auto& integ : integrals)
+    {
+        const auto& m_int = ex_to<extintegral>(integ);
+        auto[var, rem] = extract_differential(m_int.op(3), x, false);
+
+        if (!var.is_zero())
+        {
+            extintegral m_rem(m_int.op(0), rem, m_int.get_integration_constant());
+            if (m_rem.has_boundaries())
+                m_rem.set_boundaries(m_int.op(1), m_int.op(2));
+
+            return { var, f_ / integ * m_rem };
+        }
+    }
+
+    // This has the effect of adding the differential to the function f
+    if (!x.is_zero() && force)
+        return { x, f };
+
     return { _ex0, _ex0 };
+}
+
+return { _ex0, _ex0 };
 }
 }
 
@@ -101,17 +135,15 @@ extintegral::extintegral(const ex& x_, const ex& a_, const ex& b_, const ex& f_)
     : integral()
 {
     MSG_INFO(3, "Constructing extintegral with boundaries from " << f_ << endline);
-    auto[var, diff] = extract_differential(f_);
-    if (var.is_zero() && x_.is_zero())
+    auto[var, rem] = extract_differential(f_, x_, true);
+    if (var.is_zero())
         throw std::runtime_error("An integration variable must be provided, or the expression must "
                                  "contain a differential");
-    let_op(0) = x_.is_zero() ? var : x_;
+
+    let_op(0) = var;
     let_op(1) = a_;
     let_op(2) = b_;
-    if (x_.is_zero() || x_.is_equal(var))
-        let_op(3) = f_ / diff;
-    else
-        let_op(3) = f_;
+    let_op(3) = rem;
     C = dynallocate<extsymbol>("C");
     hasboundaries = true;
 }
@@ -120,17 +152,14 @@ extintegral::extintegral(const ex& x_, const ex& f_, const ex& C_)
     : integral()
 {
     MSG_INFO(3, "Constructing extintegral without boundaries from " << f_ << endline);
-    auto[var, diff] = extract_differential(f_);
-    if (var.is_zero() && x_.is_zero())
+    auto[var, rem] = extract_differential(f_, x_, true);
+    if (var.is_zero())
         throw std::runtime_error("An integration variable must be provided, or the expression must "
                                  "contain a differential");
-    let_op(0) = x_.is_zero() ? var : x_;
+    let_op(0) = var;
     let_op(1) = _ex0;
     let_op(2) = _ex0;
-    if (x_.is_zero() || x_.is_equal(var))
-        let_op(3) = f_ / diff;
-    else
-        let_op(3) = f_;
+    let_op(3) = rem;
     C = C_;
     hasboundaries = false;
     MSG_INFO(3, "Constructing extintegral of expression " << op(3) << " to variable " << op(0)
@@ -393,6 +422,8 @@ ex extintegral::expand(unsigned options) const
         return *this;
 
     ex newf = op(3).expand(options);
+    // Note: integral::expand splits adds into multiple integrals
+    // Note: integral::expand pulls out factors where has(x) is false ->  But maybe we do not want to do this because of the possibility of substitution?
 
     if (hasboundaries)
     {
@@ -1700,8 +1731,45 @@ ex find_integral(const ex& fun, const ex& var, ex& constfactor, ex& nonintegrabl
 }
 }
 
-nonintegrable = remainder;
-return _ex0;
+ex extintegral::subs(const exmap& m, unsigned options) const
+{
+    MSG_INFO(2, "Substituting " << m << " in integral " << *this << endline);
+    ex result = inherited::subs(m, options);
+
+    // Handle substitution of the differential
+    if (is_a<extintegral>(result))
+    {
+        for (const auto& r : m)
+        {
+            if (is_a<differential>(r.first))
+            {
+                // Found a differential to substitute
+                const differential& lhs = ex_to<differential>(r.first);
+
+                if (lhs.argument().is_equal(result.op(0)))
+                {
+                    // Differential is same as that of the extintegral
+                    auto[var, rem] = extract_differential(
+                        r.second, _ex0,
+                        false); // Remove a (arbitrary!) differential from rhs of the substitution and put it in the extintegral
+                    if (var.is_zero())
+                        throw std::runtime_error("A differential must be substituted by an "
+                                                 "expression containing another differential");
+                    extintegral res(op(3) * rem, var,
+                                    C); // Construct new extintegral from expression
+                    res.hasboundaries = hasboundaries;
+                    if (hasboundaries)
+                    {
+                        res.let_op(1) = op(1);
+                        res.let_op(2) = op(2);
+                    }
+                    return res;
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 // Handle substitution of the differential

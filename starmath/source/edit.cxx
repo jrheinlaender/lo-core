@@ -325,6 +325,7 @@ void ImGuiWindow::ResetModel()
         SAL_INFO_LEVEL(1, "starmath.imath", "Skipping reset because an edit is active in column " << mEditedColumn);
         auto xIter = mxFormulaList->make_iterator();
         mxFormulaList->get_iter_first(*xIter);
+        int lineCount = 0;
 
         for (const auto& fLine : pDoc->GetFormulaLines())
         {
@@ -333,6 +334,19 @@ void ImGuiWindow::ResetModel()
             SAL_INFO_LEVEL(0, "starmath.imath", "Updating id in formula line " + fLine->getCommand());
             mxFormulaList->set_id(*xIter, weld::toId(&fLine));
             mxFormulaList->iter_next(*xIter);
+            ++lineCount;
+        }
+
+        // Adjust column widths to text widths
+        if (!mVclIsGtk)
+        {
+            mxFormulaList->columns_autosize();
+            int totalWidth = 0;
+            for (int col = 0; col < IMGUIWINDOW_COL_LAST; ++col)
+                totalWidth += mxFormulaList->get_column_width(col);
+
+            // TODO Make as many rows visible as will fit in the frame
+            mxFormulaList->set_size_request(totalWidth + 5,  mxFormulaList->get_height_rows(lineCount) + 1);
         }
 
         return;
@@ -658,19 +672,10 @@ void ImGuiWindow::ResetModel()
 
     if (!mVclIsGtk)
     {
-        std::vector<int> widths;
+        int totalWidth = 0;
         for (int col = 0; col < IMGUIWINDOW_COL_LAST; ++col)
-            widths.emplace_back(mxFormulaList->get_column_width(col));
+            totalWidth += mxFormulaList->get_column_width(col);
 
-        // Set some widths manually because autosize doesn't do it propertly
-        widths[IMGUIWINDOW_COL_INSERT_BEFORE] = 3 * widths[IMGUIWINDOW_COL_DELETE] / 2; // This one is set to zero
-        widths[IMGUIWINDOW_COL_TYPE] = std::max(widths[IMGUIWINDOW_COL_TYPE] + 20, 120); // This one takes no heed of the contents of the combo box
-        widths[IMGUIWINDOW_COL_FORMULA] = std::max(widths[IMGUIWINDOW_COL_FORMULA] + 100, 300);
-        widths[IMGUIWINDOW_COL_CHILD] = widths[IMGUIWINDOW_COL_DELETE]; // This one is too narrow
-        widths[IMGUIWINDOW_COL_ERRMSG] = 0;
-
-        int totalWidth = std::accumulate(widths.begin(), widths.end(), 0);
-        mxFormulaList->set_column_fixed_widths(widths);
         mxFormulaList->set_size_request(totalWidth + 5,  mxFormulaList->get_height_rows(lineCount) + 1);
 #ifndef _MSC_VER
         GetFrameWeld()->resize_to_request(); // This minimizes the window for Windows build (!)

@@ -2149,6 +2149,7 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       $$ = wild($3);
     }
     | WILD { $$ = wild(); }
+    /* Note that FUNC must be followed by a bracket. It would be nice to write sin x instead of sin(x) but that would make statements like f g ambiguous: f * g or f(g) ? */
     | FUNC leftbracket ex rightbracket {
       $$ = params.compiler->create_function($1, {$3}).evalm();
     }
@@ -2164,8 +2165,14 @@ ex:   SUBST '(' ex ',' eqlist ')' {
       fargs.insert(fargs.end(), list.begin(), list.end());
       $$ = params.compiler->create_function($1, fargs).evalm();
     }
-    | FUNC { // a function may be used without arguments
-      $$ = params.compiler->create_function($1);
+    | FUNC {
+       // a function may be used without arguments, but built-in functions like sin() will of course throw an error
+       try {
+         $$ = params.compiler->create_function($1);
+       } catch (const std::exception& e) {
+         error(@1, e.what() + std::string(" (did you forget the brackets around the argument?)"));
+         YYERROR;
+       }
     }
     | NROOT number IMPMUL number { // We can't prevent the IMPMUL appearing here
       $$ = dynallocate<power>($4, 1 / $2);
@@ -2506,7 +2513,14 @@ lowerbound: intvar '=' ex { $$ = dynallocate<equation>($1, $3); }
 ;
 %type <GiNaC::expression> intvar "integration variable";
 intvar:   symbol
-	| FUNC { $$ = params.compiler->create_function($1); }
+	| FUNC {
+    try {
+         $$ = params.compiler->create_function($1);
+       } catch (const std::exception& e) {
+         error(@1, e.what() + std::string(" (did you forget the brackets around the argument?)"));
+         YYERROR;
+       }
+    }
 ;
 %type <GiNaC::expression> upperbound "upper bound";
 upperbound: number

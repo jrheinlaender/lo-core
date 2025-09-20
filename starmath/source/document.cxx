@@ -740,6 +740,9 @@ void SmDocShell::Compile()
 
     SAL_INFO_LEVEL(1, "starmath.imath", "SmDocShell::Compile()\n'" << maImText << "'");
 
+    // Save old lines to have a fallback in case the parser throws an exception
+    std::list<iFormulaLine_ptr> oldLines;
+    std::swap(oldLines, mLines);
     OUString initError = ImInitializeCompiler();
     if (initError.getLength() > 0) {
         SAL_WARN_LEVEL(0, "starmath.imath", initError);
@@ -769,7 +772,8 @@ void SmDocShell::Compile()
 
     // Save old outgoing dependencies
     std::set<GiNaC::expression, GiNaC::expr_is_less> oldOutDep;
-    for (const auto& l : mLines) oldOutDep.merge(l->getOut());
+    for (const auto& l : mLines)
+        oldOutDep.merge(l->getOut());
     SAL_INFO_LEVEL(2, "starmath.imath", "This formula had old outgoing dependencies for '" << makeSymbolString(oldOutDep) << "'");
 
     // Prepare compiler. Note: Since mpCurrentCompiler is a shared_ptr, the old data will automatically get cleaned up when the last reference is released
@@ -786,12 +790,18 @@ void SmDocShell::Compile()
 
     // Compile line-by-line, creating error lines if necessary but handling all lines
     sal_Int32 idx = 0;
+    auto oldLine = oldLines.begin(); // Note that for first-time compilation of the first formula of a document, oldLines will be empty
 
     do
     {
         OUString line = maImText.getToken(0, '\n', idx);
         if (line.getLength() == 0)
+        {
+            SAL_INFO_LEVEL(1, "starmath.imath", "Skipping empty input line");
+            if (oldLine != oldLines.end())
+                ++oldLine;
             continue;
+        }
         pParams.rawtext = "%%ii " + line + OU("\n"); // TODO: Change parser to make this unnecessary
         pParams.global_options = mpCurrentOptions;
         bool reset_auto_renumber = false;
@@ -821,15 +831,39 @@ void SmDocShell::Compile()
         }
         catch (Exception &e)
         {
-            SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.Message);
-            mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions, pParams.rawtext.trim()));
-            mLines.back()->markError(pParams.rawtext, 5, 5, pParams.rawtext.getLength(), e.Message);
+            auto text = pParams.rawtext;
+            int formulaStart = 5;
+
+            if (oldLine != oldLines.end())
+            {
+                mLines.emplace_back(*oldLine);
+                formulaStart = text.indexOf(mLines.back()->getCommand()) + mLines.back()->getCommand().getLength() + 1;
+            }
+            else
+            {
+                mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions));
+            }
+
+            mLines.back()->markError(text, formulaStart, formulaStart, text.getLength(), e.Message);
+            SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.Message << " on '" << text << "'");
         }
         catch (std::exception &e)
         {
-            SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.what());
-            mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions, pParams.rawtext.trim()));
-            mLines.back()->markError(pParams.rawtext, 5, 5, pParams.rawtext.getLength(), OUS(e.what()));
+            auto text = pParams.rawtext;
+            int formulaStart = 5;
+
+            if (oldLine != oldLines.end())
+            {
+                mLines.emplace_back(*oldLine);
+                formulaStart = text.indexOf(mLines.back()->getCommand()) + mLines.back()->getCommand().getLength() + 1;
+            }
+            else
+            {
+                mLines.emplace_back(std::make_shared<iFormulaNodeError>(mpCurrentOptions));
+            }
+
+            mLines.back()->markError(text, formulaStart, formulaStart, text.getLength(), OUS(e.what()));
+            SAL_WARN_LEVEL(-1, "starmath.imath", "Parser exception: " << e.what() << " on '" << text << "'");
         }
 
         if (reset_auto_renumber)
@@ -838,6 +872,9 @@ void SmDocShell::Compile()
             officecfg::Office::iMath::Miscellaneous::O_Autorenumberduplicate::set(false, batch);
             batch->commit();
         }
+
+        if (oldLine != oldLines.end())
+            ++oldLine;
 
         if (mLines.empty())
             continue; // If the echo option is turned on, then a formula might start with a generated line (%%gg)

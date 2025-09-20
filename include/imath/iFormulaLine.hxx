@@ -227,12 +227,15 @@ public:
 
 class IMATH_DLLPUBLIC iFormulaNodeError : public iFormulaLine {
 public:
-  iFormulaNodeError(std::shared_ptr<GiNaC::optionmap> g_options, const OUString& compiledText);
+  // Note: The constructor should always be followed by a call to markError()
+  iFormulaNodeError(std::shared_ptr<GiNaC::optionmap> g_options);
   virtual OUString getCommand() const override { return OU("ERROR"); }
 
   virtual OUString print() const override;
 
   virtual bool isDisplayable() const override { return true; }
+
+  virtual void markError(const OUString& compiledText, const int formulaStart, const int errorStart, const int errorEnd, const OUString& errorMessage) override;
 };
 
 class IMATH_DLLPUBLIC iFormulaNodeStatement : public iFormulaLine {

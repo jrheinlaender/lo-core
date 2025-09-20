@@ -104,7 +104,7 @@ namespace {
 
             if (!var.is_zero()) {
                 extintegral m_rem(m_int.op(0), rem, m_int.get_integration_constant());
-                if (m_rem.has_boundaries())
+                if (m_int.has_boundaries())
                     m_rem.set_boundaries(m_int.op(1), m_int.op(2));
 
                 return {var, f_ / integ * m_rem};

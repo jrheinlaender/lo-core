@@ -332,8 +332,6 @@ OUString iFormulaLine::getFormula() const
         }
         case label_error:
             return _formulaParts[2];
-        case general_error:
-            return _formulaParts[0];
         case statement_error:
             return _formulaParts[2];
         default:
@@ -416,15 +414,25 @@ iFormulaNodeResult::iFormulaNodeResult(const OUString& text)
 OUString iFormulaNodeResult::print() const { return getFormula() + OU(" %%gg"); }
 
 // NodeError
-iFormulaNodeError::iFormulaNodeError(std::shared_ptr<GiNaC::optionmap> g_options,
-                                     const OUString& compiledText)
+iFormulaNodeError::iFormulaNodeError(std::shared_ptr<GiNaC::optionmap> g_options)
     : iFormulaLine(g_options)
 {
-    _formulaParts = { compiledText.copy(5) }; // Drop the %%ii
     error = general_error;
+    // Note: The formula parts must be filled by a subsequent call to markError()
 }
 
 OUString iFormulaNodeError::print() const { return "%%ii " + getFormula(); }
+
+void iFormulaNodeError::markError(const OUString& compiledText, const int, const int, const int,
+                                  const OUString& errorMessage)
+{
+    MSG_INFO(0, "iFormulaNodeError::markError: " << STR(errorMessage) << endline);
+    _formulaParts.clear();
+    _formulaParts.emplace_back("");
+    _formulaParts.emplace_back(compiledText.copy(5)); // Skip the %%ii
+    _formulaParts.emplace_back("");
+    _formulaParts.emplace_back(errorMessage);
+}
 
 // NodeStatement
 iFormulaNodeStatement::iFormulaNodeStatement(std::shared_ptr<optionmap> g_options)

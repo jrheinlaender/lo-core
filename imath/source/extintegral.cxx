@@ -92,16 +92,20 @@ std::pair<ex, ex> extract_differential(const ex& f, const ex& x, const bool forc
         {
             return { ex_to<differential>(m).argument(), f_ / m };
         }
-        else if (is_a<power>(m))
+
+        for (const auto& integ : integrals)
         {
-            ex basis = get_basis(ex_to<power>(m));
-            if (is_a<differential>(basis)
-                && (x.is_zero() || ex_to<differential>(basis).argument().is_equal(x)))
-                return { ex_to<differential>(basis).argument(), f_ / basis };
-        }
-        else if (is_a<extintegral>(m))
-        {
-            integrals.push_back(m); // Save for later, in case no other differential is found
+            const auto& m_int = ex_to<extintegral>(integ);
+            auto[var, rem] = extract_differential(m_int.op(3), x, false);
+
+            if (!var.is_zero())
+            {
+                extintegral m_rem(m_int.op(0), rem, m_int.get_integration_constant());
+                if (m_int.has_boundaries())
+                    m_rem.set_boundaries(m_int.op(1), m_int.op(2));
+
+                return { var, f_ / integ * m_rem };
+            }
         }
     }
 

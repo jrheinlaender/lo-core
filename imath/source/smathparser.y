@@ -637,11 +637,9 @@ input:   %empty
           }
        }
        | input error {
+          // Let this be handled further up
           auto loc = @2;
-          MSG_INFO(1, "Global error between " << errorlocation.begin.column << " and " << errorlocation.end.column << endline);
-          loc.begin.column += 5; // Skip the %%i
-          handle_error(params, std::make_shared<iFormulaNodeError>(current_options, params.rawtext), loc);
-          YYABORT;
+          throw std::invalid_argument(std::string("Global error between ") + std::to_string(errorlocation.begin.column - 5) + " and " + std::to_string(errorlocation.end.column - 5));
        }
 ;
 

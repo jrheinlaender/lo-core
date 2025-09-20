@@ -653,8 +653,7 @@ void ImGuiWindow::ResetModel()
         }
         else if (typeid(*fLine) == typeid(iFormulaNodeError))
         {
-            auto error = std::dynamic_pointer_cast<iFormulaNodeError>(fLine);
-            mxFormulaList->set_text(*xIter, fLine->printFormula(), IMGUIWINDOW_COL_FORMULA);
+            mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULA);
         }
 
         if (lineCount == currentSelection)
@@ -1527,8 +1526,9 @@ IMPL_LINK(ImGuiWindow, EditedEntryHdl, const IterString&, rIterString, bool)
 
                     if (pNew == nullptr)
                     {
-                        pNew = std::make_shared<iFormulaNodeError>(gopt, pLine->print());
-                        pNew->markError(pLine->print() + "\n", 5, 5, pLine->print().getLength() - 4, "Invalid formula type");
+                        pNew = std::make_shared<iFormulaNodeError>(gopt);
+                        auto text = pLine->print();
+                        pNew->markError(text, 5, 5, text.getLength(), "Invalid formula type");
                     }
                 }
 

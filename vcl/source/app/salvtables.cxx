@@ -5509,7 +5509,7 @@ IMPL_LINK(SalInstanceTreeView, EditedEntryHdl, const IterString&, rIterString, b
         iter_string(SalInstanceTreeIter(rIterString.first), rIterString.second));
 }
 
-IMPL_LINK(SalInstanceTreeView, EditingCanceledHdl, IterString, rIterString, void)
+IMPL_LINK(SalInstanceTreeView, EditingCanceledHdl, const IterString&, rIterString, void)
 {
     signal_editing_canceled(
         iter_string(SalInstanceTreeIter(rIterString.first), rIterString.second));

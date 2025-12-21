@@ -208,7 +208,6 @@ class UNLESS_MERGELIBS_MORE(VCL_DLLPUBLIC) SvTreeListBox
     Link<SvTreeListBox*,bool>  aExpandingHdl;
     Link<SvTreeListBox*,void>  aSelectHdl;
     Link<SvTreeListBox*,void>  aDeselectHdl;
-    Link<SvTreeListBox*,void>  aEditingCanceledHdl;
     Link<const CommandEvent&, bool> aPopupMenuHdl;
     Link<SvTreeListEntry*, OUString> aTooltipHdl;
     Link<svtree_render_args, void> aCustomRenderHdl;
@@ -429,7 +428,6 @@ public:
     void            SetSelectHdl( const Link<SvTreeListBox*,void>& rNewHdl ) {aSelectHdl=rNewHdl; }
     void            SetDeselectHdl( const Link<SvTreeListBox*,void>& rNewHdl ) {aDeselectHdl=rNewHdl; }
     void            SetDoubleClickHdl(const Link<SvTreeListBox*,bool>& rNewHdl) {aDoubleClickHdl=rNewHdl;}
-    void            SetEditingCanceledHdl(const Link<SvTreeListBox*,void>& rNewHdl) {aEditingCanceledHdl=rNewHdl;}
     void            SetExpandingHdl(const Link<SvTreeListBox*,bool>& rNewHdl){aExpandingHdl=rNewHdl;}
     void            SetExpandedHdl(const Link<SvTreeListBox*,void>& rNewHdl){aExpandedHdl=rNewHdl;}
     void SetPopupMenuHdl(const Link<const CommandEvent&, bool>& rLink) { aPopupMenuHdl = rLink; }

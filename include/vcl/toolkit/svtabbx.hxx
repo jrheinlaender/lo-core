@@ -96,6 +96,7 @@ private:
 
     Link<SvTreeListEntry*, bool> m_aEditingEntryHdl;
     Link<const IterString&, bool> m_aEditedEntryHdl;
+    Link<const IterString&, void> m_aEditingCanceledHdl;
 
     DECL_DLLPRIVATE_LINK( ScrollHdl_Impl, SvTreeListBox*, void );
     DECL_DLLPRIVATE_LINK( CreateAccessibleHdl_Impl, HeaderBar*, void );
@@ -208,6 +209,11 @@ public:
     void SetEditedEntryHdl(const Link<const IterString&, bool>& rLink)
     {
         m_aEditedEntryHdl = rLink;
+    }
+
+    void SetEditingCanceledHdl(const Link<const IterString&, void>& rLink)
+    {
+        m_aEditingCanceledHdl = rLink;
     }
 
     //the default NotifyStartDrag is weird to me, and defaults to enabling all

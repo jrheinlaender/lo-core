@@ -4015,7 +4015,7 @@ void SalInstanceTreeView::set_column_title(int nColumn, const OUString& rTitle)
 
 void SalInstanceTreeView::set_column_visible(int nColumn, const bool bVisible)
 {
-    LclHeaderTabListBox* pHeaderBox = dynamic_cast<LclHeaderTabListBox*>(m_xTreeView.get());
+    SvHeaderTabListBox* pHeaderBox = dynamic_cast<SvHeaderTabListBox*>(m_xTreeView.get());
     HeaderBar* pHeaderBar = pHeaderBox ? pHeaderBox->GetHeaderBar() : nullptr;
     if (!pHeaderBar)
         return;
@@ -4038,7 +4038,7 @@ void SalInstanceTreeView::set_column_visible(int nColumn, const bool bVisible)
         }
     }
 
-    m_xTreeView->SetTabs(aTabPositions.size(), aTabPositions.data(), MapUnit::MapPixel);
+    m_xTreeView->SetTabs(aTabPositions, MapUnit::MapPixel);
     set_header_item_width(rWidths);
     m_xTreeView->Resize();
 }
@@ -5503,7 +5503,7 @@ IMPL_LINK(SalInstanceTreeView, EditingEntryHdl, SvTreeListEntry*, pEntry, bool)
     return signal_editing_started(SalInstanceTreeIter(pEntry));
 }
 
-IMPL_LINK(SalInstanceTreeView, EditedEntryHdl, IterString, rIterString, bool)
+IMPL_LINK(SalInstanceTreeView, EditedEntryHdl, const IterString&, rIterString, bool)
 {
     return signal_editing_done(
         iter_string(SalInstanceTreeIter(rIterString.first), rIterString.second));

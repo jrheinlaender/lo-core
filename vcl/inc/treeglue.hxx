@@ -15,59 +15,13 @@
 //the configured drag drop mode would make more sense to me, but I'm not
 //going to change the baseclass
 
-class LclHeaderTabListBox final : public SvHeaderTabListBox
-{
-private:
-    Link<SvTreeListEntry*, bool> m_aEditingEntryHdl;
-    Link<IterString, bool> m_aEditedEntryHdl;
-    Link<IterString, void> m_aEditingCanceledHdl;
-
-public:
-    LclHeaderTabListBox(vcl::Window* pParent, WinBits nWinStyle)
-        : SvHeaderTabListBox(pParent, nWinStyle)
-    {
-    }
-
-    void SetEditingEntryHdl(const Link<SvTreeListEntry*, bool>& rLink)
-    {
-        m_aEditingEntryHdl = rLink;
-    }
-
-    void SetEditedEntryHdl(const Link<IterString, bool>& rLink)
-    {
-        m_aEditedEntryHdl = rLink;
-    }
-
-    void SetEditingCanceledHdl(const Link<IterString, void>& rLink)
-    {
-        m_aEditingCanceledHdl = rLink;
-    }
-
-    virtual DragDropMode NotifyStartDrag() override { return GetDragDropMode(); }
-
-    virtual bool EditingEntry(SvTreeListEntry* pEntry) override
-    {
-        return m_aEditingEntryHdl.Call(pEntry);
-    }
-
-    virtual bool EditedEntry(SvTreeListEntry* pEntry, const OUString& rNewText) override
-    {
-        return m_aEditedEntryHdl.Call(IterString(pEntry, rNewText));
-    }
-
-    virtual void CanceledEntry(SvTreeListEntry* pEntry, const OUString& rNewText) override
-    {
-        m_aEditingCanceledHdl.Call(IterString(pEntry, rNewText));
-    }
-};
-
 class LclTabListBox final : public SvTabListBox
 {
     Link<SvTreeListBox*, void> m_aModelChangedHdl;
     Link<SvTreeListBox*, bool> m_aStartDragHdl;
     Link<SvTreeListBox*, void> m_aEndDragHdl;
     Link<SvTreeListEntry*, bool> m_aEditingEntryHdl;
-    Link<IterString, bool> m_aEditedEntryHdl;
+    Link<const IterString&, bool> m_aEditedEntryHdl;
     Link<IterString, void> m_aEditingCanceledHdl;
 
 public:
@@ -83,7 +37,7 @@ public:
     {
         m_aEditingEntryHdl = rLink;
     }
-    void SetEditedEntryHdl(const Link<IterString, bool>& rLink)
+    void SetEditedEntryHdl(const Link<const IterString&, bool>& rLink)
     {
         m_aEditedEntryHdl = rLink;
     }

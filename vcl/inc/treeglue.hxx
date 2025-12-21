@@ -22,7 +22,7 @@ class LclTabListBox final : public SvTabListBox
     Link<SvTreeListBox*, void> m_aEndDragHdl;
     Link<SvTreeListEntry*, bool> m_aEditingEntryHdl;
     Link<const IterString&, bool> m_aEditedEntryHdl;
-    Link<IterString, void> m_aEditingCanceledHdl;
+    Link<const IterString&, void> m_aEditingCanceledHdl;
 
 public:
     LclTabListBox(vcl::Window* pParent, WinBits nWinStyle)
@@ -41,7 +41,7 @@ public:
     {
         m_aEditedEntryHdl = rLink;
     }
-    void SetEditingCanceledHdl(const Link<IterString, void>& rLink)
+    void SetEditingCanceledHdl(const Link<const IterString&, void>& rLink)
     {
         m_aEditingCanceledHdl = rLink;
     }

@@ -754,13 +754,13 @@ void SwFrameShell::Execute(SfxRequest &rReq)
 
                     if (xChartDocument.is())
                     {
-                        OUString chartName = rSh.GetFlyName();
+                        UIName chartName = rSh.GetFlyName();
                         Reference < XChartDataArray > xChartDataArray(xChartDocument->getDataProvider(), UNO_QUERY);
 
                         if (xChartDataArray.is())
                         {
                             sal_uInt32 series = xChartDataArray->getData()[0].getLength() + 1; // Index of data series, including X values. 1, 4, 7, 10, ...  Index of description series: 3, 6, 9, ...
-                            SAL_INFO_LEVEL(2, "sw.imath", "Add series " << (series + 1) << " to chart " << chartName);
+                            SAL_INFO_LEVEL(2, "sw.imath", "Add series " << (series + 1) << " to chart " << chartName.toString());
 
                             GetView().GetEditWin().StopQuickHelp(); // Note: Copied from FN_INSERT_SMA
                             rSh.FinishOLEObj();
@@ -777,7 +777,7 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                                 {
                                     rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
                                     xSet->setPropertyValue("Formula", uno::Any(OUString()));
-                                    xSet->setPropertyValue("iFormula", uno::Any(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=0.04 x^3, 1, " + OUString::number(series+1) + ", \"Series 2\"}"))); // triggers compile, sets chart data
+                                    xSet->setPropertyValue("iFormula", uno::Any(OUString("CHART {\"" + chartName.toString() + "\", x=-5:+5, 1, y=0.04 x^3, 1, " + OUString::number(series+1) + ", \"Series 2\"}"))); // triggers compile, sets chart data
 
                                     setSeriesDescription(xChartDocument, "Series 2", series); // Note: By default, chart legend is not displayed thus series description remains invisible
                                     setSeriesProperties(xChartDocument, series);
@@ -793,7 +793,7 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                 svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
 
                 if(xObj.is())
-                    rSh.GetDoc()->GetDocShell()->MergeIFormula(rSh.GetFlyName());
+                    rSh.GetDoc()->GetDocShell()->MergeIFormula(rSh.GetFlyName().toString());
             }
         break;
         case FN_IMATH_EDIT_HIDE:
@@ -801,7 +801,7 @@ void SwFrameShell::Execute(SfxRequest &rReq)
             svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
 
                 if(xObj.is())
-                    rSh.GetDoc()->GetDocShell()->HideIFormula(rSh.GetFlyName(), true);
+                    rSh.GetDoc()->GetDocShell()->HideIFormula(rSh.GetFlyName().toString(), true);
             }
         break;
         case FN_IMATH_EDIT_SHOW:
@@ -809,7 +809,7 @@ void SwFrameShell::Execute(SfxRequest &rReq)
             svt::EmbeddedObjectRef& xObj = rSh.GetOLEObject();
 
                 if(xObj.is())
-                    rSh.GetDoc()->GetDocShell()->HideIFormula(rSh.GetFlyName(), false);
+                    rSh.GetDoc()->GetDocShell()->HideIFormula(rSh.GetFlyName().toString(), false);
             }
         break;
         case FN_IMATH_INSERT_CLEAR:
@@ -818,8 +818,8 @@ void SwFrameShell::Execute(SfxRequest &rReq)
 
                 if(xSelectedFormula.is())
                 {
-                    OUString selectedFormulaName = rSh.GetFlyFrameFormat()->GetName();
-                    SAL_INFO_LEVEL(2, "sw.imath", "Clear iFormula " << selectedFormulaName);
+                    UIName selectedFormulaName = rSh.GetFlyFrameFormat()->GetName();
+                    SAL_INFO_LEVEL(2, "sw.imath", "Clear iFormula " << selectedFormulaName.toString());
 
                     uno::Reference < beans::XPropertySet > xSelectedProperties ( xSelectedFormula->getComponent(), uno::UNO_QUERY );
                     if ( xSelectedProperties.is() )
@@ -854,7 +854,7 @@ void SwFrameShell::Execute(SfxRequest &rReq)
                                 // Both of these are required to close the in-place editor
                                 rSh.FinishOLEObj();
                                 rSh.EnterStdMode();
-                                rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas(selectedFormulaName);
+                                rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas(selectedFormulaName.toString());
                             }
                         }
                     }

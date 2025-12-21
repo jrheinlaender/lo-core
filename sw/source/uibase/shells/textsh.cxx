@@ -526,10 +526,10 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                         case FN_IMATH_INSERT_CLEARALL:
                         {
                             xSet->setPropertyValue("iFormula", uno::Any(OUString("CLEAREQUATIONS")));
-                            OUString flyName = rSh.GetFlyFrameFormat()->GetName();
+                            UIName flyName = rSh.GetFlyFrameFormat()->GetName();
                             rSh.FinishOLEObj(); // This does NOT trigger RecalculateDependentIFormulas()
                             rSh.EnterStdMode();
-                            rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas(flyName);
+                            rSh.GetDoc()->GetDocShell()->RecalculateDependentIFormulas(flyName.toString());
                         }
                         break;
                     }
@@ -626,7 +626,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                     if (xModChart.is()) xModChart->setModified(true);
 
                     // Insert iFormula to fill the chart with data
-                    OUString chartName = rSh.GetFlyName();
+                    UIName chartName = rSh.GetFlyName();
                     GetView().GetEditWin().StopQuickHelp();
                     rSh.FinishOLEObj();
                     rSh.EnterStdMode(); // This removes the selection and prepares for inserting a new object
@@ -643,7 +643,7 @@ void SwTextShell::ExecInsert(SfxRequest &rReq)
                         {
                             rSh.GetDoc()->GetDocShell()->UpdatePreviousIFormulaLinks(); // Does not trigger compile, because formula text is empty
                             xSet->setPropertyValue("Formula", uno::Any(OUString()));
-                            xSet->setPropertyValue("iFormula", uno::Any(OUString("CHART {\"" + chartName + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}"))); // triggers compile, sets chart data
+                            xSet->setPropertyValue("iFormula", uno::Any(OUString("CHART {\"" + chartName.toString() + "\", x=-5:+5, 1, y=x^2, 1, 1, \"Series 1\"}"))); // triggers compile, sets chart data
                         }
                     }
                 }

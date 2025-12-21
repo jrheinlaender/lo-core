@@ -165,7 +165,7 @@ SwOleShell::SwOleShell(SwView &_rView) :
         SvGlobalName aCLSID( xObj->getClassID() );
         if ( SotExchange::IsMath( aCLSID ) )
         {
-            mIFormulaName = GetShell().GetFlyName();
+            mIFormulaName = GetShell().GetFlyName().toString();
             SAL_INFO_LEVEL(1, "sw.imath", "Shell Math object name set to '" << mIFormulaName << "'");
 
             Reference < lang::XComponent > formulaComponent(xObj->getComponent(), UNO_QUERY);

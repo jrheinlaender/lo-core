@@ -374,6 +374,8 @@ void ImGuiWindow::ResetModel()
         mpFunctionDialog->setFormulaLinePointer(nullptr);
     if (mpChartDialog != nullptr)
         mpChartDialog->setFormulaLinePointer(nullptr);
+    if (mpMatrixEditorDialog != nullptr)
+        mpMatrixEditorDialog->setFormulaLinePointer(nullptr);
 
     // Note: freeze() and thaw() will break the selection at the end of the loop, and the options dialog callbacks
     mxFormulaList->clear();
@@ -698,6 +700,8 @@ void ImGuiWindow::ResetModel()
         mpFunctionDialog->setFormulaLinePointer(GetSelectedLine());
     if (mpChartDialog != nullptr)
         mpChartDialog->setFormulaLinePointer(GetSelectedLine());
+    if (mpMatrixEditorDialog != nullptr)
+        mpMatrixEditorDialog->setFormulaLinePointer(GetSelectedLine());
 }
 
 // Utility function to insert a chart object into the document

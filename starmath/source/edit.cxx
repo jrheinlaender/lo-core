@@ -416,12 +416,9 @@ void ImGuiWindow::ResetModel()
         if (std::find(nodesWithoutFormula.begin(), nodesWithoutFormula.end(), typeid(*fLine)) == nodesWithoutFormula.end())
         {
             // Nodes with formula
-            mxFormulaList->set_text(*xIter, fLine->getFormula(), IMGUIWINDOW_COL_FORMULA);
             // TODO Since we use the Markup property, set_text() fails for text containing < or > signs
             // Best thing would be to convert them in smathparser and document this behaviour
-            mxFormulaList->set_sensitive(*xIter, true, IMGUIWINDOW_COL_FORMULA);
             OUString _formula = fLine->getFormula();
-            std::cout << "_formula='" << _formula << "'" << std::endl;
             OUString formula("");
             for (int i = 0; i < _formula.getLength(); ++i)
             {

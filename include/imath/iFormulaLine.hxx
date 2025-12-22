@@ -116,9 +116,9 @@ public:
 
     // Move and convert. This can only work if a matching constructor for T2 exists
     template <typename T1, typename T2>
-    static std::shared_ptr<T2> move(const std::shared_ptr<iFormulaLine>& source)
+    static std::shared_ptr<T2> move(std::shared_ptr<iFormulaLine> source)
     {
-        auto pT1 = std::dynamic_pointer_cast<T1>(source);
+        std::shared_ptr<T1> pT1 = std::dynamic_pointer_cast<T1>(source);
         return std::make_shared<T2>(std::move(*pT1));
     }
 
@@ -737,16 +737,22 @@ private:
 class IMATH_DLLPUBLIC iFormulaNodeExplainval : public iFormulaNodeValue
 {
 public:
-    iFormulaNodeFuncdef(const GiNaC::unitvec unitConversions,
-                        std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
-                        std::vector<OUString> formulaParts, const OUString& label,
-                        const GiNaC::expression& expr, const bool hide);
-    iFormulaNodeFuncdef(const iFormulaNodeEq& other) = delete;
-    iFormulaNodeFuncdef(iFormulaNodeEq&& other)
+    friend class iFormulaNodeStmVectordef;
+    iFormulaNodeVectordef(const GiNaC::unitvec unitConversions,
+                          std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
+                          std::vector<OUString> formulaParts, const OUString& label,
+                          const GiNaC::expression& expr, const bool hide);
+    // Required by iFormulaLine::move(iFormulaNodeVectordef, iFormulaNodeStmVectordef)
+    iFormulaNodeVectordef(iFormulaNodeVectordef&& other) noexcept
         : iFormulaNodeEq(std::move(other))
     {
     }
-    virtual ~iFormulaNodeFuncdef(){};
+    iFormulaNodeVectordef(const iFormulaNodeEq& other) = delete;
+    iFormulaNodeVectordef(iFormulaNodeEq&& other)
+        : iFormulaNodeEq(std::move(other))
+    {
+    }
+    virtual ~iFormulaNodeVectordef(){};
 
     virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;
 
@@ -759,17 +765,21 @@ public:
 class IMATH_DLLPUBLIC iFormulaNodeStmOptions : public iFormulaNodeStatement
 {
 public:
-    friend class iFormulaNodeStmVectordef;
-    iFormulaNodeVectordef(const GiNaC::unitvec unitConversions,
+    friend class iFormulaNodeStmMatrixdef;
+    iFormulaNodeMatrixdef(const GiNaC::unitvec unitConversions,
                           std::shared_ptr<GiNaC::optionmap> g_options, GiNaC::optionmap l_options,
                           std::vector<OUString> formulaParts, const OUString& label,
                           const GiNaC::expression& expr, const bool hide);
-    iFormulaNodeVectordef(const iFormulaNodeEq& other) = delete;
-    iFormulaNodeVectordef(iFormulaNodeEq&& other)
+    iFormulaNodeMatrixdef(iFormulaNodeMatrixdef&& other) noexcept
         : iFormulaNodeEq(std::move(other))
     {
     }
-    virtual ~iFormulaNodeVectordef(){};
+    iFormulaNodeMatrixdef(const iFormulaNodeEq& other) = delete;
+    iFormulaNodeMatrixdef(iFormulaNodeEq&& other)
+        : iFormulaNodeEq(std::move(other))
+    {
+    }
+    virtual ~iFormulaNodeMatrixdef(){};
 
     virtual OUString print() const override;
     virtual std::vector<std::vector<OUString>> display(const Reference<XModel>&) const override;

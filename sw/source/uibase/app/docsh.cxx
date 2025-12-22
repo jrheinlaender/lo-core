@@ -1278,10 +1278,14 @@ void updateFormatting(const Reference< XComponent >& xFormulaComp)
         Reference < XPropertySet > xPropertySet (xTextContent, UNO_QUERY);
         if (xPropertySet.is())
         {
-            if (xPropertySet->getPropertyValue("LeftMargin") != uno::Any(sal_Int16(0)))
-                xPropertySet->setPropertyValue(OU("LeftMargin"), uno::Any(sal_Int16(0)));
-            if (xPropertySet->getPropertyValue("RightMargin") != uno::Any(sal_Int16(0)))
-                xPropertySet->setPropertyValue(OU("RightMargin"), uno::Any(sal_Int16(0)));
+            sal_Int16 leftMargin = 0;
+            xPropertySet->getPropertyValue("LeftMargin") >>= leftMargin;
+            sal_Int16 rightMargin = 0;
+            xPropertySet->getPropertyValue("RightMargin") >>= rightMargin;
+            //if (leftMargin > 0)
+            xPropertySet->setPropertyValue(OU("LeftMargin"), uno::Any(sal_Int16(0)));
+            //if (rightMargin > 0)
+            xPropertySet->setPropertyValue(OU("RightMargin"), uno::Any(sal_Int16(0)));
         }
     }
 }

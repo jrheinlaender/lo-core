@@ -95,8 +95,8 @@ public:
   virtual iFormulaLine_ptr clone() const;
 
   // Move and convert. This can only work if a matching constructor for T2 exists
-  template<typename T1, typename T2> static std::shared_ptr<T2> move(const std::shared_ptr<iFormulaLine>& source) {
-    auto pT1 = std::dynamic_pointer_cast<T1>(source);
+  template<typename T1, typename T2> static std::shared_ptr<T2> move(std::shared_ptr<iFormulaLine> source) {
+    std::shared_ptr<T1> pT1 = std::dynamic_pointer_cast<T1>(source);
     return std::make_shared<T2>(std::move(*pT1));
   }
 
@@ -640,6 +640,8 @@ public:
     std::vector<OUString> formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
+  // Required by iFormulaLine::move(iFormulaNodeVectordef, iFormulaNodeStmVectordef)
+  iFormulaNodeVectordef(iFormulaNodeVectordef&& other) noexcept : iFormulaNodeEq(std::move(other)) {}
   iFormulaNodeVectordef(const iFormulaNodeEq& other) = delete;
   iFormulaNodeVectordef(iFormulaNodeEq&& other) : iFormulaNodeEq(std::move(other)) {}
   virtual ~iFormulaNodeVectordef() {};
@@ -655,6 +657,7 @@ public:
     std::vector<OUString> formulaParts, const OUString& label,
     const GiNaC::expression& expr, const bool hide
   );
+  iFormulaNodeMatrixdef(iFormulaNodeMatrixdef&& other) noexcept : iFormulaNodeEq(std::move(other)) {}
   iFormulaNodeMatrixdef(const iFormulaNodeEq& other) = delete;
   iFormulaNodeMatrixdef(iFormulaNodeEq&& other) : iFormulaNodeEq(std::move(other)) {}
   virtual ~iFormulaNodeMatrixdef() {};

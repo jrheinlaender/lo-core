@@ -47,13 +47,9 @@ $(eval $(call gb_Library_use_externals,sm, \
     boost_headers \
     icu_headers \
     icuuc \
-))
-ifneq ($(COM),MSC)
-$(eval $(call gb_Library_use_externals,sm, \
     cln \
     ginac \
 ))
-endif
 
 $(eval $(call gb_Library_use_custom_headers,sm,\
 	officecfg/registry \

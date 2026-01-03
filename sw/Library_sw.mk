@@ -115,13 +115,9 @@ $(eval $(call gb_Library_use_externals,sw,\
 	icu_headers \
 	libxml2 \
 	yrs \
+	cln \
+	ginac \
 ))
-ifneq ($(COM),MSC)
-$(eval $(call gb_Library_use_externals,sw, \
-    cln \
-    ginac \
-))
-endif
 
 ifneq ($(ENABLE_WASM_STRIP_ACCESSIBILITY),TRUE)
 $(eval $(call gb_Library_add_exception_objects,sw,\

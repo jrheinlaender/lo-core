@@ -57,18 +57,6 @@
 #include <com/sun/star/container/XChild.hpp>
 #include <com/sun/star/container/XNamed.hpp>
 
-#ifdef _MSC_VER
-// Fix linker error where these symbols are listed as unresolved
-namespace GiNaC {
-GiNaC::registered_class_info relational::reg_info =
-       GiNaC::registered_class_info(GiNaC::registered_class_options("relational",
-               "basic", typeid(relational)));
-GiNaC::registered_class_info basic::reg_info =
-        GiNaC::registered_class_info(GiNaC::registered_class_options("basic",
-                "void", typeid(basic)));
-}
-#endif
-
 using namespace com::sun::star::accessibility;
 using namespace com::sun::star;
 using fparts = std::initializer_list<OUString>; // Just a convenient shortcut

@@ -27,16 +27,9 @@ ginac_CPPCLAGS=$(CPPFLAGS)
 #       Configure: pkg-config does not recognize the DLL. Use CLN_CFLAGS="-I$(gb_UnpackedTarball_workdir)/cln/include/" CLN_LIBS="$(gb_UnpackedTarball_workdir)/cln/instdir/lib/libcln-6.dll"
 $(call gb_ExternalProject_get_state_target,ginac,build): $(call gb_ExternalProject_get_state_target,ginac,configure)
 	$(call gb_Trace_StartRange,ginac,EXTERNAL)
-ifneq ($(COM),MSC)
 	+$(call gb_ExternalProject_run,build,\
 	cd ginac && $(MAKE) install \
 	)
-else
-	+$(call gb_ExternalProject_run,build,\
-	cd ginac && $(MAKE) install && \
-	dlltool --export-all-symbols -z $(gb_UnpackedTarball_workdir)/ginac/instdir/libginac.def $(gb_UnpackedTarball_workdir)/ginac/ginac/*.obj \
-	)
-endif
 	$(call gb_Trace_EndRange,ginac,EXTERNAL)
 
 # Note: The setting of CPPFLAGS and CXXFLAGS is ignored by the ginac configure script?

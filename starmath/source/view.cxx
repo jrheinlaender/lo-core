@@ -1525,6 +1525,37 @@ void SmViewShell::Execute(SfxRequest& rReq)
             }
             break;
 
+        case SID_MATRIXEDITOR:
+            {
+                ESelection eSelection = pWin->GetSelection();
+                sal_Int32 nPara = std::min(eSelection.start.nPara, eSelection.end.nPara);
+
+                // Get all text starting with the paragraph of the selection up to the end
+                auto pEngine = pWin->GetEditEngine();
+                OUString sText;
+                for (sal_Int32 p = nPara; p < pEngine->GetParagraphCount(); ++p)
+                    sText += pEngine->GetText(p) + "\n";
+                int pos = std::min(eSelection.start.nIndex, eSelection.end.nIndex);
+
+                const auto [matrixText, startPos, endPos] = MatrixEditorDialog::scanForMatrix(sText, pos);
+                auto pMatrixEditorDialog = std::make_unique<MatrixEditorDialog>(rReq.GetFrameWeld(), matrixText);
+                if (pMatrixEditorDialog->run() == RET_OK)
+                {
+                    OUString result = pMatrixEditorDialog->getMatrix();
+                    sText = sText.replaceAt(startPos, endPos - startPos, result);
+                    OUString sTextBefore;
+
+                    for (sal_Int32 p = 0; p < nPara; ++p)
+                        sTextBefore += pEngine->GetText(p) + "\n";
+
+                    GetDoc()->SetText(sTextBefore + sText);
+                    SetStatusText(OUString());
+                    ShowError( nullptr );
+                    GetDoc()->Repaint();
+                }
+            }
+            break;
+
         case SID_DELETE:
             if (IsInlineEditEnabled())
             {

@@ -282,6 +282,32 @@ void SvTabListBox::dispose()
     SvTreeListBox::dispose();
 }
 
+void SvTabListBox::SetTabWidth(const sal_uInt16 nTab, const tools::Long tabWidth, MapUnit eMapUnit)
+{
+    assert(!rTabPositions.empty());
+
+    // Ensure that mvTabList[nTab + 1] exists
+    if (nTab + 2 > tools::Long(mvTabList.size()))
+        mvTabList.resize(nTab + 2);
+
+    MapMode aMMSource( eMapUnit );
+    MapMode aMMDest( MapUnit::MapPixel );
+    tools::Long diff = tabWidth -
+            (mvTabList[nTab + 1].GetPos() - mvTabList[nTab].GetPos()); // Width change
+
+    // Shift all tab positions after nTab by diff
+    for( sal_uInt16 nIdx = nTab + 1; nIdx < sal_uInt16(mvTabList.size()); nIdx++)
+    {
+        Size aSize(mvTabList[nIdx].GetPos() + diff, 0);
+        aSize = LogicToLogic( aSize, &aMMSource, &aMMDest );
+        tools::Long nNewTab = aSize.Width();
+        mvTabList[nIdx].SetPos( nNewTab );
+    }
+    SvTreeListBox::nTreeFlags |= SvTreeFlags::RECALCTABS;
+    if( IsUpdateMode() )
+        Invalidate();
+}
+
 void SvTabListBox::SetTabs(const std::vector<tools::Long>& rTabPositions, MapUnit eMapUnit)
 {
     assert(!rTabPositions.empty());

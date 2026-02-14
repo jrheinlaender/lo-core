@@ -4082,6 +4082,19 @@ void SalInstanceTreeView::set_column_title(int nColumn, const OUString& rTitle)
     }
 }
 
+void SalInstanceTreeView::set_column_visible(int nColumn, const bool bVisible)
+{
+    tools::Long width = bVisible ? m_xTreeView->GetEntryWidth() : 0;
+    m_xTreeView->SetTabWidth(nColumn, width, MapUnit::MapPixel);
+
+    SvHeaderTabListBox* pHeaderBox = dynamic_cast<SvHeaderTabListBox*>(m_xTreeView.get());
+    if (HeaderBar* pHeaderBar = pHeaderBox ? pHeaderBox->GetHeaderBar() : nullptr)
+        pHeaderBar->SetItemSize(pHeaderBar->GetItemId(nColumn), width);
+
+    // call Resize to recalculate based on the new tab positions
+    m_xTreeView->Resize();
+}
+
 void SalInstanceTreeView::set_column_custom_renderer(int nColumn, bool bEnable)
 {
     assert(n_children() == 0 && "tree must be empty");
